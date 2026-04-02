@@ -1,0 +1,302 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+import { readTemplateCss, rewriteAssetUrls } from "@/lib/template-parser";
+
+/* ─── 2-depth 메뉴 HTML 생성 ─── */
+function buildMenuItemsHtml(
+  pages: { id: string; title: string; slug: string; parentId: string | null; showInMenu: boolean; menuTitle: string | null; externalUrl: string | null; sortOrder: number }[],
+  shopId: string,
+  lang: string,
+  urlPrefix: string
+): string {
+  const visible = pages.filter((p) => p.showInMenu);
+  const topLevel = visible
+    .filter((p) => !p.parentId)
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+
+  const getChildren = (parentId: string) =>
+    visible
+      .filter((p) => p.parentId === parentId)
+      .sort((a, b) => a.sortOrder - b.sortOrder);
+
+  function pageHref(p: { slug: string; externalUrl: string | null }): string {
+    if (p.externalUrl) return p.externalUrl;
+    return p.slug === "index"
+      ? `${urlPrefix}/${lang}/`
+      : `${urlPrefix}/${lang}/${p.slug}.html`;
+  }
+
+  function pageTarget(p: { externalUrl: string | null }): string {
+    return p.externalUrl ? ' target="_blank" rel="noopener"' : "";
+  }
+
+  const items = topLevel
+    .map((p) => {
+      const label = escapeHtml(p.menuTitle || p.title);
+      const href = pageHref(p);
+      const target = pageTarget(p);
+      const children = getChildren(p.id);
+
+      if (children.length === 0) {
+        return `<li><a href="${href}"${target}>${label}</a></li>`;
+      }
+
+      const subItems = children
+        .map((c) => {
+          const cLabel = escapeHtml(c.menuTitle || c.title);
+          return `<li><a href="${pageHref(c)}"${pageTarget(c)}>${cLabel}</a></li>`;
+        })
+        .join("\n          ");
+
+      return `<li><a href="${href}"${target}>${label}</a>
+        <ul class="submenu">
+          ${subItems}
+        </ul>
+      </li>`;
+    })
+    .join("\n    ");
+
+  return items;
+}
+
+function escapeHtml(s: unknown): string {
+  const str = String(s ?? "");
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/* ─── 메뉴 컨테이너에 아이템 주입 ─── */
+function injectMenuItems(rawMenuHtml: string, menuItemsHtml: string): string {
+  if (!menuItemsHtml) return rawMenuHtml;
+
+  // 1. 빈 <ul class="mainmenu"></ul> 교체
+  const emptyMainmenu = /<ul\s+class="mainmenu"\s*>\s*<\/ul>/i;
+  if (emptyMainmenu.test(rawMenuHtml)) {
+    return rawMenuHtml.replace(
+      emptyMainmenu,
+      `<ul class="mainmenu">\n    ${menuItemsHtml}\n  </ul>`
+    );
+  }
+
+  // 2. 기존 <ul class="mainmenu">...</ul> 내용 교체
+  const existingMainmenu = /(<ul\s+class="mainmenu"\s*>)([\s\S]*?)(<\/ul>)/i;
+  if (existingMainmenu.test(rawMenuHtml)) {
+    return rawMenuHtml.replace(
+      existingMainmenu,
+      `$1\n    ${menuItemsHtml}\n  $3`
+    );
+  }
+
+  // 3. v-wdg-nav div 안에 주입 — 내부 콘텐츠를 유지하고 ul.mainmenu 추가
+  if (rawMenuHtml.includes("v-wdg-nav")) {
+    // 마지막 </div> 앞에 메뉴 삽입 (중첩 div가 있으므로 첫 번째 </div>를 잡으면 안 됨)
+    const lastCloseDiv = rawMenuHtml.lastIndexOf("</div>");
+    if (lastCloseDiv >= 0) {
+      return rawMenuHtml.slice(0, lastCloseDiv) +
+        `\n  <ul class="mainmenu">\n    ${menuItemsHtml}\n  </ul>\n` +
+        rawMenuHtml.slice(lastCloseDiv);
+    }
+  }
+
+  // 4. rawMenuHtml에 이미 <ul>+<li>가 있으면 스킵 (HMF 원본 메뉴 유지)
+  if (/<ul[^>]*>[\s\S]*<li/i.test(rawMenuHtml)) {
+    return rawMenuHtml;
+  }
+
+  // 5. 폴백: 뒤에 append
+  return `${rawMenuHtml}\n<ul class="mainmenu">\n    ${menuItemsHtml}\n  </ul>`;
+}
+
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ shopId: string; lang: string; slug?: string[] }> }
+) {
+  const { shopId, lang, slug } = await params;
+
+  // Find the site by shopId
+  const site = await prisma.site.findUnique({
+    where: { shopId },
+    include: {
+      pages: { orderBy: { sortOrder: "asc" } },
+      hmfTranslations: true,
+    },
+  });
+
+  if (!site || !site.published) {
+    return new NextResponse("Not Found", { status: 404 });
+  }
+
+  // 언어별 페이지 필터
+  const langPages = site.pages.filter((p) => p.lang === lang);
+  const fallbackPages = langPages.length > 0 ? langPages : site.pages.filter((p) => p.lang === site.defaultLanguage);
+
+  // Determine which page to show
+  const pageSlug = slug?.[0]?.replace(/\.html$/, "") || "index";
+  let page = fallbackPages.find((p) => p.slug === pageSlug);
+  if (!page) {
+    page = fallbackPages.find((p) => p.isHome) || fallbackPages[0];
+  }
+  if (!page) {
+    return new NextResponse("Not Found", { status: 404 });
+  }
+
+  // Extract body HTML
+  const pageContent = page.content as { html?: string } | null;
+  const bodyHtml = pageContent?.html || "";
+
+  // Get template CSS
+  const templatePath = site.templatePath || "";
+  let templateCss = "";
+  if (templatePath) {
+    templateCss = readTemplateCss(templatePath);
+    // Strip transform scaling that breaks centering (applied in template for responsive but conflicts with margin:auto)
+    // Use [^;}\n]+ to match entire property value including nested parens like scale(calc(100vw / 1000))
+    templateCss = templateCss
+      .replace(/transform-origin\s*:[^;}\n]+;?/gi, "")
+      .replace(/transform\s*:[^;}\n]+;?/gi, "");
+  }
+
+  // Rewrite CSS url() for bare filenames
+  const tplFilesBase = `/tpl/${templatePath}/files`;
+  let siteCss = (site.cssText || "").replace(
+    /url\(\s*['"]?(?!\/|https?:|data:)([^'")]+?)['"]?\s*\)/g,
+    (_, filename: string) => `url(${tplFilesBase}/${filename})`
+  );
+  // Strip transform scaling rules that break centering on desktop
+  siteCss = siteCss
+    .replace(/transform-origin\s*:[^;}\n]+;?/gi, "")
+    .replace(/transform\s*:[^;}\n]+;?/gi, "");
+
+  // 언어별 HMF (SiteHmf → Site 기본값 폴백)
+  const hmf = (site as typeof site & { hmfTranslations?: { lang: string; headerHtml: string | null; menuHtml: string | null; footerHtml: string | null }[] })
+    .hmfTranslations?.find((h) => h.lang === lang)
+    || (site as typeof site & { hmfTranslations?: { lang: string; headerHtml: string | null; menuHtml: string | null; footerHtml: string | null }[] })
+      .hmfTranslations?.find((h) => h.lang === site.defaultLanguage);
+
+  const rawHeaderHtml = hmf?.headerHtml || site.headerHtml || "";
+  const rawMenuHtml = hmf?.menuHtml || site.menuHtml || "";
+  const rawFooterHtml = hmf?.footerHtml || site.footerHtml || "";
+
+  // Rewrite asset URLs in HTML sections
+  const headerHtml = templatePath
+    ? rewriteAssetUrls(rawHeaderHtml, templatePath)
+    : rawHeaderHtml;
+  const menuHtmlContainer = templatePath
+    ? rewriteAssetUrls(rawMenuHtml, templatePath)
+    : rawMenuHtml;
+  const footerHtml = templatePath
+    ? rewriteAssetUrls(rawFooterHtml, templatePath)
+    : rawFooterHtml;
+  const processedBodyHtml = templatePath
+    ? rewriteAssetUrls(bodyHtml, templatePath)
+    : bodyHtml;
+
+  // 커스텀 도메인 감지
+  const hostHeader = _request.headers.get("host") || "";
+  const isCustomDomain = !hostHeader.includes("homenshop");
+  const urlPrefix = isCustomDomain ? "" : `/${shopId}`;
+
+  // 2-depth 메뉴 생성
+  const menuItemsHtml = buildMenuItemsHtml(fallbackPages, shopId, lang, urlPrefix);
+  const finalMenuHtml = injectMenuItems(menuHtmlContainer, menuItemsHtml);
+
+  // submenu CSS — 템플릿에 이미 .mainmenu/.submenu 스타일이 있으면 스킵
+  const combinedCss = templateCss + siteCss;
+  const hasMenuCss = /\.mainmenu\b/.test(combinedCss) || /\.menu\s/.test(combinedCss);
+  const submenuCss = hasMenuCss ? `` : `
+    .mainmenu { list-style: none; margin: 0; padding: 0; display: flex; }
+    .mainmenu > li { position: relative; }
+    .mainmenu > li > a { display: block; padding: 8px 16px; text-decoration: none; }
+    .submenu { display: none; position: absolute; top: 100%; left: 0; list-style: none; margin: 0; padding: 0; min-width: 160px; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 100; }
+    .submenu li a { display: block; padding: 8px 16px; text-decoration: none; white-space: nowrap; }
+    .submenu li a:hover { background: #f5f5f5; }
+    .mainmenu > li:hover > .submenu { display: block; }
+  `;
+
+  const html = `<!DOCTYPE html>
+<html lang="${lang}">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>${escapeHtml(page.title)} - ${escapeHtml(site.name)}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    /* Template CSS */
+    ${templateCss}
+    /* Site CSS */
+    ${siteCss}
+    /* Published page base */
+    body { margin: 0; padding: 0; }
+    #v_home_dft { width: 1000px; margin: 0 auto !important; position: relative; overflow: hidden; }
+    /* Structural sections — contain absolute children */
+    #hns_header, #hns_body, #hns_footer { position: relative !important; width: 100% !important; left: 0 !important; }
+    /* hns_menu는 position:static — 메뉴가 헤더 위에 겹쳐서 표시 (원래 템플릿 동작) */
+    #hns_menu { position: static; }
+    #hns_body { z-index: 1; }
+    #hns_footer { z-index: 0; }
+    /* Footer dragable elements: convert to normal flow */
+    #hns_footer > .dragable,
+    #hns_footer_content > .dragable {
+      position: relative !important;
+      top: auto !important;
+      left: auto !important;
+    }
+    /* Submenu dropdown */
+    ${submenuCss}
+    /* Responsive — scale-to-fit preserving absolute layout */
+    @media (max-width: 1024px) {
+      html, body { overflow-x: hidden; }
+      .c_v_home_dft, #v_home_dft {
+        width: 1000px !important;
+        transform-origin: top left;
+        transform: scale(calc(100vw / 1000));
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="v_home_dft" class="c_v_home_dft" style="width:1000px;margin:0 auto;position:relative">
+    <div id="hns_header">${headerHtml}</div>
+    <div id="hns_menu">${finalMenuHtml}</div>
+    <div id="hns_body" style="position:relative;width:100%;max-width:1000px;left:0;margin-left:0">${processedBodyHtml}</div>
+    <div id="hns_footer">${footerHtml}</div>
+  </div>
+  <script>
+  // Measure header absolute children to set min-height (creates flow space)
+  (function(){
+    function setMinHeight(id) {
+      var el = document.getElementById(id);
+      if (!el) return 0;
+      var maxH = 0;
+      var children = el.children;
+      for (var i = 0; i < children.length; i++) {
+        var c = children[i];
+        var s = window.getComputedStyle(c);
+        if (s.position === 'absolute') {
+          var t = parseInt(s.top) || 0;
+          var h = c.offsetHeight || 0;
+          if (t + h > maxH) maxH = t + h;
+        }
+      }
+      if (maxH > 0) el.style.minHeight = maxH + 'px';
+      return maxH;
+    }
+    setMinHeight('hns_header');
+    // hns_menu는 static — 헤더 위 overlay이므로 min-height 불필요
+    setMinHeight('hns_body');
+  })();
+  </script>
+</body>
+</html>`;
+
+  return new NextResponse(html, {
+    status: 200,
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "public, max-age=60, s-maxage=300",
+    },
+  });
+}

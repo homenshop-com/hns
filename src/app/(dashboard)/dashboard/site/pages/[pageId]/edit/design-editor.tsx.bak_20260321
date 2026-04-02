@@ -1,0 +1,947 @@
+"use client";
+
+import { useState, useRef, useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import "./editor-styles.css";
+
+/* ─── Types ─── */
+export interface LayerData {
+  id: string;
+  type: "text" | "image" | "box" | "board" | "product" | "exhibition" | "menu" | "login" | "mail";
+  content: string;
+  style: Record<string, string>;
+  className: string;
+}
+
+interface PageInfo {
+  id: string;
+  title: string;
+  slug: string;
+  isHome: boolean;
+}
+
+interface DesignEditorProps {
+  siteId: string;
+  shopId: string;
+  siteName: string;
+  defaultLanguage: string;
+  templatePath: string;
+  headerHtml: string;
+  menuHtml: string;
+  footerHtml: string;
+  cssText: string;
+  pageId: string;
+  pageTitle: string;
+  pageSlug: string;
+  pages: PageInfo[];
+  bodyHtml: string;
+  published: boolean;
+}
+
+/* ─── Component ─── */
+export default function DesignEditor({
+  siteId,
+  shopId,
+  siteName,
+  defaultLanguage,
+  templatePath,
+  headerHtml,
+  menuHtml,
+  footerHtml,
+  cssText,
+  pageId,
+  pageTitle,
+  pageSlug,
+  pages,
+  bodyHtml,
+  published: initialPublished,
+}: DesignEditorProps) {
+  const router = useRouter();
+
+  // State
+  const [currentBodyHtml, setCurrentBodyHtml] = useState(bodyHtml);
+  const [selectedElId, setSelectedElId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"page" | "object" | "settings" | "position">("page");
+  const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<"" | "saved" | "error">("");
+  const [editingTextId, setEditingTextId] = useState<string | null>(null);
+  const [isPublished, setIsPublished] = useState(initialPublished);
+  const [publishing, setPublishing] = useState(false);
+  const [showPublishModal, setShowPublishModal] = useState(false);
+
+  // Drag state
+  const dragRef = useRef<{
+    el: HTMLElement;
+    startX: number;
+    startY: number;
+    origLeft: number;
+    origTop: number;
+  } | null>(null);
+
+  // Resize state
+  const resizeRef = useRef<{
+    el: HTMLElement;
+    handle: string;
+    startX: number;
+    startY: number;
+    origLeft: number;
+    origTop: number;
+    origWidth: number;
+    origHeight: number;
+  } | null>(null);
+
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  // Set body innerHTML via ref to prevent React re-render from reverting DOM drag changes
+  useEffect(() => {
+    if (bodyRef.current) {
+      bodyRef.current.innerHTML = currentBodyHtml;
+      // Auto-height: calculate minHeight from absolute-positioned children
+      requestAnimationFrame(() => {
+        const sections = ["hns_header", "hns_body", "hns_footer"];
+        sections.forEach((id) => {
+          const el = document.getElementById(id);
+          if (!el) return;
+          let maxBottom = 0;
+          for (let j = 0; j < el.children.length; j++) {
+            const child = el.children[j] as HTMLElement;
+            const cs = window.getComputedStyle(child);
+            const pos = cs.position;
+            let top = 0, h = 0;
+            if (pos === "absolute") {
+              top = parseInt(cs.top) || 0;
+              h = parseInt(cs.height) || child.offsetHeight || 0;
+            } else {
+              top = child.offsetTop || 0;
+              h = child.offsetHeight || 0;
+            }
+            if (top + h > maxBottom) maxBottom = top + h;
+          }
+          if (maxBottom > 0) el.style.minHeight = maxBottom + "px";
+        });
+      });
+    }
+  }, [currentBodyHtml]);
+
+  /* ─── Save ─── */
+  const saveContent = useCallback(async () => {
+    setSaving(true);
+    setSaveStatus("");
+    try {
+      // Get the current body HTML from the canvas
+      const bodyEl = bodyRef.current;
+      const html = bodyEl ? bodyEl.innerHTML : currentBodyHtml;
+
+      const res = await fetch(`/api/sites/${siteId}/pages/${pageId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: { html },
+        }),
+      });
+      if (res.ok) {
+        setCurrentBodyHtml(html);
+        setSaveStatus("saved");
+        setTimeout(() => setSaveStatus(""), 2000);
+      } else {
+        setSaveStatus("error");
+      }
+    } catch {
+      setSaveStatus("error");
+    } finally {
+      setSaving(false);
+    }
+  }, [siteId, pageId, currentBodyHtml]);
+
+  /* ─── Publish ─── */
+  const publishSite = useCallback(async () => {
+    setPublishing(true);
+    try {
+      // Save current page first
+      const bodyEl = bodyRef.current;
+      const html = bodyEl ? bodyEl.innerHTML : currentBodyHtml;
+      await fetch(`/api/sites/${siteId}/pages/${pageId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: { html } }),
+      });
+
+      // Set published = true
+      const res = await fetch(`/api/sites/${siteId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ published: true }),
+      });
+      if (res.ok) {
+        setIsPublished(true);
+        setCurrentBodyHtml(html);
+        setShowPublishModal(true);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setPublishing(false);
+    }
+  }, [siteId, pageId, currentBodyHtml]);
+
+  /* ─── Keyboard shortcuts ─── */
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+        e.preventDefault();
+        saveContent();
+        return;
+      }
+      if (!selectedElId || editingTextId) return;
+
+      const el = document.getElementById(selectedElId);
+      if (!el) return;
+
+      const step = e.shiftKey ? 10 : 1;
+      if (e.key === "Delete" || e.key === "Backspace") {
+        if (e.ctrlKey || e.metaKey) {
+          el.remove();
+          setSelectedElId(null);
+        }
+      } else if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+        e.preventDefault();
+        const top = parseInt(el.style.top) || 0;
+        const left = parseInt(el.style.left) || 0;
+        if (e.key === "ArrowUp") el.style.top = (top - step) + "px";
+        if (e.key === "ArrowDown") el.style.top = (top + step) + "px";
+        if (e.key === "ArrowLeft") el.style.left = (left - step) + "px";
+        if (e.key === "ArrowRight") el.style.left = (left + step) + "px";
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedElId, editingTextId, saveContent]);
+
+  /* ─── Helper: get canvas scale factor for touch coordinate compensation ─── */
+  function getCanvasScale(): number {
+    const canvasEl = canvasRef.current;
+    if (!canvasEl) return 1;
+    const transform = window.getComputedStyle(canvasEl).transform;
+    if (transform && transform !== "none") {
+      const match = transform.match(/matrix\(([^,]+)/);
+      if (match) return parseFloat(match[1]) || 1;
+    }
+    return 1;
+  }
+
+  /* ─── Shared: start drag on an element ─── */
+  function startDragOnElement(target: HTMLElement, clientX: number, clientY: number) {
+    const dragable = target.closest(".dragable") as HTMLElement | null;
+    if (!dragable) {
+      setSelectedElId(null);
+      setEditingTextId(null);
+      return;
+    }
+    if ((target as HTMLElement).dataset?.resizeHandle) return;
+
+    if (!dragable.id) {
+      dragable.id = "el_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
+    }
+
+    setSelectedElId(dragable.id);
+
+    const computedStyle = window.getComputedStyle(dragable);
+    dragRef.current = {
+      el: dragable,
+      startX: clientX,
+      startY: clientY,
+      origLeft: parseInt(computedStyle.left) || parseInt(dragable.style.left) || 0,
+      origTop: parseInt(computedStyle.top) || parseInt(dragable.style.top) || 0,
+    };
+  }
+
+  /* ─── Make dragable elements interactive (mouse + touch) ─── */
+  useEffect(() => {
+    const bodyEl = bodyRef.current;
+    if (!bodyEl) return;
+
+    function handleMouseDown(e: MouseEvent) {
+      if ((e.target as HTMLElement).closest(".dragable")) {
+        e.preventDefault();
+        // Don't stopPropagation — allow dblclick to bubble to canvasEl
+      }
+      startDragOnElement(e.target as HTMLElement, e.clientX, e.clientY);
+    }
+
+    function handleTouchStart(e: TouchEvent) {
+      const touch = e.touches[0];
+      if (!touch) return;
+      startDragOnElement(e.target as HTMLElement, touch.clientX, touch.clientY);
+      if ((e.target as HTMLElement).closest(".dragable")) {
+        e.preventDefault();
+      }
+    }
+
+    bodyEl.addEventListener("mousedown", handleMouseDown);
+    bodyEl.addEventListener("touchstart", handleTouchStart, { passive: false });
+    return () => {
+      bodyEl.removeEventListener("mousedown", handleMouseDown);
+      bodyEl.removeEventListener("touchstart", handleTouchStart);
+    };
+  }, []);
+
+  // Also attach to header and footer
+  /* --- Intercept menu clicks in canvas -> navigate to menu manager --- */
+  useEffect(() => {
+    const canvasEl = canvasRef.current;
+    if (!canvasEl) return;
+
+    function handleMenuClick(e: Event) {
+      const target = e.target as HTMLElement;
+      // Check if clicked on a menu link (inside .menu, .mainmenu, .v-home-ap-hd-nav)
+      const menuLink = target.closest('.menu a, .mainmenu a, .v-home-ap-hd-nav a');
+      if (menuLink) {
+        e.preventDefault();
+        e.stopPropagation();
+        // Find the page matching the href
+        const href = menuLink.getAttribute('href') || '';
+        const slug = href.replace(/^\.\//, '').replace(/\.html$/, '');
+        const matchPage = pages.find(p => p.slug === slug);
+        if (matchPage && matchPage.id !== pageId) {
+          router.push("/dashboard/site/pages/" + matchPage.id + "/edit");
+        }
+        return;
+      }
+    }
+
+    canvasEl.addEventListener('click', handleMenuClick, true);
+    return () => {
+      canvasEl.removeEventListener('click', handleMenuClick, true);
+    };
+  }, [pages, pageId, router]);
+
+  useEffect(() => {
+    const canvasEl = canvasRef.current;
+    if (!canvasEl) return;
+
+    const headerEl = canvasEl.querySelector("#hns_header");
+    const footerEl = canvasEl.querySelector("#hns_footer");
+
+    function handleStructDown(e: Event) {
+      const me = e as MouseEvent | TouchEvent;
+      let clientX: number, clientY: number;
+      if ("touches" in me) {
+        const touch = me.touches[0];
+        if (!touch) return;
+        clientX = touch.clientX;
+        clientY = touch.clientY;
+      } else {
+        clientX = me.clientX;
+        clientY = me.clientY;
+      }
+      const target = e.target as HTMLElement;
+      if (!target.closest(".dragable")) return;
+      me.preventDefault();
+      startDragOnElement(target, clientX, clientY);
+    }
+
+    headerEl?.addEventListener("mousedown", handleStructDown);
+    headerEl?.addEventListener("touchstart", handleStructDown, { passive: false });
+    footerEl?.addEventListener("mousedown", handleStructDown);
+    footerEl?.addEventListener("touchstart", handleStructDown, { passive: false });
+    return () => {
+      headerEl?.removeEventListener("mousedown", handleStructDown);
+      headerEl?.removeEventListener("touchstart", handleStructDown);
+      footerEl?.removeEventListener("mousedown", handleStructDown);
+      footerEl?.removeEventListener("touchstart", handleStructDown);
+    };
+  }, []);
+
+  /* ─── Mouse/Touch move/up for drag and resize ─── */
+  useEffect(() => {
+    function handleMove(clientX: number, clientY: number) {
+      const scale = getCanvasScale();
+      if (dragRef.current) {
+        const { el, startX, startY, origLeft, origTop } = dragRef.current;
+        const dx = (clientX - startX) / scale;
+        const dy = (clientY - startY) / scale;
+        el.style.left = (origLeft + dx) + "px";
+        el.style.top = (origTop + dy) + "px";
+      }
+      if (resizeRef.current) {
+        const r = resizeRef.current;
+        const dx = (clientX - r.startX) / scale;
+        const dy = (clientY - r.startY) / scale;
+        if (r.handle.includes("e")) r.el.style.width = Math.max(30, r.origWidth + dx) + "px";
+        if (r.handle.includes("w")) {
+          r.el.style.width = Math.max(30, r.origWidth - dx) + "px";
+          r.el.style.left = (r.origLeft + dx) + "px";
+        }
+        if (r.handle.includes("s")) r.el.style.height = Math.max(20, r.origHeight + dy) + "px";
+        if (r.handle.includes("n")) {
+          r.el.style.height = Math.max(20, r.origHeight - dy) + "px";
+          r.el.style.top = (r.origTop + dy) + "px";
+        }
+      }
+    }
+
+    function onMouseMove(e: MouseEvent) { handleMove(e.clientX, e.clientY); }
+    function onTouchMove(e: TouchEvent) {
+      if (!dragRef.current && !resizeRef.current) return;
+      e.preventDefault();
+      const touch = e.touches[0];
+      if (touch) handleMove(touch.clientX, touch.clientY);
+    }
+    function onEnd() {
+      dragRef.current = null;
+      resizeRef.current = null;
+    }
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onEnd);
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
+    window.addEventListener("touchend", onEnd);
+    window.addEventListener("touchcancel", onEnd);
+    return () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onEnd);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onEnd);
+      window.removeEventListener("touchcancel", onEnd);
+    };
+  }, []);
+
+  /* ─── Selection highlight and resize handles ─── */
+  useEffect(() => {
+    // Remove old selection
+    document.querySelectorAll(".de-selected").forEach((el) => {
+      el.classList.remove("de-selected");
+    });
+    document.querySelectorAll(".de-resize-handle").forEach((el) => el.remove());
+
+    if (!selectedElId) return;
+    const el = document.getElementById(selectedElId);
+    if (!el) return;
+
+    el.classList.add("de-selected");
+
+    // Add resize handles (mouse + touch)
+    const handles = ["n", "ne", "e", "se", "s", "sw", "w", "nw"];
+    handles.forEach((h) => {
+      const handle = document.createElement("div");
+      handle.className = `de-resize-handle de-handle-${h}`;
+      handle.dataset.resizeHandle = "true";
+
+      function startResize(clientX: number, clientY: number) {
+        if (!el) return;
+        const computedStyle = window.getComputedStyle(el);
+        resizeRef.current = {
+          el,
+          handle: h,
+          startX: clientX,
+          startY: clientY,
+          origLeft: parseInt(computedStyle.left) || parseInt(el.style.left) || 0,
+          origTop: parseInt(computedStyle.top) || parseInt(el.style.top) || 0,
+          origWidth: el.offsetWidth,
+          origHeight: el.offsetHeight,
+        };
+      }
+
+      handle.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        startResize(e.clientX, e.clientY);
+      });
+      handle.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const touch = e.touches[0];
+        if (touch) startResize(touch.clientX, touch.clientY);
+      }, { passive: false });
+      el.appendChild(handle);
+    });
+
+    return () => {
+      el?.querySelectorAll(".de-resize-handle").forEach((h) => h.remove());
+    };
+  }, [selectedElId]);
+
+  /* ─── Double-click / Double-tap text editing ─── */
+  const lastTapRef = useRef<{ time: number; id: string }>({ time: 0, id: "" });
+
+  function enterTextEdit(dragable: HTMLElement) {
+    // Cancel any in-progress drag
+    dragRef.current = null;
+    resizeRef.current = null;
+
+    if (!dragable.id) {
+      dragable.id = "el_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
+    }
+    setSelectedElId(dragable.id);
+    setEditingTextId(dragable.id);
+    dragable.contentEditable = "true";
+    dragable.focus();
+    dragable.style.cursor = "text";
+    dragable.classList.add("de-editing");
+  }
+
+  useEffect(() => {
+    const canvasEl = canvasRef.current;
+    if (!canvasEl) return;
+
+    // Desktop: dblclick on any .dragable (not just .sol-replacible-text)
+    function handleDblClick(e: MouseEvent) {
+      const target = e.target as HTMLElement;
+      const dragable = target.closest(".dragable") as HTMLElement | null;
+      if (!dragable) return;
+      e.preventDefault();
+      e.stopPropagation();
+      enterTextEdit(dragable);
+    }
+
+    // Mobile: detect double-tap (two taps within 300ms on same element)
+    function handleTapForEdit(e: TouchEvent) {
+      const target = e.target as HTMLElement;
+      const dragable = target.closest(".dragable") as HTMLElement | null;
+      if (!dragable) return;
+
+      const elId = dragable.id || "";
+      const now = Date.now();
+      const last = lastTapRef.current;
+
+      if (elId && elId === last.id && now - last.time < 400) {
+        // Double-tap detected
+        e.preventDefault();
+        enterTextEdit(dragable);
+        lastTapRef.current = { time: 0, id: "" };
+      } else {
+        lastTapRef.current = { time: now, id: elId || dragable.className };
+      }
+    }
+
+    canvasEl.addEventListener("dblclick", handleDblClick);
+    canvasEl.addEventListener("touchend", handleTapForEdit, { passive: false });
+    return () => {
+      canvasEl.removeEventListener("dblclick", handleDblClick);
+      canvasEl.removeEventListener("touchend", handleTapForEdit);
+    };
+  }, []);
+
+  // Handle blur on editable text
+  useEffect(() => {
+    if (!editingTextId) return;
+    const el = document.getElementById(editingTextId);
+    if (!el) return;
+
+    function handleBlur() {
+      if (el) {
+        el.contentEditable = "false";
+        el.style.cursor = "";
+        el.classList.remove("de-editing");
+      }
+      setEditingTextId(null);
+    }
+
+    el.addEventListener("blur", handleBlur);
+    return () => el?.removeEventListener("blur", handleBlur);
+  }, [editingTextId]);
+
+  /* ─── Property panel helpers ─── */
+  function getSelectedElProps() {
+    if (!selectedElId) return null;
+    const el = document.getElementById(selectedElId);
+    if (!el) return null;
+    const cs = window.getComputedStyle(el);
+    return {
+      x: parseInt(cs.left) || parseInt(el.style.left) || 0,
+      y: parseInt(cs.top) || parseInt(el.style.top) || 0,
+      w: el.offsetWidth,
+      h: el.offsetHeight,
+      z: parseInt(cs.zIndex) || 0,
+    };
+  }
+
+  function handlePropertyChange(field: string, value: string) {
+    if (!selectedElId) return;
+    const el = document.getElementById(selectedElId);
+    if (!el) return;
+    const numVal = parseInt(value);
+    if (isNaN(numVal)) return;
+    switch (field) {
+      case "x": el.style.left = numVal + "px"; break;
+      case "y": el.style.top = numVal + "px"; break;
+      case "w": el.style.width = numVal + "px"; break;
+      case "h": el.style.height = numVal + "px"; break;
+      case "z": el.style.zIndex = String(numVal); break;
+    }
+    // Force re-render of position panel
+    setSelectedElId((prev) => prev);
+  }
+
+  function changeZIndex(direction: "up" | "down" | "top" | "bottom") {
+    if (!selectedElId) return;
+    const el = document.getElementById(selectedElId);
+    if (!el) return;
+    const currentZ = parseInt(el.style.zIndex) || parseInt(window.getComputedStyle(el).zIndex) || 0;
+    switch (direction) {
+      case "up": el.style.zIndex = String(currentZ + 1); break;
+      case "down": el.style.zIndex = String(Math.max(0, currentZ - 1)); break;
+      case "top": el.style.zIndex = "999"; break;
+      case "bottom": el.style.zIndex = "0"; break;
+    }
+  }
+
+  function cloneSelected() {
+    if (!selectedElId) return;
+    const el = document.getElementById(selectedElId);
+    if (!el || !el.parentElement) return;
+    const clone = el.cloneNode(true) as HTMLElement;
+    clone.id = "el_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
+    const left = parseInt(el.style.left) || parseInt(window.getComputedStyle(el).left) || 0;
+    const top = parseInt(el.style.top) || parseInt(window.getComputedStyle(el).top) || 0;
+    clone.style.left = (left + 30) + "px";
+    clone.style.top = (top + 30) + "px";
+    clone.classList.remove("de-selected");
+    clone.querySelectorAll(".de-resize-handle").forEach((h) => h.remove());
+    el.parentElement.appendChild(clone);
+    setSelectedElId(clone.id);
+  }
+
+  function deleteSelected() {
+    if (!selectedElId) return;
+    const el = document.getElementById(selectedElId);
+    if (el) el.remove();
+    setSelectedElId(null);
+  }
+
+  /* ─── Add new element ─── */
+  function addElement(type: string) {
+    const bodyEl = bodyRef.current;
+    if (!bodyEl) return;
+
+    const id = "el_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
+    const el = document.createElement("div");
+    el.id = id;
+    el.className = "dragable sol-replacible-text";
+    el.style.position = "absolute";
+
+    switch (type) {
+      case "text":
+        el.innerHTML = "<p>텍스트를 입력하세요</p>";
+        el.style.left = "100px";
+        el.style.top = "100px";
+        el.style.width = "300px";
+        el.style.zIndex = "10";
+        break;
+      case "image":
+        el.innerHTML = '<div style="width:300px;height:200px;background:#555;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:14px;">이미지를 드래그하세요</div>';
+        el.style.left = "100px";
+        el.style.top = "100px";
+        el.style.zIndex = "10";
+        break;
+      case "box":
+        el.style.left = "100px";
+        el.style.top = "100px";
+        el.style.width = "300px";
+        el.style.height = "200px";
+        el.style.backgroundColor = "#f0f0f0";
+        el.style.border = "1px solid #ccc";
+        el.style.zIndex = "5";
+        break;
+      case "board":
+        el.className = "dragable sol-replacible-text boardPlugin";
+        el.innerHTML = '<div style="padding:10px;color:#ddd"><strong>게시판</strong><ul style="margin-top:8px"><li style="line-height:22px">게시글 제목 1</li><li style="line-height:22px">게시글 제목 2</li><li style="line-height:22px">게시글 제목 3</li></ul></div>';
+        el.style.left = "50px";
+        el.style.top = "400px";
+        el.style.width = "500px";
+        el.style.zIndex = "10";
+        break;
+      case "product":
+        el.className = "dragable sol-replacible-text productPlugin";
+        el.innerHTML = '<div style="padding:10px;color:#ddd"><strong>상품 목록</strong><div style="display:flex;gap:10px;margin-top:8px"><div style="width:80px;height:80px;background:#505050;border:3px solid #505050"></div><div style="width:80px;height:80px;background:#505050;border:3px solid #505050"></div><div style="width:80px;height:80px;background:#505050;border:3px solid #505050"></div></div></div>';
+        el.style.left = "50px";
+        el.style.top = "400px";
+        el.style.width = "500px";
+        el.style.zIndex = "10";
+        break;
+      default:
+        el.innerHTML = `<div style="padding:10px;color:#ddd">${type}</div>`;
+        el.style.left = "100px";
+        el.style.top = "200px";
+        el.style.width = "250px";
+        el.style.zIndex = "10";
+        break;
+    }
+
+    bodyEl.appendChild(el);
+    setSelectedElId(id);
+  }
+
+  /* ─── Build the template CSS for the canvas ─── */
+  const tplFilesBase = `/tpl/${templatePath}/files`;
+  const canvasCss = cssText
+    // Scope all template CSS to the canvas to avoid conflicts
+    ? cssText
+        .replace(/body\s*\{/g, "#de-canvas-inner {")
+        .replace(/body,/g, "#de-canvas-inner,")
+        // Rewrite relative url() to absolute /tpl/ paths (for CSS injected inline)
+        .replace(
+          /url\(\s*['"]?(?!\/|https?:|data:)([^'")]+?)['"]?\s*\)/g,
+          (_, filename) => `url(${tplFilesBase}/${filename})`
+        )
+    : "";
+
+  const selectedProps = getSelectedElProps();
+
+  /* ─── Build menu HTML from template menu data ─── */
+  // The menu HTML from template is just the nav container div
+  // We need to generate actual menu items from the pages
+  function buildMenuHtml(): string {
+    if (!menuHtml) return "";
+
+    // Generate menu items from pages
+    const menuItems = pages
+      .filter((p) => !["user", "users", "agreement", "empty"].includes(p.slug))
+      .map((p) => {
+        const href = p.slug === "index" ? "index.html" : `${p.slug}.html`;
+        return `<li><a href="${href}">${p.title}</a></li>`;
+      })
+      .join("\n");
+
+    // If menuHtml contains v-wdg-nav, inject the menu items
+    if (menuHtml.includes("v-wdg-nav")) {
+      return `<div id="v-wdg-nav" class="v-home-ap-hd-nav menu dragable">
+        <ul class="mainmenu">
+          ${menuItems}
+        </ul>
+      </div>`;
+    }
+
+    return menuHtml;
+  }
+
+  return (
+    <div className="de-root">
+      {/* Inject template CSS */}
+      <style dangerouslySetInnerHTML={{ __html: canvasCss }} />
+
+      {/* TOP HEADER BAR */}
+      <header className="de-header">
+        <div className="de-header-left">
+          <a href="/dashboard" className="de-logo">HomeNShop</a>
+          <a href={`/dashboard/site/${siteId}/manage`} className="de-tab de-manage-link">관리자메인</a>
+          <nav className="de-tabs">
+            <button
+              className={`de-tab ${activeTab === "page" ? "active" : ""}`}
+              onClick={() => setActiveTab("page")}
+            >
+              페이지
+            </button>
+            <button
+              className={`de-tab ${activeTab === "object" ? "active" : ""}`}
+              onClick={() => setActiveTab("object")}
+            >
+              객체
+            </button>
+            <button
+              className={`de-tab ${activeTab === "settings" ? "active" : ""}`}
+              onClick={() => setActiveTab("settings")}
+            >
+              설정
+            </button>
+            <button
+              className={`de-tab ${activeTab === "position" ? "active" : ""}`}
+              onClick={() => setActiveTab("position")}
+            >
+              위치
+            </button>
+          </nav>
+        </div>
+        <div className="de-header-right">
+          <span className="de-url">
+            home.homenshop.com/{shopId}/{defaultLanguage}/{pageSlug === "index" ? "" : pageSlug}
+          </span>
+          <button
+            className="de-save-btn"
+            onClick={saveContent}
+            disabled={saving}
+          >
+            {saving ? "저장중..." : saveStatus === "saved" ? "저장됨 ✓" : "저장 (⌘S)"}
+          </button>
+          <button
+            className="de-publish-btn"
+            onClick={publishSite}
+            disabled={publishing}
+          >
+            {publishing ? "퍼블리싱중..." : "퍼블리싱"}
+          </button>
+        </div>
+      </header>
+
+      {/* SUB TOOLBAR */}
+      <div className="de-subtoolbar">
+        {activeTab === "page" && (
+          <div className="de-page-tabs">
+            <a
+              href={`/dashboard/site/${siteId}/manage/menus`}
+              className="de-page-tab de-menu-manage-link"
+              style={{ color: "#ea580c", fontWeight: 600, textDecoration: "none", borderColor: "#ea580c" }}
+            >
+              메뉴관리
+            </a>
+            {pages.map((p) => (
+              <button
+                key={p.id}
+                className={`de-page-tab ${p.id === pageId ? "active" : ""}`}
+                onClick={() => {
+                  if (p.id !== pageId) {
+                    router.push(`/dashboard/site/pages/${p.id}/edit`);
+                  }
+                }}
+              >
+                {p.title}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {activeTab === "object" && (
+          <div className="de-object-panel">
+            <button className="de-obj-btn" onClick={() => addElement("text")}>
+              <span className="de-obj-icon">T</span>텍스트
+            </button>
+            <button className="de-obj-btn" onClick={() => addElement("image")}>
+              <span className="de-obj-icon">&#x1F5BC;</span>이미지
+            </button>
+            <button className="de-obj-btn" onClick={() => addElement("box")}>
+              <span className="de-obj-icon">&#x25A2;</span>박스
+            </button>
+            <button className="de-obj-btn" onClick={() => addElement("exhibition")}>
+              <span className="de-obj-icon">&#x1F39E;</span>갤러리
+            </button>
+            <button className="de-obj-btn" onClick={() => addElement("board")}>
+              <span className="de-obj-icon">&#x1F4CB;</span>게시판
+            </button>
+            <button className="de-obj-btn" onClick={() => addElement("product")}>
+              <span className="de-obj-icon">&#x1F6D2;</span>상품
+            </button>
+            <button className="de-obj-btn" onClick={() => addElement("login")}>
+              <span className="de-obj-icon">&#x1F464;</span>로그인
+            </button>
+            <button className="de-obj-btn" onClick={() => addElement("mail")}>
+              <span className="de-obj-icon">&#x2709;</span>문의폼
+            </button>
+          </div>
+        )}
+
+        {activeTab === "settings" && (
+          <div className="de-settings-panel">
+            <span className="de-settings-info">사이트: {siteName} | 언어: {defaultLanguage}</span>
+          </div>
+        )}
+
+        {activeTab === "position" && selectedProps && (
+          <div className="de-position-panel">
+            <label>
+              X: <input type="number" value={selectedProps.x}
+                onChange={(e) => handlePropertyChange("x", e.target.value)} />
+            </label>
+            <label>
+              Y: <input type="number" value={selectedProps.y}
+                onChange={(e) => handlePropertyChange("y", e.target.value)} />
+            </label>
+            <label>
+              W: <input type="number" value={selectedProps.w}
+                onChange={(e) => handlePropertyChange("w", e.target.value)} />
+            </label>
+            <label>
+              H: <input type="number" value={selectedProps.h}
+                onChange={(e) => handlePropertyChange("h", e.target.value)} />
+            </label>
+            <label>
+              Z: <input type="number" value={selectedProps.z}
+                onChange={(e) => handlePropertyChange("z", e.target.value)} />
+            </label>
+            <div className="de-layer-btns">
+              <button onClick={() => changeZIndex("top")} title="맨 앞으로">&#x2B06;&#x2B06;</button>
+              <button onClick={() => changeZIndex("up")} title="앞으로">&#x2B06;</button>
+              <button onClick={() => changeZIndex("down")} title="뒤로">&#x2B07;</button>
+              <button onClick={() => changeZIndex("bottom")} title="맨 뒤로">&#x2B07;&#x2B07;</button>
+              <button onClick={cloneSelected} title="복제">&#x1F4CB;</button>
+              <button onClick={deleteSelected} title="삭제" className="de-del-btn">&#x1F5D1;</button>
+            </div>
+          </div>
+        )}
+        {activeTab === "position" && !selectedProps && (
+          <div className="de-position-panel">
+            <span className="de-settings-info">객체를 선택하세요</span>
+          </div>
+        )}
+      </div>
+
+      {/* CANVAS */}
+      <div className="de-canvas-wrapper">
+        <div className="de-canvas" ref={canvasRef}>
+          <div className="de-canvas-content c_v_home_dft" id="de-canvas-inner">
+            {/* HEADER */}
+            <div
+              id="hns_header"
+              dangerouslySetInnerHTML={{ __html: headerHtml + buildMenuHtml() }}
+            />
+
+            {/* MENU */}
+            <div
+              id="hns_menu"
+              /* menu merged into header above */
+            />
+
+            {/* BODY - main editable area */}
+            <div
+              id="hns_body"
+              ref={bodyRef}
+            />
+
+            {/* FOOTER */}
+            <div
+              id="hns_footer"
+              dangerouslySetInnerHTML={{ __html: footerHtml }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* TOOLTIP for double-click */}
+      {selectedElId && !editingTextId && (
+        <div className="de-tooltip">더블 클릭 하시면 해당객체를 수정하실 수 있습니다.</div>
+      )}
+
+      {/* PUBLISH SUCCESS MODAL */}
+      {showPublishModal && (
+        <div className="de-modal-overlay" onClick={() => setShowPublishModal(false)}>
+          <div className="de-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="de-modal-icon">&#x2705;</div>
+            <h3 className="de-modal-title">퍼블리싱 완료!</h3>
+            <p className="de-modal-desc">
+              홈페이지가 성공적으로 게시되었습니다.
+            </p>
+            <div className="de-modal-url">
+              https://home.homenshop.com/{shopId}/{defaultLanguage}/
+            </div>
+            <div className="de-modal-actions">
+              <a
+                href={`https://home.homenshop.com/${shopId}/${defaultLanguage}/`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="de-modal-btn primary"
+              >
+                미리보기
+              </a>
+              <button
+                className="de-modal-btn secondary"
+                onClick={() => setShowPublishModal(false)}
+              >
+                계속 편집
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

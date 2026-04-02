@@ -1,0 +1,374 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================
+// Auth (NextAuth.js / Auth.js)
+// ============================================
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ============================================
+// Users & Members
+// ============================================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  password      String?
+  phone         String?
+  emailVerified DateTime?
+  image         String?
+  role          UserRole  @default(MEMBER)
+  status        UserStatus @default(ACTIVE)
+  shopId        String?   @unique
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts Account[]
+  sessions Session[]
+  sites    Site[]
+  orders   Order[]
+  domains  Domain[]
+
+  @@index([email])
+  @@index([shopId])
+}
+
+enum UserRole {
+  ADMIN
+  RESELLER
+  MEMBER
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+// ============================================
+// Sites (replaces SQLite per-user DBs)
+// ============================================
+
+model Site {
+  id              String    @id @default(cuid())
+  userId          String
+  shopId          String    @unique
+  name            String
+  description     String?   @db.Text
+  defaultLanguage String    @default("ko")
+  languages       String[]  @default(["ko"])
+  templateId      String?
+  templatePath    String?
+  headerHtml      String?   @db.Text
+  menuHtml        String?   @db.Text
+  footerHtml      String?   @db.Text
+  cssText         String?   @db.Text
+  published          Boolean   @default(false)
+  accountType        String    @default("free")
+  expiresAt          DateTime?
+  googleAnalyticsId  String?
+  googleVerification String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pages           Page[]
+  products        Product[]
+  boards          Board[]
+  domains         Domain[]
+  hmfTranslations SiteHmf[]
+
+  @@index([userId])
+}
+
+model SiteHmf {
+  id         String  @id @default(cuid())
+  siteId     String
+  lang       String
+  headerHtml String? @db.Text
+  menuHtml   String? @db.Text
+  footerHtml String? @db.Text
+
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@unique([siteId, lang])
+  @@index([siteId])
+}
+
+model Page {
+  id             String   @id @default(cuid())
+  siteId         String
+  title          String
+  slug           String
+  lang           String   @default("ko")
+  content        Json?
+  css            String?  @db.Text
+  sortOrder      Int      @default(0)
+  isHome         Boolean  @default(false)
+  parentId       String?
+  depth          String   @default("01")
+  showInMenu     Boolean  @default(true)
+  menuTitle      String?
+  menuType       String   @default("page")
+  externalUrl    String?
+  seoTitle       String?
+  seoDescription String?  @db.Text
+  seoKeywords    String?
+  ogImage        String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  site     Site   @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  parent   Page?  @relation("PageHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children Page[] @relation("PageHierarchy")
+
+  @@unique([siteId, slug, lang])
+  @@index([siteId, lang])
+  @@index([parentId])
+}
+
+// ============================================
+// E-Commerce
+// ============================================
+
+model Product {
+  id          String        @id @default(cuid())
+  siteId      String
+  name        String
+  description String?       @db.Text
+  price       Int
+  salePrice   Int?
+  stock       Int           @default(0)
+  category    String?
+  images      Json?
+  status      ProductStatus @default(ACTIVE)
+  sortOrder   Int           @default(0)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  site       Site        @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
+
+  @@index([siteId])
+  @@index([category])
+}
+
+enum ProductStatus {
+  ACTIVE
+  HIDDEN
+  SOLDOUT
+}
+
+model Order {
+  id            String      @id @default(cuid())
+  userId        String
+  orderNumber   String      @unique
+  totalAmount   Int
+  status        OrderStatus @default(PENDING)
+  paymentMethod String?
+  paymentKey    String?
+  shippingName  String?
+  shippingPhone String?
+  shippingAddr  String?     @db.Text
+  shippingMemo  String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  user  User        @relation(fields: [userId], references: [id])
+  items OrderItem[]
+
+  @@index([userId])
+  @@index([orderNumber])
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  SHIPPING
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+model OrderItem {
+  id        String @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Int
+  price     Int
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+}
+
+// ============================================
+// Domains & Resellers
+// ============================================
+
+model Domain {
+  id         String       @id @default(cuid())
+  domain     String       @unique
+  siteId     String
+  userId     String
+  status     DomainStatus @default(PENDING)
+  sslEnabled Boolean      @default(false)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([domain])
+}
+
+enum DomainStatus {
+  PENDING
+  ACTIVE
+  EXPIRED
+}
+
+model Reseller {
+  id        String  @id @default(cuid())
+  domain    String  @unique
+  siteName  String
+  logo      String?
+  copyright String?
+  analytics String? @db.Text
+  isActive  Boolean @default(true)
+
+  @@index([domain])
+}
+
+// ============================================
+// Templates
+// ============================================
+
+model Template {
+  id           String   @id @default(cuid())
+  legacyUid    Int?     @unique
+  name         String
+  path         String   @unique
+  thumbnailUrl String?
+  category     String?
+  price        Int      @default(0)
+  keywords     String?
+  description  String?  @db.Text
+  demoSiteId   String?
+  headerHtml   String?  @db.Text
+  menuHtml     String?  @db.Text
+  footerHtml   String?  @db.Text
+  isActive     Boolean  @default(true)
+  clicks       Int      @default(0)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([category])
+  @@index([isActive])
+}
+
+// ============================================
+// Boards (Community / Notice)
+// ============================================
+
+model Board {
+  id        String   @id @default(cuid())
+  siteId    String
+  title     String
+  type      String   @default("board")
+  createdAt DateTime @default(now())
+
+  site  Site        @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  posts BoardPost[]
+
+  @@index([siteId])
+}
+
+model BoardPost {
+  id        String   @id @default(cuid())
+  boardId   String
+  author    String
+  title     String
+  content   String   @db.Text
+  views     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  board    Board          @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  comments BoardComment[]
+
+  @@index([boardId])
+}
+
+model BoardComment {
+  id        String   @id @default(cuid())
+  postId    String
+  author    String
+  content   String   @db.Text
+  parentId  String?
+  createdAt DateTime @default(now())
+
+  post     BoardPost     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  parent   BoardComment? @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  BoardComment[] @relation("CommentReplies")
+
+  @@index([postId])
+  @@index([parentId])
+}
+
+// ============================================
+// Password Reset
+// ============================================
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+}

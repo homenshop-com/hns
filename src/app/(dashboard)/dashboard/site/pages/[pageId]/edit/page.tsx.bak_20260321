@@ -1,0 +1,64 @@
+import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { prisma } from "@/lib/db";
+import DesignEditor from "./design-editor";
+
+interface EditPageProps {
+  params: Promise<{ pageId: string }>;
+}
+
+export default async function EditPagePage({ params }: EditPageProps) {
+  const session = await auth();
+  if (!session) redirect("/login");
+
+  const { pageId } = await params;
+
+  // Find the page first, then verify ownership
+  const currentPage = await prisma.page.findUnique({
+    where: { id: pageId },
+    include: {
+      site: {
+        include: {
+          pages: { orderBy: { sortOrder: "asc" } },
+        },
+      },
+    },
+  });
+
+  if (!currentPage || currentPage.site.userId !== session.user.id) {
+    redirect("/dashboard");
+  }
+
+  const site = currentPage.site;
+
+  const pages = site.pages.map((p) => ({
+    id: p.id,
+    title: p.title,
+    slug: p.slug,
+    isHome: p.isHome,
+  }));
+
+  // Extract page body HTML from content JSON
+  const pageContent = currentPage.content as { html?: string; layers?: unknown[] } | null;
+  const bodyHtml = pageContent?.html || "";
+
+  return (
+    <DesignEditor
+      siteId={site.id}
+      shopId={site.shopId}
+      siteName={site.name}
+      defaultLanguage={site.defaultLanguage}
+      templatePath={site.templatePath || ""}
+      headerHtml={site.headerHtml || ""}
+      menuHtml={site.menuHtml || ""}
+      footerHtml={site.footerHtml || ""}
+      cssText={site.cssText || ""}
+      pageId={currentPage.id}
+      pageTitle={currentPage.title}
+      pageSlug={currentPage.slug}
+      pages={pages}
+      bodyHtml={bodyHtml}
+      published={site.published}
+    />
+  );
+}

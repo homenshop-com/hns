@@ -1,0 +1,163 @@
+import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import Link from "next/link";
+import { getTranslations } from "next-intl/server";
+import { prisma } from "@/lib/db";
+import SignOutButton from "../sign-out-button";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
+import TemplateGallery from "./template-gallery";
+
+export default async function TemplatesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ sort?: string; keyword?: string }>;
+}) {
+  const session = await auth();
+  if (!session) redirect("/login");
+
+  const t = await getTranslations("dashboard");
+  const tTpl = await getTranslations("templates");
+  const tFooter = await getTranslations("home");
+
+  const params = await searchParams;
+  const sort = params.sort || "newest";
+  const keyword = params.keyword || "";
+
+  // Build query filters
+  const where: Record<string, unknown> = { isActive: true };
+  if (keyword) {
+    where.OR = [
+      { name: { contains: keyword, mode: "insensitive" } },
+      { keywords: { contains: keyword, mode: "insensitive" } },
+      { description: { contains: keyword, mode: "insensitive" } },
+    ];
+  }
+
+  // Build sort order (sortOrder = 1000 - legacyUid, so asc = newest first)
+  type OrderBy = Record<string, string>;
+  let orderBy: OrderBy;
+  switch (sort) {
+    case "oldest":
+      orderBy = { sortOrder: "desc" };
+      break;
+    case "name":
+      orderBy = { name: "asc" };
+      break;
+    case "popular":
+      orderBy = { clicks: "desc" };
+      break;
+    case "newest":
+    default:
+      orderBy = { sortOrder: "asc" };
+      break;
+  }
+
+  const templates = await prisma.template.findMany({
+    where,
+    orderBy,
+  });
+
+  return (
+    <div className="dash-page">
+      {/* HEADER */}
+      <header className="dash-header">
+        <div className="dash-header-inner">
+          <div style={{ display: "flex", alignItems: "center" }}>
+            <Link href="/dashboard" className="dash-logo">
+              HomeNShop
+            </Link>
+            <span className="dash-logo-sub">{t("title")}</span>
+          </div>
+          <div className="dash-header-right">
+            <span className="dash-user-info">
+              {session.user.name} ({session.user.email})
+            </span>
+            <Link href="/dashboard" className="dash-header-btn">
+              {t("memberInfo")}
+            </Link>
+            <SignOutButton />
+            <LanguageSwitcher />
+          </div>
+        </div>
+      </header>
+
+      {/* BREADCRUMB */}
+      <div className="dash-main">
+        <div className="tpl-breadcrumb">
+          <Link href="/dashboard">{tTpl("breadcrumbHome")}</Link>
+          <span className="sep">&gt;</span>
+          {tTpl("breadcrumbTemplates")}
+        </div>
+
+        {/* TEMPLATE GALLERY */}
+        <TemplateGallery
+          templates={templates.map((t) => ({
+            id: t.id,
+            name: t.name,
+            path: t.path,
+            thumbnailUrl: t.thumbnailUrl,
+            category: t.category,
+            price: t.price,
+          }))}
+          totalCount={templates.length}
+          currentSort={sort}
+          currentKeyword={keyword}
+          labels={{
+            total: tTpl("total"),
+            count: tTpl("count"),
+            selectTemplate: tTpl("selectTemplate"),
+            free: tTpl("free"),
+            search: tTpl("search"),
+            keyword: tTpl("keyword"),
+            sortNewest: tTpl("sortNewest"),
+            sortOldest: tTpl("sortOldest"),
+            sortName: tTpl("sortName"),
+            sortPopular: tTpl("sortPopular"),
+            freeDesign: tTpl("freeDesign"),
+            paidDesign: tTpl("paidDesign"),
+            selectDesign: tTpl("selectDesign"),
+            templateNotice1: tTpl("templateNotice1"),
+            templateNotice2: tTpl("templateNotice2"),
+            defaultLanguage: tTpl("defaultLanguage"),
+            subdomainSetup: tTpl("subdomainSetup"),
+            subdomainPrefix: tTpl("subdomainPrefix"),
+            subdomainHint: tTpl("subdomainHint"),
+            createSite: tTpl("createSite"),
+            creating: tTpl("creating"),
+            langKo: tTpl("langKo"),
+            langEn: tTpl("langEn"),
+            langZhCn: tTpl("langZhCn"),
+            langJa: tTpl("langJa"),
+            langZhTw: tTpl("langZhTw"),
+            langEs: tTpl("langEs"),
+            errorShopIdRequired: tTpl("errorShopIdRequired"),
+            errorShopIdFormat: tTpl("errorShopIdFormat"),
+            errorShopIdTaken: tTpl("errorShopIdTaken"),
+            errorAlreadyHasSite: tTpl("errorAlreadyHasSite"),
+          }}
+        />
+      </div>
+
+      {/* FOOTER */}
+      <footer className="dash-footer">
+        <div className="dash-footer-inner">
+          <p>
+            &copy; {new Date().getFullYear()} homenshop.com. All rights
+            reserved.
+          </p>
+          <p>
+            {tFooter("footerCompany")} | {tFooter("footerBizNo")} |{" "}
+            {tFooter("footerCeo")}
+            <br />
+            {tFooter("footerAddress")} |{" "}
+            <Link href="/terms">{tFooter("footerTerms")}</Link> |{" "}
+            <Link href="/privacy">{tFooter("footerPrivacy")}</Link>
+            <br />
+            {tFooter("footerContact")}{" "}
+            <a href="mailto:help@homenshop.com">help@homenshop.com</a>
+          </p>
+        </div>
+      </footer>
+    </div>
+  );
+}
