@@ -1,8 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import ImageUpload from "@/components/ImageUpload";
+
+interface CategoryOption {
+  id: string;
+  category: string;
+  parent: string;
+  depth: string;
+}
+
+interface ProductImage {
+  original: string;
+  thumb: string;
+  medium: string;
+  large: string;
+}
 
 interface ProductFormData {
   name: string;
@@ -12,7 +26,9 @@ interface ProductFormData {
   stock: string;
   category: string;
   status: string;
-  image: string;
+  images: string[];
+  /** Full image variant data for new uploads */
+  imageVariants: ProductImage[];
 }
 
 interface ProductFormProps {
@@ -39,9 +55,21 @@ export default function ProductForm({
       stock: "0",
       category: "",
       status: "ACTIVE",
-      image: "",
+      images: [],
+      imageVariants: [],
     }
   );
+
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
+
+  useEffect(() => {
+    fetch("/api/product-categories")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.categories) setCategories(data.categories);
+      })
+      .catch(() => {});
+  }, []);
 
   function handleChange(
     e: React.ChangeEvent<
@@ -74,7 +102,8 @@ export default function ProductForm({
           stock: Number(formData.stock),
           category: formData.category,
           status: formData.status,
-          image: formData.image || null,
+          images: formData.images.length > 0 ? formData.images : null,
+          imageVariants: formData.imageVariants.length > 0 ? formData.imageVariants : null,
         }),
       });
 
@@ -105,12 +134,44 @@ export default function ProductForm({
 
       <div>
         <label className="block text-sm font-medium mb-1">상품 이미지</label>
+        {formData.images.length > 0 && (
+          <div className="flex gap-2 flex-wrap mb-3">
+            {formData.images.map((url, i) => (
+              <div key={i} className="relative group">
+                <img
+                  src={url}
+                  alt={`상품 이미지 ${i + 1}`}
+                  className="w-24 h-24 object-cover rounded-lg border border-zinc-200 dark:border-zinc-700"
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      images: prev.images.filter((_, idx) => idx !== i),
+                    }))
+                  }
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  &times;
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
         <ImageUpload
-          value={formData.image}
+          value=""
           onChange={(url) =>
-            setFormData((prev) => ({ ...prev, image: url }))
+            setFormData((prev) => ({ ...prev, images: [...prev.images, url] }))
+          }
+          onUploadComplete={(urls) =>
+            setFormData((prev) => ({
+              ...prev,
+              imageVariants: [...prev.imageVariants, urls],
+            }))
           }
           folder="products"
+          resize
         />
       </div>
 
@@ -151,13 +212,12 @@ export default function ProductForm({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor="price" className="block text-sm font-medium mb-1">
-            판매가 (원) <span className="text-red-500">*</span>
+            판매가 (원)
           </label>
           <input
             id="price"
             name="price"
             type="number"
-            required
             min="0"
             value={formData.price}
             onChange={handleChange}
@@ -210,15 +270,21 @@ export default function ProductForm({
           >
             카테고리
           </label>
-          <input
+          <select
             id="category"
             name="category"
-            type="text"
             value={formData.category}
             onChange={handleChange}
             className={inputClass}
-            placeholder="카테고리 입력"
-          />
+          >
+            <option value="">선택 안함</option>
+            {categories.map((cat) => (
+              <option key={cat.id} value={cat.id}>
+                {cat.depth !== "0" && cat.parent !== "0" ? "└ " : ""}
+                {cat.category}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Image from "next/image";
 
 interface TemplateItem {
@@ -15,6 +15,7 @@ interface TemplateItem {
 
 interface TemplateGalleryProps {
   templates: TemplateItem[];
+  myTemplates: TemplateItem[];
   totalCount: number;
   currentSort: string;
   currentKeyword: string;
@@ -50,19 +51,36 @@ interface TemplateGalleryProps {
     errorShopIdFormat: string;
     errorShopIdTaken: string;
     errorAlreadyHasSite: string;
+    tabPublic: string;
+    tabMy: string;
+    myTemplatesEmpty: string;
+    uploadTemplate: string;
+    templateName: string;
+    templateNamePlaceholder: string;
+    htmlFiles: string;
+    cssFile: string;
+    assetFiles: string;
+    uploading: string;
+    uploadSuccess: string;
+    uploadError: string;
+    deleteTemplate: string;
+    deleteConfirm: string;
   };
 }
 
 type ModalStep = null | "preview" | "setup";
+type Tab = "public" | "my";
 
 export default function TemplateGallery({
   templates,
+  myTemplates: initialMyTemplates,
   totalCount,
   currentSort,
   currentKeyword,
   labels,
 }: TemplateGalleryProps) {
   const router = useRouter();
+  const [tab, setTab] = useState<Tab>("public");
   const [keyword, setKeyword] = useState(currentKeyword);
   const [modalStep, setModalStep] = useState<ModalStep>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateItem | null>(null);
@@ -70,6 +88,16 @@ export default function TemplateGallery({
   const [shopId, setShopId] = useState("");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
+
+  // Upload state
+  const [myTemplates, setMyTemplates] = useState<TemplateItem[]>(initialMyTemplates);
+  const [showUpload, setShowUpload] = useState(false);
+  const [uploadName, setUploadName] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [uploadMsg, setUploadMsg] = useState("");
+  const htmlRef = useRef<HTMLInputElement>(null);
+  const cssRef = useRef<HTMLInputElement>(null);
+  const assetRef = useRef<HTMLInputElement>(null);
 
   function handleSortChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const sort = e.target.value;
@@ -161,6 +189,81 @@ export default function TemplateGallery({
     }
   }
 
+  async function handleUpload(e: React.FormEvent) {
+    e.preventDefault();
+    if (!uploadName.trim()) return;
+    const htmlFiles = htmlRef.current?.files;
+    if (!htmlFiles?.length) return;
+
+    setUploading(true);
+    setUploadMsg("");
+
+    const formData = new FormData();
+    formData.append("name", uploadName.trim());
+    for (let i = 0; i < htmlFiles.length; i++) {
+      formData.append("htmlFiles", htmlFiles[i]);
+    }
+    const cssFiles = cssRef.current?.files;
+    if (cssFiles?.length) {
+      formData.append("cssFile", cssFiles[0]);
+    }
+    const assetFiles = assetRef.current?.files;
+    if (assetFiles?.length) {
+      for (let i = 0; i < assetFiles.length; i++) {
+        formData.append("assets", assetFiles[i]);
+      }
+    }
+
+    try {
+      const res = await fetch("/api/templates/my", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setUploadMsg(data.error || labels.uploadError);
+        setUploading(false);
+        return;
+      }
+
+      // Add to local list
+      const tpl = data.template;
+      setMyTemplates((prev) => [
+        {
+          id: tpl.id,
+          name: tpl.name,
+          path: tpl.path,
+          thumbnailUrl: tpl.thumbnailUrl,
+          category: tpl.category,
+          price: tpl.price || 0,
+        },
+        ...prev,
+      ]);
+      setUploadMsg(labels.uploadSuccess);
+      setUploadName("");
+      if (htmlRef.current) htmlRef.current.value = "";
+      if (cssRef.current) cssRef.current.value = "";
+      if (assetRef.current) assetRef.current.value = "";
+      setShowUpload(false);
+    } catch {
+      setUploadMsg(labels.uploadError);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleDeleteTemplate(id: string) {
+    if (!confirm(labels.deleteConfirm)) return;
+    try {
+      const res = await fetch(`/api/templates/my?id=${id}`, { method: "DELETE" });
+      if (res.ok) {
+        setMyTemplates((prev) => prev.filter((t) => t.id !== id));
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   const languages = [
     { code: "ko", label: labels.langKo },
     { code: "en", label: labels.langEn },
@@ -172,87 +275,230 @@ export default function TemplateGallery({
 
   return (
     <>
-      {/* TOOLBAR */}
-      <div className="tpl-toolbar">
-        <div>
-          <select
-            defaultValue={currentSort}
-            onChange={handleSortChange}
-            style={{
-              height: 36,
-              padding: "0 12px",
-              fontSize: 13,
-              border: "1px solid #e2e8f0",
-              borderRadius: 6,
-              backgroundColor: "#fff",
-              color: "#1a1a2e",
-              cursor: "pointer",
-            }}
-          >
-            <option value="newest">{labels.sortNewest}</option>
-            <option value="oldest">{labels.sortOldest}</option>
-            <option value="name">{labels.sortName}</option>
-            <option value="popular">{labels.sortPopular}</option>
-          </select>
-        </div>
-        <div className="tpl-search">
-          <form onSubmit={handleSearch} style={{ display: "flex", gap: 6 }}>
-            <input
-              type="text"
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              placeholder={labels.keyword}
-            />
-            <button type="submit">{labels.search}</button>
-          </form>
-        </div>
+      {/* TABS */}
+      <div className="tpl-tabs">
+        <button
+          className={`tpl-tab ${tab === "public" ? "active" : ""}`}
+          onClick={() => setTab("public")}
+        >
+          {labels.tabPublic}
+        </button>
+        <button
+          className={`tpl-tab ${tab === "my" ? "active" : ""}`}
+          onClick={() => setTab("my")}
+        >
+          {labels.tabMy}
+          {myTemplates.length > 0 && (
+            <span className="tpl-tab-badge">{myTemplates.length}</span>
+          )}
+        </button>
       </div>
 
-      {/* COUNT */}
-      <div className="tpl-count" style={{ marginBottom: 16 }}>
-        {labels.total}{" "}
-        <strong style={{ color: "#e03131" }}>{totalCount}</strong>{" "}
-        {labels.count}
-      </div>
-
-      {/* GRID */}
-      <div className="tpl-grid">
-        {templates.map((tpl) => (
-          <div key={tpl.id} className="tpl-card">
-            <div className="tpl-thumb">
-              {tpl.thumbnailUrl ? (
-                <Image
-                  src={tpl.thumbnailUrl}
-                  alt={tpl.name}
-                  width={400}
-                  height={250}
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                  unoptimized
-                />
-              ) : (
-                <div className="tpl-thumb-placeholder">🎨</div>
-              )}
-              {tpl.price === 0 && <span className="tpl-badge">FREE</span>}
-            </div>
-            <div className="tpl-card-body">
-              <span className="tpl-card-name">{tpl.name}</span>
-              <span className="tpl-card-price">
-                {tpl.price === 0
-                  ? labels.free
-                  : `₩${tpl.price.toLocaleString()}`}
-              </span>
-            </div>
-            <div className="tpl-card-footer">
-              <button
-                className="tpl-select-btn"
-                onClick={() => openPreview(tpl)}
+      {/* ========== PUBLIC TAB ========== */}
+      {tab === "public" && (
+        <>
+          {/* TOOLBAR */}
+          <div className="tpl-toolbar">
+            <div>
+              <select
+                defaultValue={currentSort}
+                onChange={handleSortChange}
+                style={{
+                  height: 36,
+                  padding: "0 12px",
+                  fontSize: 13,
+                  border: "1px solid #e2e8f0",
+                  borderRadius: 6,
+                  backgroundColor: "#fff",
+                  color: "#1a1a2e",
+                  cursor: "pointer",
+                }}
               >
-                [{labels.selectTemplate}]
-              </button>
+                <option value="newest">{labels.sortNewest}</option>
+                <option value="oldest">{labels.sortOldest}</option>
+                <option value="name">{labels.sortName}</option>
+                <option value="popular">{labels.sortPopular}</option>
+              </select>
+            </div>
+            <div className="tpl-search">
+              <form onSubmit={handleSearch} style={{ display: "flex", gap: 6 }}>
+                <input
+                  type="text"
+                  value={keyword}
+                  onChange={(e) => setKeyword(e.target.value)}
+                  placeholder={labels.keyword}
+                />
+                <button type="submit">{labels.search}</button>
+              </form>
             </div>
           </div>
-        ))}
-      </div>
+
+          {/* COUNT */}
+          <div className="tpl-count" style={{ marginBottom: 16 }}>
+            {labels.total}{" "}
+            <strong style={{ color: "#e03131" }}>{totalCount}</strong>{" "}
+            {labels.count}
+          </div>
+
+          {/* GRID */}
+          <div className="tpl-grid">
+            {templates.map((tpl) => (
+              <div key={tpl.id} className="tpl-card">
+                <div className="tpl-thumb">
+                  {tpl.thumbnailUrl ? (
+                    <Image
+                      src={tpl.thumbnailUrl}
+                      alt={tpl.name}
+                      width={400}
+                      height={250}
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      unoptimized
+                    />
+                  ) : (
+                    <div className="tpl-thumb-placeholder">🎨</div>
+                  )}
+                  {tpl.price === 0 && <span className="tpl-badge">FREE</span>}
+                </div>
+                <div className="tpl-card-body">
+                  <span className="tpl-card-name">{tpl.name}</span>
+                  <span className="tpl-card-price">
+                    {tpl.price === 0
+                      ? labels.free
+                      : `₩${tpl.price.toLocaleString()}`}
+                  </span>
+                </div>
+                <div className="tpl-card-footer">
+                  <button
+                    className="tpl-select-btn"
+                    onClick={() => openPreview(tpl)}
+                  >
+                    [{labels.selectTemplate}]
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* ========== MY TEMPLATES TAB ========== */}
+      {tab === "my" && (
+        <>
+          {/* UPLOAD TOGGLE */}
+          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
+            <button
+              className="tpl-upload-btn"
+              onClick={() => setShowUpload(!showUpload)}
+            >
+              + {labels.uploadTemplate}
+            </button>
+          </div>
+
+          {/* UPLOAD FORM */}
+          {showUpload && (
+            <form onSubmit={handleUpload} className="tpl-upload-form">
+              <div className="tpl-upload-field">
+                <label>{labels.templateName}</label>
+                <input
+                  type="text"
+                  value={uploadName}
+                  onChange={(e) => setUploadName(e.target.value)}
+                  placeholder={labels.templateNamePlaceholder}
+                  required
+                />
+              </div>
+              <div className="tpl-upload-field">
+                <label>{labels.htmlFiles} *</label>
+                <input
+                  ref={htmlRef}
+                  type="file"
+                  accept=".html,.htm"
+                  multiple
+                  required
+                />
+              </div>
+              <div className="tpl-upload-field">
+                <label>{labels.cssFile}</label>
+                <input ref={cssRef} type="file" accept=".css" />
+              </div>
+              <div className="tpl-upload-field">
+                <label>{labels.assetFiles}</label>
+                <input ref={assetRef} type="file" multiple />
+              </div>
+              <button
+                type="submit"
+                className="tpl-upload-submit"
+                disabled={uploading}
+              >
+                {uploading ? labels.uploading : labels.uploadTemplate}
+              </button>
+            </form>
+          )}
+
+          {uploadMsg && (
+            <p
+              style={{
+                padding: "8px 12px",
+                marginBottom: 12,
+                borderRadius: 6,
+                fontSize: 13,
+                background: uploadMsg === labels.uploadSuccess ? "#d3f9d8" : "#ffe3e3",
+                color: uploadMsg === labels.uploadSuccess ? "#2b8a3e" : "#c92a2a",
+              }}
+            >
+              {uploadMsg}
+            </p>
+          )}
+
+          {/* MY TEMPLATES GRID */}
+          {myTemplates.length === 0 ? (
+            <div className="tpl-empty">{labels.myTemplatesEmpty}</div>
+          ) : (
+            <div className="tpl-grid">
+              {myTemplates.map((tpl) => (
+                <div key={tpl.id} className="tpl-card">
+                  <div className="tpl-thumb">
+                    {tpl.thumbnailUrl ? (
+                      <Image
+                        src={tpl.thumbnailUrl}
+                        alt={tpl.name}
+                        width={400}
+                        height={250}
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        unoptimized
+                      />
+                    ) : (
+                      <div className="tpl-thumb-placeholder">
+                        <span style={{ fontSize: 32 }}>📄</span>
+                      </div>
+                    )}
+                    <span className="tpl-badge" style={{ background: "#228be6" }}>
+                      MY
+                    </span>
+                  </div>
+                  <div className="tpl-card-body">
+                    <span className="tpl-card-name">{tpl.name}</span>
+                  </div>
+                  <div className="tpl-card-footer" style={{ display: "flex", gap: 8 }}>
+                    <button
+                      className="tpl-select-btn"
+                      onClick={() => openPreview(tpl)}
+                    >
+                      [{labels.selectTemplate}]
+                    </button>
+                    <button
+                      className="tpl-delete-btn"
+                      onClick={() => handleDeleteTemplate(tpl.id)}
+                    >
+                      {labels.deleteTemplate}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
 
       {/* MODAL OVERLAY */}
       {modalStep && selectedTemplate && (

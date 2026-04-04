@@ -1,123 +1,143 @@
 import { prisma } from "@/lib/db";
 import Link from "next/link";
+import BoardTable from "./board-table";
 
-const PAGE_SIZE = 20;
-
-const TYPE_LABELS: Record<string, string> = {
-  board: "게시판",
-  notice: "공지사항",
-  faq: "FAQ",
-};
+const PAGE_SIZE = 30;
 
 export default async function AdminBoardsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; siteId?: string; q?: string }>;
 }) {
   const params = await searchParams;
   const page = Math.max(1, parseInt(params.page || "1", 10));
+  const siteFilter = params.siteId || undefined;
+  const q = params.q?.trim() || undefined;
 
-  const [boards, totalCount] = await Promise.all([
-    prisma.board.findMany({
+  const where: Record<string, unknown> = { parentId: null };
+  if (siteFilter) where.siteId = siteFilter;
+  if (q) {
+    where.OR = [
+      { title: { contains: q, mode: "insensitive" } },
+      { author: { contains: q, mode: "insensitive" } },
+    ];
+  }
+
+  const [posts, totalCount, sites] = await Promise.all([
+    prisma.boardPost.findMany({
+      where,
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
-      include: {
-        site: { select: { name: true } },
-        _count: { select: { posts: true } },
+      select: {
+        id: true,
+        title: true,
+        author: true,
+        createdAt: true,
+        views: true,
+        lang: true,
+        siteId: true,
+        category: { select: { name: true } },
+        site: { select: { name: true, shopId: true } },
+        _count: { select: { replies: true } },
       },
     }),
-    prisma.board.count(),
+    prisma.boardPost.count({ where }),
+    prisma.site.findMany({
+      select: { id: true, name: true, shopId: true },
+      orderBy: { createdAt: "asc" },
+    }),
   ]);
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+
+  // Build base query string (without page)
+  const qsParts: string[] = [];
+  if (siteFilter) qsParts.push(`siteId=${siteFilter}`);
+  if (q) qsParts.push(`q=${encodeURIComponent(q)}`);
+  const qsBase = qsParts.length > 0 ? `?${qsParts.join("&")}` : "";
+
+  // Serialize posts for client component
+  const serializedPosts = posts.map(p => ({
+    id: p.id,
+    title: p.title,
+    author: p.author,
+    createdAt: p.createdAt.toISOString(),
+    views: p.views,
+    lang: p.lang,
+    siteShopId: p.site?.shopId || "-",
+    categoryName: p.category?.name || "-",
+    replyCount: p._count.replies,
+  }));
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-xl font-bold text-slate-100">게시판 관리</h1>
         <span className="text-sm text-slate-500">
-          총 {totalCount.toLocaleString()}개
+          총 {totalCount.toLocaleString()}개 게시물
         </span>
       </div>
 
-      {/* Table */}
-      <div className="rounded-xl border border-slate-700/30 bg-[#1e293b]/80 overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-700/20 bg-slate-800/30 text-left">
-              <th className="px-6 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">게시판명</th>
-              <th className="px-6 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">사이트</th>
-              <th className="px-6 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">유형</th>
-              <th className="px-6 py-3 font-medium text-slate-500 text-right">
-                게시글 수
-              </th>
-              <th className="px-6 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">생성일</th>
-            </tr>
-          </thead>
-          <tbody>
-            {boards.map((board) => (
-              <tr
-                key={board.id}
-                className="border-b border-slate-700/20 last:border-0 hover:bg-slate-800/30"
-              >
-                <td className="px-6 py-3 font-medium text-slate-200">{board.title}</td>
-                <td className="px-6 py-3 text-slate-400">
-                  {board.site.name}
-                </td>
-                <td className="px-6 py-3">
-                  <span className="inline-block rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-400">
-                    {TYPE_LABELS[board.type] ?? board.type}
-                  </span>
-                </td>
-                <td className="px-6 py-3 text-right">
-                  {board._count.posts}
-                </td>
-                <td className="px-6 py-3 text-slate-500">
-                  {board.createdAt.toLocaleDateString("ko-KR")}
-                </td>
-              </tr>
-            ))}
-            {boards.length === 0 && (
-              <tr>
-                <td
-                  colSpan={5}
-                  className="px-6 py-8 text-center text-slate-400"
-                >
-                  등록된 게시판이 없습니다.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+      {/* Site Filter */}
+      <div className="mb-4 flex gap-1.5 items-center flex-wrap">
+        <Link
+          href="/admin/boards"
+          className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+            !siteFilter
+              ? "bg-cyan-500/20 text-cyan-400"
+              : "border border-slate-600/40 text-slate-400 hover:bg-slate-800/40"
+          }`}
+        >
+          전체
+        </Link>
+        {sites.map((s) => (
+          <Link
+            key={s.id}
+            href={`/admin/boards?siteId=${s.id}${q ? `&q=${encodeURIComponent(q)}` : ""}`}
+            className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+              siteFilter === s.id
+                ? "bg-cyan-500/20 text-cyan-400"
+                : "border border-slate-600/40 text-slate-400 hover:bg-slate-800/40"
+            }`}
+          >
+            {s.name || s.shopId}
+          </Link>
+        ))}
       </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="mt-6 flex items-center justify-center gap-2">
-          {page > 1 && (
-            <Link
-              href={`/admin/boards?page=${page - 1}`}
-              className="rounded-lg border border-slate-600/40 px-3 py-1.5 text-sm hover:bg-slate-100"
-            >
-              이전
-            </Link>
-          )}
+      {/* Search */}
+      <form action="/admin/boards" method="GET" className="mb-4 flex gap-2 items-center">
+        {siteFilter && <input type="hidden" name="siteId" value={siteFilter} />}
+        <input
+          type="text"
+          name="q"
+          defaultValue={q || ""}
+          placeholder="제목 또는 작성자 검색..."
+          className="flex-1 max-w-sm rounded-lg border border-slate-600/40 bg-slate-800/60 px-3 py-2 text-sm text-slate-200 placeholder-slate-500 outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30"
+        />
+        <button
+          type="submit"
+          className="rounded-lg bg-slate-700 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-600"
+        >
+          검색
+        </button>
+        {q && (
+          <Link
+            href={`/admin/boards${siteFilter ? `?siteId=${siteFilter}` : ""}`}
+            className="rounded-lg border border-slate-600/40 px-3 py-2 text-sm text-slate-400 hover:bg-slate-800/40"
+          >
+            초기화
+          </Link>
+        )}
+      </form>
 
-          <span className="text-sm text-slate-500">
-            {page} / {totalPages} 페이지
-          </span>
-
-          {page < totalPages && (
-            <Link
-              href={`/admin/boards?page=${page + 1}`}
-              className="rounded-lg border border-slate-600/40 px-3 py-1.5 text-sm hover:bg-slate-100"
-            >
-              다음
-            </Link>
-          )}
-        </div>
-      )}
+      <BoardTable
+        posts={serializedPosts}
+        currentPage={page}
+        totalPages={totalPages}
+        qsBase={qsBase}
+      />
     </div>
   );
 }

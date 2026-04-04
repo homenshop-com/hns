@@ -2,6 +2,9 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
+import SignOutButton from "../../sign-out-button";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 import EditSiteForm from "../edit-site-form";
 import LanguageSettings from "@/components/LanguageSettings";
 import DeleteSiteButton from "./delete-site-button";
@@ -16,6 +19,9 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
   if (!session) {
     redirect("/login");
   }
+
+  const t = await getTranslations("settings");
+  const td = await getTranslations("dashboard");
 
   const params = await searchParams;
   const siteId = params.id;
@@ -37,6 +43,13 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
   const siteLanguages = (site as typeof site & { languages?: string[] })
     .languages || ["ko"];
 
+  const ACCOUNT_LABELS: Record<string, string> = {
+    "0": t("accountFree"),
+    "1": t("accountPaid"),
+    "2": t("accountTest"),
+    "9": t("accountExpired"),
+  };
+
   return (
     <div className="dash-page">
       {/* HEADER */}
@@ -46,13 +59,17 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
             <Link href="/dashboard" className="dash-logo">
               HomeNShop
             </Link>
-            <span className="dash-logo-sub">기본정보관리</span>
+            <span className="dash-logo-sub">{t("pageTitle")}</span>
           </div>
           <div className="dash-header-right">
-            <span className="dash-user-info">{site.shopId}</span>
             <Link href="/dashboard" className="dash-header-btn">
-              대시보드
+              {td("dashboard")}
             </Link>
+            <Link href="/dashboard/profile" className="dash-header-btn">
+              {td("memberInfo")}
+            </Link>
+            <SignOutButton />
+            <LanguageSwitcher />
           </div>
         </div>
       </header>
@@ -62,7 +79,7 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
         {/* Site URL bar */}
         <div className="settings-url-bar">
           <div>
-            <div className="settings-url-label">사이트 주소</div>
+            <div className="settings-url-label">{t("siteUrl")}</div>
             <a
               href={`https://home.homenshop.com/${site.shopId}/${site.defaultLanguage}/`}
               target="_blank"
@@ -76,13 +93,13 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
             <span
               className={`settings-status ${site.published ? "published" : ""}`}
             >
-              {site.published ? "퍼블리싱됨" : "미퍼블리싱"}
+              {site.published ? t("published") : t("unpublished")}
             </span>
             <Link
               href={`/dashboard/site/${site.id}/manage/menus`}
               className="settings-action-btn"
             >
-              메뉴관리
+              {t("menuManage")}
             </Link>
           </div>
         </div>
@@ -91,7 +108,7 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
         <div className="settings-grid">
           {/* 기본 정보 */}
           <div className="settings-card">
-            <div className="settings-card-header orange">기본 정보</div>
+            <div className="settings-card-header orange">{t("basicInfo")}</div>
             <div className="settings-card-body">
               <EditSiteForm
                 site={{
@@ -107,7 +124,7 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
 
           {/* 언어 설정 */}
           <div className="settings-card">
-            <div className="settings-card-header green">언어 설정</div>
+            <div className="settings-card-header green">{t("languageSettings")}</div>
             <div className="settings-card-body">
               <LanguageSettings
                 siteId={site.id}
@@ -120,7 +137,7 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
 
           {/* 커스텀 도메인 */}
           <div className="settings-card">
-            <div className="settings-card-header blue">커스텀 도메인</div>
+            <div className="settings-card-header blue">{t("customDomain")}</div>
             <div className="settings-card-body">
               {site.domains.length > 0 ? (
                 <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
@@ -137,11 +154,11 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                   ))}
                 </ul>
               ) : (
-                <p className="settings-empty-text">연결된 도메인이 없습니다.</p>
+                <p className="settings-empty-text">{t("noDomains")}</p>
               )}
               <div style={{ marginTop: 12 }}>
                 <Link href="/dashboard/domains" className="settings-link">
-                  도메인 관리 &rarr;
+                  {t("domainManage")} &rarr;
                 </Link>
               </div>
             </div>
@@ -149,34 +166,40 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
 
           {/* 계정/만료일 */}
           <div className="settings-card">
-            <div className="settings-card-header" style={{ background: "#495057" }}>계정 정보</div>
+            <div className="settings-card-header" style={{ background: "#495057" }}>{t("accountInfo")}</div>
             <div className="settings-card-body">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                <span style={{ fontSize: 13, color: "#868e96" }}>계정 유형</span>
+                <span style={{ fontSize: 13, color: "#868e96" }}>{t("accountType")}</span>
                 <span style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e" }}>
-                  {site.accountType === "free" ? "무료" : site.accountType === "paid" ? "유료" : site.accountType}
+                  {ACCOUNT_LABELS[site.accountType] || site.accountType}
                 </span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                <span style={{ fontSize: 13, color: "#868e96" }}>만료일</span>
-                <span style={{ fontSize: 13, fontWeight: 600, color: site.expiresAt && new Date(site.expiresAt) < new Date() ? "#e03131" : "#1a1a2e" }}>
-                  {site.expiresAt
-                    ? new Date(site.expiresAt).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })
-                    : "무제한"}
-                </span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: 13, color: "#868e96" }}>생성일</span>
+                <span style={{ fontSize: 13, color: "#868e96" }}>{t("createdAt")}</span>
                 <span style={{ fontSize: 13, color: "#495057" }}>
                   {new Date(site.createdAt).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })}
                 </span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                <span style={{ fontSize: 13, color: "#868e96" }}>{t("expiresAt")}</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: site.expiresAt && new Date(site.expiresAt) < new Date() ? "#e03131" : "#1a1a2e" }}>
+                  {site.expiresAt
+                    ? new Date(site.expiresAt).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })
+                    : t("unlimited")}
+                </span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: 13, color: "#868e96" }}></span>
+                <Link href={`/dashboard/site/${site.id}/extend`} style={{ fontSize: 13, color: "#4a90d9", fontWeight: 500 }}>
+                  {t("extend")} &rarr;
+                </Link>
               </div>
             </div>
           </div>
 
           {/* Google 설정 */}
           <div className="settings-card">
-            <div className="settings-card-header purple">Google 설정</div>
+            <div className="settings-card-header purple">{t("googleSettings")}</div>
             <div className="settings-card-body">
               <Link
                 href={`/dashboard/site/${site.id}/manage/config/analytics`}
@@ -193,7 +216,7 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
 
               {/* Sitemap */}
               <div style={{ borderTop: "1px solid #e2e8f0", marginTop: 12, paddingTop: 12 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e", marginBottom: 8 }}>Sitemap</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a2e", marginBottom: 8 }}>{t("sitemap")}</div>
                 {(() => {
                   const activeDomain = site.domains.find((d) => d.status === "ACTIVE");
                   const sitemapApiUrl = `https://homenshop.com/api/sitemap/${site.id}`;
@@ -201,7 +224,7 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                   return (
                     <div style={{ fontSize: 12 }}>
                       <div style={{ marginBottom: 6 }}>
-                        <span style={{ color: "#868e96" }}>기본 URL: </span>
+                        <span style={{ color: "#868e96" }}>{t("sitemapDefault")}: </span>
                         <a
                           href={sitemapApiUrl}
                           target="_blank"
@@ -213,7 +236,7 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                       </div>
                       {sitemapCustomUrl && (
                         <div style={{ marginBottom: 6 }}>
-                          <span style={{ color: "#868e96" }}>도메인 URL: </span>
+                          <span style={{ color: "#868e96" }}>{t("sitemapDomain")}: </span>
                           <a
                             href={sitemapCustomUrl}
                             target="_blank"
@@ -225,10 +248,10 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                         </div>
                       )}
                       <p style={{ color: "#868e96", marginTop: 8, lineHeight: 1.5 }}>
-                        Google Search Console에서 위 URL을 사이트맵으로 등록하세요.
+                        {t("sitemapGuide")}
                         {sitemapCustomUrl
-                          ? " 커스텀 도메인 URL 사용을 권장합니다."
-                          : " 커스텀 도메인 연결 시 도메인 URL도 생성됩니다."}
+                          ? ` ${t("sitemapDomainHint")}`
+                          : ` ${t("sitemapNoDomainHint")}`}
                       </p>
                     </div>
                   );
@@ -240,10 +263,10 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
 
         {/* 계정 삭제 */}
         <div className="settings-card" style={{ marginTop: 24 }}>
-          <div className="settings-card-header" style={{ background: "#e03131" }}>계정 삭제</div>
+          <div className="settings-card-header" style={{ background: "#e03131" }}>{t("deleteAccount")}</div>
           <div className="settings-card-body">
             <p style={{ fontSize: 13, color: "#868e96", marginBottom: 12 }}>
-              계정을 삭제하면 모든 페이지, 게시판, 상품 데이터가 영구적으로 삭제됩니다.
+              {t("deleteWarning")}
             </p>
             <DeleteSiteButton siteId={site.id} shopId={site.shopId} />
           </div>

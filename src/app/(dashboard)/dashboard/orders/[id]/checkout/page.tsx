@@ -3,6 +3,9 @@ import { prisma } from "@/lib/db";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import CheckoutClient from "./checkout-client";
+import { getTranslations } from "next-intl/server";
+import SignOutButton from "../../../sign-out-button";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 export default async function CheckoutPage({
   params,
@@ -13,6 +16,8 @@ export default async function CheckoutPage({
   if (!session) {
     redirect("/login");
   }
+
+  const td = await getTranslations("dashboard");
 
   const { id } = await params;
 
@@ -61,19 +66,23 @@ export default async function CheckoutPage({
   };
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
-      <header className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-          <Link href="/dashboard" className="text-xl font-bold">
-            Homenshop
-          </Link>
-          <span className="text-sm text-zinc-600 dark:text-zinc-400">
-            {session.user.name} ({session.user.email})
-          </span>
+    <div className="dash-page">
+      <header className="dash-header">
+        <div className="dash-header-inner">
+          <div style={{ display: "flex", alignItems: "center" }}>
+            <Link href="/dashboard" className="dash-logo">HomeNShop</Link>
+            <span className="dash-logo-sub">{td("cards.orders")}</span>
+          </div>
+          <div className="dash-header-right">
+            <Link href="/dashboard" className="dash-header-btn">{td("dashboard")}</Link>
+            <Link href="/dashboard/profile" className="dash-header-btn">{td("memberInfo")}</Link>
+            <SignOutButton />
+            <LanguageSwitcher />
+          </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl px-6 py-8">
+      <main className="dash-main">
         <div className="mb-6">
           <Link
             href={`/dashboard/orders/${id}`}
@@ -87,6 +96,7 @@ export default async function CheckoutPage({
 
         <CheckoutClient order={orderData} customer={customerInfo} />
       </main>
+      <footer className="dash-footer" />
     </div>
   );
 }

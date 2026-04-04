@@ -36,6 +36,8 @@ interface DesignEditorProps {
   menuHtml: string;
   footerHtml: string;
   cssText: string;
+  pageCss: string;
+  templateCss: string;
   pageId: string;
   pageTitle: string;
   pageSlug: string;
@@ -58,6 +60,8 @@ export default function DesignEditor({
   menuHtml,
   footerHtml,
   cssText,
+  pageCss,
+  templateCss,
   pageId,
   pageTitle,
   pageSlug,
@@ -83,6 +87,10 @@ export default function DesignEditor({
   const [tiptapTarget, setTiptapTarget] = useState<{ elId: string; html: string } | null>(null);
   const tiptapElRef = useRef<HTMLElement | null>(null);
 
+  // Header/Menu/Footer settings
+  const [menuMode, setMenuMode] = useState<"auto" | "custom">("auto");
+  const [logoUrl, setLogoUrl] = useState("");
+
   // Drag state
   const dragRef = useRef<{
     el: HTMLElement;
@@ -106,13 +114,47 @@ export default function DesignEditor({
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const footerRef = useRef<HTMLDivElement>(null);
 
-  /* ─── Set initial body content via ref (not dangerouslySetInnerHTML) so DOM edits persist ─── */
+  /* ─── Set initial content via refs (not dangerouslySetInnerHTML) so DOM edits persist ─── */
+  const headerInitedRef = useRef(false);
+  const menuInitedRef = useRef(false);
+  const footerInitedRef = useRef(false);
+
   useEffect(() => {
     if (bodyRef.current) {
       bodyRef.current.innerHTML = bodyHtml;
     }
   }, [bodyHtml]);
+
+  useEffect(() => {
+    if (headerRef.current && !headerInitedRef.current) {
+      headerRef.current.innerHTML = headerHtml;
+      headerInitedRef.current = true;
+      // Detect logo URL
+      const logoImg = headerRef.current.querySelector("#hns_h_logo img, .logo img, [id*=logo] img, a img") as HTMLImageElement | null;
+      if (logoImg?.src) setLogoUrl(logoImg.src);
+    }
+  }, [headerHtml]);
+
+  useEffect(() => {
+    if (menuRef.current && !menuInitedRef.current) {
+      // If menuHtml already has complete menu items (ul>li), use it directly.
+      // buildMenuHtml() generates legacy-class menus that don't match custom template CSS.
+      const hasCompleteMenu = menuHtml && /<ul[^>]*>\s*<li/i.test(menuHtml);
+      menuRef.current.innerHTML = hasCompleteMenu ? menuHtml : buildMenuHtml();
+      menuInitedRef.current = true;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (footerRef.current && !footerInitedRef.current) {
+      footerRef.current.innerHTML = footerHtml;
+      footerInitedRef.current = true;
+    }
+  }, [footerHtml]);
 
   /* ─── Calculate hns_body min-height from absolute children + header height ─── */
   useEffect(() => {
@@ -162,6 +204,7 @@ export default function DesignEditor({
       const bodyEl = bodyRef.current;
       const html = bodyEl ? bodyEl.innerHTML : currentBodyHtml;
 
+      // Save page body
       const res = await fetch(`/api/sites/${siteId}/pages/${pageId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -169,6 +212,27 @@ export default function DesignEditor({
           content: { html },
         }),
       });
+
+      // Save header/menu/footer HMF changes
+      const hEl = headerRef.current;
+      const mEl = menuRef.current;
+      const fEl = footerRef.current;
+      if (hEl || mEl || fEl) {
+        // Auto menu mode: save empty menuHtml so published route generates dynamically
+        // Custom menu mode: save current DOM menuHtml
+        const menuHtmlToSave = menuMode === "auto" ? "" : (mEl ? mEl.innerHTML : undefined);
+        await fetch(`/api/sites/${siteId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            hmfLang: currentLang,
+            ...(hEl && { headerHtml: hEl.innerHTML }),
+            ...(menuHtmlToSave !== undefined && { menuHtml: menuHtmlToSave }),
+            ...(fEl && { footerHtml: fEl.innerHTML }),
+          }),
+        });
+      }
+
       if (res.ok) {
         setCurrentBodyHtml(html);
         setSaveStatus("saved");
@@ -181,7 +245,7 @@ export default function DesignEditor({
     } finally {
       setSaving(false);
     }
-  }, [siteId, pageId, currentBodyHtml]);
+  }, [siteId, pageId, currentBodyHtml, currentLang, menuMode]);
 
   /* ─── Publish ─── */
   const publishSite = useCallback(async () => {
@@ -196,11 +260,21 @@ export default function DesignEditor({
         body: JSON.stringify({ content: { html } }),
       });
 
-      // Set published = true
+      // Save header/menu/footer + set published = true
+      const hEl = headerRef.current;
+      const mEl = menuRef.current;
+      const fEl = footerRef.current;
+      const menuHtmlToSave = menuMode === "auto" ? "" : (mEl ? mEl.innerHTML : undefined);
       const res = await fetch(`/api/sites/${siteId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ published: true }),
+        body: JSON.stringify({
+          published: true,
+          hmfLang: currentLang,
+          ...(hEl && { headerHtml: hEl.innerHTML }),
+          ...(menuHtmlToSave !== undefined && { menuHtml: menuHtmlToSave }),
+          ...(fEl && { footerHtml: fEl.innerHTML }),
+        }),
       });
       if (res.ok) {
         setIsPublished(true);
@@ -312,6 +386,28 @@ export default function DesignEditor({
     return () => {
       bodyEl.removeEventListener("mousedown", handleMouseDown);
       bodyEl.removeEventListener("touchstart", handleTouchStart);
+    };
+  }, []);
+
+  /* ─── Block all link navigation inside the canvas ─── */
+  useEffect(() => {
+    const canvasEl = canvasRef.current;
+    if (!canvasEl) return;
+
+    function blockLinks(e: Event) {
+      const target = e.target as HTMLElement;
+      const anchor = target.closest("a");
+      if (anchor) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }
+
+    canvasEl.addEventListener("click", blockLinks, true);
+    canvasEl.addEventListener("auxclick", blockLinks, true);
+    return () => {
+      canvasEl.removeEventListener("click", blockLinks, true);
+      canvasEl.removeEventListener("auxclick", blockLinks, true);
     };
   }, []);
 
@@ -465,51 +561,122 @@ export default function DesignEditor({
   /* ─── Double-click / Double-tap text editing ─── */
   const lastTapRef = useRef<{ time: number; id: string }>({ time: 0, id: "" });
 
-  function enterTextEdit(dragable: HTMLElement) {
+  // Text-level tags: edit only the innermost text element, not its parent container
+  const TEXT_TAGS = new Set(["H1", "H2", "H3", "H4", "H5", "H6", "P", "SPAN", "A", "LI", "TD", "TH", "LABEL", "BLOCKQUOTE"]);
+
+  // Tags that are leaf-text (no structural children expected)
+  const LEAF_TEXT_TAGS = new Set(["H1", "H2", "H3", "H4", "H5", "H6", "P", "LI", "TD", "TH", "LABEL", "BLOCKQUOTE"]);
+
+  /**
+   * Check if a .dragable element is a simple "legacy" layer
+   * (contains only text/inline content, no nested structural elements).
+   * Legacy dragables have absolute positioning + simple text.
+   * Custom template dragables wrap entire sections with complex HTML.
+   */
+  function isSimpleDragable(el: HTMLElement): boolean {
+    const style = window.getComputedStyle(el);
+    // Legacy dragable: position absolute + no structural children
+    if (style.position === "absolute") return true;
+    // If it has no child elements at all (text-only), it's simple
+    if (el.children.length === 0) return true;
+    // If it has only inline children (span, a, strong, em, br, img), it's simple
+    const structural = el.querySelectorAll("div, section, article, aside, main, ul, ol, table, form, header, nav, footer, h1, h2, h3, h4, h5, h6");
+    return structural.length === 0;
+  }
+
+  /**
+   * Find the best edit target for a double-click.
+   * Priority: innermost leaf-text element > simple dragable > skip
+   */
+  function findEditTarget(target: HTMLElement): HTMLElement | null {
+    const body = document.getElementById("hns_body");
+    if (!body || !body.contains(target)) return null;
+
+    // Walk up from target to find the innermost leaf-text element
+    let el: HTMLElement | null = target;
+    let leafText: HTMLElement | null = null;
+    while (el && el !== body) {
+      if (LEAF_TEXT_TAGS.has(el.tagName)) {
+        leafText = el;
+        break;  // Found innermost leaf-text, use it
+      }
+      // SPAN with no structural children and has meaningful text
+      if (el.tagName === "SPAN" && el.children.length === 0 && el.textContent?.trim()) {
+        leafText = el;
+        break;
+      }
+      el = el.parentElement;
+    }
+    if (leafText) return leafText;
+
+    // Try .dragable — but only if it's a simple one (legacy absolute positioned)
+    const dragable = target.closest(".dragable") as HTMLElement | null;
+    if (dragable && body.contains(dragable) && isSimpleDragable(dragable)) {
+      return dragable;
+    }
+
+    // For complex dragables (custom template section wrappers),
+    // find the first text element the user likely intended to edit
+    if (dragable && body.contains(dragable)) {
+      // Find the nearest text element to where the user clicked
+      el = target;
+      while (el && el !== dragable) {
+        if (TEXT_TAGS.has(el.tagName)) return el;
+        el = el.parentElement;
+      }
+    }
+
+    return null;
+  }
+
+  function enterTextEdit(editEl: HTMLElement) {
     // Cancel any in-progress drag
     dragRef.current = null;
     resizeRef.current = null;
 
-    if (!dragable.id) {
-      dragable.id = "el_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
+    if (!editEl.id) {
+      editEl.id = "el_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
     }
-    setSelectedElId(dragable.id);
+    setSelectedElId(editEl.id);
     // Store direct ref to element and open TipTap modal
-    tiptapElRef.current = dragable;
-    setTiptapTarget({ elId: dragable.id, html: dragable.innerHTML });
+    tiptapElRef.current = editEl;
+    setTiptapTarget({ elId: editEl.id, html: editEl.innerHTML });
   }
 
   useEffect(() => {
     const canvasEl = canvasRef.current;
     if (!canvasEl) return;
 
-    // Desktop: dblclick on any .dragable (not just .sol-replacible-text)
+    // Desktop: dblclick
     function handleDblClick(e: MouseEvent) {
       const target = e.target as HTMLElement;
-      const dragable = target.closest(".dragable") as HTMLElement | null;
-      if (!dragable) return;
+      const editEl = findEditTarget(target);
+      if (!editEl) return;
       e.preventDefault();
       e.stopPropagation();
-      enterTextEdit(dragable);
+      enterTextEdit(editEl);
     }
 
-    // Mobile: detect double-tap (two taps within 300ms on same element)
+    // Mobile: detect double-tap (two taps within 400ms on same element)
     function handleTapForEdit(e: TouchEvent) {
       const target = e.target as HTMLElement;
-      const dragable = target.closest(".dragable") as HTMLElement | null;
-      if (!dragable) return;
+      const editEl = findEditTarget(target);
+      if (!editEl) return;
 
-      const elId = dragable.id || "";
+      if (!editEl.id) {
+        editEl.id = "el_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
+      }
+      const elId = editEl.id;
       const now = Date.now();
       const last = lastTapRef.current;
 
       if (elId && elId === last.id && now - last.time < 400) {
         // Double-tap detected
         e.preventDefault();
-        enterTextEdit(dragable);
+        enterTextEdit(editEl);
         lastTapRef.current = { time: 0, id: "" };
       } else {
-        lastTapRef.current = { time: now, id: elId || dragable.className };
+        lastTapRef.current = { time: now, id: elId };
       }
     }
 
@@ -525,7 +692,15 @@ export default function DesignEditor({
   const handleTiptapSave = useCallback((html: string) => {
     const el = tiptapElRef.current;
     if (el) {
-      el.innerHTML = html;
+      // For text-level elements (h1-h6, p, span, a, etc.), TipTap wraps output in <p> tags.
+      // Strip the outer <p> wrapper to preserve the original element's tag.
+      if (TEXT_TAGS.has(el.tagName) && el.tagName !== "LI") {
+        // If TipTap returned a single <p>...</p>, extract just the inner content
+        const stripped = html.replace(/^<p>([\s\S]*?)<\/p>$/, "$1").trim();
+        el.innerHTML = stripped || html;
+      } else {
+        el.innerHTML = html;
+      }
     }
     tiptapElRef.current = null;
     setTiptapTarget(null);
@@ -664,37 +839,80 @@ export default function DesignEditor({
 
   /* ─── Build the template CSS for the canvas ─── */
   const tplFilesBase = `/tpl/${templatePath}/files`;
-  const canvasCss = cssText
-    ? cssText
-        // Scope reset rules: "body,div,..." → "#de-canvas-inner, #de-canvas-inner div,..."
-        .replace(
-          /(?<![a-zA-Z-])body\s*,([\s\S]*?)\{/g,
-          (match, selectors, _offset) => {
-            const scoped = selectors
-              .split(",")
-              .map((s: string) => `#de-canvas-inner ${s.trim()}`)
-              .join(", ");
-            return `#de-canvas-inner, ${scoped} {`;
-          }
-        )
-        // Scope standalone "body {" to #de-canvas-inner
-        .replace(/(?<![a-zA-Z-])body\s*\{/g, "#de-canvas-inner {")
-        // Override overflow (from body) that clips the canvas
-        .replace(/overflow\s*:\s*scroll/g, "overflow: visible")
-        .replace(/overflow-x\s*:\s*hidden/g, "overflow-x: visible")
-        // Strip body background-image (legacy bg.jpg/tm.gif don't render properly)
-        .replace(
-          /(#de-canvas-inner\s*\{[^}]*?)background\s*:\s*url\([^)]*\)[^;]*;?/gi,
-          "$1"
-        )
-        // Rewrite relative url() to absolute /tpl/ paths
-        .replace(
-          /url\(\s*['"]?(?!\/|https?:|data:)([^'")]+?)['"]?\s*\)/g,
-          (_, filename) => `url(${tplFilesBase}/${filename})`
-        )
-    : "";
+  const scopeAndRewrite = (css: string) => css
+    // Scope reset rules: "body,div,..." → "#de-canvas-inner, #de-canvas-inner div,..."
+    .replace(
+      /(?<![a-zA-Z-])body\s*,([\s\S]*?)\{/g,
+      (_match: string, selectors: string) => {
+        const scoped = selectors
+          .split(",")
+          .map((s: string) => `#de-canvas-inner ${s.trim()}`)
+          .join(", ");
+        return `#de-canvas-inner, ${scoped} {`;
+      }
+    )
+    // Scope standalone "body {" to #de-canvas-inner
+    .replace(/(?<![a-zA-Z-])body\s*\{/g, "#de-canvas-inner {")
+    // Override overflow (from body) that clips the canvas
+    .replace(/overflow\s*:\s*scroll/g, "overflow: visible")
+    .replace(/overflow-x\s*:\s*hidden/g, "overflow-x: visible")
+    // Strip body background-image (legacy bg.jpg/tm.gif don't render properly)
+    .replace(
+      /(#de-canvas-inner\s*\{[^}]*?)background\s*:\s*url\([^)]*\)[^;]*;?/gi,
+      "$1"
+    )
+    // Rewrite relative url() to absolute /tpl/ paths
+    .replace(
+      /url\(\s*['"]?(?!\/|https?:|data:)([^'")]+?)['"]?\s*\)/g,
+      (_, filename: string) => `url(${tplFilesBase}/${filename})`
+    );
+  const canvasCss = [templateCss, cssText, pageCss]
+    .filter(Boolean)
+    .map(scopeAndRewrite)
+    .join("\n");
 
   const selectedProps = getSelectedElProps();
+
+  /* ─── Header/Footer settings helpers ─── */
+  function handleLogoChange() {
+    const url = prompt("새 로고 이미지 URL을 입력하세요:", logoUrl || "https://");
+    if (url === null) return;
+    setLogoUrl(url);
+    // Update logo in header DOM
+    const hEl = headerRef.current;
+    if (!hEl) return;
+    const logoImg = hEl.querySelector("#hns_h_logo img, .logo img, [id*=logo] img, a img") as HTMLImageElement | null;
+    if (logoImg) {
+      logoImg.src = url;
+      logoImg.setAttribute("src", url);
+    }
+  }
+
+  function handleMenuModeChange(mode: "auto" | "custom") {
+    setMenuMode(mode);
+    const mEl = menuRef.current;
+    if (!mEl) return;
+    if (mode === "auto") {
+      mEl.innerHTML = buildMenuHtml();
+    }
+    // "custom" keeps current DOM as-is
+  }
+
+  function handleResetFooter() {
+    if (!confirm("푸터를 초기 상태로 되돌리시겠습니까?")) return;
+    const fEl = footerRef.current;
+    if (fEl) {
+      fEl.innerHTML = footerHtml;
+    }
+  }
+
+  function handleResetHeader() {
+    if (!confirm("헤더를 초기 상태로 되돌리시겠습니까?")) return;
+    const hEl = headerRef.current;
+    if (hEl) {
+      hEl.innerHTML = headerHtml;
+    }
+  }
 
   /* ─── Build 2-depth menu HTML from pages ─── */
   function buildMenuHtml(): string {
@@ -899,8 +1117,101 @@ export default function DesignEditor({
         )}
 
         {activeTab === "settings" && (
-          <div className="de-settings-panel">
-            <span className="de-settings-info">사이트: {siteName} | 편집 언어: {currentLang}</span>
+          <div className="de-settings-panel" style={{ display: "flex", gap: 24, alignItems: "flex-start", flexWrap: "wrap", padding: "8px 16px" }}>
+            {/* Site info */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <span style={{ fontSize: 11, color: "#888", textTransform: "uppercase", letterSpacing: 1 }}>사이트</span>
+              <span style={{ fontSize: 13, color: "#ddd" }}>{siteName} | {currentLang.toUpperCase()}</span>
+            </div>
+
+            {/* Divider */}
+            <span style={{ width: 1, height: 40, background: "#555", flexShrink: 0 }} />
+
+            {/* Header / Logo */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <span style={{ fontSize: 11, color: "#888", textTransform: "uppercase", letterSpacing: 1 }}>헤더 / 로고</span>
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                {logoUrl && (
+                  <img
+                    src={logoUrl}
+                    alt="logo"
+                    style={{ height: 24, maxWidth: 80, objectFit: "contain", borderRadius: 3, background: "#555" }}
+                  />
+                )}
+                <button
+                  onClick={handleLogoChange}
+                  style={{ padding: "4px 10px", fontSize: 12, background: "#555", color: "#ddd", border: "1px solid #666", borderRadius: 4, cursor: "pointer" }}
+                >
+                  로고 변경
+                </button>
+                <button
+                  onClick={handleResetHeader}
+                  style={{ padding: "4px 10px", fontSize: 12, background: "transparent", color: "#999", border: "1px solid #555", borderRadius: 4, cursor: "pointer" }}
+                >
+                  헤더 초기화
+                </button>
+              </div>
+            </div>
+
+            {/* Divider */}
+            <span style={{ width: 1, height: 40, background: "#555", flexShrink: 0 }} />
+
+            {/* Menu Mode */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <span style={{ fontSize: 11, color: "#888", textTransform: "uppercase", letterSpacing: 1 }}>메뉴 설정</span>
+              <div style={{ display: "flex", gap: 4 }}>
+                <button
+                  onClick={() => handleMenuModeChange("auto")}
+                  style={{
+                    padding: "4px 12px",
+                    fontSize: 12,
+                    borderRadius: 4,
+                    border: menuMode === "auto" ? "2px solid #4a90d9" : "1px solid #666",
+                    background: menuMode === "auto" ? "#4a90d9" : "#444",
+                    color: "#fff",
+                    cursor: "pointer",
+                    fontWeight: menuMode === "auto" ? 600 : 400,
+                  }}
+                >
+                  메뉴관리 자동
+                </button>
+                <button
+                  onClick={() => handleMenuModeChange("custom")}
+                  style={{
+                    padding: "4px 12px",
+                    fontSize: 12,
+                    borderRadius: 4,
+                    border: menuMode === "custom" ? "2px solid #4a90d9" : "1px solid #666",
+                    background: menuMode === "custom" ? "#4a90d9" : "#444",
+                    color: "#fff",
+                    cursor: "pointer",
+                    fontWeight: menuMode === "custom" ? 600 : 400,
+                  }}
+                >
+                  커스텀 수정
+                </button>
+              </div>
+              <span style={{ fontSize: 11, color: "#777" }}>
+                {menuMode === "auto" ? "메뉴관리 페이지에서 설정한 메뉴가 적용됩니다" : "더블클릭으로 메뉴를 직접 수정합니다"}
+              </span>
+            </div>
+
+            {/* Divider */}
+            <span style={{ width: 1, height: 40, background: "#555", flexShrink: 0 }} />
+
+            {/* Footer */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <span style={{ fontSize: 11, color: "#888", textTransform: "uppercase", letterSpacing: 1 }}>푸터</span>
+              <div style={{ display: "flex", gap: 6 }}>
+                <button
+                  onClick={handleResetFooter}
+                  style={{ padding: "4px 10px", fontSize: 12, background: "transparent", color: "#999", border: "1px solid #555", borderRadius: 4, cursor: "pointer" }}
+                >
+                  푸터 초기화
+                </button>
+                <span style={{ fontSize: 11, color: "#777", alignSelf: "center" }}>더블클릭으로 푸터 내용을 수정하세요</span>
+              </div>
+            </div>
           </div>
         )}
 
@@ -947,29 +1258,17 @@ export default function DesignEditor({
       <div className="de-canvas-wrapper">
         <div className="de-canvas" ref={canvasRef}>
           <div className="de-canvas-content c_v_home_dft" id="de-canvas-inner">
-            {/* HEADER */}
-            <div
-              id="hns_header"
-              dangerouslySetInnerHTML={{ __html: headerHtml }}
-            />
+            {/* HEADER — ref-only, set via useEffect to preserve drag edits */}
+            <div id="hns_header" ref={headerRef} />
 
-            {/* MENU */}
-            <div
-              id="hns_menu"
-              dangerouslySetInnerHTML={{ __html: buildMenuHtml() }}
-            />
+            {/* MENU — ref-only */}
+            <div id="hns_menu" ref={menuRef} />
 
-            {/* BODY - main editable area (ref-only, no dangerouslySetInnerHTML to avoid React overwriting DOM edits) */}
-            <div
-              id="hns_body"
-              ref={bodyRef}
-            />
+            {/* BODY — ref-only */}
+            <div id="hns_body" ref={bodyRef} />
 
-            {/* FOOTER */}
-            <div
-              id="hns_footer"
-              dangerouslySetInnerHTML={{ __html: footerHtml }}
-            />
+            {/* FOOTER — ref-only */}
+            <div id="hns_footer" ref={footerRef} />
           </div>
         </div>
       </div>

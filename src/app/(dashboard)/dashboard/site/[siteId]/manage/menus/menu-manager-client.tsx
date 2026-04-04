@@ -182,14 +182,27 @@ export default function MenuManagerClient({
   const dragOverItem = useRef<number | null>(null);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [dragNestIntent, setDragNestIntent] = useState(false);
+  const dragStartXRef = useRef<number>(0);
 
-  const handleDragStart = (index: number) => {
+  const handleDragStart = (e: React.DragEvent, index: number) => {
     dragItem.current = index;
     setDragIndex(index);
+    dragStartXRef.current = e.clientX;
   };
   const handleDragEnter = (index: number) => {
     dragOverItem.current = index;
     setDragOverIndex(index);
+  };
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    // Detect rightward drag (>60px offset = nest intent)
+    const dx = e.clientX - dragStartXRef.current;
+    setDragNestIntent(dx > 60);
+    if (dragOverItem.current !== index) {
+      dragOverItem.current = index;
+      setDragOverIndex(index);
+    }
   };
   const handleDragEnd = () => {
     if (
@@ -199,13 +212,45 @@ export default function MenuManagerClient({
     ) {
       const newDisplay = [...displayList];
       const removed = newDisplay.splice(dragItem.current, 1)[0];
+      const targetIdx = dragOverItem.current > dragItem.current ? dragOverItem.current - 1 : dragOverItem.current;
       newDisplay.splice(dragOverItem.current, 0, removed);
-      // Update sortOrder in main pages array
+
+      // Determine new parentId based on nest intent
+      const dropTarget = displayList[dragOverItem.current];
+      if (dragNestIntent && dropTarget) {
+        // Find the nearest top-level item at or above the drop position
+        let parentCandidate: DisplayItem | null = null;
+        for (let i = dragOverItem.current; i >= 0; i--) {
+          if (displayList[i].level === 0 && displayList[i].id !== removed.id) {
+            parentCandidate = displayList[i];
+            break;
+          }
+        }
+        if (parentCandidate) {
+          removed.parentId = parentCandidate.id;
+          removed.level = 1;
+        }
+      } else {
+        // If dragged to top level position (not nested)
+        if (dropTarget && dropTarget.level === 0) {
+          removed.parentId = null;
+          removed.level = 0;
+        }
+        // If dropped among children, adopt same parent
+        if (dropTarget && dropTarget.level === 1 && !dragNestIntent) {
+          removed.parentId = dropTarget.parentId;
+          removed.level = 1;
+        }
+      }
+
+      // Update pages array with new sortOrder and parentId
       setPages((prev) => {
         const updated = [...prev];
         newDisplay.forEach((item, idx) => {
           const pi = updated.findIndex((p) => p.id === item.id);
-          if (pi !== -1) updated[pi] = { ...updated[pi], sortOrder: idx };
+          if (pi !== -1) {
+            updated[pi] = { ...updated[pi], sortOrder: idx, parentId: item.parentId };
+          }
         });
         return updated;
       });
@@ -214,6 +259,7 @@ export default function MenuManagerClient({
     dragOverItem.current = null;
     setDragIndex(null);
     setDragOverIndex(null);
+    setDragNestIntent(false);
   };
 
   // Move up/down within siblings
@@ -750,13 +796,15 @@ export default function MenuManagerClient({
 
           {/* Items */}
           <div style={{ padding: "0 24px" }}>
-            {displayList.map((page, index) => (
+            {displayList.map((page, index) => {
+              const isDropTarget = dragOverIndex === index && dragIndex !== null && dragIndex !== index;
+              return (
               <div
                 key={page.id}
                 draggable
-                onDragStart={() => handleDragStart(index)}
+                onDragStart={(e) => handleDragStart(e, index)}
                 onDragEnter={() => handleDragEnter(index)}
-                onDragOver={(e) => e.preventDefault()}
+                onDragOver={(e) => handleDragOver(e, index)}
                 onDragEnd={handleDragEnd}
                 style={{
                   display: "flex",
@@ -766,13 +814,12 @@ export default function MenuManagerClient({
                   paddingLeft: page.level * 32,
                   borderBottom: index < displayList.length - 1 ? "1px solid #f3f4f6" : "none",
                   opacity: dragIndex === index ? 0.4 : page.showInMenu ? 1 : 0.5,
-                  borderTop:
-                    dragOverIndex === index && dragIndex !== null && dragIndex !== index
-                      ? "2px solid #2563eb"
-                      : "none",
+                  borderTop: isDropTarget ? `2px solid ${dragNestIntent ? "#7c3aed" : "#2563eb"}` : "none",
+                  borderLeft: isDropTarget && dragNestIntent ? "3px solid #7c3aed" : "none",
+                  marginLeft: isDropTarget && dragNestIntent ? 29 : 0,
                   transition: "opacity 0.2s",
                   cursor: "grab",
-                  background: page.level > 0 ? "#fafbfc" : "transparent",
+                  background: page.level > 0 ? "#fafbfc" : isDropTarget && dragNestIntent ? "#f5f3ff" : "transparent",
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
@@ -950,7 +997,8 @@ export default function MenuManagerClient({
                   )}
                 </div>
               </div>
-            ))}
+            );
+            })}
 
             {displayList.length === 0 && (
               <div style={{ padding: "40px 0", textAlign: "center", color: "#9ca3af", fontSize: 14 }}>

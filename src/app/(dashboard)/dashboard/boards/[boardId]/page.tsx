@@ -2,6 +2,9 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
+import SignOutButton from "../../sign-out-button";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 const PAGE_SIZE = 10;
 
@@ -30,6 +33,8 @@ export default async function BoardPostsPage({
     notFound();
   }
 
+  const td = await getTranslations("dashboard");
+
   const [posts, totalCount] = await Promise.all([
     prisma.boardPost.findMany({
       where: { boardId },
@@ -51,8 +56,10 @@ export default async function BoardPostsPage({
             <span className="dash-logo-sub">{board.title}</span>
           </div>
           <div className="dash-header-right">
-            <span className="dash-user-info">{session.user.name}</span>
-            <Link href="/dashboard" className="dash-header-btn">대시보드</Link>
+            <Link href="/dashboard" className="dash-header-btn">{td("dashboard")}</Link>
+            <Link href="/dashboard/profile" className="dash-header-btn">{td("memberInfo")}</Link>
+            <SignOutButton />
+            <LanguageSwitcher />
           </div>
         </div>
       </header>

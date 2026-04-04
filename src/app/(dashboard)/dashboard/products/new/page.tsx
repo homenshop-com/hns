@@ -1,20 +1,28 @@
 "use client";
 
 import Link from "next/link";
+import { signOut } from "next-auth/react";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ProductForm from "../product-form";
 
 export default function NewProductPage() {
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
-      <header className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-          <Link href="/dashboard" className="text-xl font-bold">
-            Homenshop
-          </Link>
+    <div className="dash-page">
+      <header className="dash-header">
+        <div className="dash-header-inner">
+          <div style={{ display: "flex", alignItems: "center" }}>
+            <Link href="/dashboard" className="dash-logo">HomeNShop</Link>
+          </div>
+          <div className="dash-header-right">
+            <Link href="/dashboard" className="dash-header-btn">Dashboard</Link>
+            <Link href="/dashboard/profile" className="dash-header-btn">Profile</Link>
+            <button onClick={() => signOut({ callbackUrl: "/login" })} className="dash-header-btn">Logout</button>
+            <LanguageSwitcher />
+          </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-6 py-8">
+      <main className="dash-main">
         <div className="mb-6">
           <Link
             href="/dashboard/products"

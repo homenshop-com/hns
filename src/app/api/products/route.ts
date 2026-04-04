@@ -45,11 +45,11 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { name, description, price, salePrice, stock, category, status } = body;
+  const { name, description, price, salePrice, stock, category, status, images, imageVariants } = body;
 
-  if (!name || price === undefined) {
+  if (!name) {
     return NextResponse.json(
-      { error: "상품명과 가격은 필수입니다." },
+      { error: "상품명은 필수입니다." },
       { status: 400 }
     );
   }
@@ -64,6 +64,7 @@ export async function POST(request: NextRequest) {
       stock: stock ? Number(stock) : 0,
       category: category || null,
       status: status || "ACTIVE",
+      ...(images && { images }),
     },
   });
 

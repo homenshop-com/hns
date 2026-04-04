@@ -1,43 +1,8 @@
-import { execSync } from "child_process";
-
-const LEGACY_DATA_ROOT = "/var/www/legacy-data/userdata";
-
-export function sqliteQuery(dbPath: string, sql: string): Record<string, string>[] {
-  try {
-    const result = execSync(
-      `python3 /var/www/homenshop-next/scripts/sqlite-query.py "${dbPath}"`,
-      { timeout: 5000, encoding: "utf-8", input: sql }
-    );
-    if (!result.trim()) return [];
-    return JSON.parse(result);
-  } catch {
-    return [];
-  }
-}
-
-export function sqliteQueryOne(dbPath: string, sql: string): Record<string, string> | null {
-  const rows = sqliteQuery(dbPath, sql);
-  return rows.length > 0 ? rows[0] : null;
-}
-
-export function getDbPath(shopId: string): string | null {
-  const safeId = shopId.replace(/[^a-zA-Z0-9_-]/g, "");
-  const p = `${LEGACY_DATA_ROOT}/${safeId}/db/.sqlite3`;
-  try {
-    execSync(`test -f "${p}"`, { timeout: 1000 });
-    return p;
-  } catch {
-    return null;
-  }
-}
+import { prisma } from "@/lib/db";
 
 export function escapeHtml(s: unknown): string {
   const str = String(s ?? "");
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
-
-export function escapeSql(s: string): string {
-  return s.replace(/'/g, "''");
 }
 
 /* ─── Tag-depth content replacement ─── */
@@ -81,41 +46,54 @@ function replaceInnerByDivId(html: string, divId: string, newContent: string): s
   return html;
 }
 
-/* ─── BoardPlugin rendering ─── */
-export function renderBoardPluginContent(
-  dbPath: string, shopId: string, lang: string, pageSlug: string,
+/* ─── BoardPlugin rendering (Prisma) ─── */
+export async function renderBoardPluginContent(
+  siteId: string, shopId: string, lang: string, pageSlug: string,
   bodyHtml: string, urlPrefix: string = ""
-): string {
+): Promise<string> {
   const pageFile = pageSlug === "index" ? "index.html" : `${pageSlug}.html`;
-  const plugins = sqliteQuery(dbPath, `SELECT * FROM BoardPlugin WHERE page = '${pageFile}'`);
+  const plugins = await prisma.boardPlugin.findMany({
+    where: { siteId, page: pageFile },
+  });
   if (plugins.length === 0) return bodyHtml;
 
   let result = bodyHtml;
 
   for (const plugin of plugins) {
-    const divId = String(plugin.divid || "");
-    const category = parseInt(String(plugin.category)) || 0;
-    const nums = parseInt(String(plugin.nums)) || 5;
-    const titleLen = parseInt(String(plugin.titlelen)) || 20;
-    const dateStyle = String(plugin.datestyle || "0");
-    const displayStyle = parseInt(String(plugin.displaystyle)) || 0;
-    const skinFile = String(plugin.skin_file || "");
+    const divId = plugin.divId;
+    const legacyCatId = plugin.legacyCatId;
+    const nums = plugin.nums;
+    const titleLen = plugin.titleLen;
+    const dateStyle = plugin.dateStyle;
+    const displayStyle = plugin.displayStyle;
+    const skinFile = plugin.skinFile;
 
     if (!divId || !result.includes(divId)) continue;
 
-    const whereClause = category > 0
-      ? `WHERE category = ${category} AND parent = 0`
-      : "WHERE parent = 0";
-    const rows = sqliteQuery(dbPath, `SELECT * FROM Board ${whereClause} ORDER BY id DESC LIMIT ${nums}`);
+    // Find category by legacyCatId
+    const catFilter: Record<string, unknown> = { siteId, parentId: null };
+    if (legacyCatId && legacyCatId > 0) {
+      const cat = await prisma.boardCategory.findFirst({
+        where: { siteId, legacyId: legacyCatId },
+      });
+      if (cat) catFilter.categoryId = cat.id;
+    }
 
-    const boardPage = skinFile || `board.html?action=list&category=${category}`;
+    const rows = await prisma.boardPost.findMany({
+      where: catFilter,
+      orderBy: { legacyId: "desc" },
+      take: nums,
+      select: { legacyId: true, title: true, regdate: true, photos: true },
+    });
+
+    const boardPage = skinFile || `board.html?action=list&category=${legacyCatId || 0}`;
     let contentHtml = "";
 
     if (displayStyle === 0) {
       const items = rows.map((r) => {
         const title = r.title || "";
         const truncTitle = title.length > titleLen ? title.substring(0, titleLen) + ".." : title;
-        const href = `${urlPrefix}/${lang}/board.html?action=read&id=${r.id}`;
+        const href = `${urlPrefix}/${lang}/board.html?action=read&id=${r.legacyId}`;
         const date = dateStyle === "0" || !dateStyle
           ? (r.regdate || "").trim()
           : (r.regdate || "").trim().substring(0, 7);
@@ -126,18 +104,18 @@ export function renderBoardPluginContent(
       }).join("");
       contentHtml = `<ul style="margin:0;padding:0;">${items}</ul>`;
     } else if (displayStyle === 1) {
-      const imgW = parseInt(String(plugin.img_w)) || 150;
-      const imgH = parseInt(String(plugin.img_h)) || 100;
+      const imgW = plugin.imgWidth;
+      const imgH = plugin.imgHeight;
       const thumbSize = `${imgW}x${imgH}`;
       const items = rows.map((r) => {
-        const photos = r.photos ? String(r.photos).split("|").filter(Boolean) : [];
+        const photos = r.photos ? r.photos.split("|").filter(Boolean) : [];
         const firstPhoto = photos[0] || "";
         const imgSrc = firstPhoto
           ? `https://home.homenshop.com/${shopId}/thumb/${thumbSize}/${encodeURIComponent(firstPhoto)}`
           : "";
         const title = r.title || "";
         const truncTitle = title.length > titleLen ? title.substring(0, titleLen) + ".." : title;
-        const href = `${urlPrefix}/${lang}/board.html?action=read&id=${r.id}`;
+        const href = `${urlPrefix}/${lang}/board.html?action=read&id=${r.legacyId}`;
         return `<div style="display:inline-block;vertical-align:top;text-align:center;margin:4px;">
           <a href="${href}">
             ${imgSrc ? `<img src="${imgSrc}" style="width:${imgW}px;height:${imgH}px;object-fit:cover;border-radius:4px;" alt="${escapeHtml(truncTitle)}" />` : `<div style="width:${imgW}px;height:${imgH}px;background:#333;border-radius:4px;"></div>`}
@@ -156,7 +134,7 @@ export function renderBoardPluginContent(
           allPhotos.push({
             src: `https://home.homenshop.com/${shopId}/uploaded/${encodeURIComponent(p)}`,
             title: r.title || "",
-            href: `${urlPrefix}/${lang}/board.html?action=read&id=${r.id}`,
+            href: `${urlPrefix}/${lang}/board.html?action=read&id=${r.legacyId}`,
           });
         }
       }
@@ -179,47 +157,53 @@ export function renderBoardPluginContent(
   return result;
 }
 
-/* ─── ProductPlugin rendering ─── */
-export function renderProductPluginContent(
-  dbPath: string, shopId: string, lang: string, pageSlug: string,
+/* ─── ProductPlugin rendering (Prisma) ─── */
+export async function renderProductPluginContent(
+  siteId: string, shopId: string, lang: string, pageSlug: string,
   bodyHtml: string, urlPrefix: string = ""
-): string {
-  const plugins = sqliteQuery(dbPath,
-    `SELECT * FROM ProductPlugin WHERE lang = '${escapeSql(lang)}' AND page = '${escapeSql(pageSlug)}.html'`
-  );
+): Promise<string> {
+  const pageFile = `${pageSlug === "index" ? "index" : pageSlug}.html`;
+  const plugins = await prisma.productPlugin.findMany({
+    where: { siteId, lang, page: pageFile },
+  });
   if (plugins.length === 0) return bodyHtml;
 
   let result = bodyHtml;
 
   for (const plugin of plugins) {
-    const divId = String(plugin.divid || "");
-    const category = parseInt(String(plugin.category)) || 0;
-    const nums = parseInt(String(plugin.nums)) || 7;
-    const titleLen = parseInt(String(plugin.titlelen)) || 38;
-    const imgW = parseInt(String(plugin.img_w)) || 128;
-    const imgH = parseInt(String(plugin.img_h)) || 125;
-    const skinFile = String(plugin.skin_file || "goods.html");
+    const divId = plugin.divId;
+    const legacyCatId = plugin.legacyCatId;
+    const nums = plugin.nums;
+    const titleLen = plugin.titleLen;
+    const imgW = plugin.imgWidth;
+    const imgH = plugin.imgHeight;
+    const skinFile = plugin.skinFile || "goods.html";
 
     if (!divId || !result.includes(divId)) continue;
 
-    const whereClause = category > 0
-      ? `WHERE category = ${category}`
-      : "";
-    const rows = sqliteQuery(dbPath,
-      `SELECT * FROM Product ${whereClause} ORDER BY id DESC LIMIT ${nums}`
-    );
+    const where: Record<string, unknown> = { siteId };
+    if (legacyCatId && legacyCatId > 0) {
+      where.category = String(legacyCatId);
+    }
+
+    const rows = await prisma.product.findMany({
+      where,
+      orderBy: { legacyId: "desc" },
+      take: nums,
+      select: { legacyId: true, name: true, price: true, photos: true },
+    });
 
     const goodsPage = skinFile || "goods.html";
 
     const items = rows.map((r) => {
-      const pname = String(r.pname || "");
+      const pname = r.name || "";
       const truncName = pname.length > titleLen ? pname.substring(0, titleLen) + ".." : pname;
-      const photos = r.photos ? String(r.photos).split("|").filter(Boolean) : [];
+      const photos = r.photos ? r.photos.split("|").filter(Boolean) : [];
       const firstPhoto = photos[0] || "";
       const imgSrc = firstPhoto
         ? `https://home.homenshop.com/${shopId}/uploaded/${encodeURIComponent(firstPhoto)}`
         : "";
-      const href = `${urlPrefix}/${lang}/${goodsPage}?action=read&id=${r.id}`;
+      const href = `${urlPrefix}/${lang}/${goodsPage}?action=read&id=${r.legacyId}`;
       const price = r.price ? `<span style="color:#333;font-size:12px;">$${r.price}</span>` : "";
       return `<div style="flex:1;min-width:0;text-align:center;">
         <a href="${href}">

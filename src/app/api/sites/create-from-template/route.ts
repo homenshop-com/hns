@@ -71,9 +71,11 @@ export async function POST(request: Request) {
     );
   }
 
-  // Parse template files from disk
+  // Custom template (userId present) — CSS/HMF already in DB
+  // Public template — read from disk
+  const isCustom = !!template.userId;
   const templatePages = parseTemplatePages(template.path);
-  const templateCss = readTemplateCss(template.path);
+  const templateCss = isCustom ? (template.cssText || "") : readTemplateCss(template.path);
 
   // Build page creation data from parsed template HTML
   const pageData = templatePages.map((page, index) => {

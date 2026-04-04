@@ -2,6 +2,9 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
+import { getTranslations } from "next-intl/server";
+import SignOutButton from "../../../../../sign-out-button";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 import SearchConsoleForm from "./SearchConsoleForm";
 
 export default async function SearchConsoleConfigPage({
@@ -23,6 +26,8 @@ export default async function SearchConsoleConfigPage({
     redirect("/dashboard");
   }
 
+  const td = await getTranslations("dashboard");
+
   return (
     <div className="dash-page">
       <header className="dash-header">
@@ -32,8 +37,10 @@ export default async function SearchConsoleConfigPage({
             <span className="dash-logo-sub">Google Search Console</span>
           </div>
           <div className="dash-header-right">
-            <span className="dash-user-info">{site.shopId}</span>
-            <Link href="/dashboard" className="dash-header-btn">대시보드</Link>
+            <Link href="/dashboard" className="dash-header-btn">{td("dashboard")}</Link>
+            <Link href="/dashboard/profile" className="dash-header-btn">{td("memberInfo")}</Link>
+            <SignOutButton />
+            <LanguageSwitcher />
           </div>
         </div>
       </header>

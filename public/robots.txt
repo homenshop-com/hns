@@ -1,0 +1,32 @@
+# Allow all crawlers including AI
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://homenshop.com/sitemap.xml
+
+# AI crawlers explicitly allowed
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+# Disallow private areas
+User-agent: *
+Disallow: /api/
+Disallow: /dashboard/
+Disallow: /admin/
+Disallow: /preview/

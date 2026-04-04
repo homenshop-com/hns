@@ -2,6 +2,9 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
+import SignOutButton from "../../../../sign-out-button";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 import CommentSection from "./comment-section";
 
 export default async function PostDetailPage({
@@ -23,6 +26,9 @@ export default async function PostDetailPage({
 
   if (!post || post.board.site.userId !== session.user.id) notFound();
 
+  const td = await getTranslations("dashboard");
+  const tb = await getTranslations("boardsPage");
+
   await prisma.boardPost.update({
     where: { id: postId },
     data: { views: { increment: 1 } },
@@ -34,11 +40,13 @@ export default async function PostDetailPage({
         <div className="dash-header-inner">
           <div style={{ display: "flex", alignItems: "center" }}>
             <Link href="/dashboard" className="dash-logo">HomeNShop</Link>
-            <span className="dash-logo-sub">게시글</span>
+            <span className="dash-logo-sub">{tb("viewPost")}</span>
           </div>
           <div className="dash-header-right">
-            <span className="dash-user-info">{session.user.name}</span>
-            <Link href="/dashboard" className="dash-header-btn">대시보드</Link>
+            <Link href="/dashboard" className="dash-header-btn">{td("dashboard")}</Link>
+            <Link href="/dashboard/profile" className="dash-header-btn">{td("memberInfo")}</Link>
+            <SignOutButton />
+            <LanguageSwitcher />
           </div>
         </div>
       </header>
@@ -46,7 +54,7 @@ export default async function PostDetailPage({
       <main className="dash-main">
         <div style={{ marginBottom: 16 }}>
           <Link href={`/dashboard/boards/${boardId}`} style={{ fontSize: 13, color: "#868e96", textDecoration: "none" }}>
-            &larr; 게시글 목록
+            &larr; {tb("backToList")}
           </Link>
         </div>
 
@@ -55,9 +63,9 @@ export default async function PostDetailPage({
           <div style={{ borderBottom: "1px solid #e2e8f0", padding: "20px 24px" }}>
             <h2 style={{ fontSize: 20, fontWeight: 700, color: "#1a1a2e", margin: 0 }}>{post.title}</h2>
             <div style={{ marginTop: 8, display: "flex", gap: 16, fontSize: 13, color: "#868e96" }}>
-              <span>작성자: {post.author}</span>
-              <span>작성일: {new Date(post.createdAt).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })}</span>
-              <span>조회수: {post.views + 1}</span>
+              <span>{tb("author")}: {post.author}</span>
+              <span>{tb("date")}: {new Date(post.createdAt).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })}</span>
+              <span>{tb("views")}: {post.views + 1}</span>
             </div>
           </div>
 
@@ -70,9 +78,9 @@ export default async function PostDetailPage({
         {/* Action Buttons */}
         <div style={{ marginTop: 16, display: "flex", gap: 8 }}>
           <Link href={`/dashboard/boards/${boardId}/posts/${postId}/edit`} className="dash-action-btn blue">
-            수정
+            {tb("edit")}
           </Link>
-          <DeletePostButton boardId={boardId} postId={postId} />
+          <DeletePostButton boardId={boardId} postId={postId} label={tb("delete")} />
         </div>
 
         {/* Comments */}
@@ -88,7 +96,7 @@ export default async function PostDetailPage({
   );
 }
 
-function DeletePostButton({ boardId, postId }: { boardId: string; postId: string }) {
+function DeletePostButton({ boardId, postId, label }: { boardId: string; postId: string; label: string }) {
   return (
     <form
       action={async () => {
@@ -106,7 +114,7 @@ function DeletePostButton({ boardId, postId }: { boardId: string; postId: string
       }}
     >
       <button type="submit" style={{ padding: "8px 18px", fontSize: 13, fontWeight: 700, background: "#fff", color: "#e03131", border: "1.5px solid #e03131", borderRadius: 6, cursor: "pointer" }}>
-        삭제
+        {label}
       </button>
     </form>
   );

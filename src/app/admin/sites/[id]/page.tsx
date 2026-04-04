@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 
-const ACCOUNT_TYPES: Record<string, string> = { 0: "Free", 1: "Paid", 2: "Expired", 4: "Test" };
+const ACCOUNT_TYPES: Record<string, string> = { "0": "Free", "1": "Paid", "2": "Test", "9": "Expired" };
 
 async function updateSite(formData: FormData) {
   "use server";
@@ -111,8 +111,8 @@ export default async function AdminSiteDetailPage({
                 <select name="accountType" defaultValue={site.accountType} className="w-full border border-slate-600/40 rounded-lg bg-slate-800/50 px-3 py-2 text-sm text-slate-200">
                   <option value="0">0 - Free</option>
                   <option value="1">1 - Paid</option>
-                  <option value="2">2 - Expired</option>
-                  <option value="4">4 - Test</option>
+                  <option value="2">2 - Test</option>
+                  <option value="9">9 - Expired</option>
                 </select>
               </div>
               <div>

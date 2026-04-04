@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { uploadFile } from "@/lib/storage";
+import { uploadFile, uploadImageWithResize } from "@/lib/storage";
 
 const ALLOWED_TYPES = new Set([
   "image/jpeg",
@@ -9,7 +9,7 @@ const ALLOWED_TYPES = new Set([
   "image/webp",
 ]);
 
-const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_SIZE = 10 * 1024 * 1024; // 10MB
 
 export async function POST(request: NextRequest) {
   const session = await auth();
@@ -40,14 +40,22 @@ export async function POST(request: NextRequest) {
 
     if (file.size > MAX_SIZE) {
       return NextResponse.json(
-        { error: "파일 크기가 5MB를 초과합니다." },
+        { error: "파일 크기가 10MB를 초과합니다." },
         { status: 400 }
       );
     }
 
     const folder = (formData.get("folder") as string) || "uploads";
-    const url = await uploadFile(file, folder);
+    const resize = formData.get("resize") === "true";
 
+    if (resize) {
+      // Product images: generate thumb/medium/large variants
+      const urls = await uploadImageWithResize(file, folder);
+      return NextResponse.json(urls, { status: 201 });
+    }
+
+    // Simple upload (no resize)
+    const url = await uploadFile(file, folder);
     return NextResponse.json({ url }, { status: 201 });
   } catch (err) {
     console.error("Upload error:", err);

@@ -2,6 +2,9 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
+import SignOutButton from "../sign-out-button";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 import CreateBoardForm from "./create-board-form";
 
 const TYPE_LABELS: Record<string, string> = {
@@ -15,6 +18,9 @@ export default async function BoardsPage() {
   if (!session) {
     redirect("/login");
   }
+
+  const t = await getTranslations("boardsPage");
+  const td = await getTranslations("dashboard");
 
   const site = await prisma.site.findFirst({
     where: { userId: session.user.id },
@@ -36,18 +42,20 @@ export default async function BoardsPage() {
         <div className="dash-header-inner">
           <div style={{ display: "flex", alignItems: "center" }}>
             <Link href="/dashboard" className="dash-logo">HomeNShop</Link>
-            <span className="dash-logo-sub">게시판 관리</span>
+            <span className="dash-logo-sub">{t("title")}</span>
           </div>
           <div className="dash-header-right">
-            <span className="dash-user-info">{session.user.name} ({session.user.email})</span>
-            <Link href="/dashboard" className="dash-header-btn">대시보드</Link>
+            <Link href="/dashboard" className="dash-header-btn">{td("dashboard")}</Link>
+            <Link href="/dashboard/profile" className="dash-header-btn">{td("memberInfo")}</Link>
+            <SignOutButton />
+            <LanguageSwitcher />
           </div>
         </div>
       </header>
 
       <main className="dash-main">
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
-          <h1 className="dash-title">게시판 관리</h1>
+          <h1 className="dash-title">{t("title")}</h1>
           <span style={{ fontSize: 13, color: "#868e96" }}>총 {boards.length}개의 게시판</span>
         </div>
 

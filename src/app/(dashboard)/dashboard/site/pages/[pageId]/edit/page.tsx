@@ -1,7 +1,8 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { getDbPath, renderBoardPluginContent, renderProductPluginContent } from "@/lib/plugin-renderer";
+import { renderBoardPluginContent, renderProductPluginContent } from "@/lib/plugin-renderer";
+import { readTemplateCss } from "@/lib/template-parser";
 import DesignEditor from "./design-editor";
 
 interface EditPageProps {
@@ -72,22 +73,25 @@ export default async function EditPagePage({ params }: EditPageProps) {
   const hmf = site.hmfTranslations?.find((h) => h.lang === currentLang)
     || site.hmfTranslations?.find((h) => h.lang === site.defaultLanguage);
   const headerHtml = hmf?.headerHtml ?? site.headerHtml ?? "";
-  const menuHtml = hmf?.menuHtml ?? site.menuHtml ?? "";
+  const menuHtml = hmf?.menuHtml || site.menuHtml || "";
   const footerHtml = hmf?.footerHtml ?? site.footerHtml ?? "";
 
   // Extract page body HTML from content JSON
   const pageContent = currentPage.content as { html?: string; layers?: unknown[] } | null;
   let bodyHtml = pageContent?.html || "";
 
-  // Server-side render BoardPlugin/ProductPlugin content (replace stale <script> tags)
-  const dbPath = getDbPath(site.shopId);
-  if (dbPath && bodyHtml) {
-    bodyHtml = renderBoardPluginContent(dbPath, site.shopId, currentLang, currentPage.slug, bodyHtml);
-    bodyHtml = renderProductPluginContent(dbPath, site.shopId, currentLang, currentPage.slug, bodyHtml);
+  // Server-side render BoardPlugin/ProductPlugin content (replace stale plugin HTML)
+  if (bodyHtml) {
+    bodyHtml = await renderBoardPluginContent(site.id, site.shopId, currentLang, currentPage.slug, bodyHtml);
+    bodyHtml = await renderProductPluginContent(site.id, site.shopId, currentLang, currentPage.slug, bodyHtml);
   }
 
   // Page-level CSS (z-index, position overrides for body elements)
   const pageCss = (currentPage as typeof currentPage & { css?: string }).css || "";
+
+  // Template CSS (default.css + site-upgrade.css)
+  const templatePath = site.templatePath || "";
+  const templateCss = templatePath ? readTemplateCss(templatePath) : "";
 
   return (
     <DesignEditor
@@ -95,12 +99,13 @@ export default async function EditPagePage({ params }: EditPageProps) {
       shopId={site.shopId}
       siteName={site.name}
       defaultLanguage={site.defaultLanguage}
-      templatePath={site.templatePath || ""}
+      templatePath={templatePath}
       headerHtml={headerHtml}
       menuHtml={menuHtml}
       footerHtml={footerHtml}
       cssText={site.cssText || ""}
       pageCss={pageCss}
+      templateCss={templateCss}
       pageId={currentPage.id}
       pageTitle={currentPage.title}
       pageSlug={currentPage.slug}

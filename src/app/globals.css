@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Force light mode — dark: variants only activate with .dark class (never added) */
+@custom-variant dark (&:is(.dark *));
+
 :root {
   --background: #ffffff;
   --foreground: #171717;

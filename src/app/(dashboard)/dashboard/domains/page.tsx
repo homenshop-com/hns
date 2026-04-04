@@ -2,6 +2,9 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
+import SignOutButton from "../sign-out-button";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 import AddDomainForm from "./add-domain-form";
 
 export default async function DashboardDomainsPage() {
@@ -9,6 +12,9 @@ export default async function DashboardDomainsPage() {
   if (!session) {
     redirect("/login");
   }
+
+  const t = await getTranslations("domainsPage");
+  const td = await getTranslations("dashboard");
 
   const domains = await prisma.domain.findMany({
     where: { userId: session.user.id },
@@ -27,13 +33,17 @@ export default async function DashboardDomainsPage() {
             <Link href="/dashboard" className="dash-logo">
               HomeNShop
             </Link>
-            <span className="dash-logo-sub">도메인 관리</span>
+            <span className="dash-logo-sub">{t("title")}</span>
           </div>
           <div className="dash-header-right">
-            <span className="dash-user-info">{session.user.email}</span>
             <Link href="/dashboard" className="dash-header-btn">
-              대시보드
+              {td("dashboard")}
             </Link>
+            <Link href="/dashboard/profile" className="dash-header-btn">
+              {td("memberInfo")}
+            </Link>
+            <SignOutButton />
+            <LanguageSwitcher />
           </div>
         </div>
       </header>
@@ -41,9 +51,9 @@ export default async function DashboardDomainsPage() {
       {/* MAIN */}
       <main className="dash-main">
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
-          <h1 className="dash-title">도메인 관리</h1>
+          <h1 className="dash-title">{t("title")}</h1>
           <span style={{ fontSize: 13, color: "#868e96" }}>
-            {domains.length}개의 도메인
+            {domains.length}{t("domainCount")}
           </span>
         </div>
 
@@ -53,12 +63,12 @@ export default async function DashboardDomainsPage() {
             <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ background: "#f8f9fa", borderBottom: "1px solid #e2e8f0" }}>
-                  <th style={{ padding: "12px 20px", textAlign: "left", fontWeight: 700, color: "#495057" }}>도메인</th>
-                  <th style={{ padding: "12px 20px", textAlign: "center", fontWeight: 700, color: "#495057" }}>상태</th>
-                  <th style={{ padding: "12px 20px", textAlign: "center", fontWeight: 700, color: "#495057" }}>SSL</th>
-                  <th style={{ padding: "12px 20px", textAlign: "left", fontWeight: 700, color: "#495057" }}>사이트</th>
-                  <th style={{ padding: "12px 20px", textAlign: "left", fontWeight: 700, color: "#495057" }}>등록일</th>
-                  <th style={{ padding: "12px 20px", textAlign: "center", fontWeight: 700, color: "#495057" }}>관리</th>
+                  <th style={{ padding: "12px 20px", textAlign: "left", fontWeight: 700, color: "#495057" }}>{t("colDomain")}</th>
+                  <th style={{ padding: "12px 20px", textAlign: "center", fontWeight: 700, color: "#495057" }}>{t("colStatus")}</th>
+                  <th style={{ padding: "12px 20px", textAlign: "center", fontWeight: 700, color: "#495057" }}>{t("colSsl")}</th>
+                  <th style={{ padding: "12px 20px", textAlign: "left", fontWeight: 700, color: "#495057" }}>{t("colSite")}</th>
+                  <th style={{ padding: "12px 20px", textAlign: "left", fontWeight: 700, color: "#495057" }}>{t("colDate")}</th>
+                  <th style={{ padding: "12px 20px", textAlign: "center", fontWeight: 700, color: "#495057" }}>{t("colManage")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -68,16 +78,20 @@ export default async function DashboardDomainsPage() {
                       {domain.domain}
                     </td>
                     <td style={{ padding: "12px 20px", textAlign: "center" }}>
-                      <DomainStatusBadge status={domain.status} />
+                      <DomainStatusBadge status={domain.status} labels={{
+                        PENDING: t("statusPending"),
+                        ACTIVE: t("statusActive"),
+                        EXPIRED: t("statusExpired"),
+                      }} />
                     </td>
                     <td style={{ padding: "12px 20px", textAlign: "center" }}>
                       {domain.sslEnabled ? (
                         <span style={{ display: "inline-block", padding: "2px 10px", fontSize: 11, fontWeight: 600, borderRadius: 20, background: "#f0fdf4", color: "#22c55e" }}>
-                          활성
+                          {t("sslActive")}
                         </span>
                       ) : (
                         <span style={{ display: "inline-block", padding: "2px 10px", fontSize: 11, fontWeight: 600, borderRadius: 20, background: "#f8f9fa", color: "#868e96" }}>
-                          비활성
+                          {t("sslInactive")}
                         </span>
                       )}
                     </td>
@@ -88,7 +102,7 @@ export default async function DashboardDomainsPage() {
                       {domain.createdAt.toLocaleDateString("ko-KR")}
                     </td>
                     <td style={{ padding: "12px 20px", textAlign: "center" }}>
-                      <DeleteDomainButton domainId={domain.id} />
+                      <DeleteDomainButton domainId={domain.id} label={t("delete")} />
                     </td>
                   </tr>
                 ))}
@@ -97,7 +111,7 @@ export default async function DashboardDomainsPage() {
           </div>
         ) : (
           <div style={{ background: "#fff", borderRadius: 8, boxShadow: "0 1px 8px rgba(0,0,0,0.06)", padding: "48px 24px", textAlign: "center", marginBottom: 24, color: "#868e96", fontSize: 14 }}>
-            등록된 도메인이 없습니다.
+            {t("noDomains")}
           </div>
         )}
 
@@ -115,17 +129,11 @@ export default async function DashboardDomainsPage() {
   );
 }
 
-function DomainStatusBadge({ status }: { status: string }) {
+function DomainStatusBadge({ status, labels }: { status: string; labels: Record<string, string> }) {
   const styles: Record<string, { bg: string; color: string }> = {
     PENDING: { bg: "#fffbeb", color: "#d97706" },
     ACTIVE: { bg: "#f0fdf4", color: "#22c55e" },
     EXPIRED: { bg: "#fef2f2", color: "#ef4444" },
-  };
-
-  const labels: Record<string, string> = {
-    PENDING: "대기중",
-    ACTIVE: "활성",
-    EXPIRED: "만료",
   };
 
   const s = styles[status] || styles.PENDING;
@@ -137,7 +145,7 @@ function DomainStatusBadge({ status }: { status: string }) {
   );
 }
 
-function DeleteDomainButton({ domainId }: { domainId: string }) {
+function DeleteDomainButton({ domainId, label }: { domainId: string; label: string }) {
   return (
     <form
       action={async () => {
@@ -155,7 +163,7 @@ function DeleteDomainButton({ domainId }: { domainId: string }) {
         type="submit"
         style={{ fontSize: 12, color: "#e03131", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}
       >
-        삭제
+        {label}
       </button>
     </form>
   );

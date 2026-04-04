@@ -2,6 +2,9 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
+import { getTranslations } from "next-intl/server";
+import SignOutButton from "../../../../../sign-out-button";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 import AnalyticsForm from "./AnalyticsForm";
 
 export default async function AnalyticsConfigPage({
@@ -23,25 +26,31 @@ export default async function AnalyticsConfigPage({
     redirect("/dashboard");
   }
 
+  const td = await getTranslations("dashboard");
+
   return (
-    <div style={{ minHeight: "100vh", background: "#f4f6f8", fontFamily: "Noto Sans KR, -apple-system, BlinkMacSystemFont, sans-serif" }}>
-      <header style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "0 24px" }}>
-        <div style={{ maxWidth: 800, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: 56 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <Link href="/dashboard" style={{ fontSize: 20, fontWeight: 700, color: "#2563eb", textDecoration: "none" }}>
-              HomeNShop
-            </Link>
-            <span style={{ color: "#6b7280", fontSize: 13 }}>/</span>
-            <Link href={`/dashboard/site/${siteId}/manage`} style={{ color: "#6b7280", fontSize: 13, textDecoration: "none" }}>
-              데이타관리
-            </Link>
-            <span style={{ color: "#6b7280", fontSize: 13 }}>/</span>
-            <span style={{ color: "#374151", fontSize: 13, fontWeight: 500 }}>Google Analytics</span>
+    <div className="dash-page">
+      <header className="dash-header">
+        <div className="dash-header-inner">
+          <div style={{ display: "flex", alignItems: "center" }}>
+            <Link href="/dashboard" className="dash-logo">HomeNShop</Link>
+            <span className="dash-logo-sub">Google</span>
+          </div>
+          <div className="dash-header-right">
+            <Link href="/dashboard" className="dash-header-btn">{td("dashboard")}</Link>
+            <Link href="/dashboard/profile" className="dash-header-btn">{td("memberInfo")}</Link>
+            <SignOutButton />
+            <LanguageSwitcher />
           </div>
         </div>
       </header>
 
-      <main style={{ maxWidth: 800, margin: "0 auto", padding: "32px 24px" }}>
+      <main className="dash-main">
+        <div style={{ marginBottom: 16 }}>
+          <Link href={`/dashboard/site/${siteId}/manage`} style={{ fontSize: 13, color: "#868e96", textDecoration: "none" }}>
+            &larr; 데이타관리
+          </Link>
+        </div>
         <div style={{ background: "#fff", borderRadius: 8, padding: "32px", boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>
           <h1 style={{ fontSize: 20, fontWeight: 700, color: "#111827", marginBottom: 8, marginTop: 0 }}>
             Google Analytics
@@ -63,6 +72,12 @@ export default async function AnalyticsConfigPage({
           </div>
         </div>
       </main>
+
+      <footer className="dash-footer">
+        <div className="dash-footer-inner">
+          <p>&copy; {new Date().getFullYear()} homenshop.com. All rights reserved.</p>
+        </div>
+      </footer>
     </div>
   );
 }

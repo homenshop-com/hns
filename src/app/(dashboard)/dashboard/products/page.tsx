@@ -2,6 +2,24 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { Prisma } from "@/generated/prisma/client";
+import { getTranslations } from "next-intl/server";
+import SignOutButton from "../sign-out-button";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
+
+async function getCategoryMap(siteId: string): Promise<Record<string, string>> {
+  const categories = await prisma.productCategory.findMany({
+    where: { siteId },
+    select: { legacyId: true, name: true },
+  });
+  const map: Record<string, string> = {};
+  for (const c of categories) {
+    if (c.legacyId != null) {
+      map[String(c.legacyId)] = c.name;
+    }
+  }
+  return map;
+}
 
 const STATUS_LABELS: Record<string, string> = {
   ACTIVE: "판매중",
@@ -18,51 +36,170 @@ const STATUS_COLORS: Record<string, string> = {
     "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300",
 };
 
-export default async function ProductsPage() {
+const PER_PAGE = 30;
+
+export default async function ProductsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; page?: string; status?: string; cat?: string }>;
+}) {
   const session = await auth();
   if (!session) {
     redirect("/login");
   }
 
+  const td = await getTranslations("dashboard");
+
+  const { q, page: pageStr, status, cat } = await searchParams;
+  const currentPage = Math.max(1, parseInt(pageStr || "1"));
+
   const site = await prisma.site.findFirst({
     where: { userId: session.user.id },
   });
 
-  const products = site
-    ? await prisma.product.findMany({
-        where: { siteId: site.id },
-        orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
-      })
-    : [];
+  const categoryMap = site ? await getCategoryMap(site.id) : {};
+
+  let products: Awaited<ReturnType<typeof prisma.product.findMany>> = [];
+  let totalCount = 0;
+
+  if (site) {
+    const where: Prisma.ProductWhereInput = { siteId: site.id };
+
+    if (q && q.trim()) {
+      where.name = { contains: q.trim(), mode: "insensitive" };
+    }
+    if (status && status !== "ALL") {
+      where.status = status as Prisma.EnumProductStatusFilter;
+    }
+    if (cat && cat !== "ALL") {
+      where.category = cat;
+    }
+
+    totalCount = await prisma.product.count({ where });
+    products = await prisma.product.findMany({
+      where,
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
+      skip: (currentPage - 1) * PER_PAGE,
+      take: PER_PAGE,
+    });
+  }
+
+  const totalPages = Math.ceil(totalCount / PER_PAGE);
+
+  // Build sorted category list for the filter dropdown
+  const categoryOptions = Object.entries(categoryMap)
+    .map(([id, name]) => ({ id, name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  // Build query string helper
+  function qs(overrides: Record<string, string | undefined>) {
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (status) params.set("status", status);
+    if (cat) params.set("cat", cat);
+    if (pageStr) params.set("page", pageStr);
+    for (const [k, v] of Object.entries(overrides)) {
+      if (v === undefined || v === "" || (v === "1" && k === "page")) {
+        params.delete(k);
+      } else {
+        params.set(k, v);
+      }
+    }
+    const s = params.toString();
+    return s ? `?${s}` : "";
+  }
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
-      <header className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-          <Link href="/dashboard" className="text-xl font-bold">
-            Homenshop
-          </Link>
-          <span className="text-sm text-zinc-600 dark:text-zinc-400">
-            {session.user.name} ({session.user.email})
-          </span>
+    <div className="dash-page">
+      <header className="dash-header">
+        <div className="dash-header-inner">
+          <div style={{ display: "flex", alignItems: "center" }}>
+            <Link href="/dashboard" className="dash-logo">HomeNShop</Link>
+            <span className="dash-logo-sub">{td("cards.products")}</span>
+          </div>
+          <div className="dash-header-right">
+            <Link href="/dashboard" className="dash-header-btn">{td("dashboard")}</Link>
+            <Link href="/dashboard/profile" className="dash-header-btn">{td("memberInfo")}</Link>
+            <SignOutButton />
+            <LanguageSwitcher />
+          </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-6 py-8">
+      <main className="dash-main">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-2xl font-bold">상품 관리</h2>
             <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              총 {products.length}개의 상품
+              총 {totalCount}개의 상품
+              {q && <span> &middot; &quot;{q}&quot; 검색 결과</span>}
+              {cat && cat !== "ALL" && categoryMap[cat] && <span> &middot; {categoryMap[cat]}</span>}
             </p>
           </div>
-          <Link
-            href="/dashboard/products/new"
-            className="rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
-          >
-            + 상품 등록
-          </Link>
+          <div className="flex gap-2">
+            <Link
+              href="/dashboard/products/categories"
+              className="rounded-lg border border-zinc-300 px-4 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            >
+              카테고리 관리
+            </Link>
+            <Link
+              href="/dashboard/products/new"
+              className="rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+            >
+              + 상품 등록
+            </Link>
+          </div>
         </div>
+
+        {/* Search & Filter */}
+        {site && (
+          <form action="/dashboard/products" method="GET" className="mb-4 flex gap-2 items-center flex-wrap">
+            <input
+              type="text"
+              name="q"
+              defaultValue={q || ""}
+              placeholder="상품명 검색..."
+              className="flex-1 min-w-[200px] rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+            />
+            {categoryOptions.length > 0 && (
+              <select
+                name="cat"
+                defaultValue={cat || "ALL"}
+                className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+              >
+                <option value="ALL">전체 카테고리</option>
+                {categoryOptions.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            )}
+            <select
+              name="status"
+              defaultValue={status || "ALL"}
+              className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+            >
+              <option value="ALL">전체 상태</option>
+              <option value="ACTIVE">판매중</option>
+              <option value="HIDDEN">숨김</option>
+              <option value="SOLDOUT">품절</option>
+            </select>
+            <button
+              type="submit"
+              className="rounded-lg bg-zinc-700 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-600 dark:bg-zinc-600 dark:hover:bg-zinc-500"
+            >
+              검색
+            </button>
+            {(q || (status && status !== "ALL") || (cat && cat !== "ALL")) && (
+              <Link
+                href="/dashboard/products"
+                className="rounded-lg border border-zinc-300 px-4 py-2 text-sm text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
+              >
+                초기화
+              </Link>
+            )}
+          </form>
+        )}
 
         {!site && (
           <div className="rounded-xl border border-zinc-200 bg-white p-8 text-center dark:border-zinc-800 dark:bg-zinc-900">
@@ -81,14 +218,16 @@ export default async function ProductsPage() {
         {site && products.length === 0 && (
           <div className="rounded-xl border border-zinc-200 bg-white p-8 text-center dark:border-zinc-800 dark:bg-zinc-900">
             <p className="text-zinc-500 dark:text-zinc-400">
-              등록된 상품이 없습니다.
+              {q ? `"${q}" 검색 결과가 없습니다.` : "등록된 상품이 없습니다."}
             </p>
-            <Link
-              href="/dashboard/products/new"
-              className="mt-3 inline-block text-sm font-medium text-zinc-900 hover:underline dark:text-zinc-100"
-            >
-              첫 상품 등록하기
-            </Link>
+            {!q && (
+              <Link
+                href="/dashboard/products/new"
+                className="mt-3 inline-block text-sm font-medium text-zinc-900 hover:underline dark:text-zinc-100"
+              >
+                첫 상품 등록하기
+              </Link>
+            )}
           </div>
         )}
 
@@ -99,6 +238,9 @@ export default async function ProductsPage() {
                 <tr className="border-b border-zinc-200 dark:border-zinc-800">
                   <th className="px-6 py-3 text-left font-medium text-zinc-500 dark:text-zinc-400">
                     상품명
+                  </th>
+                  <th className="px-6 py-3 text-left font-medium text-zinc-500 dark:text-zinc-400">
+                    카테고리
                   </th>
                   <th className="px-6 py-3 text-right font-medium text-zinc-500 dark:text-zinc-400">
                     판매가
@@ -127,11 +269,9 @@ export default async function ProductsPage() {
                       >
                         {product.name}
                       </Link>
-                      {product.category && (
-                        <span className="ml-2 text-xs text-zinc-400">
-                          {product.category}
-                        </span>
-                      )}
+                    </td>
+                    <td className="px-6 py-4 text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
+                      {product.category ? (categoryMap[product.category] || product.category) : ""}
                     </td>
                     <td className="px-6 py-4 text-right whitespace-nowrap">
                       {product.salePrice != null ? (
@@ -171,6 +311,52 @@ export default async function ProductsPage() {
           </div>
         )}
 
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="mt-4 flex items-center justify-center gap-1">
+            {currentPage > 1 && (
+              <Link
+                href={`/dashboard/products${qs({ page: String(currentPage - 1) })}`}
+                className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
+              >
+                이전
+              </Link>
+            )}
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 2)
+              .reduce<(number | string)[]>((acc, p, idx, arr) => {
+                if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push("...");
+                acc.push(p);
+                return acc;
+              }, [])
+              .map((p, idx) =>
+                typeof p === "string" ? (
+                  <span key={`ellipsis-${idx}`} className="px-2 text-sm text-zinc-400">...</span>
+                ) : (
+                  <Link
+                    key={p}
+                    href={`/dashboard/products${qs({ page: String(p) })}`}
+                    className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
+                      p === currentPage
+                        ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+                        : "border border-zinc-300 text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                    }`}
+                  >
+                    {p}
+                  </Link>
+                )
+              )}
+            {currentPage < totalPages && (
+              <Link
+                href={`/dashboard/products${qs({ page: String(currentPage + 1) })}`}
+                className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
+              >
+                다음
+              </Link>
+            )}
+          </div>
+        )}
+
         <div className="mt-6">
           <Link
             href="/dashboard"
@@ -180,6 +366,7 @@ export default async function ProductsPage() {
           </Link>
         </div>
       </main>
+      <footer className="dash-footer" />
     </div>
   );
 }

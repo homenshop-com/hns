@@ -20,6 +20,9 @@ const TEMPLATE_BASE_PATH =
   process.env.TEMPLATE_FILES_PATH ||
   "/var/www/templates/personal/newtemp";
 
+// Base path for user-uploaded templates
+const UPLOAD_BASE = process.env.UPLOAD_PATH || "/var/www/uploads";
+
 export interface TemplatePage {
   slug: string;
   title: string;
@@ -64,6 +67,21 @@ function extractBodyContent(html: string): string {
   );
   if (bodyMatch2) {
     return bodyMatch2[1].trim();
+  }
+
+  // Custom templates: try <main> tag
+  const mainMatch = html.match(/<main[^>]*>([\s\S]*?)<\/main>/i);
+  if (mainMatch) return mainMatch[1].trim();
+
+  // Custom templates: extract <body> minus header/nav/footer
+  const fullBodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+  if (fullBodyMatch) {
+    let content = fullBodyMatch[1];
+    content = content.replace(/<header[\s\S]*?<\/header>/gi, "");
+    content = content.replace(/<nav[\s\S]*?<\/nav>/gi, "");
+    content = content.replace(/<footer[\s\S]*?<\/footer>/gi, "");
+    content = content.replace(/<script[\s\S]*?<\/script>/gi, "");
+    return content.trim();
   }
 
   return "";
@@ -126,12 +144,20 @@ export function readTemplateCss(templatePath: string): string {
  * Returns array of pages with slug, title, and body HTML content.
  */
 export function parseTemplatePages(templatePath: string): TemplatePage[] {
-  const relativePath = templatePath.replace(/^personal\/newtemp\//, "");
-  let templateDir = path.join(TEMPLATE_BASE_PATH, relativePath);
+  let templateDir: string;
 
-  // Fallback to full path resolution
-  if (!fs.existsSync(templateDir)) {
-    templateDir = path.join(path.dirname(TEMPLATE_BASE_PATH), templatePath);
+  // User-uploaded templates: stored under UPLOAD_BASE/templates/{tplId}/
+  if (templatePath.startsWith("user-templates/")) {
+    const tplId = templatePath.replace("user-templates/", "");
+    templateDir = path.join(UPLOAD_BASE, "templates", tplId);
+  } else {
+    const relativePath = templatePath.replace(/^personal\/newtemp\//, "");
+    templateDir = path.join(TEMPLATE_BASE_PATH, relativePath);
+
+    // Fallback to full path resolution
+    if (!fs.existsSync(templateDir)) {
+      templateDir = path.join(path.dirname(TEMPLATE_BASE_PATH), templatePath);
+    }
   }
 
   if (!fs.existsSync(templateDir)) {
@@ -184,7 +210,14 @@ export function rewriteAssetUrls(html: string, templatePath: string): string {
   // Remove PHP includes (not applicable in Next.js)
   let result = html.replace(/<\?php[\s\S]*?\?>/g, "");
 
-  const baseUrl = `/tpl/${templatePath}/files`;
+  // User-uploaded templates use /uploads/templates/ path
+  let baseUrl: string;
+  if (templatePath.startsWith("user-templates/")) {
+    const tplId = templatePath.replace("user-templates/", "");
+    baseUrl = `/uploads/templates/${tplId}/files`;
+  } else {
+    baseUrl = `/tpl/${templatePath}/files`;
+  }
 
   // Rewrite relative ../files/ paths to absolute /tpl/ paths
   result = result.replace(

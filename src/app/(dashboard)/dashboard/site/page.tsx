@@ -17,6 +17,7 @@ export default async function SitePage() {
 
   const t = await getTranslations("dashboard");
   const tSite = await getTranslations("site");
+  const tSettings = await getTranslations("settings");
   const tFooter = await getTranslations("home");
 
   const site = await prisma.site.findFirst({
@@ -41,9 +42,12 @@ export default async function SitePage() {
             <span className="dash-logo-sub">{t("title")}</span>
           </div>
           <div className="dash-header-right">
-            <span className="dash-user-info">
-              {session.user.email}
-            </span>
+            <Link href="/dashboard" className="dash-header-btn">
+              {t("dashboard")}
+            </Link>
+            <Link href="/dashboard/profile" className="dash-header-btn">
+              {t("memberInfo")}
+            </Link>
             <SignOutButton />
             <LanguageSwitcher />
           </div>
@@ -58,7 +62,7 @@ export default async function SitePage() {
             <div className="tpl-breadcrumb">
               <Link href="/dashboard">{t("title")}</Link>
               <span className="sep">&gt;</span>
-              디자인 템플릿 리스트
+              {tSite("createSite")}
             </div>
 
             {/* TEMPLATE GALLERY */}
@@ -83,7 +87,7 @@ export default async function SitePage() {
                   )}
                 </div>
                 <span className={`site-info-badge ${site.published ? "published" : "draft"}`}>
-                  {site.published ? "게시됨" : "미게시"}
+                  {site.published ? tSettings("published") : tSettings("unpublished")}
                 </span>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
@@ -94,7 +98,7 @@ export default async function SitePage() {
                   {t("btnData")}
                 </Link>
                 <Link href="/dashboard/site/settings" className="dash-manage-btn">
-                  설정
+                  {t("cards.settings")}
                 </Link>
               </div>
             </div>

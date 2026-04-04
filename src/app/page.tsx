@@ -9,11 +9,18 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: t("pageTitle"),
     description: t("metaDescription"),
+    alternates: {
+      canonical: "https://homenshop.com",
+    },
     openGraph: {
       type: "website",
       siteName: "Homenshop",
       title: t("pageTitle"),
       description: t("metaDescription"),
+      url: "https://homenshop.com",
+    },
+    other: {
+      "ai:description": "Homenshop is a multilingual website builder for Korean SMEs preparing for global export. Users create product catalogs and company pages in English, Chinese, Japanese, Spanish without coding. Key features: drag-and-drop editor, 100+ templates, mobile responsive, custom domain, multilingual support. Pricing: 66,000 KRW/year. Target: Korean small businesses using KOTRA, trade associations, export voucher programs.",
     },
   };
 }
@@ -27,8 +34,117 @@ export default async function Home() {
     redirect("/dashboard");
   }
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: "Homenshop",
+    applicationCategory: "WebApplication",
+    applicationSubCategory: "Website Builder",
+    operatingSystem: "Web",
+    url: "https://homenshop.com",
+    description: "Multilingual website builder for Korean SMEs preparing for global export. Create product catalogs and company pages in English, Chinese, Japanese, Spanish — no coding required.",
+    featureList: [
+      "Multilingual website (Korean, English, Chinese, Japanese, Spanish)",
+      "Product catalog management",
+      "Drag-and-drop page editor",
+      "100+ design templates",
+      "Mobile responsive design",
+      "Custom domain binding",
+      "No coding required",
+    ],
+    audience: {
+      "@type": "BusinessAudience",
+      audienceType: "Korean small and medium enterprises preparing for export",
+    },
+    offers: {
+      "@type": "Offer",
+      price: "66000",
+      priceCurrency: "KRW",
+      priceValidUntil: "2027-12-31",
+      description: "Annual premium plan",
+    },
+    provider: {
+      "@type": "Organization",
+      name: "Homenshop",
+      url: "https://homenshop.com",
+      logo: "https://homenshop.com/favicon.ico",
+      contactPoint: {
+        "@type": "ContactPoint",
+        email: "help@homenshop.com",
+        contactType: "customer service",
+        availableLanguage: ["Korean", "English", "Japanese", "Chinese", "Spanish"],
+      },
+    },
+  };
+
+  const orgJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "Homenshop",
+    legalName: "(주)홈앤샵",
+    url: "https://homenshop.com",
+    logo: "https://homenshop.com/favicon.ico",
+    description: "Multilingual website builder for Korean export SMEs. Create product catalogs in buyer languages without coding.",
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: "400 World Cup North-ro, Seoul Economic Promotion Agency 2F A-425",
+      addressLocality: "Mapo-gu",
+      addressRegion: "Seoul",
+      addressCountry: "KR",
+    },
+    contactPoint: {
+      "@type": "ContactPoint",
+      email: "help@homenshop.com",
+      contactType: "customer service",
+      availableLanguage: ["Korean", "English", "Japanese", "Chinese", "Spanish"],
+    },
+  };
+
+  const faqJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: [
+      {
+        "@type": "Question",
+        name: "What is Homenshop?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Homenshop is a multilingual website builder designed for Korean small and medium businesses preparing for global export. It allows you to create product catalogs and company introduction pages in English, Chinese, Japanese, Spanish, and more — without any coding.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "Who is Homenshop for?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Homenshop is built for Korean SMEs that need multilingual websites to reach overseas buyers. It's ideal for companies using KOTRA services, trade associations, or export voucher programs.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "What languages does Homenshop support?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Homenshop supports Korean, English, Chinese (Simplified & Traditional), Japanese, and Spanish. You can create pages in multiple languages simultaneously.",
+        },
+      },
+    ],
+  };
+
   return (
     <div className="landing-page">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+      />
       {/* NAVBAR */}
       <nav className="lp-nav">
         <div className="lp-nav-inner">
@@ -36,6 +152,7 @@ export default async function Home() {
             Homenshop
           </Link>
           <div className="lp-nav-links">
+            <a href="#solution">{t("solutionEyebrow")}</a>
             <a href="#features">{t("navFeatures")}</a>
             <a href="#how-it-works">{t("navHowItWorks")}</a>
             <a href="#pricing">{t("navPricing")}</a>
@@ -101,6 +218,37 @@ export default async function Home() {
         </div>
       </section>
 
+      {/* SOLUTION */}
+      <section className="lp-solution" id="solution">
+        <div className="section-inner">
+          <div className="section-header">
+            <div className="section-eyebrow">{t("solutionEyebrow")}</div>
+            <h2 className="section-title" style={{ whiteSpace: "pre-line" }}>{t("solutionTitle")}</h2>
+            <p className="solution-desc">{t("solutionDesc")}</p>
+          </div>
+          <div className="solution-points">
+            {[
+              { icon: "\u{1F30D}", n: 1 },
+              { icon: "\u{1F6E0}\uFE0F", n: 2 },
+              { icon: "\u{1F3AF}", n: 3 },
+            ].map(({ icon, n }) => (
+              <div key={n} className="solution-point">
+                <div className="solution-point-icon">{icon}</div>
+                <div>
+                  <div className="solution-point-title">
+                    {t(`solutionPoint${n}Title` as never)}
+                  </div>
+                  <p className="solution-point-desc">
+                    {t(`solutionPoint${n}Desc` as never)}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="solution-sub">{t("solutionSub")}</p>
+        </div>
+      </section>
+
       {/* FEATURES */}
       <section className="lp-section" id="features">
         <div className="section-inner">
@@ -115,6 +263,8 @@ export default async function Home() {
               { icon: "\u{1F4F1}", color: "green", n: 2 },
               { icon: "\u270E", color: "purple", n: 3 },
               { icon: "\u{1F310}", color: "orange", n: 4 },
+              { icon: "\u{1F50D}", color: "red", n: 7 },
+              { icon: "\u{1F916}", color: "violet", n: 8 },
               { icon: "\u{1F517}", color: "pink", n: 5 },
               { icon: "\u2601", color: "teal", n: 6 },
             ].map(({ icon, color, n }) => (
@@ -160,15 +310,33 @@ export default async function Home() {
             <h2 className="section-title">{t("pricingTitle")}</h2>
             <p className="section-sub">{t("pricingSub")}</p>
           </div>
-          <div className="pricing-grid">
+          <div className="pricing-grid pricing-grid-4">
+            {/* FREE */}
+            <div className="pricing-card">
+              <div className="pricing-plan">{t("pricingFreePlan")}</div>
+              <div className="pricing-price">
+                {t("pricingFreePrice")}
+              </div>
+              <div className="pricing-period">{t("pricingFreePeriod")}</div>
+              <ul className="pricing-features">
+                <li>{t("pricingFeatSubdomain")}</li>
+                <li>{t("pricingFeatTemplates")}</li>
+                <li>{t("pricingFeatMobile")}</li>
+                <li>{t("pricingFeatEditor")}</li>
+              </ul>
+              <Link href="/register" className="pricing-btn pricing-btn-outline">
+                {t("pricingFreeBtn")}
+              </Link>
+            </div>
+
+            {/* 1 YEAR */}
             <div className="pricing-card featured">
               <div className="pricing-badge">{t("pricingBadge")}</div>
-              <div className="pricing-plan">{t("pricingPlan")}</div>
+              <div className="pricing-plan">{t("pricing1yrPlan")}</div>
               <div className="pricing-price">
-                {t("pricingPrice")}{" "}
-                <span className="pricing-price-unit">{t("pricingUnit")}</span>
+                {t("pricing1yrPrice")}<span className="pricing-price-unit">{t("pricingWon")}</span>
               </div>
-              <div className="pricing-period">{t("pricingPeriod")}</div>
+              <div className="pricing-period">{t("pricing1yrPeriod")}</div>
               <ul className="pricing-features">
                 <li>{t("pricingFeatSubdomain")}</li>
                 <li>{t("pricingFeatTemplates")}</li>
@@ -177,10 +345,49 @@ export default async function Home() {
                 <li>{t("pricingFeatDomain")}</li>
                 <li>{t("pricingFeatNoAd")}</li>
               </ul>
-              <Link
-                href="/register"
-                className="pricing-btn pricing-btn-solid"
-              >
+              <Link href="/register" className="pricing-btn pricing-btn-solid">
+                {t("pricingBtn")}
+              </Link>
+            </div>
+
+            {/* 2 YEAR */}
+            <div className="pricing-card">
+              <div className="pricing-discount-badge">{t("pricing2yrDiscount")}</div>
+              <div className="pricing-plan">{t("pricing2yrPlan")}</div>
+              <div className="pricing-price">
+                {t("pricing2yrPrice")}<span className="pricing-price-unit">{t("pricingWon")}</span>
+              </div>
+              <div className="pricing-period">{t("pricing2yrPeriod")}</div>
+              <ul className="pricing-features">
+                <li>{t("pricingFeatSubdomain")}</li>
+                <li>{t("pricingFeatTemplates")}</li>
+                <li>{t("pricingFeatMobile")}</li>
+                <li>{t("pricingFeatEditor")}</li>
+                <li>{t("pricingFeatDomain")}</li>
+                <li>{t("pricingFeatNoAd")}</li>
+              </ul>
+              <Link href="/register" className="pricing-btn pricing-btn-outline">
+                {t("pricingBtn")}
+              </Link>
+            </div>
+
+            {/* 3 YEAR */}
+            <div className="pricing-card">
+              <div className="pricing-discount-badge">{t("pricing3yrDiscount")}</div>
+              <div className="pricing-plan">{t("pricing3yrPlan")}</div>
+              <div className="pricing-price">
+                {t("pricing3yrPrice")}<span className="pricing-price-unit">{t("pricingWon")}</span>
+              </div>
+              <div className="pricing-period">{t("pricing3yrPeriod")}</div>
+              <ul className="pricing-features">
+                <li>{t("pricingFeatSubdomain")}</li>
+                <li>{t("pricingFeatTemplates")}</li>
+                <li>{t("pricingFeatMobile")}</li>
+                <li>{t("pricingFeatEditor")}</li>
+                <li>{t("pricingFeatDomain")}</li>
+                <li>{t("pricingFeatNoAd")}</li>
+              </ul>
+              <Link href="/register" className="pricing-btn pricing-btn-outline">
                 {t("pricingBtn")}
               </Link>
             </div>

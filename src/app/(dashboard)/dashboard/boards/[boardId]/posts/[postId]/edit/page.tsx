@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { signOut } from "next-auth/react";
 import Link from "next/link";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 export default function EditPostPage() {
   const router = useRouter();
@@ -77,10 +79,12 @@ export default function EditPostPage() {
         <div className="dash-header-inner">
           <div style={{ display: "flex", alignItems: "center" }}>
             <Link href="/dashboard" className="dash-logo">HomeNShop</Link>
-            <span className="dash-logo-sub">게시글 수정</span>
           </div>
           <div className="dash-header-right">
-            <Link href="/dashboard" className="dash-header-btn">대시보드</Link>
+            <Link href="/dashboard" className="dash-header-btn">Dashboard</Link>
+            <Link href="/dashboard/profile" className="dash-header-btn">Profile</Link>
+            <button onClick={() => signOut({ callbackUrl: "/login" })} className="dash-header-btn">Logout</button>
+            <LanguageSwitcher />
           </div>
         </div>
       </header>

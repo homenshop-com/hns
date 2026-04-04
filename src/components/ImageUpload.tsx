@@ -2,16 +2,29 @@
 
 import { useState, useRef, useCallback } from "react";
 
+interface ImageUrls {
+  original: string;
+  thumb: string;
+  medium: string;
+  large: string;
+}
+
 interface ImageUploadProps {
   value?: string;
   onChange: (url: string) => void;
+  /** Called with all size variants when resize=true */
+  onUploadComplete?: (urls: ImageUrls) => void;
   folder?: string;
+  /** Enable server-side resize (thumb/medium/large) */
+  resize?: boolean;
 }
 
 export default function ImageUpload({
   value,
   onChange,
+  onUploadComplete,
   folder = "uploads",
+  resize = false,
 }: ImageUploadProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -27,6 +40,7 @@ export default function ImageUpload({
         const formData = new FormData();
         formData.append("file", file);
         formData.append("folder", folder);
+        if (resize) formData.append("resize", "true");
 
         const res = await fetch("/api/upload", {
           method: "POST",
@@ -39,7 +53,13 @@ export default function ImageUpload({
           throw new Error(data.error || "업로드에 실패했습니다.");
         }
 
-        onChange(data.url);
+        if (resize && data.thumb) {
+          // Resize mode: return medium as main display URL
+          onChange(data.medium);
+          onUploadComplete?.(data as ImageUrls);
+        } else {
+          onChange(data.url);
+        }
       } catch (err) {
         setError(
           err instanceof Error ? err.message : "업로드에 실패했습니다."
@@ -48,7 +68,7 @@ export default function ImageUpload({
         setLoading(false);
       }
     },
-    [folder, onChange]
+    [folder, resize, onChange, onUploadComplete]
   );
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -85,7 +105,7 @@ export default function ImageUpload({
           <img
             src={value}
             alt="업로드된 이미지"
-            className="h-40 w-40 rounded-lg border border-zinc-300 object-cover dark:border-zinc-700"
+            className="h-40 w-40 rounded-lg border border-zinc-300 object-cover"
           />
           <button
             type="button"
@@ -103,8 +123,8 @@ export default function ImageUpload({
           onDragLeave={handleDragLeave}
           className={`flex h-40 w-40 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed transition-colors ${
             dragOver
-              ? "border-zinc-900 bg-zinc-100 dark:border-zinc-400 dark:bg-zinc-800"
-              : "border-zinc-300 hover:border-zinc-400 dark:border-zinc-700 dark:hover:border-zinc-600"
+              ? "border-zinc-900 bg-zinc-100"
+              : "border-zinc-300 hover:border-zinc-400"
           }`}
         >
           {loading ? (

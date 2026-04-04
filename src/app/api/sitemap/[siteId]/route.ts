@@ -1,32 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { execSync } from "child_process";
-
-const LEGACY_DATA_ROOT = "/var/www/legacy-data/userdata";
-
-function sqliteQuery(dbPath: string, sql: string): Record<string, string>[] {
-  try {
-    const result = execSync(
-      `python3 /var/www/homenshop-next/scripts/sqlite-query.py "${dbPath}"`,
-      { timeout: 5000, encoding: "utf-8", input: sql, maxBuffer: 2 * 1024 * 1024 }
-    );
-    if (!result.trim()) return [];
-    return JSON.parse(result);
-  } catch {
-    return [];
-  }
-}
-
-function getDbPath(shopId: string): string | null {
-  const safeId = shopId.replace(/[^a-zA-Z0-9_-]/g, "");
-  const p = `${LEGACY_DATA_ROOT}/${safeId}/db/.sqlite3`;
-  try {
-    execSync(`test -f "${p}"`, { timeout: 1000 });
-    return p;
-  } catch {
-    return null;
-  }
-}
 
 // GET /api/sitemap/[siteId] — Generate sitemap.xml for a site
 export async function GET(
@@ -54,15 +27,12 @@ export async function GET(
     return NextResponse.json({ error: "Site not found" }, { status: 404 });
   }
 
-  // Determine base URL: custom domain or default
   const customDomain = site.domains.length > 0 ? site.domains[0].domain : null;
   const baseUrl = customDomain
     ? `https://${customDomain}`
     : `https://home.homenshop.com/${site.shopId}`;
 
-  // Only include pages in site's configured languages
   const activeLangs = new Set(site.languages || [site.defaultLanguage]);
-  // Skip internal pages
   const skipSlugs = new Set(["empty", "user", "users", "agreement"]);
 
   const urls: string[] = [];
@@ -75,8 +45,6 @@ export async function GET(
     const isIndex = page.slug === "index" || page.isHome;
     const priority = isIndex ? "1.0" : "0.8";
     const changefreq = isIndex ? "daily" : "weekly";
-
-    // URL format: baseUrl/{lang}/{slug}.html (index → index.html)
     const loc = `${baseUrl}/${page.lang}/${page.slug}.html`;
 
     urls.push(`  <url>
@@ -87,7 +55,7 @@ export async function GET(
   </url>`);
   }
 
-  // Extract downloadable file links from page content (xlsx, pdf, doc, etc.)
+  // Extract downloadable file links from page content
   const seenFiles = new Set<string>();
   for (const page of site.pages) {
     if (!activeLangs.has(page.lang)) continue;
@@ -97,10 +65,8 @@ export async function GET(
     let match;
     while ((match = fileRegex.exec(content.html)) !== null) {
       const fullMatch = match[0].replace('href="', '');
-      // Build absolute URL
       let fileUrl = fullMatch;
       if (fileUrl.startsWith("http")) {
-        // Normalize to current domain
         try {
           const u = new URL(fileUrl);
           fileUrl = `${baseUrl}${u.pathname}`;
@@ -122,44 +88,46 @@ export async function GET(
     }
   }
 
-  // Product & Board individual item URLs from SQLite
-  const dbPath = getDbPath(site.shopId);
-  if (dbPath) {
-    // Detect product/board page slugs per language
-    const productPages = site.pages.filter(p => activeLangs.has(p.lang) && (p.slug === "product" || p.slug === "goods"));
-    const boardPages = site.pages.filter(p => activeLangs.has(p.lang) && p.slug === "board");
+  // Product & Board URLs from PostgreSQL
+  const productPages = site.pages.filter(p => activeLangs.has(p.lang) && (p.slug === "product" || p.slug === "goods"));
+  const boardPages = site.pages.filter(p => activeLangs.has(p.lang) && p.slug === "board");
 
-    // Product items
-    if (productPages.length > 0) {
-      const products = sqliteQuery(dbPath, `SELECT id, pname, regdate FROM Product ORDER BY id DESC`);
-      for (const prod of products) {
-        for (const pp of productPages) {
-          const loc = `${baseUrl}/${pp.lang}/${pp.slug}.html?action=read&id=${prod.id}`;
-          const lastmod = prod.regdate ? prod.regdate.substring(0, 10) : pp.updatedAt.toISOString().split("T")[0];
-          urls.push(`  <url>
+  if (productPages.length > 0) {
+    const products = await prisma.product.findMany({
+      where: { siteId },
+      select: { legacyId: true, createdAt: true },
+      orderBy: { legacyId: "desc" },
+    });
+    for (const prod of products) {
+      for (const pp of productPages) {
+        const loc = `${baseUrl}/${pp.lang}/${pp.slug}.html?action=read&id=${prod.legacyId}`;
+        const lastmod = prod.createdAt.toISOString().split("T")[0];
+        urls.push(`  <url>
     <loc>${escapeXml(loc)}</loc>
     <lastmod>${lastmod}</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>`);
-        }
       }
     }
+  }
 
-    // Board posts
-    if (boardPages.length > 0) {
-      const posts = sqliteQuery(dbPath, `SELECT id, title, regdate FROM Board WHERE parent = 0 ORDER BY id DESC`);
-      for (const post of posts) {
-        for (const bp of boardPages) {
-          const loc = `${baseUrl}/${bp.lang}/board.html?action=read&id=${post.id}`;
-          const lastmod = post.regdate ? post.regdate.substring(0, 10) : bp.updatedAt.toISOString().split("T")[0];
-          urls.push(`  <url>
+  if (boardPages.length > 0) {
+    const posts = await prisma.boardPost.findMany({
+      where: { siteId, parentId: null },
+      select: { legacyId: true, regdate: true, createdAt: true },
+      orderBy: { legacyId: "desc" },
+    });
+    for (const post of posts) {
+      for (const bp of boardPages) {
+        const loc = `${baseUrl}/${bp.lang}/board.html?action=read&id=${post.legacyId}`;
+        const lastmod = post.regdate ? post.regdate.substring(0, 10) : post.createdAt.toISOString().split("T")[0];
+        urls.push(`  <url>
     <loc>${escapeXml(loc)}</loc>
     <lastmod>${lastmod}</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>`);
-        }
       }
     }
   }

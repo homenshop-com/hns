@@ -64,11 +64,12 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  accounts Account[]
-  sessions Session[]
-  sites    Site[]
-  orders   Order[]
-  domains  Domain[]
+  accounts  Account[]
+  sessions  Session[]
+  sites     Site[]
+  orders    Order[]
+  domains   Domain[]
+  templates Template[]
 
   @@index([email])
   @@index([shopId])
@@ -109,15 +110,20 @@ model Site {
   expiresAt          DateTime?
   googleAnalyticsId  String?
   googleVerification String?
+  productSettings    Json?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  pages           Page[]
-  products        Product[]
-  boards          Board[]
-  domains         Domain[]
-  hmfTranslations SiteHmf[]
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pages             Page[]
+  products          Product[]
+  boardCategories   BoardCategory[]
+  boardPosts        BoardPost[]
+  boardPlugins      BoardPlugin[]
+  productCategories ProductCategory[]
+  productPlugins    ProductPlugin[]
+  domains           Domain[]
+  hmfTranslations   SiteHmf[]
 
   @@index([userId])
 }
@@ -173,23 +179,28 @@ model Page {
 // ============================================
 
 model Product {
-  id          String        @id @default(cuid())
-  siteId      String
-  name        String
-  description String?       @db.Text
-  price       Int
-  salePrice   Int?
-  stock       Int           @default(0)
-  category    String?
-  images      Json?
-  status      ProductStatus @default(ACTIVE)
-  sortOrder   Int           @default(0)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id            String        @id @default(cuid())
+  siteId        String
+  legacyId      Int?
+  lang          String        @default("ko")
+  name          String
+  description   String?       @db.Text
+  price         Int
+  salePrice     Int?
+  stock         Int           @default(0)
+  category      String?
+  images        Json?
+  photos        String?       @db.Text
+  specification String?       @db.Text
+  status        ProductStatus @default(ACTIVE)
+  sortOrder     Int           @default(0)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
   site       Site        @relation(fields: [siteId], references: [id], onDelete: Cascade)
   orderItems OrderItem[]
 
+  @@unique([siteId, legacyId])
   @@index([siteId])
   @@index([category])
 }
@@ -289,6 +300,7 @@ model Reseller {
 model Template {
   id           String   @id @default(cuid())
   legacyUid    Int?     @unique
+  userId       String?
   name         String
   path         String   @unique
   thumbnailUrl String?
@@ -300,12 +312,16 @@ model Template {
   headerHtml   String?  @db.Text
   menuHtml     String?  @db.Text
   footerHtml   String?  @db.Text
+  cssText      String?  @db.Text
   isActive     Boolean  @default(true)
   clicks       Int      @default(0)
   sortOrder    Int      @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  owner User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
   @@index([category])
   @@index([isActive])
 }
@@ -314,33 +330,56 @@ model Template {
 // Boards (Community / Notice)
 // ============================================
 
-model Board {
-  id        String   @id @default(cuid())
-  siteId    String
-  title     String
-  type      String   @default("board")
-  createdAt DateTime @default(now())
+model BoardCategory {
+  id         String @id @default(cuid())
+  siteId     String
+  legacyId   Int?
+  lang       String @default("ko")
+  name       String
+  defaultKey Int    @default(0)
+  replyMode  Int    @default(2)
+  writeMode  Int    @default(2)
+  rowsPerPage Int   @default(20)
+  titleLen   Int    @default(20)
+  imgWidth   Int    @default(100)
+  imgHeight  Int    @default(96)
+  listStyle  Int    @default(0)
 
   site  Site        @relation(fields: [siteId], references: [id], onDelete: Cascade)
   posts BoardPost[]
 
-  @@index([siteId])
+  @@unique([siteId, legacyId, lang])
+  @@index([siteId, lang])
 }
 
 model BoardPost {
-  id        String   @id @default(cuid())
-  boardId   String
-  author    String
-  title     String
-  content   String   @db.Text
-  views     Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(cuid())
+  siteId     String
+  categoryId String?
+  legacyId   Int?
+  lang       String   @default("ko")
+  author     String
+  title      String
+  content    String   @db.Text
+  photos     String?  @db.Text
+  views      Int      @default(0)
+  isNotice   Boolean  @default(false)
+  isPublic   Boolean  @default(true)
+  parentId   String?
+  regdate    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  board    Board          @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  site     Site           @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  category BoardCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  parent   BoardPost?     @relation("PostReplies", fields: [parentId], references: [id], onDelete: SetNull)
+  replies  BoardPost[]    @relation("PostReplies")
   comments BoardComment[]
 
-  @@index([boardId])
+  @@unique([siteId, legacyId])
+  @@index([siteId, categoryId])
+  @@index([categoryId])
+  @@index([parentId])
 }
 
 model BoardComment {
@@ -357,6 +396,68 @@ model BoardComment {
 
   @@index([postId])
   @@index([parentId])
+}
+
+model BoardPlugin {
+  id           String @id @default(cuid())
+  siteId       String
+  page         String
+  divId        String
+  categoryId   String?
+  legacyCatId  Int?
+  nums         Int    @default(5)
+  titleLen     Int    @default(20)
+  dateStyle    String @default("0")
+  displayStyle Int    @default(0)
+  imgWidth     Int    @default(150)
+  imgHeight    Int    @default(100)
+  skinFile     String?
+
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@unique([siteId, page, divId])
+  @@index([siteId, page])
+}
+
+model ProductCategory {
+  id         String @id @default(cuid())
+  siteId     String
+  legacyId   Int?
+  lang       String @default("ko")
+  name       String
+  defaultKey Int    @default(0)
+  parentLegacyId Int?
+  depth      Int    @default(0)
+  listStyle  Int    @default(0)
+  rows       Int    @default(9)
+  imgWidth   Int    @default(80)
+  imgHeight  Int    @default(80)
+  titleLen   Int    @default(30)
+  textLen    Int    @default(0)
+
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@unique([siteId, legacyId, lang])
+  @@index([siteId, lang])
+}
+
+model ProductPlugin {
+  id           String @id @default(cuid())
+  siteId       String
+  lang         String @default("ko")
+  page         String
+  divId        String
+  legacyCatId  Int?
+  nums         Int    @default(7)
+  titleLen     Int    @default(38)
+  imgWidth     Int    @default(128)
+  imgHeight    Int    @default(125)
+  skinFile     String?
+
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@unique([siteId, lang, page, divId])
+  @@index([siteId, lang, page])
 }
 
 // ============================================

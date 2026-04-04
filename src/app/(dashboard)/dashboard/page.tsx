@@ -5,6 +5,7 @@ import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/db";
 import SignOutButton from "./sign-out-button";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import ImpersonationBanner from "@/components/ImpersonationBanner";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -22,13 +23,13 @@ export default async function DashboardPage() {
       domains: true,
       pages: { select: { id: true, isHome: true, lang: true }, orderBy: { sortOrder: "asc" } },
       products: { select: { id: true } },
-      boards: { select: { id: true } },
     },
     orderBy: { createdAt: "asc" },
   });
 
   return (
     <div className="dash-page">
+      <ImpersonationBanner />
       {/* HEADER */}
       <header className="dash-header">
         <div className="dash-header-inner">
@@ -39,10 +40,7 @@ export default async function DashboardPage() {
             <span className="dash-logo-sub">{t("title")}</span>
           </div>
           <div className="dash-header-right">
-            <span className="dash-user-info">
-              {session.user.name} ({session.user.email})
-            </span>
-            <Link href="/dashboard" className="dash-header-btn">
+            <Link href="/dashboard/profile" className="dash-header-btn">
               {t("memberInfo")}
             </Link>
             <SignOutButton />
@@ -61,13 +59,13 @@ export default async function DashboardPage() {
               {t("filterAll")}
             </button>
             <button className="dash-filter-btn">
-              {t("filterFree")} ({sites.length})
+              {t("filterFree")} ({sites.filter(s => s.accountType === "0").length})
             </button>
             <button className="dash-filter-btn">
-              {t("filterPaid")} (0)
+              {t("filterPaid")} ({sites.filter(s => s.accountType === "1").length})
             </button>
             <button className="dash-filter-btn">
-              {t("filterExpired")} (0)
+              {t("filterExpired")} ({sites.filter(s => s.accountType === "9").length})
             </button>
           </div>
           <div className="dash-toolbar-right">
@@ -105,20 +103,23 @@ export default async function DashboardPage() {
             sites.map((s) => (
               <div key={s.id} className="dash-table-row">
                 <div className="dash-col-account">
-                  <span className="dash-status-dot active" />
-                  <div>
-                    <div className="dash-site-id">
-                      {s.shopId}
-                    </div>
+                  <span className={`dash-status-dot ${s.accountType === "9" || (s.expiresAt && new Date(s.expiresAt) < new Date()) ? "expired" : "active"}`} />
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                    <span className="dash-site-id" style={{ marginBottom: 0 }}>
+                      {s.name && s.name !== s.shopId ? s.name : s.shopId}
+                    </span>
+                    <span className={`dash-account-badge ${s.accountType === "1" ? "paid" : s.accountType === "9" ? "expired" : s.accountType === "2" ? "test" : "free"}`}>
+                      {s.accountType === "1" ? t("filterPaid") : s.accountType === "9" ? t("filterExpired") : s.accountType === "2" ? "Test" : t("filterFree")}
+                    </span>
                     {s.name && s.name !== s.shopId && (
-                      <div style={{ fontSize: 12, color: "#868e96", marginTop: 1 }}>
-                        {s.name}
-                      </div>
+                      <span style={{ fontSize: 13, color: "#868e96" }}>
+                        {s.shopId}
+                      </span>
                     )}
                     {s.domains.length > 0 && (
-                      <div style={{ fontSize: 12, color: "#2f9e44", marginTop: 2 }}>
+                      <span style={{ fontSize: 13, color: "#2f9e44" }}>
                         {s.domains[0].domain}
-                      </div>
+                      </span>
                     )}
                   </div>
                 </div>

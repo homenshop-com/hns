@@ -1,19 +1,13 @@
 import { prisma } from "@/lib/db";
 import Link from "next/link";
-
-const ACCOUNT_TYPES: Record<string, { label: string; color: string }> = {
-  "0": { label: "Free", color: "bg-cyan-500/10 text-cyan-400" },
-  "1": { label: "Paid", color: "bg-emerald-500/10 text-emerald-400" },
-  "2": { label: "Expired", color: "bg-red-500/10 text-red-400" },
-  "4": { label: "Test", color: "bg-amber-500/10 text-amber-400" },
-};
+import SitesTable from "./sites-table";
 
 const TABS = [
   { key: "all", label: "전체" },
   { key: "free", label: "무료계정", type: "0" },
   { key: "paid", label: "유료계정", type: "1" },
-  { key: "expired", label: "만료계정", type: "2" },
-  { key: "test", label: "테스트", type: "4" },
+  { key: "expired", label: "만료계정", type: "9" },
+  { key: "test", label: "테스트", type: "2" },
 ];
 
 export default async function AdminSitesPage({
@@ -32,14 +26,10 @@ export default async function AdminSitesPage({
 
   // Build where clause
   const where: Record<string, unknown> = {};
-
-  // Tab filter
   const activeTab = TABS.find((t) => t.key === tab);
   if (activeTab && activeTab.type !== undefined) {
     where.accountType = activeTab.type;
   }
-
-  // Search filter
   if (search) {
     if (filterBy === "email") {
       where.user = { email: { contains: search, mode: "insensitive" } };
@@ -49,8 +39,6 @@ export default async function AdminSitesPage({
       where.shopId = { contains: search, mode: "insensitive" };
     }
   }
-
-  // Date range filter
   if (dateFrom || dateTo) {
     where.createdAt = {};
     if (dateFrom) (where.createdAt as Record<string, unknown>).gte = new Date(dateFrom);
@@ -61,7 +49,7 @@ export default async function AdminSitesPage({
     prisma.site.findMany({
       where: where as any,
       include: {
-        user: { select: { email: true, name: true } },
+        user: { select: { id: true, email: true, name: true } },
         domains: { select: { domain: true } },
         pages: { select: { id: true } },
       },
@@ -74,29 +62,44 @@ export default async function AdminSitesPage({
       prisma.site.count(),
       prisma.site.count({ where: { accountType: "0" } }),
       prisma.site.count({ where: { accountType: "1" } }),
+      prisma.site.count({ where: { accountType: "9" } }),
       prisma.site.count({ where: { accountType: "2" } }),
-      prisma.site.count({ where: { accountType: "4" } }),
     ]),
   ]);
 
   const totalPages = Math.ceil(totalCount / perPage);
   const [countAll, countFree, countPaid, countExpired, countTest] = countByType;
-  const counts: Record<string, number> = {
-    all: countAll,
-    free: countFree,
-    paid: countPaid,
-    expired: countExpired,
-    test: countTest,
-  };
+  const counts: Record<string, number> = { all: countAll, free: countFree, paid: countPaid, expired: countExpired, test: countTest };
 
   function buildUrl(overrides: Record<string, string>) {
     const p = new URLSearchParams();
     const merged = { tab, search, filterBy, dateFrom, dateTo, page: String(page), ...overrides };
-    Object.entries(merged).forEach(([k, v]) => {
-      if (v) p.set(k, v);
-    });
+    Object.entries(merged).forEach(([k, v]) => { if (v) p.set(k, v); });
     return `/admin/sites?${p.toString()}`;
   }
+
+  // Base URL for pagination (without page param)
+  const paginationParts = new URLSearchParams();
+  if (tab) paginationParts.set("tab", tab);
+  if (search) paginationParts.set("search", search);
+  if (filterBy) paginationParts.set("filterBy", filterBy);
+  if (dateFrom) paginationParts.set("dateFrom", dateFrom);
+  if (dateTo) paginationParts.set("dateTo", dateTo);
+  const buildUrlBase = `/admin/sites?${paginationParts.toString()}`;
+
+  // Serialize for client component
+  const serializedSites = sites.map(s => ({
+    id: s.id,
+    shopId: s.shopId,
+    accountType: s.accountType,
+    email: s.user.email,
+    domain: s.domains.length > 0 ? s.domains[0].domain : "",
+    expiresAt: s.expiresAt ? s.expiresAt.toISOString() : null,
+    updatedAt: s.updatedAt.toISOString(),
+    createdAt: s.createdAt.toISOString(),
+    pageCount: s.pages.length,
+    userId: s.user.id,
+  }));
 
   return (
     <div>
@@ -136,7 +139,7 @@ export default async function AdminSitesPage({
             <label className="block text-xs text-slate-500 mb-1">Filter</label>
             <div className="flex gap-2">
               <select name="filterBy" defaultValue={filterBy} className="border border-slate-600/40 rounded-lg bg-slate-800/50 px-3 py-2 text-sm text-slate-200">
-                <option value="shopId">Shop ID</option>
+                <option value="shopId">Site ID</option>
                 <option value="email">Email</option>
                 <option value="domain">Domain</option>
               </select>
@@ -150,114 +153,14 @@ export default async function AdminSitesPage({
       </div>
 
       {/* Results */}
-      <div className="bg-[#1e293b]/80 rounded-xl border border-slate-700/30">
-        <div className="p-4 border-b border-slate-700/30 flex justify-between items-center">
-          <span className="font-semibold text-slate-200">Results ({totalCount} total)</span>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-700/20 bg-slate-800/30 text-left bg-slate-800/30">
-                <th className="px-4 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">NO</th>
-                <th className="px-4 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">TYPE</th>
-                <th className="px-4 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">EMAIL</th>
-                <th className="px-4 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">DOMAIN</th>
-                <th className="px-4 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">SHOP ID</th>
-                <th className="px-4 py-3 font-medium text-slate-500 text-center">
-                  <span className="text-red-400">EXP DATE</span>
-                </th>
-                <th className="px-4 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">LAST UPDATE</th>
-                <th className="px-4 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">REGISTERED</th>
-                <th className="px-4 py-3 font-medium text-slate-500 text-right">DETAIL</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sites.map((site, i) => {
-                const no = totalCount - (page - 1) * perPage - i;
-                const typeInfo = ACCOUNT_TYPES[site.accountType] || ACCOUNT_TYPES["0"];
-                const isExpired = site.expiresAt && new Date(site.expiresAt) < new Date();
-                return (
-                  <tr key={site.id} className="border-b border-slate-700/20 last:border-0 hover:bg-slate-800/30">
-                    <td className="px-4 py-3 text-slate-500">{no}</td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-block rounded-md px-2 py-1 text-xs font-medium ${typeInfo.color}`}>
-                        {site.accountType}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-slate-400">{site.user.email}</td>
-                    <td className="px-4 py-3">
-                      {site.domains.length > 0 ? (
-                        <span className="text-cyan-400">{site.domains[0].domain}</span>
-                      ) : (
-                        <span className="text-slate-400">-</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <Link href={`/admin/sites/${site.id}`} className="text-cyan-400 hover:text-cyan-300">
-                        {site.shopId}
-                      </Link>
-                    </td>
-                    <td className={`px-4 py-3 text-center font-medium ${isExpired ? "text-red-400" : "text-emerald-400"}`}>
-                      {site.expiresAt ? new Date(site.expiresAt).toLocaleDateString("ko-KR") : "-"}
-                    </td>
-                    <td className="px-4 py-3 text-slate-500 text-xs">
-                      {site.updatedAt.toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" })}
-                    </td>
-                    <td className="px-4 py-3 text-slate-500 text-xs">
-                      {site.createdAt.toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" })}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <Link
-                        href={`/admin/sites/${site.id}`}
-                        className="inline-block bg-cyan-500 text-white px-3 py-1 rounded text-xs font-medium hover:bg-cyan-600"
-                      >
-                        View
-                      </Link>
-                    </td>
-                  </tr>
-                );
-              })}
-              {sites.length === 0 && (
-                <tr>
-                  <td colSpan={9} className="px-4 py-8 text-center text-slate-400">
-                    결과가 없습니다.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex justify-center gap-1 p-4 border-t border-slate-700/30">
-            {page > 1 && (
-              <Link href={buildUrl({ page: String(page - 1) })} className="px-3 py-1 rounded text-sm border border-slate-700/30 hover:bg-slate-800/30">
-                Prev
-              </Link>
-            )}
-            {Array.from({ length: Math.min(totalPages, 10) }, (_, i) => {
-              const start = Math.max(1, Math.min(page - 5, totalPages - 9));
-              const p = start + i;
-              if (p > totalPages) return null;
-              return (
-                <Link
-                  key={p}
-                  href={buildUrl({ page: String(p) })}
-                  className={`px-3 py-1 rounded text-sm ${p === page ? "bg-cyan-500 text-white" : "border border-slate-700/30 hover:bg-slate-800/30"}`}
-                >
-                  {p}
-                </Link>
-              );
-            })}
-            {page < totalPages && (
-              <Link href={buildUrl({ page: String(page + 1) })} className="px-3 py-1 rounded text-sm border border-slate-700/30 hover:bg-slate-800/30">
-                Next
-              </Link>
-            )}
-          </div>
-        )}
-      </div>
+      <SitesTable
+        sites={serializedSites}
+        totalCount={totalCount}
+        currentPage={page}
+        totalPages={totalPages}
+        perPage={perPage}
+        buildUrlBase={buildUrlBase}
+      />
     </div>
   );
 }

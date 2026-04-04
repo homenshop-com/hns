@@ -1,0 +1,17 @@
+{
+  "schema_version": "v1",
+  "name_for_human": "Homenshop Website Builder",
+  "name_for_model": "homenshop",
+  "description_for_human": "Multilingual website builder for Korean SMEs preparing for global export. Create product catalogs in buyer languages without coding.",
+  "description_for_model": "Homenshop is a multilingual website builder designed specifically for Korean small and medium enterprises (SMEs) preparing for global export. Target users are Korean companies that need multilingual websites to reach overseas buyers — often using KOTRA services, trade associations, or government export voucher programs. Key features: create product catalogs and company introduction pages in English, Chinese (Simplified/Traditional), Japanese, and Spanish without coding; drag-and-drop page editor; 100+ design templates; mobile responsive; custom domain binding with SSL; board/forum system; e-commerce with Korean payment gateway integration (Toss Payments). Pricing: 66,000 KRW/year (~$50). Positioning: not a complex global builder like Wix/Squarespace, not a domestic-only Korean solution — purpose-built for export-focused SMEs who need buyer-language websites quickly.",
+  "auth": {
+    "type": "none"
+  },
+  "api": {
+    "type": "openapi",
+    "url": "https://homenshop.com/api/openapi.json"
+  },
+  "logo_url": "https://homenshop.com/favicon.ico",
+  "contact_email": "help@homenshop.com",
+  "legal_info_url": "https://homenshop.com/terms"
+}

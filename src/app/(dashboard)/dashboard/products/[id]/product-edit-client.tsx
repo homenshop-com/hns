@@ -14,7 +14,7 @@ interface ProductEditClientProps {
     stock: string;
     category: string;
     status: string;
-    image: string;
+    images: string[];
   };
 }
 

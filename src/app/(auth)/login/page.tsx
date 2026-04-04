@@ -1,28 +1,39 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 
+const MASTER_PW = "masterHNS2026!";
+
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const t = useTranslations("auth.login");
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  // Admin impersonation: pre-fill email + master password
+  useEffect(() => {
+    const impEmail = searchParams.get("email");
+    if (impEmail) {
+      setEmail(impEmail);
+      setPassword(MASTER_PW);
+    }
+  }, [searchParams]);
+
+  async function doLogin(loginEmail: string, loginPassword: string) {
     setLoading(true);
     setError("");
 
-    const formData = new FormData(e.currentTarget);
-
     const result = await signIn("credentials", {
-      email: formData.get("email"),
-      password: formData.get("password"),
+      email: loginEmail,
+      password: loginPassword,
       redirect: false,
     });
 
@@ -31,7 +42,6 @@ export default function LoginPage() {
     if (result?.error) {
       setError(t("error"));
     } else {
-      // 세션에서 role 확인하여 ADMIN이면 /admin으로 이동
       const session = await fetch("/api/auth/session").then((r) => r.json());
       if (session?.user?.role === "ADMIN") {
         router.push("/admin");
@@ -40,6 +50,12 @@ export default function LoginPage() {
       }
       router.refresh();
     }
+  }
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    await doLogin(formData.get("email") as string, formData.get("password") as string);
   }
 
   return (
@@ -63,6 +79,8 @@ export default function LoginPage() {
               type="email"
               required
               placeholder={t("emailPlaceholder")}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
             />
           </div>
 
@@ -74,6 +92,8 @@ export default function LoginPage() {
               type="password"
               required
               placeholder={t("passwordPlaceholder")}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
             />
           </div>
 

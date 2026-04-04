@@ -63,7 +63,7 @@ export async function PUT(
   }
 
   const body = await request.json();
-  const { name, description, published, languages, defaultLanguage, googleAnalyticsId, googleVerification } = body;
+  const { name, description, published, languages, defaultLanguage, googleAnalyticsId, googleVerification, headerHtml, menuHtml, footerHtml, hmfLang } = body;
 
   if (name !== undefined && (typeof name !== "string" || name.trim().length === 0)) {
     return NextResponse.json(
@@ -112,6 +112,20 @@ export async function PUT(
       ...(googleVerification !== undefined && { googleVerification: googleVerification?.trim() || null }),
     },
   });
+
+  // Update HMF (header/menu/footer) per language if provided
+  if (hmfLang && (headerHtml !== undefined || menuHtml !== undefined || footerHtml !== undefined)) {
+    const hmfData: Record<string, string> = {};
+    if (headerHtml !== undefined) hmfData.headerHtml = headerHtml;
+    if (menuHtml !== undefined) hmfData.menuHtml = menuHtml;
+    if (footerHtml !== undefined) hmfData.footerHtml = footerHtml;
+
+    await prisma.siteHmf.upsert({
+      where: { siteId_lang: { siteId: id, lang: hmfLang } },
+      update: hmfData,
+      create: { siteId: id, lang: hmfLang, ...hmfData },
+    });
+  }
 
   return NextResponse.json(updated);
 }

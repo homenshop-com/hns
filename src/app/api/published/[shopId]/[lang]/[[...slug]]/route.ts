@@ -1,69 +1,22 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { readTemplateCss, rewriteAssetUrls } from "@/lib/template-parser";
-import { execSync } from "child_process";
+import { renderBoardPluginContent, renderProductPluginContent } from "@/lib/plugin-renderer";
 
 /* ─── Board rendering helpers ─── */
-const LEGACY_DATA_ROOT = "/var/www/legacy-data/userdata";
-
-interface BoardRow {
-  id: number;
-  title: string;
-  contents: string;
-  username: string;
-  regdate: string;
-  click: number;
-  photos: string;
-  category: number;
-  parent: number;
-}
-
-// Query SQLite via python3 helper (handles multiline HTML content safely)
-function sqliteQuery(dbPath: string, sql: string): Record<string, string>[] {
-  try {
-    const result = execSync(
-      `python3 /var/www/homenshop-next/scripts/sqlite-query.py "${dbPath}"`,
-      { timeout: 5000, encoding: "utf-8", input: sql, maxBuffer: 10 * 1024 * 1024 }
-    );
-    if (!result.trim()) return [];
-    return JSON.parse(result);
-  } catch {
-    return [];
-  }
-}
-
-function sqliteQueryOne(dbPath: string, sql: string): Record<string, string> | null {
-  const rows = sqliteQuery(dbPath, sql);
-  return rows.length > 0 ? rows[0] : null;
-}
-
-function getDbPath(shopId: string): string | null {
-  // Sanitize shopId to prevent path traversal
-  const safeId = shopId.replace(/[^a-zA-Z0-9_-]/g, "");
-  const p = `${LEGACY_DATA_ROOT}/${safeId}/db/.sqlite3`;
-  try {
-    execSync(`test -f "${p}"`, { timeout: 1000 });
-    return p;
-  } catch {
-    return null;
-  }
-}
 
 function escapeHtml(s: unknown): string {
   const str = String(s ?? "");
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-// Escape single quotes for SQLite queries
-function escapeSql(s: string): string {
-  return s.replace(/'/g, "''");
-}
-
-function renderBoardRead(dbPath: string, shopId: string, lang: string, id: number, urlPrefix: string = ""): string {
-  const row = sqliteQueryOne(dbPath, `SELECT * FROM Board WHERE id = ${id}`);
+async function renderBoardRead(siteId: string, shopId: string, lang: string, id: number, urlPrefix: string = ""): Promise<string> {
+  const row = await prisma.boardPost.findFirst({
+    where: { siteId, legacyId: id },
+    include: { category: { select: { name: true, legacyId: true } } },
+  });
   if (!row) return `<div class="board-content" style="width:100%;margin:20px auto;position:relative;padding:40px 20px;color:#999;text-align:center;font-size:15px;">게시글을 찾을 수 없습니다. (id=${id})</div>`;
 
-  // Photo/attachment handling
   const photos = row.photos ? row.photos.split("|").filter(Boolean) : [];
   const imageExts = new Set(["jpg", "jpeg", "png", "gif", "bmp", "webp", "svg"]);
   const photoHtml = photos.map((p) => {
@@ -76,24 +29,24 @@ function renderBoardRead(dbPath: string, shopId: string, lang: string, id: numbe
     }
   }).join("");
 
-  // Category name
-  const cat = sqliteQueryOne(dbPath, `SELECT category as name FROM BoardCategory WHERE id = ${parseInt(row.category) || 0}`);
-  const catName = cat?.name || "";
+  const catName = row.category?.name || "";
+  const catLegacyId = row.category?.legacyId || 0;
 
-  // Replies
-  const replies = sqliteQuery(dbPath, `SELECT * FROM Board WHERE parent = ${id} ORDER BY id ASC`);
+  const replies = await prisma.boardPost.findMany({
+    where: { siteId, parentId: row.id },
+    orderBy: { legacyId: "asc" },
+  });
   const repliesHtml = replies.map((r) => `
     <div style="border-top:1px solid #e5e5e5;padding:12px 0;">
       <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:12px;color:#888;">
-        <span>${escapeHtml(r.username || "익명")}</span>
+        <span>${escapeHtml(r.author || "익명")}</span>
         <span>${r.regdate || ""}</span>
       </div>
-      <div style="font-size:13px;line-height:1.6;color:#333;">${r.contents || ""}</div>
+      <div style="font-size:13px;line-height:1.6;color:#333;">${r.content || ""}</div>
     </div>
   `).join("");
 
-  const category = parseInt(row.category) || 0;
-  const listHref = `${urlPrefix}/${lang}/board.html?action=list&category=${category}`;
+  const listHref = `${urlPrefix}/${lang}/board.html?action=list&category=${catLegacyId}`;
 
   return `
   <div class="board-content" style="width:100%;margin:20px auto;position:relative;color:#333;">
@@ -101,13 +54,13 @@ function renderBoardRead(dbPath: string, shopId: string, lang: string, id: numbe
       ${catName ? `<div style="font-size:11px;color:#89C23D;margin-bottom:4px;">${escapeHtml(catName)}</div>` : ""}
       <h2 style="font-size:18px;font-weight:bold;color:#1a1a1a;margin:0 0 8px 0;">${escapeHtml(row.title || "")}</h2>
       <div style="display:flex;gap:20px;font-size:12px;color:#888;">
-        <span>작성자: ${escapeHtml(row.username || "관리자")}</span>
+        <span>작성자: ${escapeHtml(row.author || "관리자")}</span>
         <span>날짜: ${row.regdate || ""}</span>
-        <span>조회: ${row.click || 0}</span>
+        <span>조회: ${row.views || 0}</span>
       </div>
     </div>
     <div style="min-height:200px;line-height:1.8;font-size:14px;color:#333;">
-      ${row.contents || ""}
+      ${row.content || ""}
       ${photoHtml}
     </div>
     ${replies.length > 0 ? `<div style="margin-top:24px;"><div style="font-size:14px;font-weight:bold;color:#89C23D;margin-bottom:8px;">댓글 (${replies.length})</div>${repliesHtml}</div>` : ""}
@@ -117,35 +70,42 @@ function renderBoardRead(dbPath: string, shopId: string, lang: string, id: numbe
   </div>`;
 }
 
-function renderBoardList(dbPath: string, shopId: string, lang: string, category: number, pageNum: number, urlPrefix: string = ""): string {
+async function renderBoardList(siteId: string, shopId: string, lang: string, category: number, pageNum: number, urlPrefix: string = ""): Promise<string> {
   const perPage = 20;
   const offset = (pageNum - 1) * perPage;
 
   // Get category info
   let catName = "게시판";
+  let categoryId: string | undefined;
   if (category > 0) {
-    const cat = sqliteQueryOne(dbPath, `SELECT category as name FROM BoardCategory WHERE id = ${category}`);
-    if (cat) catName = cat.name;
+    const cat = await prisma.boardCategory.findFirst({ where: { siteId, legacyId: category } });
+    if (cat) { catName = cat.name; categoryId = cat.id; }
   }
 
   // Count total
-  const whereClause = category > 0 ? `WHERE category = ${category} AND parent = 0` : "WHERE parent = 0";
-  const countRow = sqliteQueryOne(dbPath, `SELECT COUNT(*) as cnt FROM Board ${whereClause}`);
-  const total = parseInt(countRow?.cnt || "0");
+  const whereFilter: Record<string, unknown> = { siteId, parentId: null };
+  if (categoryId) whereFilter.categoryId = categoryId;
+  const total = await prisma.boardPost.count({ where: whereFilter });
   const totalPages = Math.ceil(total / perPage);
 
   // Fetch rows
-  const rows = sqliteQuery(dbPath, `SELECT id, title, username, regdate, click, category, photos FROM Board ${whereClause} ORDER BY id DESC LIMIT ${perPage} OFFSET ${offset}`);
+  const rows = await prisma.boardPost.findMany({
+    where: whereFilter,
+    orderBy: { legacyId: "desc" },
+    skip: offset,
+    take: perPage,
+    select: { legacyId: true, title: true, author: true, regdate: true, views: true, photos: true },
+  });
 
   // Build table rows
   const rowsHtml = rows.map((r) => {
-    const href = `${urlPrefix}/${lang}/board.html?action=read&id=${r.id}`;
+    const href = `${urlPrefix}/${lang}/board.html?action=read&id=${r.legacyId}`;
     return `<tr style="border-bottom:1px solid #e5e5e5;">
-      <td style="padding:10px 8px;text-align:center;color:#888;font-size:13px;">${r.id}</td>
+      <td style="padding:10px 8px;text-align:center;color:#888;font-size:13px;">${r.legacyId}</td>
       <td style="padding:10px 8px;"><a href="${href}" style="color:#333;text-decoration:none;font-size:14px;">${escapeHtml(r.title || "")}</a></td>
-      <td style="padding:10px 8px;text-align:center;color:#888;font-size:13px;">${escapeHtml(r.username || "관리자")}</td>
+      <td style="padding:10px 8px;text-align:center;color:#888;font-size:13px;">${escapeHtml(r.author || "관리자")}</td>
       <td style="padding:10px 8px;text-align:center;color:#888;font-size:13px;">${r.regdate || ""}</td>
-      <td style="padding:10px 8px;text-align:center;color:#888;font-size:13px;">${r.click || 0}</td>
+      <td style="padding:10px 8px;text-align:center;color:#888;font-size:13px;">${r.views || 0}</td>
     </tr>`;
   }).join("");
 
@@ -185,182 +145,49 @@ function renderBoardList(dbPath: string, shopId: string, lang: string, category:
   </div>`;
 }
 
-/* ─── BoardPlugin: inject dynamic board lists into page body ─── */
-function renderBoardPluginContent(
-  dbPath: string, shopId: string, lang: string, pageSlug: string, bodyHtml: string, urlPrefix: string = ""
-): string {
-  // Fetch all BoardPlugin entries for this page
-  const pageFile = pageSlug === "index" ? "index.html" : `${pageSlug}.html`;
-  const plugins = sqliteQuery(dbPath, `SELECT * FROM BoardPlugin WHERE page = '${pageFile}'`);
-  if (plugins.length === 0) return bodyHtml;
+/* ─── Product detail / list page rendering ─── */
+async function renderProductRead(
+  siteId: string, shopId: string, lang: string, productId: number, urlPrefix: string, goodsPage: string = "goods", prismaProductId?: string, prodSettings?: ProductDisplaySettings
+): Promise<string> {
+  let pname = "", price = "", contents = "", specification = "", catId = 0, catName = "";
+  let photos: string[] = [];
 
-  let result = bodyHtml;
+  // Fetch product from Prisma (by PG id or by legacy id)
+  const pp = prismaProductId
+    ? await prisma.product.findUnique({ where: { id: prismaProductId } })
+    : await prisma.product.findFirst({ where: { siteId, legacyId: productId } });
 
-  for (const plugin of plugins) {
-    const divId = String(plugin.divid || "");
-    const category = parseInt(String(plugin.category)) || 0;
-    const nums = parseInt(String(plugin.nums)) || 5;
-    const titleLen = parseInt(String(plugin.titlelen)) || 20;
-    const dateStyle = String(plugin.datestyle || "0");
-    const displayStyle = parseInt(String(plugin.displaystyle)) || 0;
-    const skinFile = String(plugin.skin_file || "");
+  if (!pp) return `<div style="max-width:700px;margin:40px auto;padding:20px;text-align:center;color:#666;font-size:15px;">Product not found. (id=${productId})</div>`;
 
-    // Check if this div exists in the body HTML
-    if (!divId || !result.includes(divId)) continue;
-
-    // Fetch board entries for this category
-    const whereClause = category > 0
-      ? `WHERE category = ${category} AND parent = 0`
-      : "WHERE parent = 0";
-    const rows = sqliteQuery(dbPath, `SELECT id, title, username, regdate, click, category, photos FROM Board ${whereClause} ORDER BY id DESC LIMIT ${nums}`);
-
-    // Build the link page for board items
-    const boardPage = skinFile || `board.html?action=list&category=${category}`;
-
-    let contentHtml = "";
-
-    if (displayStyle === 0) {
-      // List style: title + date
-      const items = rows.map((r) => {
-        const title = r.title || "";
-        const truncTitle = title.length > titleLen ? title.substring(0, titleLen) + ".." : title;
-        const href = `${urlPrefix}/${lang}/board.html?action=read&id=${r.id}`;
-        const date = dateStyle === "0" || !dateStyle
-          ? (r.regdate || "").trim()
-          : (r.regdate || "").trim().substring(0, 7); // Y/m format
-        return `<li style="line-height:22px;list-style:none;display:flex;justify-content:space-between;padding:2px 0;">
-          <a href="${href}" style="color:#ccc;text-decoration:none;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">${escapeHtml(truncTitle)}</a>
-          <span style="color:#777;font-size:11px;flex-shrink:0;margin-left:8px;">${date}</span>
-        </li>`;
-      }).join("");
-      contentHtml = `<ul style="margin:0;padding:0;">${items}</ul>`;
-    } else if (displayStyle === 1) {
-      // Gallery style: images with titles (use thumbnail URL)
-      const imgW = parseInt(String(plugin.img_w)) || 150;
-      const imgH = parseInt(String(plugin.img_h)) || 100;
-      const thumbSize = `${imgW}x${imgH}`;
-      const items = rows.map((r) => {
-        const photos = r.photos ? String(r.photos).split("|").filter(Boolean) : [];
-        const firstPhoto = photos[0] || "";
-        const imgSrc = firstPhoto
-          ? `https://home.homenshop.com/${shopId}/thumb/${thumbSize}/${encodeURIComponent(firstPhoto)}`
-          : "";
-        const title = r.title || "";
-        const truncTitle = title.length > titleLen ? title.substring(0, titleLen) + ".." : title;
-        const href = `${urlPrefix}/${lang}/board.html?action=read&id=${r.id}`;
-        return `<div style="display:inline-block;vertical-align:top;text-align:center;margin:4px;">
-          <a href="${href}">
-            ${imgSrc ? `<img src="${imgSrc}" style="width:${imgW}px;height:${imgH}px;object-fit:cover;border-radius:4px;" alt="${escapeHtml(truncTitle)}" />` : `<div style="width:${imgW}px;height:${imgH}px;background:#333;border-radius:4px;"></div>`}
-          </a>
-          <div style="font-size:11px;color:#ccc;margin-top:4px;max-width:${imgW}px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-            <a href="${href}" style="color:#ccc;text-decoration:none;">${escapeHtml(truncTitle)}</a>
-          </div>
-        </div>`;
-      }).join("");
-      contentHtml = items;
-    } else if (displayStyle === 2) {
-      // Slideshow style: images cycling (simplified as first image display)
-      const allPhotos: { src: string; title: string; href: string }[] = [];
-      for (const r of rows) {
-        const photos = r.photos ? r.photos.split("|").filter(Boolean) : [];
-        for (const p of photos) {
-          allPhotos.push({
-            src: `https://home.homenshop.com/${shopId}/uploaded/${encodeURIComponent(p)}`,
-            title: r.title || "",
-            href: `${urlPrefix}/${lang}/board.html?action=read&id=${r.id}`,
-          });
-        }
-      }
-      if (allPhotos.length > 0) {
-        const sliderId = `slider_${divId.replace(/[^a-zA-Z0-9]/g, "_")}`;
-        const slides = allPhotos.map((p, i) =>
-          `<div class="${sliderId}_slide" style="display:${i === 0 ? 'block' : 'none'};width:100%;height:100%;">
-            <a href="${p.href}"><img src="${p.src}" style="width:100%;height:100%;object-fit:cover;" alt="${escapeHtml(p.title)}" /></a>
-          </div>`
-        ).join("");
-        contentHtml = `${slides}<script>(function(){var s=document.querySelectorAll('.${sliderId}_slide'),i=0;if(s.length<2)return;setInterval(function(){s[i].style.display='none';i=(i+1)%s.length;s[i].style.display='block';},3000);})();</script>`;
-      }
-    }
-
-    if (contentHtml) {
-      // The boardPlugin divs in the DB body already contain stale content from the legacy system.
-      // We need to REPLACE the inner content of these divs with fresh data.
-      // Use tag-depth counting to find the matching closing </div> for the boardPlugin div.
-      const escapedId = divId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const openTagRegex = new RegExp(
-        `<(?:div|DIV)[^>]*id=["']?${escapedId}["']?[^>]*>`,
-        "i"
-      );
-      const openMatch = openTagRegex.exec(result);
-      if (openMatch) {
-        const startOfTag = openMatch.index;
-        const afterOpenTag = startOfTag + openMatch[0].length;
-        // Count nested divs to find the correct closing </div>
-        let depth = 1;
-        let pos = afterOpenTag;
-        while (pos < result.length && depth > 0) {
-          const nextOpen = result.indexOf("<div", pos);
-          const nextDIV = result.indexOf("<DIV", pos);
-          const nextOpenPos = Math.min(
-            nextOpen === -1 ? Infinity : nextOpen,
-            nextDIV === -1 ? Infinity : nextDIV
-          );
-          const nextCloseLC = result.indexOf("</div>", pos);
-          const nextCloseUC = result.indexOf("</DIV>", pos);
-          const nextClosePos = Math.min(
-            nextCloseLC === -1 ? Infinity : nextCloseLC,
-            nextCloseUC === -1 ? Infinity : nextCloseUC
-          );
-          if (nextClosePos === Infinity) break;
-          if (nextOpenPos < nextClosePos) {
-            depth++;
-            pos = nextOpenPos + 4;
-          } else {
-            depth--;
-            if (depth === 0) {
-              // Replace content between opening tag and this closing tag
-              result = result.substring(0, afterOpenTag) + contentHtml + result.substring(nextClosePos);
-              break;
-            }
-            pos = nextClosePos + 6;
-          }
-        }
-      }
-    }
+  pname = pp.name;
+  price = pp.price > 0 ? `$${pp.price}` : "";
+  contents = pp.description || "";
+  specification = pp.specification || "";
+  const imgs = (pp.images as string[] | null) || [];
+  photos = pp.photos
+    ? pp.photos.split("|").filter(Boolean)
+    : imgs.flatMap((e) => String(e).split("|").filter(Boolean));
+  catId = parseInt(pp.category || "0") || 0;
+  if (catId > 0) {
+    const catRow = await prisma.productCategory.findFirst({ where: { siteId, legacyId: catId, lang } });
+    catName = catRow?.name || "";
   }
 
-  return result;
-}
+  // Build photo gallery — handle both legacy and new URL formats
+  function photoUrl(p: string) {
+    if (p.startsWith("http") || p.startsWith("/")) return p;
+    return `https://home.homenshop.com/${shopId}/uploaded/${encodeURIComponent(p)}`;
+  }
 
-
-
-/* ─── Product detail / list page rendering ─── */
-function renderProductRead(
-  dbPath: string, shopId: string, lang: string, productId: number, urlPrefix: string, goodsPage: string = "goods"
-): string {
-  const row = sqliteQueryOne(dbPath, `SELECT * FROM Product WHERE id = ${productId}`);
-  if (!row) return `<div style="max-width:700px;margin:40px auto;padding:20px;text-align:center;color:#666;font-size:15px;">Product not found. (id=${productId})</div>`;
-
-  const pname = String(row.pname || "");
-  const price = row.price ? `$${row.price}` : "";
-  const contents = String(row.contents || "");
-  const photos = row.photos ? String(row.photos).split("|").filter(Boolean) : [];
-  const specification = String(row.specification || "");
-
-  // Build photo gallery
+  const detailImgWidth = prodSettings?.detailWidth || 400;
   const mainImg = photos[0]
-    ? `<img src="https://home.homenshop.com/${shopId}/uploaded/${encodeURIComponent(photos[0])}" style="max-width:400px;width:100%;height:auto;border:1px solid #eee;" alt="${escapeHtml(pname)}" />`
+    ? `<img src="${photoUrl(photos[0])}" style="max-width:${detailImgWidth}px;width:100%;height:auto;border:1px solid #eee;" alt="${escapeHtml(pname)}" />`
     : "";
   const thumbs = photos.length > 1
     ? photos.map((p, i) =>
-        `<img src="https://home.homenshop.com/${shopId}/uploaded/${encodeURIComponent(p)}" onclick="document.getElementById('prod-main-img').src=this.src" style="width:60px;height:60px;object-fit:cover;border:1px solid #ddd;cursor:pointer;margin:2px;${i === 0 ? 'border-color:#999;' : ''}" alt="" />`
+        `<img src="${photoUrl(p)}" onclick="document.getElementById('prod-main-img').src=this.src" style="width:60px;height:60px;object-fit:cover;border:1px solid #ddd;cursor:pointer;margin:2px;${i === 0 ? 'border-color:#999;' : ''}" alt="" />`
       ).join("")
     : "";
-
-  // Get category name
-  const catId = parseInt(String(row.category)) || 0;
-  const catRow = sqliteQueryOne(dbPath, `SELECT category FROM ProductCategory WHERE id = ${catId} AND lang = '${escapeSql(lang)}'`);
-  const catName = catRow ? String(catRow.category) : "";
 
   // Back link
   const backHref = catId > 0
@@ -386,19 +213,28 @@ function renderProductRead(
   </div>`;
 }
 
-function renderProductList(
-  dbPath: string, shopId: string, lang: string, category: number, page: number, urlPrefix: string, goodsPage: string = "goods"
-): string {
-  // Get categories
-  const categories = sqliteQuery(dbPath,
-    `SELECT * FROM ProductCategory WHERE lang = '${escapeSql(lang)}' ORDER BY id`
-  );
+interface ProductDisplaySettings {
+  itemsPerRow?: number;
+  totalRows?: number;
+  thumbWidth?: number;
+  thumbHeight?: number;
+  detailWidth?: number;
+}
+
+async function renderProductList(
+  siteId: string, shopId: string, lang: string, category: number, page: number, urlPrefix: string, goodsPage: string = "goods", prodSettings?: ProductDisplaySettings
+): Promise<string> {
+  // Get categories from Prisma
+  const categories = await prisma.productCategory.findMany({
+    where: { siteId, lang },
+    orderBy: { legacyId: "asc" },
+  });
 
   // Category tabs
   const allHref = `${urlPrefix}/${lang}/${goodsPage}.html?action=list`;
   const catTabs = categories.map((c) => {
-    const catId = parseInt(String(c.id)) || 0;
-    const catName = String(c.category || "");
+    const catId = c.legacyId ?? 0;
+    const catName = c.name || "";
     const href = `${urlPrefix}/${lang}/${goodsPage}.html?action=list&category=${catId}`;
     const active = catId === category;
     return `<a href="${href}" style="display:inline-block;padding:8px 20px;margin:0 2px;text-decoration:none;font-size:13px;font-weight:bold;color:${active ? '#fff' : '#555'};background:${active ? '#666' : '#f5f5f5'};border:1px solid #ddd;">${escapeHtml(catName)}</a>`;
@@ -409,175 +245,94 @@ function renderProductList(
     ${catTabs}
   </div>`;
 
-  // Get category display settings
+  // Display settings: specific category uses its settings, All uses prodSettings
   const catSetting = category > 0
-    ? sqliteQueryOne(dbPath, `SELECT * FROM ProductCategory WHERE id = ${category} AND lang = '${escapeSql(lang)}'`)
-    : categories[0] || null;
-  const imgW = parseInt(String(catSetting?.img_w)) || 135;
-  const imgH = parseInt(String(catSetting?.img_h)) || 135;
-  const titleLen = parseInt(String(catSetting?.titlelen)) || 40;
-  const perPage = parseInt(String(catSetting?.rows)) || 40;
+    ? categories.find((c) => c.legacyId === category)
+    : null;
+  let imgW: number, imgH: number, itemsPerRow: number, totalRows: number;
+  if (category > 0 && catSetting) {
+    imgW = catSetting.imgWidth || 120;
+    imgH = catSetting.imgHeight || 120;
+    itemsPerRow = catSetting.rows || 4;
+    totalRows = 5;
+  } else {
+    imgW = prodSettings?.thumbWidth || 120;
+    imgH = prodSettings?.thumbHeight || 120;
+    itemsPerRow = prodSettings?.itemsPerRow || 4;
+    totalRows = prodSettings?.totalRows || 5;
+  }
+  const titleLen = catSetting?.titleLen || 40;
+  const perPage = Math.max(itemsPerRow * totalRows, 20);
 
-  // Query products
-  const whereClause = category > 0 ? `WHERE category = ${category}` : "";
+  // Query products from Prisma
+  const productWhere: Record<string, unknown> = { siteId };
+  if (category > 0) productWhere.category = String(category);
   const offset = (page - 1) * perPage;
-  const rows = sqliteQuery(dbPath,
-    `SELECT * FROM Product ${whereClause} ORDER BY id DESC LIMIT ${perPage} OFFSET ${offset}`
-  );
-  const countRow = sqliteQueryOne(dbPath,
-    `SELECT COUNT(*) as cnt FROM Product ${whereClause}`
-  );
-  const total = parseInt(String(countRow?.cnt)) || 0;
+
+  const total = await prisma.product.count({ where: productWhere });
+  const products = await prisma.product.findMany({
+    where: productWhere,
+    orderBy: { legacyId: "desc" },
+    skip: offset,
+    take: perPage,
+  });
   const totalPages = Math.ceil(total / perPage);
 
-  // Product grid
-  const items = rows.map((r) => {
-    const pname = String(r.pname || "");
-    const truncName = pname.length > titleLen ? pname.substring(0, titleLen) + ".." : pname;
-    const photos = r.photos ? String(r.photos).split("|").filter(Boolean) : [];
-    const firstPhoto = photos[0] || "";
-    const imgSrc = firstPhoto
-      ? `https://home.homenshop.com/${shopId}/uploaded/${encodeURIComponent(firstPhoto)}`
-      : "";
-    const href = `${urlPrefix}/${lang}/${goodsPage}.html?action=read&id=${r.id}`;
-    const price = r.price ? `<div style="color:#c00;font-size:12px;margin-top:2px;">$${escapeHtml(String(r.price))}</div>` : "";
-    return `<div style="display:inline-block;vertical-align:top;text-align:center;margin:8px;width:${imgW + 20}px;">
+  // Render product items
+  const items = products.map((p) => {
+    const pname = p.name || "";
+    // Use images (JSON array) first, fall back to photos (pipe-delimited legacy)
+    const imgs = (p.images as string[] | null) || [];
+    const legacyPhotos = p.photos ? p.photos.split("|").filter(Boolean) : [];
+    const allPhotos = imgs.length > 0 ? imgs : legacyPhotos;
+    const firstPhoto = allPhotos[0] || "";
+    let imgSrc = "";
+    if (firstPhoto) {
+      if (firstPhoto.startsWith("/") || firstPhoto.startsWith("http")) {
+        imgSrc = firstPhoto;
+      } else {
+        imgSrc = `https://home.homenshop.com/${shopId}/uploaded/${encodeURIComponent(firstPhoto)}`;
+      }
+    }
+    // Use pid= for Prisma products with no legacyId, id= for legacy
+    const idParam = p.legacyId ? `id=${p.legacyId}` : `pid=${p.id}`;
+    const href = `${urlPrefix}/${lang}/${goodsPage}.html?action=read&${idParam}`;
+    const price = p.price > 0 ? `<div style="color:#c00;font-size:12px;margin-top:2px;">$${escapeHtml(String(p.price))}</div>` : "";
+    return `<div style="text-align:center;">
       <a href="${href}">
-        ${imgSrc ? `<img src="${imgSrc}" style="width:${imgW}px;height:${imgH}px;object-fit:contain;border:1px solid #eee;" alt="${escapeHtml(truncName)}" />` : `<div style="width:${imgW}px;height:${imgH}px;background:#f9f9f9;border:1px solid #eee;"></div>`}
+        ${imgSrc ? `<img src="${imgSrc}" style="width:100%;max-width:${imgW}px;height:${imgH}px;object-fit:contain;border:1px solid #eee;" alt="${escapeHtml(pname)}" />` : `<div style="width:100%;max-width:${imgW}px;height:${imgH}px;background:#f9f9f9;border:1px solid #eee;margin:0 auto;"></div>`}
       </a>
-      <div style="font-size:11px;color:#333;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-        <a href="${href}" style="color:#333;text-decoration:none;">${escapeHtml(truncName)}</a>
+      <div style="font-size:11px;color:#333;margin-top:4px;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.4;max-height:2.8em;">
+        <a href="${href}" style="color:#333;text-decoration:none;">${escapeHtml(pname)}</a>
       </div>
       ${price}
     </div>`;
   }).join("");
 
-  // Pagination
+  // Pagination (show ±5 pages around current, plus first/last)
   let paginationHtml = "";
   if (totalPages > 1) {
-    const links = [];
-    for (let i = 1; i <= totalPages; i++) {
-      const catParam = category > 0 ? `&category=${category}` : "";
+    const catParam = category > 0 ? `&category=${category}` : "";
+    const makeLink = (i: number) => {
       const href = `${urlPrefix}/${lang}/${goodsPage}.html?action=list${catParam}&page=${i}`;
-      if (i === page) {
-        links.push(`<span style="display:inline-block;padding:4px 10px;margin:0 2px;font-weight:bold;color:#333;border:1px solid #333;">${i}</span>`);
-      } else {
-        links.push(`<a href="${href}" style="display:inline-block;padding:4px 10px;margin:0 2px;color:#666;text-decoration:none;border:1px solid #ddd;">${i}</a>`);
-      }
-    }
+      return i === page
+        ? `<span style="display:inline-block;padding:4px 10px;margin:0 2px;font-weight:bold;color:#333;border:1px solid #333;">${i}</span>`
+        : `<a href="${href}" style="display:inline-block;padding:4px 10px;margin:0 2px;color:#666;text-decoration:none;border:1px solid #ddd;">${i}</a>`;
+    };
+    const links: string[] = [];
+    const rangeStart = Math.max(1, page - 5);
+    const rangeEnd = Math.min(totalPages, page + 5);
+    if (rangeStart > 1) { links.push(makeLink(1)); if (rangeStart > 2) links.push(`<span style="padding:4px 6px;color:#999;">...</span>`); }
+    for (let i = rangeStart; i <= rangeEnd; i++) links.push(makeLink(i));
+    if (rangeEnd < totalPages) { if (rangeEnd < totalPages - 1) links.push(`<span style="padding:4px 6px;color:#999;">...</span>`); links.push(makeLink(totalPages)); }
     paginationHtml = `<div style="text-align:center;margin-top:20px;">${links.join("")}</div>`;
   }
 
   return `<div style="max-width:900px;margin:20px auto;padding:20px;font-family:Tahoma,Arial,sans-serif;">
     ${tabsHtml}
-    <div style="text-align:center;">${items}</div>
+    <div style="display:grid;grid-template-columns:repeat(${itemsPerRow}, 1fr);gap:24px 12px;">${items}</div>
     ${paginationHtml}
   </div>`;
-}
-
-/* ─── Product plugin rendering ─── */
-function renderProductPluginContent(
-  dbPath: string, shopId: string, lang: string, pageSlug: string,
-  bodyHtml: string, urlPrefix: string
-): string {
-  // Read ProductPlugin entries for this page
-  const plugins = sqliteQuery(dbPath,
-    `SELECT * FROM ProductPlugin WHERE lang = '${escapeSql(lang)}' AND page = '${escapeSql(pageSlug)}.html'`
-  );
-  if (plugins.length === 0) return bodyHtml;
-
-  let result = bodyHtml;
-
-  for (const plugin of plugins) {
-    const divId = String(plugin.divid || "");
-    const category = parseInt(String(plugin.category)) || 0;
-    const nums = parseInt(String(plugin.nums)) || 7;
-    const titleLen = parseInt(String(plugin.titlelen)) || 38;
-    const imgW = parseInt(String(plugin.img_w)) || 128;
-    const imgH = parseInt(String(plugin.img_h)) || 125;
-    const displayStyle = parseInt(String(plugin.displaystyle)) || 0;
-    const skinFile = String(plugin.skin_file || "goods.html");
-
-    if (!divId || !result.includes(divId)) continue;
-
-    // Fetch products
-    const whereClause = category > 0
-      ? `WHERE category = ${category}`
-      : "";
-    const rows = sqliteQuery(dbPath,
-      `SELECT * FROM Product ${whereClause} ORDER BY id DESC LIMIT ${nums}`
-    );
-
-    const goodsPage = skinFile || "goods.html";
-    let contentHtml = "";
-
-    // Product list: horizontal image + title layout
-    const items = rows.map((r) => {
-      const pname = String(r.pname || "");
-      const truncName = pname.length > titleLen ? pname.substring(0, titleLen) + ".." : pname;
-      const photos = r.photos ? String(r.photos).split("|").filter(Boolean) : [];
-      const firstPhoto = photos[0] || "";
-      const imgSrc = firstPhoto
-        ? `https://home.homenshop.com/${shopId}/uploaded/${encodeURIComponent(firstPhoto)}`
-        : "";
-      const href = `${urlPrefix}/${lang}/${goodsPage}?action=read&id=${r.id}`;
-      const price = r.price ? `<span style="color:#333;font-size:12px;">$${r.price}</span>` : "";
-      return `<div style="flex:1;min-width:0;text-align:center;">
-        <a href="${href}">
-          ${imgSrc ? `<img src="${imgSrc}" style="width:${imgW}px;height:${imgH}px;object-fit:contain;border:1px solid #eee;" alt="${escapeHtml(truncName)}" />` : `<div style="width:${imgW}px;height:${imgH}px;background:#f5f5f5;border:1px solid #eee;"></div>`}
-        </a>
-        <div style="font-size:11px;color:#333;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-          <a href="${href}" style="color:#333;text-decoration:none;">${escapeHtml(truncName)}</a>
-        </div>
-        ${price}
-      </div>`;
-    }).join("");
-    contentHtml = `<div style="display:flex;justify-content:space-evenly;align-items:flex-start;width:100%;gap:4px;">${items}</div>`;
-
-    if (contentHtml) {
-      // Replace inner content of the productPlugin div
-      const escapedId = divId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const openTagRegex = new RegExp(
-        `<(?:div|DIV)[^>]*id=["']?${escapedId}["']?[^>]*>`,
-        "i"
-      );
-      const openMatch = openTagRegex.exec(result);
-      if (openMatch) {
-        const startOfTag = openMatch.index;
-        const afterOpenTag = startOfTag + openMatch[0].length;
-        let depth = 1;
-        let pos = afterOpenTag;
-        while (pos < result.length && depth > 0) {
-          const nextOpen = result.indexOf("<div", pos);
-          const nextDIV = result.indexOf("<DIV", pos);
-          const nextOpenPos = Math.min(
-            nextOpen === -1 ? Infinity : nextOpen,
-            nextDIV === -1 ? Infinity : nextDIV
-          );
-          const nextCloseLC = result.indexOf("</div>", pos);
-          const nextCloseUC = result.indexOf("</DIV>", pos);
-          const nextClosePos = Math.min(
-            nextCloseLC === -1 ? Infinity : nextCloseLC,
-            nextCloseUC === -1 ? Infinity : nextCloseUC
-          );
-          if (nextClosePos === Infinity) break;
-          if (nextOpenPos < nextClosePos) {
-            depth += 1;
-            pos = nextOpenPos + 4;
-          } else {
-            depth -= 1;
-            if (depth === 0) {
-              result = result.substring(0, afterOpenTag) + contentHtml + result.substring(nextClosePos);
-              break;
-            }
-            pos = nextClosePos + 6;
-          }
-        }
-      }
-    }
-  }
-
-  return result;
 }
 
 export async function GET(
@@ -586,10 +341,30 @@ export async function GET(
 ) {
   const { shopId, lang, slug } = await params;
   const url = new URL(request.url);
+
+  // Auto-detect language: lang="_" means no language in URL, redirect to site's default
+  if (lang === "_") {
+    const siteForLang = await prisma.site.findUnique({
+      where: { shopId },
+      select: { defaultLanguage: true },
+    });
+    const defaultLang = siteForLang?.defaultLanguage || "ko";
+    const hostHeader = request.headers.get("host") || "";
+    const isCustomDomain = hostHeader && !hostHeader.includes("homenshop");
+    const prefix = isCustomDomain ? "" : `/${shopId}`;
+    const slugPath = slug?.join("/") || "";
+    const qs = url.search || "";
+    return NextResponse.redirect(
+      `https://${hostHeader}${prefix}/${defaultLang}/${slugPath}${qs}`,
+      301
+    );
+  }
+
   const action = url.searchParams.get("action") || "";
   const boardId = parseInt(url.searchParams.get("id") || "0");
   const boardCategory = parseInt(url.searchParams.get("category") || "0");
   const boardPage = parseInt(url.searchParams.get("page") || "1");
+  const prismaProductId = url.searchParams.get("pid") || "";
 
   // Detect custom domain: if Host header is not homenshop.com/net, omit shopId from URLs
   const hostHeader = request.headers.get("host") || request.headers.get("x-forwarded-host") || "";
@@ -623,10 +398,11 @@ export async function GET(
   }
 
   // Select HMF for current language, fallback to Site defaults
+  // Use || instead of ?? for menuHtml: empty string from "auto" mode should fall back to Site default
   const hmf = site.hmfTranslations?.find((h) => h.lang === lang)
     || site.hmfTranslations?.find((h) => h.lang === site.defaultLanguage);
   const siteHeaderHtml = hmf?.headerHtml ?? site.headerHtml ?? "";
-  const siteMenuHtml = hmf?.menuHtml ?? site.menuHtml ?? "";
+  const siteMenuHtml = hmf?.menuHtml || site.menuHtml || "";
   const siteFooterHtml = hmf?.footerHtml ?? site.footerHtml ?? "";
 
   // Determine which page to show
@@ -646,9 +422,6 @@ export async function GET(
   const pageContent = page.content as { html?: string } | null;
   let bodyHtml = pageContent?.html || "";
 
-  // Dynamic board content
-  const dbPath = getDbPath(shopId);
-
   // Board read/list: render board content (replaces page body for board action pages)
   let boardSectionHtml = "";
   // Detect actual product page slug for URLs
@@ -661,20 +434,23 @@ export async function GET(
   const isBoardAction = !isProductPage && (effectiveAction === "read" || effectiveAction === "list") && (isBoardPage || boardId > 0 || boardCategory > 0);
   const isProductAction = isProductPage && (effectiveAction === "read" || effectiveAction === "list");
 
-  if (dbPath && isProductAction) {
-    if (effectiveAction === "read" && boardId > 0) {
-      boardSectionHtml = renderProductRead(dbPath, shopId, lang, boardId, urlPrefix, productPageSlug);
+  const prodSettings = (site.productSettings as ProductDisplaySettings | null) || undefined;
+  if (isProductAction) {
+    if (effectiveAction === "read" && prismaProductId) {
+      boardSectionHtml = await renderProductRead(site.id, shopId, lang, 0, urlPrefix, productPageSlug, prismaProductId, prodSettings);
+    } else if (effectiveAction === "read" && boardId > 0) {
+      boardSectionHtml = await renderProductRead(site.id, shopId, lang, boardId, urlPrefix, productPageSlug, undefined, prodSettings);
     } else if (effectiveAction === "list") {
-      boardSectionHtml = renderProductList(dbPath, shopId, lang, boardCategory, boardPage, urlPrefix, productPageSlug);
+      boardSectionHtml = await renderProductList(site.id, shopId, lang, boardCategory, boardPage, urlPrefix, productPageSlug, prodSettings);
     }
     if (boardSectionHtml) {
       bodyHtml = "";
     }
-  } else if (dbPath && isBoardAction) {
+  } else if (isBoardAction) {
     if (effectiveAction === "read" && boardId > 0) {
-      boardSectionHtml = renderBoardRead(dbPath, shopId, lang, boardId, urlPrefix);
+      boardSectionHtml = await renderBoardRead(site.id, shopId, lang, boardId, urlPrefix);
     } else if (effectiveAction === "list") {
-      boardSectionHtml = renderBoardList(dbPath, shopId, lang, boardCategory, boardPage, urlPrefix);
+      boardSectionHtml = await renderBoardList(site.id, shopId, lang, boardCategory, boardPage, urlPrefix);
     }
     // Board action pages: clear body HTML (absolute-positioned page elements create unwanted space)
     if (boardSectionHtml) {
@@ -682,18 +458,14 @@ export async function GET(
     }
   }
 
-  // BoardPlugin: inject dynamic board lists into page body (for all pages)
-  if (dbPath) {
-    bodyHtml = renderBoardPluginContent(dbPath, shopId, lang, pageSlug, bodyHtml, urlPrefix);
-  }
-
-  // ProductPlugin: inject dynamic product lists into page body
-  if (dbPath) {
-    bodyHtml = renderProductPluginContent(dbPath, shopId, lang, pageSlug, bodyHtml, urlPrefix);
-  }
-
   // Get template CSS
   const templatePath = site.templatePath || "";
+
+  // BoardPlugin: inject dynamic board lists into page body (for all pages)
+  bodyHtml = await renderBoardPluginContent(site.id, shopId, lang, pageSlug, bodyHtml, urlPrefix);
+
+  // ProductPlugin: inject dynamic product lists into page body
+  bodyHtml = await renderProductPluginContent(site.id, shopId, lang, pageSlug, bodyHtml, urlPrefix);
   let templateCss = "";
   if (templatePath) {
     templateCss = readTemplateCss(templatePath);
@@ -782,8 +554,10 @@ export async function GET(
     ? rewriteAssetUrls(siteMenuHtml, templatePath)
     : siteMenuHtml;
   let menuHtml: string;
+  // Wrap generated menu in the nav container div that template CSS targets
+  const wrappedMenu = `<div id="v-wdg-nav" class="v-home-ap-hd-nav menu dragable">${generatedMenu}</div>`;
   if (!rawMenuHtml) {
-    menuHtml = generatedMenu;
+    menuHtml = wrappedMenu;
   } else {
     // Try to inject menu into v-wdg-jmenu-opts div first
     const jmenuReplaced = rawMenuHtml.replace(
@@ -802,9 +576,19 @@ export async function GET(
         menuHtml = mainmenuReplaced;
       } else {
         // Check if rawMenuHtml already has menu items (any ul with li tags)
-        if (/<ul[^>]*>\s*<li/i.test(rawMenuHtml)) {
-          // HMF already has a complete menu, don't duplicate
-          menuHtml = rawMenuHtml;
+        if (/<ul[^>]*class="mainmenu"[^>]*>\s*<li/i.test(rawMenuHtml)) {
+          // HMF has a complete menu — replace mainmenu contents with generated items
+          // Use greedy match to capture entire mainmenu including nested submenus
+          menuHtml = rawMenuHtml.replace(
+            /(<ul[^>]*class="mainmenu"[^>]*>)([\s\S]*)(<\/ul>\s*<\/DIV>)/i,
+            (_m, open, _old, close) => `${open}${menuItems}${close}`
+          );
+        } else if (/<ul[^>]*>\s*<li/i.test(rawMenuHtml)) {
+          // Non-mainmenu ul with items — replace first ul contents
+          menuHtml = rawMenuHtml.replace(
+            /(<ul[^>]*>)([\s\S]*)(<\/ul>)/i,
+            (_m, open, _old, close) => `${open}${menuItems}${close}`
+          );
         } else {
           // Append generated menu after the rawMenuHtml
           menuHtml = rawMenuHtml + generatedMenu;
@@ -893,37 +677,58 @@ export async function GET(
   let itemSeoDesc = "";
   let itemSeoKeywords = "";
   let itemOgImage = "";
-  if (dbPath && isProductAction && effectiveAction === "read" && boardId > 0) {
-    const pRow = sqliteQueryOne(dbPath, `SELECT pname, contents, photos, specification FROM Product WHERE id = ${boardId}`);
-    if (pRow) {
-      const pname = String(pRow.pname || "");
-      itemSeoTitle = `${pname} - ${site.name}`;
-      // Description: use specification or strip HTML from contents (first 160 chars)
-      const rawDesc = String(pRow.specification || pRow.contents || "");
-      const plainDesc = rawDesc.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
-      itemSeoDesc = plainDesc.length > 160 ? plainDesc.substring(0, 157) + "..." : plainDesc;
-      itemSeoKeywords = pname.replace(/[,/|]/g, ", ");
-      const pPhotos = pRow.photos ? String(pRow.photos).split("|").filter(Boolean) : [];
-      if (pPhotos[0]) {
-        itemOgImage = `https://home.homenshop.com/${shopId}/uploaded/${encodeURIComponent(pPhotos[0])}`;
+  if (isProductAction && effectiveAction === "read" && prismaProductId) {
+    // SEO for Prisma product
+    try {
+      const pp = await prisma.product.findUnique({ where: { id: prismaProductId } });
+      if (pp) {
+        itemSeoTitle = `${pp.name} - ${site.name}`;
+        const rawDesc = String(pp.description || "");
+        const plainDesc = rawDesc.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
+        itemSeoDesc = plainDesc.length > 160 ? plainDesc.substring(0, 157) + "..." : plainDesc;
+        itemSeoKeywords = pp.name.replace(/[,/|]/g, ", ");
+        const imgs = (pp.images as string[] | null) || [];
+        if (imgs[0]) itemOgImage = imgs[0];
       }
-    }
-  } else if (dbPath && isBoardAction && effectiveAction === "read" && boardId > 0) {
-    const bRow = sqliteQueryOne(dbPath, `SELECT title, contents, photos FROM Board WHERE id = ${boardId}`);
-    if (bRow) {
-      const bTitle = String(bRow.title || "");
-      itemSeoTitle = `${bTitle} - ${site.name}`;
-      const rawDesc = String(bRow.contents || "");
-      const plainDesc = rawDesc.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
-      itemSeoDesc = plainDesc.length > 160 ? plainDesc.substring(0, 157) + "..." : plainDesc;
-      itemSeoKeywords = bTitle;
-      const bPhotos = bRow.photos ? String(bRow.photos).split("|").filter(Boolean) : [];
-      const imageExts = new Set(["jpg", "jpeg", "png", "gif", "bmp", "webp", "svg"]);
-      const firstImage = bPhotos.find(p => imageExts.has(p.split(".").pop()?.toLowerCase() || ""));
-      if (firstImage) {
-        itemOgImage = `https://home.homenshop.com/${shopId}/uploaded/${encodeURIComponent(firstImage)}`;
+    } catch { /* fallback */ }
+  } else if (isProductAction && effectiveAction === "read" && boardId > 0) {
+    try {
+      const pRow = await prisma.product.findFirst({
+        where: { siteId: site.id, legacyId: boardId },
+        select: { name: true, description: true, photos: true, specification: true },
+      });
+      if (pRow) {
+        itemSeoTitle = `${pRow.name} - ${site.name}`;
+        const rawDesc = pRow.specification || pRow.description || "";
+        const plainDesc = rawDesc.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
+        itemSeoDesc = plainDesc.length > 160 ? plainDesc.substring(0, 157) + "..." : plainDesc;
+        itemSeoKeywords = pRow.name.replace(/[,/|]/g, ", ");
+        const pPhotos = pRow.photos ? pRow.photos.split("|").filter(Boolean) : [];
+        if (pPhotos[0]) {
+          itemOgImage = `https://home.homenshop.com/${shopId}/uploaded/${encodeURIComponent(pPhotos[0])}`;
+        }
       }
-    }
+    } catch { /* fallback */ }
+  } else if (isBoardAction && effectiveAction === "read" && boardId > 0) {
+    try {
+      const bRow = await prisma.boardPost.findFirst({
+        where: { siteId: site.id, legacyId: boardId },
+        select: { title: true, content: true, photos: true },
+      });
+      if (bRow) {
+        itemSeoTitle = `${bRow.title} - ${site.name}`;
+        const rawDesc = bRow.content || "";
+        const plainDesc = rawDesc.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
+        itemSeoDesc = plainDesc.length > 160 ? plainDesc.substring(0, 157) + "..." : plainDesc;
+        itemSeoKeywords = bRow.title;
+        const bPhotos = bRow.photos ? bRow.photos.split("|").filter(Boolean) : [];
+        const imageExts = new Set(["jpg", "jpeg", "png", "gif", "bmp", "webp", "svg"]);
+        const firstImage = bPhotos.find(p => imageExts.has(p.split(".").pop()?.toLowerCase() || ""));
+        if (firstImage) {
+          itemOgImage = `https://home.homenshop.com/${shopId}/uploaded/${encodeURIComponent(firstImage)}`;
+        }
+      }
+    } catch { /* fallback */ }
   }
 
   // Use item-level SEO if available, otherwise fall back to page-level
@@ -977,6 +782,7 @@ export async function GET(
     .board-content img { border-radius: 4px; }
 
     #hns_body { display: flex; justify-content: center; }
+    .board-content { max-width: var(--menu-width, 780px); }
   </style>
   ${gaScript}
 </head>
@@ -999,6 +805,8 @@ export async function GET(
       if(t+h>m)m=t+h;
     }
     if(m>0)hdr.style.minHeight=m+'px';
+    var nav=hdr.querySelector('.menu')||hdr.querySelector('#v-wdg-nav');
+    if(nav){var nw=nav.offsetWidth||nav.scrollWidth;if(nw>200)document.documentElement.style.setProperty('--menu-width',nw+'px');}
     ${isModernTemplate ? '' : `var ft=document.getElementById('hns_footer');
     if(ft){
       var fc=ft.querySelectorAll('.dragable');

@@ -52,9 +52,17 @@ export default async function TemplatesPage({
       break;
   }
 
+  // Public templates (no userId)
+  const publicWhere = { ...where, userId: null };
   const templates = await prisma.template.findMany({
-    where,
+    where: publicWhere,
     orderBy,
+  });
+
+  // User's own templates
+  const myTemplates = await prisma.template.findMany({
+    where: { userId: session.user.id },
+    orderBy: { createdAt: "desc" },
   });
 
   return (
@@ -69,10 +77,10 @@ export default async function TemplatesPage({
             <span className="dash-logo-sub">{t("title")}</span>
           </div>
           <div className="dash-header-right">
-            <span className="dash-user-info">
-              {session.user.name} ({session.user.email})
-            </span>
             <Link href="/dashboard" className="dash-header-btn">
+              {t("dashboard")}
+            </Link>
+            <Link href="/dashboard/profile" className="dash-header-btn">
               {t("memberInfo")}
             </Link>
             <SignOutButton />
@@ -92,6 +100,14 @@ export default async function TemplatesPage({
         {/* TEMPLATE GALLERY */}
         <TemplateGallery
           templates={templates.map((t) => ({
+            id: t.id,
+            name: t.name,
+            path: t.path,
+            thumbnailUrl: t.thumbnailUrl,
+            category: t.category,
+            price: t.price,
+          }))}
+          myTemplates={myTemplates.map((t) => ({
             id: t.id,
             name: t.name,
             path: t.path,
@@ -134,6 +150,20 @@ export default async function TemplatesPage({
             errorShopIdFormat: tTpl("errorShopIdFormat"),
             errorShopIdTaken: tTpl("errorShopIdTaken"),
             errorAlreadyHasSite: tTpl("errorAlreadyHasSite"),
+            tabPublic: tTpl("tabPublic"),
+            tabMy: tTpl("tabMy"),
+            myTemplatesEmpty: tTpl("myTemplatesEmpty"),
+            uploadTemplate: tTpl("uploadTemplate"),
+            templateName: tTpl("templateName"),
+            templateNamePlaceholder: tTpl("templateNamePlaceholder"),
+            htmlFiles: tTpl("htmlFiles"),
+            cssFile: tTpl("cssFile"),
+            assetFiles: tTpl("assetFiles"),
+            uploading: tTpl("uploading"),
+            uploadSuccess: tTpl("uploadSuccess"),
+            uploadError: tTpl("uploadError"),
+            deleteTemplate: tTpl("deleteTemplate"),
+            deleteConfirm: tTpl("deleteConfirm"),
           }}
         />
       </div>

@@ -252,6 +252,81 @@
   word-break: keep-all;
 }
 
+/* ── SOLUTION ── */
+.lp-solution {
+  padding: 80px 24px;
+  background: linear-gradient(180deg, #f8fafc 0%, #eef5fc 100%);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.solution-desc {
+  font-size: 17px;
+  color: var(--text-sub);
+  max-width: 680px;
+  margin: 0 auto;
+  line-height: 1.8;
+  word-break: keep-all;
+  white-space: pre-line;
+  text-align: center;
+}
+.solution-points {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin-top: 48px;
+}
+.solution-point {
+  background: var(--white);
+  border-radius: var(--radius);
+  padding: 28px 24px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.solution-point:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+.solution-point-icon {
+  font-size: 28px;
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--blue-light);
+  border-radius: 12px;
+}
+.solution-point-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+.solution-point-desc {
+  font-size: 14px;
+  color: var(--text-sub);
+  line-height: 1.7;
+  word-break: keep-all;
+}
+.solution-sub {
+  text-align: center;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--blue-dark);
+  margin-top: 40px;
+  word-break: keep-all;
+}
+@media (max-width: 768px) {
+  .solution-points {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ── FEATURES ── */
 .features-grid {
   display: flex;
@@ -298,6 +373,12 @@
 }
 .feature-icon.teal {
   background: #f0fdfa;
+}
+.feature-icon.red {
+  background: #fef2f2;
+}
+.feature-icon.violet {
+  background: #f5f3ff;
 }
 .feature-title {
   font-size: 17px;
@@ -363,6 +444,13 @@
   flex-wrap: wrap;
   justify-content: center;
 }
+.pricing-grid-4 {
+  gap: 16px;
+}
+.pricing-grid-4 .pricing-card {
+  flex: 1 1 220px;
+  max-width: 260px;
+}
 .pricing-card {
   flex: 0 1 320px;
   background: var(--white);
@@ -371,6 +459,11 @@
   border: 2px solid var(--border);
   box-shadow: var(--shadow);
   position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.pricing-card .pricing-features {
+  flex: 1;
 }
 .pricing-card.featured {
   border-color: var(--blue);
@@ -447,6 +540,41 @@
 .pricing-btn-solid:hover {
   background: var(--blue-dark);
   box-shadow: 0 4px 14px rgba(74, 144, 217, 0.35);
+}
+.pricing-btn-outline {
+  background: var(--white);
+  color: var(--blue);
+  border: 2px solid var(--blue);
+}
+.pricing-btn-outline:hover {
+  background: var(--blue-light);
+}
+.pricing-discount-badge {
+  position: absolute;
+  top: -13px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #dc2626;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 14px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+@media (max-width: 900px) {
+  .pricing-grid-4 {
+    flex-wrap: wrap;
+  }
+  .pricing-grid-4 .pricing-card {
+    flex: 1 1 calc(50% - 16px);
+    max-width: none;
+  }
+}
+@media (max-width: 560px) {
+  .pricing-grid-4 .pricing-card {
+    flex: 1 1 100%;
+  }
 }
 
 /* ── CTA BANNER ── */
@@ -933,6 +1061,18 @@
   font-weight: 600;
   color: var(--text);
 }
+.dash-account-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  line-height: 1.4;
+}
+.dash-account-badge.free { background: #e0f2fe; color: #0284c7; }
+.dash-account-badge.paid { background: #dcfce7; color: #16a34a; }
+.dash-account-badge.expired { background: #fee2e2; color: #dc2626; }
+.dash-account-badge.test { background: #fef3c7; color: #d97706; }
 .dash-site-name {
   font-size: 13px;
   color: #e03131;
@@ -1481,6 +1621,126 @@
 .tpl-modal-create:disabled {
   background: #adb5bd;
   cursor: not-allowed;
+}
+
+/* ── TEMPLATE TABS ── */
+.tpl-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #e2e8f0;
+}
+.tpl-tab {
+  padding: 10px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #868e96;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tpl-tab:hover { color: #1a1a2e; }
+.tpl-tab.active {
+  color: var(--blue);
+  border-bottom-color: var(--blue);
+}
+.tpl-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--blue);
+  border-radius: 10px;
+}
+.tpl-empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: #868e96;
+  font-size: 15px;
+}
+
+/* ── TEMPLATE UPLOAD ── */
+.tpl-upload-btn {
+  padding: 8px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--blue);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.tpl-upload-btn:hover { background: var(--blue-dark); }
+.tpl-upload-form {
+  background: #f8f9fa;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.tpl-upload-field label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 4px;
+}
+.tpl-upload-field input[type="text"] {
+  width: 100%;
+  max-width: 360px;
+  height: 36px;
+  padding: 0 12px;
+  font-size: 14px;
+  border: 1px solid #d4d4d8;
+  border-radius: 6px;
+}
+.tpl-upload-field input[type="file"] {
+  font-size: 13px;
+  color: #495057;
+}
+.tpl-upload-submit {
+  align-self: flex-start;
+  padding: 10px 28px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--blue);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.tpl-upload-submit:hover { background: var(--blue-dark); }
+.tpl-upload-submit:disabled { background: #adb5bd; cursor: not-allowed; }
+
+/* ── TEMPLATE DELETE ── */
+.tpl-delete-btn {
+  font-size: 12px;
+  color: #e03131;
+  background: none;
+  border: 1px solid #e03131;
+  border-radius: 4px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.tpl-delete-btn:hover {
+  background: #e03131;
+  color: #fff;
 }
 
 /* ── SITE MANAGEMENT (when site exists) ── */
