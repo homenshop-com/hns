@@ -76,8 +76,9 @@ export default function DesignEditor({
 
   // State
   const [currentBodyHtml, setCurrentBodyHtml] = useState(bodyHtml);
+  const [currentPageCss, setCurrentPageCss] = useState(pageCss);
   const [selectedElId, setSelectedElId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"page" | "object" | "settings" | "position">("page");
+  const [activeTab, setActiveTab] = useState<"page" | "object" | "settings" | "position" | "ai">("page");
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"" | "saved" | "error">("");
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
@@ -94,6 +95,13 @@ export default function DesignEditor({
   // Multi-select state (Shift+click)
   const multiSelectedRef = useRef<Set<string>>(new Set());
   const [multiSelectCount, setMultiSelectCount] = useState(0); // triggers re-render for highlight
+
+  // AI edit state
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiStatus, setAiStatus] = useState<"" | "success" | "error">("");
+  const [aiError, setAiError] = useState("");
+  const aiPrevHtmlRef = useRef<string | null>(null);
 
   // Drag state
   const dragRef = useRef<{
@@ -224,12 +232,13 @@ export default function DesignEditor({
       }
       const html = bodyEl ? bodyEl.innerHTML : currentBodyHtml;
 
-      // Save page body
+      // Save page body + CSS
       const res = await fetch(`/api/sites/${siteId}/pages/${pageId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           content: { html },
+          ...(currentPageCss !== pageCss && { css: currentPageCss }),
         }),
       });
 
@@ -265,7 +274,105 @@ export default function DesignEditor({
     } finally {
       setSaving(false);
     }
-  }, [siteId, pageId, currentBodyHtml, currentLang, menuMode]);
+  }, [siteId, pageId, currentBodyHtml, currentPageCss, pageCss, currentLang, menuMode]);
+
+  /* ─── AI Edit ─── */
+  const executeAiEdit = useCallback(async () => {
+    if (!aiPrompt.trim() || aiLoading) return;
+    const bodyEl = bodyRef.current;
+    if (!bodyEl) return;
+
+    setAiLoading(true);
+    setAiStatus("");
+    setAiError("");
+
+    // Save current state for undo (body + header + menu + footer + css)
+    aiPrevHtmlRef.current = JSON.stringify({
+      body: bodyEl.innerHTML,
+      header: headerRef.current?.innerHTML || "",
+      menu: menuRef.current?.innerHTML || "",
+      footer: footerRef.current?.innerHTML || "",
+      pageCss: currentPageCss || "",
+    });
+
+    try {
+      const res = await fetch("/api/ai/edit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          html: bodyEl.innerHTML,
+          headerHtml: headerRef.current?.innerHTML || "",
+          menuHtml: menuRef.current?.innerHTML || "",
+          footerHtml: footerRef.current?.innerHTML || "",
+          pageCss: currentPageCss || "",
+          css: cssText || "",
+          templateCss: templateCss || "",
+          prompt: aiPrompt.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAiStatus("error");
+        setAiError(data.error || "오류가 발생했습니다.");
+        return;
+      }
+
+      // Apply results to the appropriate sections
+      if (data.body !== undefined) {
+        bodyEl.innerHTML = data.body;
+        setCurrentBodyHtml(data.body);
+      }
+      if (data.header !== undefined && headerRef.current) {
+        headerRef.current.innerHTML = data.header;
+      }
+      if (data.menu !== undefined && menuRef.current) {
+        menuRef.current.innerHTML = data.menu;
+      }
+      if (data.footer !== undefined && footerRef.current) {
+        footerRef.current.innerHTML = data.footer;
+      }
+      if (data.pageCss !== undefined) {
+        setCurrentPageCss(data.pageCss);
+      }
+      setAiStatus("success");
+    } catch {
+      setAiStatus("error");
+      setAiError("네트워크 오류가 발생했습니다.");
+    } finally {
+      setAiLoading(false);
+    }
+  }, [aiPrompt, aiLoading, currentPageCss, cssText, templateCss]);
+
+  const undoAiEdit = useCallback(() => {
+    if (aiPrevHtmlRef.current !== null) {
+      try {
+        const prev = JSON.parse(aiPrevHtmlRef.current);
+        if (bodyRef.current) {
+          bodyRef.current.innerHTML = prev.body;
+          setCurrentBodyHtml(prev.body);
+        }
+        if (headerRef.current && prev.header) {
+          headerRef.current.innerHTML = prev.header;
+        }
+        if (menuRef.current && prev.menu) {
+          menuRef.current.innerHTML = prev.menu;
+        }
+        if (footerRef.current && prev.footer) {
+          footerRef.current.innerHTML = prev.footer;
+        }
+        if (prev.pageCss !== undefined) {
+          setCurrentPageCss(prev.pageCss);
+        }
+      } catch {
+        if (bodyRef.current) {
+          bodyRef.current.innerHTML = aiPrevHtmlRef.current;
+          setCurrentBodyHtml(aiPrevHtmlRef.current);
+        }
+      }
+      aiPrevHtmlRef.current = null;
+      setAiStatus("");
+    }
+  }, []);
 
   /* ─── Publish ─── */
   const publishSite = useCallback(async () => {
@@ -664,13 +771,12 @@ export default function DesignEditor({
    * Custom template dragables wrap entire sections with complex HTML.
    */
   function isSimpleDragable(el: HTMLElement): boolean {
-    const style = window.getComputedStyle(el);
-    // Legacy dragable: position absolute + no structural children
-    if (style.position === "absolute") return true;
     // If it has no child elements at all (text-only), it's simple
     if (el.children.length === 0) return true;
     // If it has only inline children (span, a, strong, em, br, img), it's simple
-    const structural = el.querySelectorAll("div, section, article, aside, main, ul, ol, table, form, header, nav, footer, h1, h2, h3, h4, h5, h6");
+    // Block-level children (h1-h6, p, div, etc.) mean each block should be edited individually
+    // Exclude .de-resize-handle divs (editor UI, not content)
+    const structural = el.querySelectorAll("div:not(.de-resize-handle), section, article, aside, main, ul, ol, table, form, header, nav, footer, h1, h2, h3, h4, h5, h6, p");
     return structural.length === 0;
   }
 
@@ -697,23 +803,36 @@ export default function DesignEditor({
       }
       el = el.parentElement;
     }
-    if (leafText) return leafText;
+    // If we found an inline leaf (SPAN, A), check if parent dragable is simple
+    // — if so, edit the whole dragable so surrounding text is included
+    const dragable = target.closest(".dragable") as HTMLElement | null;
+    if (leafText) {
+      const isBlock = LEAF_TEXT_TAGS.has(leafText.tagName); // h1-h6, p, li, etc.
+      if (isBlock) return leafText;
+      // Inline leaf (SPAN, A) — prefer whole dragable if it's simple
+      if (dragable && body.contains(dragable) && isSimpleDragable(dragable)) {
+        return dragable;
+      }
+      return leafText;
+    }
 
     // Try .dragable — but only if it's a simple one (legacy absolute positioned)
-    const dragable = target.closest(".dragable") as HTMLElement | null;
     if (dragable && body.contains(dragable) && isSimpleDragable(dragable)) {
       return dragable;
     }
 
     // For complex dragables (custom template section wrappers),
-    // find the first text element the user likely intended to edit
+    // find the nearest text element the user likely intended to edit
     if (dragable && body.contains(dragable)) {
-      // Find the nearest text element to where the user clicked
+      // Walk up from click target
       el = target;
       while (el && el !== dragable) {
         if (TEXT_TAGS.has(el.tagName)) return el;
         el = el.parentElement;
       }
+      // If clicked on dragable itself (empty space), find first text child
+      const firstText = dragable.querySelector("h1, h2, h3, h4, h5, h6, p, span, li, td, th, label, blockquote");
+      if (firstText) return firstText as HTMLElement;
     }
 
     return null;
@@ -976,37 +1095,43 @@ export default function DesignEditor({
 
   /* ─── Build the template CSS for the canvas ─── */
   const tplFilesBase = `/tpl/${templatePath}/files`;
-  const scopeAndRewrite = (css: string) => css
-    // Scope reset rules: "body,div,..." → "#de-canvas-inner, #de-canvas-inner div,..."
-    .replace(
-      /(?<![a-zA-Z-])body\s*,([\s\S]*?)\{/g,
-      (_match: string, selectors: string) => {
-        const scoped = selectors
-          .split(",")
-          .map((s: string) => `#de-canvas-inner ${s.trim()}`)
-          .join(", ");
-        return `#de-canvas-inner, ${scoped} {`;
-      }
-    )
-    // Scope standalone "body {" to #de-canvas-inner
-    .replace(/(?<![a-zA-Z-])body\s*\{/g, "#de-canvas-inner {")
-    // Override overflow (from body) that clips the canvas
-    .replace(/overflow\s*:\s*scroll/g, "overflow: visible")
-    .replace(/overflow-x\s*:\s*hidden/g, "overflow-x: visible")
-    // Strip body background-image (legacy bg.jpg/tm.gif don't render properly)
-    .replace(
-      /(#de-canvas-inner\s*\{[^}]*?)background\s*:\s*url\([^)]*\)[^;]*;?/gi,
-      "$1"
-    )
-    // Rewrite relative url() to absolute /tpl/ paths
-    .replace(
-      /url\(\s*['"]?(?!\/|https?:|data:)([^'")]+?)['"]?\s*\)/g,
-      (_, filename: string) => `url(${tplFilesBase}/${filename})`
-    );
-  const canvasCss = [templateCss, cssText, pageCss]
-    .filter(Boolean)
-    .map(scopeAndRewrite)
-    .join("\n");
+  const scopeAndRewrite = (css: string, stripTemplateBg = false) => {
+    let result = css
+      // Scope reset rules: "body,div,..." → "#de-canvas-inner, #de-canvas-inner div,..."
+      .replace(
+        /(?<![a-zA-Z-])body\s*,([\s\S]*?)\{/g,
+        (_match: string, selectors: string) => {
+          const scoped = selectors
+            .split(",")
+            .map((s: string) => `#de-canvas-inner ${s.trim()}`)
+            .join(", ");
+          return `#de-canvas-inner, ${scoped} {`;
+        }
+      )
+      // Scope standalone "body {" to #de-canvas-inner
+      .replace(/(?<![a-zA-Z-])body\s*\{/g, "#de-canvas-inner {")
+      // Override overflow (from body) that clips the canvas
+      .replace(/overflow\s*:\s*scroll/g, "overflow: visible")
+      .replace(/overflow-x\s*:\s*hidden/g, "overflow-x: visible")
+      // Rewrite relative url() to absolute /tpl/ paths
+      .replace(
+        /url\(\s*['"]?(?!\/|https?:|data:)([^'")]+?)['"]?\s*\)/g,
+        (_, filename: string) => `url(${tplFilesBase}/${filename})`
+      );
+    // Strip body background-image only for template CSS (legacy bg.jpg/tm.gif)
+    if (stripTemplateBg) {
+      result = result.replace(
+        /(#de-canvas-inner\s*\{[^}]*?)background\s*:\s*url\([^)]*\)[^;]*;?/gi,
+        "$1"
+      );
+    }
+    return result;
+  };
+  const canvasCss = [
+    templateCss ? scopeAndRewrite(templateCss, true) : "",
+    cssText ? scopeAndRewrite(cssText) : "",
+    currentPageCss ? scopeAndRewrite(currentPageCss) : "",
+  ].filter(Boolean).join("\n");
 
   const selectedProps = getSelectedElProps();
 
@@ -1144,6 +1269,13 @@ export default function DesignEditor({
               onClick={() => setActiveTab("position")}
             >
               위치
+            </button>
+            <button
+              className={`de-tab ${activeTab === "ai" ? "active" : ""}`}
+              onClick={() => setActiveTab("ai")}
+              style={activeTab === "ai" ? { color: "#a78bfa", borderBottomColor: "#a78bfa" } : {}}
+            >
+              AI
             </button>
           </nav>
         </div>
@@ -1392,6 +1524,80 @@ export default function DesignEditor({
         {activeTab === "position" && !selectedProps && (
           <div className="de-position-panel">
             <span className="de-settings-info">객체를 선택하세요</span>
+          </div>
+        )}
+
+        {/* AI Tab */}
+        {activeTab === "ai" && (
+          <div style={{ display: "flex", gap: 8, alignItems: "center", padding: "8px 16px", width: "100%" }}>
+            <textarea
+              value={aiPrompt}
+              onChange={(e) => setAiPrompt(e.target.value)}
+              placeholder='예: 배경색을 검정색으로 변경해줘 / 배너 텍스트를 "봄 세일 50%"로 바꿔줘'
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                  e.preventDefault();
+                  executeAiEdit();
+                }
+              }}
+              style={{
+                flex: 1,
+                minHeight: 32,
+                maxHeight: 80,
+                padding: "6px 10px",
+                fontSize: 13,
+                background: "#333",
+                color: "#eee",
+                border: "1px solid #555",
+                borderRadius: 6,
+                resize: "vertical",
+                fontFamily: "inherit",
+                lineHeight: 1.5,
+              }}
+              disabled={aiLoading}
+            />
+            <button
+              onClick={executeAiEdit}
+              disabled={aiLoading || !aiPrompt.trim()}
+              style={{
+                padding: "6px 16px",
+                fontSize: 13,
+                background: aiLoading ? "#555" : "#7c3aed",
+                color: "#fff",
+                border: "none",
+                borderRadius: 6,
+                cursor: aiLoading ? "wait" : "pointer",
+                whiteSpace: "nowrap",
+                flexShrink: 0,
+                opacity: !aiPrompt.trim() ? 0.5 : 1,
+              }}
+            >
+              {aiLoading ? "처리중..." : "실행 (⌘↵)"}
+            </button>
+            {aiStatus === "success" && aiPrevHtmlRef.current !== null && (
+              <button
+                onClick={undoAiEdit}
+                style={{
+                  padding: "6px 12px",
+                  fontSize: 12,
+                  background: "transparent",
+                  color: "#f59e0b",
+                  border: "1px solid #f59e0b",
+                  borderRadius: 6,
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  flexShrink: 0,
+                }}
+              >
+                되돌리기
+              </button>
+            )}
+            {aiStatus === "error" && (
+              <span style={{ fontSize: 12, color: "#ef4444", flexShrink: 0 }}>{aiError}</span>
+            )}
+            {aiStatus === "success" && (
+              <span style={{ fontSize: 12, color: "#22c55e", flexShrink: 0 }}>적용완료</span>
+            )}
           </div>
         )}
       </div>
