@@ -49,7 +49,7 @@ const PAGE_TITLE_MAP: Record<string, string> = {
 const SKIP_PAGES = new Set(["empty.html", "thumbnail.js", "user.html"]);
 
 // Pages hidden from menu by default
-const HIDDEN_PAGES = new Set(["board", "user", "users", "member", "members"]);
+const HIDDEN_PAGES = new Set(["index", "board", "user", "users", "member", "members"]);
 
 /**
  * Extract body content from template HTML.
