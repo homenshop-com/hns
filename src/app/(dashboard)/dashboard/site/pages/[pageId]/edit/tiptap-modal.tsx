@@ -123,10 +123,13 @@ export default function TiptapModal({ initialHtml, onSave, onClose }: TiptapModa
         justifyContent: "center",
         zIndex: 10000,
       }}
-      onClick={onClose}
+      onMouseDown={(e) => {
+        // Only close if clicking directly on the overlay (not drag-selecting from inside)
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div
-        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
         style={{
           background: "#2a2a2a",
           borderRadius: 12,
