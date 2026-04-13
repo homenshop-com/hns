@@ -27,6 +27,7 @@ export interface TemplatePage {
   slug: string;
   title: string;
   bodyHtml: string;
+  showInMenu?: boolean;
 }
 
 // Map of filename → display title
@@ -45,7 +46,10 @@ const PAGE_TITLE_MAP: Record<string, string> = {
 };
 
 // Pages to skip (not user-visible)
-const SKIP_PAGES = new Set(["empty.html", "thumbnail.js"]);
+const SKIP_PAGES = new Set(["empty.html", "thumbnail.js", "user.html"]);
+
+// Pages hidden from menu by default
+const HIDDEN_PAGES = new Set(["board", "user", "users", "member", "members"]);
 
 /**
  * Extract body content from template HTML.
@@ -184,7 +188,7 @@ export function parseTemplatePages(templatePath: string): TemplatePage[] {
     const slug = file.replace(".html", "");
     const title = PAGE_TITLE_MAP[file] || slug.charAt(0).toUpperCase() + slug.slice(1);
 
-    pages.push({ slug, title, bodyHtml });
+    pages.push({ slug, title, bodyHtml, showInMenu: !HIDDEN_PAGES.has(slug) });
   }
 
   // Sort: index first, then alphabetical

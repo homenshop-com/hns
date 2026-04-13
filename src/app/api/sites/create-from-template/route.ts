@@ -84,6 +84,7 @@ export async function POST(request: Request) {
       title: page.title,
       slug: page.slug,
       isHome: page.slug === "index",
+      showInMenu: page.showInMenu !== false,
       sortOrder: index,
       content: { html: bodyHtml },
     };
