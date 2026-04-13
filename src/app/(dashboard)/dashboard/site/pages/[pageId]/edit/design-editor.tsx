@@ -200,8 +200,14 @@ export default function DesignEditor({
     setSaving(true);
     setSaveStatus("");
     try {
-      // Get the current body HTML from the canvas
+      // Get the current body HTML from the canvas, stripping editor artifacts
       const bodyEl = bodyRef.current;
+      if (bodyEl) {
+        // Remove resize handles before saving
+        bodyEl.querySelectorAll(".de-resize-handle").forEach((h) => h.remove());
+        // Remove de-selected class
+        bodyEl.querySelectorAll(".de-selected").forEach((el) => el.classList.remove("de-selected"));
+      }
       const html = bodyEl ? bodyEl.innerHTML : currentBodyHtml;
 
       // Save page body
@@ -694,9 +700,9 @@ export default function DesignEditor({
   const handleTiptapSave = useCallback((html: string) => {
     const el = tiptapElRef.current;
     if (el) {
-      // For text-level elements (h1-h6, p, span, a, etc.), TipTap wraps output in <p> tags.
+      // For text-level elements (h1-h6, p, span, a, li, etc.), TipTap wraps output in <p> tags.
       // Strip the outer <p> wrapper to preserve the original element's tag.
-      if (TEXT_TAGS.has(el.tagName) && el.tagName !== "LI") {
+      if (TEXT_TAGS.has(el.tagName) || el.tagName === "LI") {
         // If TipTap returned a single <p>...</p>, extract just the inner content
         const stripped = html.replace(/^<p>([\s\S]*?)<\/p>$/, "$1").trim();
         el.innerHTML = stripped || html;
