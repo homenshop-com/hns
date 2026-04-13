@@ -91,6 +91,10 @@ export default function DesignEditor({
   const [menuMode, setMenuMode] = useState<"auto" | "custom">("auto");
   const [logoUrl, setLogoUrl] = useState("");
 
+  // Multi-select state (Shift+click)
+  const multiSelectedRef = useRef<Set<string>>(new Set());
+  const [multiSelectCount, setMultiSelectCount] = useState(0); // triggers re-render for highlight
+
   // Drag state
   const dragRef = useRef<{
     el: HTMLElement;
@@ -98,6 +102,8 @@ export default function DesignEditor({
     startY: number;
     origLeft: number;
     origTop: number;
+    // For multi-drag: store initial positions of all selected elements
+    others: Array<{ el: HTMLElement; origLeft: number; origTop: number }>;
   } | null>(null);
 
   // Resize state
@@ -311,16 +317,25 @@ export default function DesignEditor({
       if (e.key === "Delete" || e.key === "Backspace") {
         if (e.ctrlKey || e.metaKey) {
           el.remove();
+          multiSelectedRef.current.delete(selectedElId);
           setSelectedElId(null);
+          setMultiSelectCount(multiSelectedRef.current.size);
         }
       } else if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
         e.preventDefault();
-        const top = parseInt(el.style.top) || 0;
-        const left = parseInt(el.style.left) || 0;
-        if (e.key === "ArrowUp") el.style.top = (top - step) + "px";
-        if (e.key === "ArrowDown") el.style.top = (top + step) + "px";
-        if (e.key === "ArrowLeft") el.style.left = (left - step) + "px";
-        if (e.key === "ArrowRight") el.style.left = (left + step) + "px";
+        // Collect all elements to move (primary + multi-selected)
+        const elIds = new Set(multiSelectedRef.current);
+        elIds.add(selectedElId);
+        elIds.forEach((id) => {
+          const target = document.getElementById(id);
+          if (!target) return;
+          const top = parseInt(target.style.top) || 0;
+          const left = parseInt(target.style.left) || 0;
+          if (e.key === "ArrowUp") target.style.top = (top - step) + "px";
+          if (e.key === "ArrowDown") target.style.top = (top + step) + "px";
+          if (e.key === "ArrowLeft") target.style.left = (left - step) + "px";
+          if (e.key === "ArrowRight") target.style.left = (left + step) + "px";
+        });
       }
     }
     window.addEventListener("keydown", handleKeyDown);
@@ -340,11 +355,14 @@ export default function DesignEditor({
   }
 
   /* ─── Shared: start drag on an element ─── */
-  function startDragOnElement(target: HTMLElement, clientX: number, clientY: number) {
+  function startDragOnElement(target: HTMLElement, clientX: number, clientY: number, shiftKey?: boolean) {
     const dragable = target.closest(".dragable") as HTMLElement | null;
     if (!dragable) {
+      // Click on empty area: clear all selections
       setSelectedElId(null);
       setEditingTextId(null);
+      multiSelectedRef.current.clear();
+      setMultiSelectCount(0);
       return;
     }
     if ((target as HTMLElement).dataset?.resizeHandle) return;
@@ -353,15 +371,57 @@ export default function DesignEditor({
       dragable.id = "el_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
     }
 
-    setSelectedElId(dragable.id);
+    const ms = multiSelectedRef.current;
 
+    if (shiftKey) {
+      // Shift+click: toggle this element in multi-selection
+      if (ms.has(dragable.id)) {
+        ms.delete(dragable.id);
+      } else {
+        ms.add(dragable.id);
+      }
+      // Also include current primary selection if it exists
+      if (selectedElId && selectedElId !== dragable.id) {
+        ms.add(selectedElId);
+      }
+      ms.add(dragable.id);
+      setSelectedElId(dragable.id);
+      setMultiSelectCount(ms.size);
+    } else if (!ms.has(dragable.id)) {
+      // Normal click on element not in multi-selection: clear multi-select
+      ms.clear();
+      setSelectedElId(dragable.id);
+      setMultiSelectCount(0);
+    } else {
+      // Normal click on element already in multi-selection: keep group, set as primary
+      setSelectedElId(dragable.id);
+    }
+
+    // Build drag data with all multi-selected elements' positions
     const computedStyle = window.getComputedStyle(dragable);
+    const others: Array<{ el: HTMLElement; origLeft: number; origTop: number }> = [];
+    if (ms.size > 0) {
+      ms.forEach((id) => {
+        if (id === dragable.id) return;
+        const otherEl = document.getElementById(id);
+        if (otherEl) {
+          const cs = window.getComputedStyle(otherEl);
+          others.push({
+            el: otherEl,
+            origLeft: parseInt(cs.left) || parseInt(otherEl.style.left) || 0,
+            origTop: parseInt(cs.top) || parseInt(otherEl.style.top) || 0,
+          });
+        }
+      });
+    }
+
     dragRef.current = {
       el: dragable,
       startX: clientX,
       startY: clientY,
       origLeft: parseInt(computedStyle.left) || parseInt(dragable.style.left) || 0,
       origTop: parseInt(computedStyle.top) || parseInt(dragable.style.top) || 0,
+      others,
     };
   }
 
@@ -375,7 +435,7 @@ export default function DesignEditor({
         e.preventDefault();
         // Don't stopPropagation — allow dblclick to bubble to canvasEl
       }
-      startDragOnElement(e.target as HTMLElement, e.clientX, e.clientY);
+      startDragOnElement(e.target as HTMLElement, e.clientX, e.clientY, e.shiftKey);
     }
 
     function handleTouchStart(e: TouchEvent) {
@@ -428,6 +488,7 @@ export default function DesignEditor({
     function handleStructDown(e: Event) {
       const me = e as MouseEvent | TouchEvent;
       let clientX: number, clientY: number;
+      let shiftKey = false;
       if ("touches" in me) {
         const touch = me.touches[0];
         if (!touch) return;
@@ -436,11 +497,12 @@ export default function DesignEditor({
       } else {
         clientX = me.clientX;
         clientY = me.clientY;
+        shiftKey = (me as MouseEvent).shiftKey;
       }
       const target = e.target as HTMLElement;
       if (!target.closest(".dragable")) return;
       me.preventDefault();
-      startDragOnElement(target, clientX, clientY);
+      startDragOnElement(target, clientX, clientY, shiftKey);
     }
 
     headerEl?.addEventListener("mousedown", handleStructDown);
@@ -462,11 +524,16 @@ export default function DesignEditor({
       if (document.querySelector(".de-modal-overlay, [data-tiptap-modal]")) return;
       const scale = getCanvasScale();
       if (dragRef.current) {
-        const { el, startX, startY, origLeft, origTop } = dragRef.current;
+        const { el, startX, startY, origLeft, origTop, others } = dragRef.current;
         const dx = (clientX - startX) / scale;
         const dy = (clientY - startY) / scale;
         el.style.left = (origLeft + dx) + "px";
         el.style.top = (origTop + dy) + "px";
+        // Move all other multi-selected elements by the same delta
+        others.forEach((o) => {
+          o.el.style.left = (o.origLeft + dx) + "px";
+          o.el.style.top = (o.origTop + dy) + "px";
+        });
       }
       if (resizeRef.current) {
         const r = resizeRef.current;
@@ -519,13 +586,20 @@ export default function DesignEditor({
     });
     document.querySelectorAll(".de-resize-handle").forEach((el) => el.remove());
 
+    // Highlight all multi-selected elements
+    const ms = multiSelectedRef.current;
+    ms.forEach((id) => {
+      const msEl = document.getElementById(id);
+      if (msEl) msEl.classList.add("de-selected");
+    });
+
     if (!selectedElId) return;
     const el = document.getElementById(selectedElId);
     if (!el) return;
 
     el.classList.add("de-selected");
 
-    // Add resize handles (mouse + touch)
+    // Add resize handles only to primary selection (not multi-selected others)
     const handles = ["n", "ne", "e", "se", "s", "sw", "w", "nw"];
     handles.forEach((h) => {
       const handle = document.createElement("div");
@@ -564,7 +638,7 @@ export default function DesignEditor({
     return () => {
       el?.querySelectorAll(".de-resize-handle").forEach((h) => h.remove());
     };
-  }, [selectedElId]);
+  }, [selectedElId, multiSelectCount]);
 
   /* ─── Double-click / Double-tap text editing ─── */
   const lastTapRef = useRef<{ time: number; id: string }>({ time: 0, id: "" });
