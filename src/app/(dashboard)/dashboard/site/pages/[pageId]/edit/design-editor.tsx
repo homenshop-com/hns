@@ -337,9 +337,6 @@ export default function DesignEditor({
         elIds.forEach((id) => {
           const target = document.getElementById(id);
           if (!target) return;
-          // Skip position:relative elements — moving them breaks published layout
-          const pos = window.getComputedStyle(target).position;
-          if (pos !== "absolute") return;
           const top = parseInt(target.style.top) || 0;
           const left = parseInt(target.style.left) || 0;
           if (e.key === "ArrowUp") target.style.top = (top - step) + "px";
@@ -414,13 +411,6 @@ export default function DesignEditor({
       setSelectedElId(dragable.id);
     }
 
-    // Only allow drag for position:absolute elements
-    // position:relative elements should not get left/top offsets (breaks published layout)
-    if (!isDragSafe(dragable)) {
-      dragRef.current = null;
-      return;
-    }
-
     // Build drag data with all multi-selected elements' positions
     const computedStyle = window.getComputedStyle(dragable);
     const others: Array<{ el: HTMLElement; origLeft: number; origTop: number }> = [];
@@ -428,7 +418,7 @@ export default function DesignEditor({
       ms.forEach((id) => {
         if (id === dragable.id) return;
         const otherEl = document.getElementById(id);
-        if (otherEl && isDragSafe(otherEl)) {
+        if (otherEl) {
           const cs = window.getComputedStyle(otherEl);
           others.push({
             el: otherEl,
