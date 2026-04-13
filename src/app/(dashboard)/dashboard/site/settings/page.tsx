@@ -259,16 +259,16 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
               </div>
             </div>
           </div>
-        </div>
 
-        {/* 계정 삭제 */}
-        <div className="settings-card" style={{ marginTop: 24 }}>
-          <div className="settings-card-header" style={{ background: "#e03131" }}>{t("deleteAccount")}</div>
-          <div className="settings-card-body">
-            <p style={{ fontSize: 13, color: "#868e96", marginBottom: 12 }}>
-              {t("deleteWarning")}
-            </p>
-            <DeleteSiteButton siteId={site.id} shopId={site.shopId} />
+          {/* 계정 삭제 */}
+          <div className="settings-card">
+            <div className="settings-card-header" style={{ background: "#e03131" }}>{t("deleteAccount")}</div>
+            <div className="settings-card-body">
+              <p style={{ fontSize: 13, color: "#868e96", marginBottom: 12 }}>
+                {t("deleteWarning")}
+              </p>
+              <DeleteSiteButton siteId={site.id} shopId={site.shopId} />
+            </div>
           </div>
         </div>
       </main>
