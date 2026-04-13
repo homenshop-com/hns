@@ -296,7 +296,7 @@ export default function DesignEditor({
         saveContent();
         return;
       }
-      if (!selectedElId || editingTextId) return;
+      if (!selectedElId || editingTextId || document.querySelector("[data-tiptap-modal]")) return;
 
       const el = document.getElementById(selectedElId);
       if (!el) return;
@@ -452,6 +452,8 @@ export default function DesignEditor({
   /* ─── Mouse/Touch move/up for drag and resize ─── */
   useEffect(() => {
     function handleMove(clientX: number, clientY: number) {
+      // Block drag/resize while any modal is open
+      if (document.querySelector(".de-modal-overlay, [data-tiptap-modal]")) return;
       const scale = getCanvasScale();
       if (dragRef.current) {
         const { el, startX, startY, origLeft, origTop } = dragRef.current;

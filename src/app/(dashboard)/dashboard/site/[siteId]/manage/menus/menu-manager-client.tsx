@@ -569,7 +569,7 @@ export default function MenuManagerClient({
     <div style={{ minHeight: "100vh", background: "#f4f6f8", fontFamily: "Noto Sans KR, -apple-system, BlinkMacSystemFont, sans-serif" }}>
       {/* Header */}
       <header style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "0 24px" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: 56 }}>
+        <div style={{ maxWidth: 1200, margin: "0 15%", display: "flex", alignItems: "center", justifyContent: "space-between", height: 56 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: "#6b7280" }}>
             <Link href="/dashboard" style={{ fontSize: 20, fontWeight: 700, color: "#2563eb", textDecoration: "none" }}>
               homeNshop
@@ -620,7 +620,7 @@ export default function MenuManagerClient({
         </div>
       )}
 
-      <main style={{ maxWidth: 1200, margin: "0 auto", padding: "24px 24px 60px" }}>
+      <main style={{ maxWidth: 1200, margin: "0 15%", padding: "24px 24px 60px" }}>
         {/* Language Settings */}
         {languages.length > 0 && (
           <div

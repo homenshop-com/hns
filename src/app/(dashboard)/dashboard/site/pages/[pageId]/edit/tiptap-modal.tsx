@@ -113,6 +113,7 @@ export default function TiptapModal({ initialHtml, onSave, onClose }: TiptapModa
 
   return (
     <div
+      data-tiptap-modal
       style={{
         position: "fixed",
         inset: 0,
@@ -399,6 +400,11 @@ export default function TiptapModal({ initialHtml, onSave, onClose }: TiptapModa
           padding: 12px;
           border-radius: 6px;
           overflow-x: auto;
+        }
+        .tiptap-editor-area .tiptap {
+          cursor: text;
+          user-select: text;
+          -webkit-user-select: text;
         }
       `}</style>
     </div>
