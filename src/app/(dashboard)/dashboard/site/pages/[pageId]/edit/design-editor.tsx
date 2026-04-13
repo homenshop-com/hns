@@ -213,14 +213,6 @@ export default function DesignEditor({
         bodyEl.querySelectorAll(".de-resize-handle").forEach((h) => h.remove());
         // Remove de-selected class
         bodyEl.querySelectorAll(".de-selected").forEach((el) => el.classList.remove("de-selected"));
-        // Strip left/top from position:relative .dragable elements (prevents published layout shift)
-        bodyEl.querySelectorAll(".dragable").forEach((el) => {
-          const htmlEl = el as HTMLElement;
-          if (window.getComputedStyle(htmlEl).position !== "absolute") {
-            htmlEl.style.removeProperty("left");
-            htmlEl.style.removeProperty("top");
-          }
-        });
       }
       const html = bodyEl ? bodyEl.innerHTML : currentBodyHtml;
 
@@ -349,12 +341,6 @@ export default function DesignEditor({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [selectedElId, editingTextId, saveContent]);
-
-  /* ─── Helper: check if element is position:absolute (safe to drag) ─── */
-  function isDragSafe(el: HTMLElement): boolean {
-    const pos = window.getComputedStyle(el).position;
-    return pos === "absolute";
-  }
 
   /* ─── Helper: get canvas scale factor for touch coordinate compensation ─── */
   function getCanvasScale(): number {
