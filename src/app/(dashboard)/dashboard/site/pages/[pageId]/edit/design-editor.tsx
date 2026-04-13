@@ -213,6 +213,14 @@ export default function DesignEditor({
         bodyEl.querySelectorAll(".de-resize-handle").forEach((h) => h.remove());
         // Remove de-selected class
         bodyEl.querySelectorAll(".de-selected").forEach((el) => el.classList.remove("de-selected"));
+        // For elements with margin:auto (centered), remove left/top that conflict
+        bodyEl.querySelectorAll(".dragable").forEach((el) => {
+          const htmlEl = el as HTMLElement;
+          if (htmlEl.style.margin && htmlEl.style.margin.includes("auto")) {
+            htmlEl.style.removeProperty("left");
+            htmlEl.style.removeProperty("top");
+          }
+        });
       }
       const html = bodyEl ? bodyEl.innerHTML : currentBodyHtml;
 
