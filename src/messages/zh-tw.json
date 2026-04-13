@@ -1,6 +1,6 @@
 {
   "common": {
-    "siteName": "Homenshop",
+    "siteName": "homeNshop",
     "nav": {
       "dashboard": "儀表板",
       "login": "登入",
@@ -10,8 +10,8 @@
   },
   "home": {
     "ctaDashboard": "儀表板",
-    "pageTitle": "HomenShop - 網站製作服務",
-    "metaDescription": "輕鬆快速地建立網站。豐富的設計範本、行動裝置響應式、簡單編輯 - HomenShop網站建置器",
+    "pageTitle": "homeNshop - 網站製作服務",
+    "metaDescription": "輕鬆快速地建立網站。豐富的設計範本、行動裝置響應式、簡單編輯 - homeNshop網站建置器",
     "navFeatures": "功能介紹",
     "navHowItWorks": "使用方法",
     "navPricing": "方案價格",
@@ -104,7 +104,7 @@
     "footerSignup": "註冊",
     "footerFeatures": "功能介紹",
     "footerPricing": "方案價格",
-    "footerCompany": "HomenShop Inc.",
+    "footerCompany": "homeNshop Inc.",
     "footerBizNo": "營業登記號：199-86-03387",
     "footerCeo": "代表 崔仁哲",
     "footerAddress": "首爾市麻浦區世界盃北路400號，首爾經濟振興院2樓A-425",
@@ -169,6 +169,10 @@
     "memberInfo": "管理員資訊",
     "dashboard": "儀表板",
     "logout": "登出",
+    "emailVerifyTitle": "需要電子郵件驗證",
+    "emailVerifyMessage": "請完成電子郵件驗證以使用設計選擇等主要功能。",
+    "emailVerifyResend": "發送驗證郵件",
+    "emailVerifySent": "驗證郵件已發送！",
     "test": "Test",
     "cards": {
       "site": "我的網站",
@@ -278,7 +282,15 @@
     "passwordMismatch": "兩次輸入的新密碼不一致。",
     "passwordTooShort": "新密碼至少需要6個字元。",
     "mySites": "擁有的網站",
-    "siteSettings": "設定"
+    "siteSettings": "設定",
+    "deleteAccount": "註銷帳號",
+    "deleteAccountWarning": "註銷帳號將永久刪除所有網站、頁面、商品、論壇和訂單資料。此操作無法撤銷。",
+    "deleteAccountConfirm": "請輸入您的密碼以確認註銷：",
+    "deleteAccountPlaceholder": "輸入密碼",
+    "deleteAccountWrongPassword": "密碼不正確。",
+    "deleteAccountBtn": "註銷帳號",
+    "deleteAccountDeleting": "處理中...",
+    "deleteAccountCancel": "取消"
   },
   "boardsPage": {
     "title": "公佈欄管理",
@@ -417,22 +429,26 @@
     "errorShopIdRequired": "請輸入臨時網域。",
     "errorShopIdFormat": "6~14個字元，僅限英文、數字、-。",
     "errorShopIdTaken": "該網域已被使用。",
-    "errorAlreadyHasSite": "您已有一個網站。"
+    "errorAlreadyHasSite": "您已有一個網站。",
+    "emailVerifyRequired": "需要電子郵件驗證",
+    "emailVerifyMessage": "選擇設計前，請先完成電子郵件驗證。請查看註冊時發送的驗證郵件。",
+    "emailVerifyResend": "重新發送驗證郵件",
+    "emailVerifySent": "驗證郵件已發送，請查看您的收件匣。"
   },
   "about": {
-    "pageTitle": "關於我們 - Homenshop",
-    "metaDescription": "HomenShop是一個讓任何人都能輕鬆建立網站的網站建置器服務。",
+    "pageTitle": "關於我們 - homeNshop",
+    "metaDescription": "homeNshop是一個讓任何人都能輕鬆建立網站的網站建置器服務。",
     "title": "關於我們",
-    "subtitle": "輕鬆建立您的網站，HomenShop與您同行。",
+    "subtitle": "輕鬆建立您的網站，homeNshop與您同行。",
     "companyTitle": "公司介紹",
-    "companyDesc": "HomenShop自2016年以來一直為中小企業和個體經營者提供網站製作服務。我們幫助任何人在無需程式設計知識的情況下建立專業網站。",
+    "companyDesc": "homeNshop自2016年以來一直為中小企業和個體經營者提供網站製作服務。我們幫助任何人在無需程式設計知識的情況下建立專業網站。",
     "missionTitle": "使命",
     "missionDesc": "我們的目標是讓每個企業都能以合理的價格擁有專業的線上形象。",
     "globalTitle": "全球服務",
     "globalDesc": "我們支援韓語、英語、中文、日語、西班牙語等6種語言，為全球使用者提供服務。",
     "infoTitle": "企業資訊",
     "infoCompanyName": "公司名稱",
-    "infoCompanyValue": "HomenShop Inc.",
+    "infoCompanyValue": "homeNshop Inc.",
     "infoCeo": "代表",
     "infoCeoValue": "崔仁哲",
     "infoBizNo": "營業登記號",
@@ -441,8 +457,8 @@
     "infoEmail": "電子信箱"
   },
   "pricing": {
-    "pageTitle": "方案價格 - Homenshop",
-    "metaDescription": "查看HomenShop方案價格。從免費到進階版，選擇適合您的方案。",
+    "pageTitle": "方案價格 - homeNshop",
+    "metaDescription": "查看homeNshop方案價格。從免費到進階版，選擇適合您的方案。",
     "title": "方案價格",
     "subtitle": "根據需要選擇。免費開始，隨時升級。",
     "freePlan": "FREE",
@@ -451,7 +467,7 @@
     "freeFeat1": "提供子網域",
     "freeFeat2": "5個基礎範本",
     "freeFeat3": "最多3個頁面",
-    "freeFeat4": "顯示Homenshop品牌",
+    "freeFeat4": "顯示homeNshop品牌",
     "freeBtn": "免費開始",
     "premiumBadge": "推薦",
     "premiumPlan": "PREMIUM",
@@ -474,12 +490,12 @@
     "faq3A": "是的，所有資料和設定都會保留。只會啟用額外功能。"
   },
   "terms": {
-    "pageTitle": "使用條款 - Homenshop",
-    "metaDescription": "HomenShop服務使用條款",
+    "pageTitle": "使用條款 - homeNshop",
+    "metaDescription": "homeNshop服務使用條款",
     "title": "使用條款",
     "lastUpdated": "最後更新：2026年3月1日",
     "section1Title": "第1條 目的",
-    "section1Content": "本條款旨在規定HomenShop Inc.（以下簡稱「公司」）提供的網站製作服務（以下簡稱「服務」）的使用相關的公司與會員之間的權利、義務和責任事項。",
+    "section1Content": "本條款旨在規定homeNshop Inc.（以下簡稱「公司」）提供的網站製作服務（以下簡稱「服務」）的使用相關的公司與會員之間的權利、義務和責任事項。",
     "section2Title": "第2條 定義",
     "section2Content": "「服務」是指公司提供的網站製作、託管、網域綁定等所有服務。\n「會員」是指註冊並使用服務的人。\n「內容」是指會員透過服務建立和上傳的文字、圖片、影片等所有資料。",
     "section3Title": "第3條 服務使用",
@@ -494,8 +510,8 @@
     "section7Content": "公司對因自然災害、不可抗力等原因導致的服務中斷不承擔責任。\n會員對透過服務發佈的內容負責。\n本條款未規定的事項按相關法律法規執行。"
   },
   "privacy": {
-    "pageTitle": "隱私權政策 - Homenshop",
-    "metaDescription": "HomenShop隱私權政策",
+    "pageTitle": "隱私權政策 - homeNshop",
+    "metaDescription": "homeNshop隱私權政策",
     "title": "隱私權政策",
     "lastUpdated": "最後更新：2026年3月1日",
     "section1Title": "1. 收集的個人資訊",

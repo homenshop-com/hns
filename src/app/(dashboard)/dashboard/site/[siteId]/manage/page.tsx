@@ -76,7 +76,7 @@ export default async function SiteManagePage({
       <header className="dash-header">
         <div className="dash-header-inner">
           <div style={{ display: "flex", alignItems: "center" }}>
-            <Link href="/dashboard" className="dash-logo">HomeNShop</Link>
+            <Link href="/dashboard" className="dash-logo">homeNshop</Link>
             <span className="dash-logo-sub">{td("btnData")}</span>
           </div>
           <div className="dash-header-right">

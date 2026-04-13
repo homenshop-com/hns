@@ -5,12 +5,13 @@ import OrderConfirmationEmail, {
   type OrderItem,
 } from "@/emails/order-confirmation";
 import PasswordResetEmail from "@/emails/password-reset";
+import VerifyEmail from "@/emails/verify-email";
 
 function getResend() {
   return new Resend(process.env.RESEND_API_KEY);
 }
 
-const FROM_ADDRESS = "Homenshop <noreply@homenshop.com>";
+const FROM_ADDRESS = "homeNshop <noreply@homenshop.com>";
 
 export interface OrderEmailData {
   orderNumber: string;
@@ -74,6 +75,32 @@ export async function sendOrderConfirmationEmail(
   }
 }
 
+export async function sendVerificationEmail(
+  to: string,
+  verifyLink: string,
+  name?: string
+): Promise<void> {
+  try {
+    const html = await render(VerifyEmail({ verifyLink, name }));
+
+    const { error } = await getResend().emails.send({
+      from: FROM_ADDRESS,
+      to,
+      subject: "이메일 인증 안내 - homeNshop",
+      html,
+    });
+
+    if (error) {
+      console.error("Failed to send verification email:", error);
+      return;
+    }
+
+    console.log(`Verification email sent to ${to}`);
+  } catch (err) {
+    console.error("Error sending verification email:", err);
+  }
+}
+
 export async function sendPasswordResetEmail(
   to: string,
   resetLink: string
@@ -84,7 +111,7 @@ export async function sendPasswordResetEmail(
     const { error } = await getResend().emails.send({
       from: FROM_ADDRESS,
       to,
-      subject: "비밀번호 재설정 안내 - Homenshop",
+      subject: "비밀번호 재설정 안내 - homeNshop",
       html,
     });
 

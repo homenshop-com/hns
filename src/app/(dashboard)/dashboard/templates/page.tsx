@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import SignOutButton from "../sign-out-button";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import TemplateGallery from "./template-gallery";
+import { getSettingBool } from "@/lib/settings";
 
 export default async function TemplatesPage({
   searchParams,
@@ -14,6 +15,15 @@ export default async function TemplatesPage({
 }) {
   const session = await auth();
   if (!session) redirect("/login");
+
+  // Check email verification status
+  const emailVerificationEnabled = await getSettingBool("emailVerificationEnabled");
+  const currentUser = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { emailVerified: true, email: true },
+  });
+
+  const isDemoAccount = currentUser?.email === "demo@demo.com";
 
   const t = await getTranslations("dashboard");
   const tTpl = await getTranslations("templates");
@@ -72,7 +82,7 @@ export default async function TemplatesPage({
         <div className="dash-header-inner">
           <div style={{ display: "flex", alignItems: "center" }}>
             <Link href="/dashboard" className="dash-logo">
-              HomeNShop
+              homeNshop
             </Link>
             <span className="dash-logo-sub">{t("title")}</span>
           </div>
@@ -118,6 +128,7 @@ export default async function TemplatesPage({
           totalCount={templates.length}
           currentSort={sort}
           currentKeyword={keyword}
+          emailVerified={!emailVerificationEnabled || !!currentUser?.emailVerified || isDemoAccount}
           labels={{
             total: tTpl("total"),
             count: tTpl("count"),
@@ -164,6 +175,10 @@ export default async function TemplatesPage({
             uploadError: tTpl("uploadError"),
             deleteTemplate: tTpl("deleteTemplate"),
             deleteConfirm: tTpl("deleteConfirm"),
+            emailVerifyRequired: tTpl("emailVerifyRequired"),
+            emailVerifyMessage: tTpl("emailVerifyMessage"),
+            emailVerifyResend: tTpl("emailVerifyResend"),
+            emailVerifySent: tTpl("emailVerifySent"),
           }}
         />
       </div>

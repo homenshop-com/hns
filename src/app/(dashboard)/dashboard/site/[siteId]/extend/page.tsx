@@ -43,7 +43,7 @@ export default async function ExtendPage({
         <div className="dash-header-inner">
           <div style={{ display: "flex", alignItems: "center" }}>
             <Link href="/dashboard" className="dash-logo">
-              HomeNShop
+              homeNshop
             </Link>
             <span className="dash-logo-sub">{t("pageTitle")}</span>
           </div>

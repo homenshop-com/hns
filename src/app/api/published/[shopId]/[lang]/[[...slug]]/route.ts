@@ -509,7 +509,7 @@ export async function GET(
     .map((p) => {
       const label = p.menuTitle || p.title;
       const href = p.isHome ? `${urlPrefix}/${lang}/` : `${urlPrefix}/${lang}/${p.slug}.html`;
-      const target = p.externalUrl ? ` target="_blank"` : "";
+      const target = p.externalUrl && /^https?:\/\//.test(p.externalUrl) ? ` target="_blank"` : "";
       const actualHref = p.externalUrl || href;
       const children = getChildren(p.id);
 
@@ -521,7 +521,7 @@ export async function GET(
         .map((c) => {
           const cLabel = c.menuTitle || c.title;
           const cHref = c.externalUrl || (c.isHome ? `${urlPrefix}/${lang}/` : `${urlPrefix}/${lang}/${c.slug}.html`);
-          const cTarget = c.externalUrl ? ` target="_blank"` : "";
+          const cTarget = c.externalUrl && /^https?:\/\//.test(c.externalUrl) ? ` target="_blank"` : "";
           return `<li><a title="${cLabel}" href="${cHref}"${cTarget}>${cLabel}</a></li>`;
         })
         .join("");

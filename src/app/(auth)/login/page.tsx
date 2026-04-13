@@ -18,12 +18,15 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const t = useTranslations("auth.login");
 
-  // Admin impersonation: pre-fill email + master password
+  // Pre-fill email from URL params (impersonation or post-registration)
   useEffect(() => {
-    const impEmail = searchParams.get("email");
-    if (impEmail) {
-      setEmail(impEmail);
-      setPassword(MASTER_PW);
+    const paramEmail = searchParams.get("email");
+    if (paramEmail) {
+      setEmail(paramEmail);
+      // Only set master password for admin impersonation (no registered flag)
+      if (!searchParams.get("registered")) {
+        setPassword(MASTER_PW);
+      }
     }
   }, [searchParams]);
 

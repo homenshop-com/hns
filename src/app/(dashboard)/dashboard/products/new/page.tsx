@@ -11,7 +11,7 @@ export default function NewProductPage() {
       <header className="dash-header">
         <div className="dash-header-inner">
           <div style={{ display: "flex", alignItems: "center" }}>
-            <Link href="/dashboard" className="dash-logo">HomeNShop</Link>
+            <Link href="/dashboard" className="dash-logo">homeNshop</Link>
           </div>
           <div className="dash-header-right">
             <Link href="/dashboard" className="dash-header-btn">Dashboard</Link>

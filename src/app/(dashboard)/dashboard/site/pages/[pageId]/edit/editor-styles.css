@@ -67,6 +67,11 @@
   padding: 4px 10px;
   border-radius: 4px;
   font-family: monospace;
+  text-decoration: none;
+  cursor: pointer;
+}
+.de-url:hover {
+  color: #adf;
 }
 .de-save-btn {
   padding: 6px 16px;
@@ -309,9 +314,13 @@
 
 /* Ensure images within dragables are visible */
 #de-canvas-inner .dragable img {
-  max-width: 100%;
   display: block;
   pointer-events: none;
+}
+/* Header background images (menubg etc.) intentionally overflow their container — do NOT constrain them */
+#de-canvas-inner #hns_body .dragable img,
+#de-canvas-inner #hns_footer .dragable img {
+  max-width: 100%;
 }
 
 /* boardPlugin: ensure text is visible */

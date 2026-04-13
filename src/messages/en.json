@@ -1,6 +1,6 @@
 {
   "common": {
-    "siteName": "Homenshop",
+    "siteName": "homeNshop",
     "nav": {
       "dashboard": "Dashboard",
       "login": "Login",
@@ -10,7 +10,7 @@
   },
   "home": {
     "ctaDashboard": "Dashboard",
-    "pageTitle": "Homenshop - Multilingual Website Builder for Korean Export SMEs",
+    "pageTitle": "homeNshop - Multilingual Website Builder for Korean Export SMEs",
     "metaDescription": "Multilingual website builder for Korean SMEs preparing for global export. Create product catalogs in English, Chinese, Japanese, Spanish — no coding required.",
     "navFeatures": "Features",
     "navHowItWorks": "How It Works",
@@ -34,7 +34,7 @@
     "statMultilangLabel": "KO · EN · CN · JP",
     "solutionEyebrow": "Solution",
     "solutionTitle": "Multilingual Website Builder\nfor Korean Export SMEs",
-    "solutionDesc": "Homenshop is a multilingual website builder designed for Korean small and medium businesses preparing for global export.\nCreate product catalogs and company pages in buyer languages — English, Chinese, Spanish and more — without coding.",
+    "solutionDesc": "homeNshop is a multilingual website builder designed for Korean small and medium businesses preparing for global export.\nCreate product catalogs and company pages in buyer languages — English, Chinese, Spanish and more — without coding.",
     "solutionSub": "Not a complex global builder, not a domestic-only solution — a tool built specifically for export-focused SMEs.",
     "solutionPoint1Title": "Product Catalogs in Buyer Languages",
     "solutionPoint1Desc": "Create product info and company profiles in English, Chinese, Japanese, and Spanish at once. Overseas buyers can browse in their native language.",
@@ -104,7 +104,7 @@
     "footerSignup": "Sign Up",
     "footerFeatures": "Features",
     "footerPricing": "Pricing",
-    "footerCompany": "HomenShop Inc.",
+    "footerCompany": "homeNshop Inc.",
     "footerBizNo": "Business Reg: 199-86-03387",
     "footerCeo": "CEO: Inchul Choi",
     "footerAddress": "400 World Cup North-ro, Mapo-gu, Seoul, Korea",
@@ -169,6 +169,10 @@
     "memberInfo": "Admin Info",
     "dashboard": "Dashboard",
     "logout": "Logout",
+    "emailVerifyTitle": "Email Verification Required",
+    "emailVerifyMessage": "Please verify your email to use key features like design selection.",
+    "emailVerifyResend": "Send Verification Email",
+    "emailVerifySent": "Verification email sent!",
     "test": "Test",
     "cards": {
       "site": "My Site",
@@ -278,7 +282,15 @@
     "passwordMismatch": "Passwords do not match.",
     "passwordTooShort": "New password must be at least 6 characters.",
     "mySites": "My Sites",
-    "siteSettings": "Settings"
+    "siteSettings": "Settings",
+    "deleteAccount": "Delete Account",
+    "deleteAccountWarning": "Deleting your account will permanently remove all sites, pages, products, boards, and order data. This action cannot be undone.",
+    "deleteAccountConfirm": "Enter your password to confirm:",
+    "deleteAccountPlaceholder": "Enter password",
+    "deleteAccountWrongPassword": "Incorrect password.",
+    "deleteAccountBtn": "Delete Account",
+    "deleteAccountDeleting": "Deleting...",
+    "deleteAccountCancel": "Cancel"
   },
   "boardsPage": {
     "title": "Board Management",
@@ -431,22 +443,26 @@
     "uploadSuccess": "Template uploaded successfully.",
     "uploadError": "Failed to upload template.",
     "deleteTemplate": "Delete",
-    "deleteConfirm": "Delete this template?"
+    "deleteConfirm": "Delete this template?",
+    "emailVerifyRequired": "Email Verification Required",
+    "emailVerifyMessage": "Please verify your email before selecting a design. Check the verification email sent when you registered.",
+    "emailVerifyResend": "Resend Verification Email",
+    "emailVerifySent": "Verification email sent. Please check your inbox."
   },
   "about": {
-    "pageTitle": "About - Homenshop",
-    "metaDescription": "Homenshop is a website builder service that allows anyone to easily create their own website.",
+    "pageTitle": "About - homeNshop",
+    "metaDescription": "homeNshop is a website builder service that allows anyone to easily create their own website.",
     "title": "About Us",
-    "subtitle": "Your website, made easy. Homenshop is here to help.",
-    "companyTitle": "About Homenshop",
-    "companyDesc": "Since 2016, Homenshop has been providing website creation services for small businesses and entrepreneurs. We help anyone build a professional website without any coding knowledge.",
+    "subtitle": "Your website, made easy. homeNshop is here to help.",
+    "companyTitle": "About homeNshop",
+    "companyDesc": "Since 2016, homeNshop has been providing website creation services for small businesses and entrepreneurs. We help anyone build a professional website without any coding knowledge.",
     "missionTitle": "Our Mission",
     "missionDesc": "Our goal is to ensure every business can have a professional online presence at an affordable price.",
     "globalTitle": "Global Service",
     "globalDesc": "We support 6 languages including Korean, English, Chinese, Japanese, and Spanish, serving users worldwide.",
     "infoTitle": "Company Information",
     "infoCompanyName": "Company",
-    "infoCompanyValue": "HomenShop Inc.",
+    "infoCompanyValue": "homeNshop Inc.",
     "infoCeo": "CEO",
     "infoCeoValue": "Inchul Choi",
     "infoBizNo": "Business Reg. No.",
@@ -455,8 +471,8 @@
     "infoEmail": "Email"
   },
   "pricing": {
-    "pageTitle": "Pricing - Homenshop",
-    "metaDescription": "Check out Homenshop pricing plans. From free to premium, choose what fits your needs.",
+    "pageTitle": "Pricing - homeNshop",
+    "metaDescription": "Check out homeNshop pricing plans. From free to premium, choose what fits your needs.",
     "title": "Pricing",
     "subtitle": "Choose what you need. Start for free and upgrade anytime.",
     "freePlan": "FREE",
@@ -465,7 +481,7 @@
     "freeFeat1": "Subdomain included",
     "freeFeat2": "5 basic templates",
     "freeFeat3": "Up to 3 pages",
-    "freeFeat4": "Homenshop branding shown",
+    "freeFeat4": "homeNshop branding shown",
     "freeBtn": "Start Free",
     "premiumBadge": "Recommended",
     "premiumPlan": "PREMIUM",
@@ -488,12 +504,12 @@
     "faq3A": "Yes, all your data and settings will be preserved. Only additional features will be activated."
   },
   "terms": {
-    "pageTitle": "Terms of Service - Homenshop",
-    "metaDescription": "Homenshop Terms of Service",
+    "pageTitle": "Terms of Service - homeNshop",
+    "metaDescription": "homeNshop Terms of Service",
     "title": "Terms of Service",
     "lastUpdated": "Last updated: March 1, 2026",
     "section1Title": "1. Purpose",
-    "section1Content": "These Terms of Service govern the use of the website creation service (\"Service\") provided by HomenShop Inc. (\"Company\") and define the rights, obligations, and responsibilities between the Company and its members.",
+    "section1Content": "These Terms of Service govern the use of the website creation service (\"Service\") provided by homeNshop Inc. (\"Company\") and define the rights, obligations, and responsibilities between the Company and its members.",
     "section2Title": "2. Definitions",
     "section2Content": "\"Service\" refers to all services provided by the Company, including website creation, hosting, and domain connection.\n\"Member\" refers to a person who has registered for and uses the Service.\n\"Content\" refers to all materials created and uploaded by members through the Service, including text, images, and videos.",
     "section3Title": "3. Use of Service",
@@ -508,8 +524,8 @@
     "section7Content": "The Company is not liable for service interruptions caused by natural disasters or force majeure.\nMembers are responsible for the content they post through the Service.\nMatters not specified in these Terms shall be governed by applicable laws."
   },
   "privacy": {
-    "pageTitle": "Privacy Policy - Homenshop",
-    "metaDescription": "Homenshop Privacy Policy",
+    "pageTitle": "Privacy Policy - homeNshop",
+    "metaDescription": "homeNshop Privacy Policy",
     "title": "Privacy Policy",
     "lastUpdated": "Last updated: March 1, 2026",
     "section1Title": "1. Personal Information Collected",

@@ -47,6 +47,16 @@ model VerificationToken {
 }
 
 // ============================================
+// System Settings (key-value)
+// ============================================
+
+model SystemSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+// ============================================
 // Users & Members
 // ============================================
 

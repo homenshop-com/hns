@@ -14,13 +14,13 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     openGraph: {
       type: "website",
-      siteName: "Homenshop",
+      siteName: "homeNshop",
       title: t("pageTitle"),
       description: t("metaDescription"),
       url: "https://homenshop.com",
     },
     other: {
-      "ai:description": "Homenshop is a multilingual website builder for Korean SMEs preparing for global export. Users create product catalogs and company pages in English, Chinese, Japanese, Spanish without coding. Key features: drag-and-drop editor, 100+ templates, mobile responsive, custom domain, multilingual support. Pricing: 66,000 KRW/year. Target: Korean small businesses using KOTRA, trade associations, export voucher programs.",
+      "ai:description": "homeNshop is a multilingual website builder for Korean SMEs preparing for global export. Users create product catalogs and company pages in English, Chinese, Japanese, Spanish without coding. Key features: drag-and-drop editor, 100+ templates, mobile responsive, custom domain, multilingual support. Pricing: 66,000 KRW/year. Target: Korean small businesses using KOTRA, trade associations, export voucher programs.",
     },
   };
 }
@@ -37,7 +37,7 @@ export default async function Home() {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
-    name: "Homenshop",
+    name: "homeNshop",
     applicationCategory: "WebApplication",
     applicationSubCategory: "Website Builder",
     operatingSystem: "Web",
@@ -65,7 +65,7 @@ export default async function Home() {
     },
     provider: {
       "@type": "Organization",
-      name: "Homenshop",
+      name: "homeNshop",
       url: "https://homenshop.com",
       logo: "https://homenshop.com/favicon.ico",
       contactPoint: {
@@ -80,7 +80,7 @@ export default async function Home() {
   const orgJsonLd = {
     "@context": "https://schema.org",
     "@type": "Organization",
-    name: "Homenshop",
+    name: "homeNshop",
     legalName: "(주)홈앤샵",
     url: "https://homenshop.com",
     logo: "https://homenshop.com/favicon.ico",
@@ -106,26 +106,26 @@ export default async function Home() {
     mainEntity: [
       {
         "@type": "Question",
-        name: "What is Homenshop?",
+        name: "What is homeNshop?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Homenshop is a multilingual website builder designed for Korean small and medium businesses preparing for global export. It allows you to create product catalogs and company introduction pages in English, Chinese, Japanese, Spanish, and more — without any coding.",
+          text: "homeNshop is a multilingual website builder designed for Korean small and medium businesses preparing for global export. It allows you to create product catalogs and company introduction pages in English, Chinese, Japanese, Spanish, and more — without any coding.",
         },
       },
       {
         "@type": "Question",
-        name: "Who is Homenshop for?",
+        name: "Who is homeNshop for?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Homenshop is built for Korean SMEs that need multilingual websites to reach overseas buyers. It's ideal for companies using KOTRA services, trade associations, or export voucher programs.",
+          text: "homeNshop is built for Korean SMEs that need multilingual websites to reach overseas buyers. It's ideal for companies using KOTRA services, trade associations, or export voucher programs.",
         },
       },
       {
         "@type": "Question",
-        name: "What languages does Homenshop support?",
+        name: "What languages does homeNshop support?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Homenshop supports Korean, English, Chinese (Simplified & Traditional), Japanese, and Spanish. You can create pages in multiple languages simultaneously.",
+          text: "homeNshop supports Korean, English, Chinese (Simplified & Traditional), Japanese, and Spanish. You can create pages in multiple languages simultaneously.",
         },
       },
     ],
@@ -149,7 +149,7 @@ export default async function Home() {
       <nav className="lp-nav">
         <div className="lp-nav-inner">
           <Link href="/" className="lp-logo">
-            Homenshop
+            homeNshop
           </Link>
           <div className="lp-nav-links">
             <a href="#solution">{t("solutionEyebrow")}</a>
@@ -413,7 +413,7 @@ export default async function Home() {
       {/* FOOTER */}
       <footer className="lp-footer">
         <div className="lp-footer-inner">
-          <div className="footer-logo">Homenshop</div>
+          <div className="footer-logo">homeNshop</div>
           <div className="footer-links">
             <Link href="/login">{t("footerLogin")}</Link>
             <Link href="/register">{t("footerSignup")}</Link>

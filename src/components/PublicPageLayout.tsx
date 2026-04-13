@@ -13,7 +13,7 @@ export default function PublicPageLayout({ t, children }: PublicPageLayoutProps)
       <nav className="lp-nav">
         <div className="lp-nav-inner">
           <Link href="/" className="lp-logo">
-            Homenshop
+            homeNshop
           </Link>
           <div className="lp-nav-links">
             <Link href="/about">{t("navAbout")}</Link>
@@ -37,7 +37,7 @@ export default function PublicPageLayout({ t, children }: PublicPageLayoutProps)
       {/* FOOTER */}
       <footer className="lp-footer">
         <div className="lp-footer-inner">
-          <div className="footer-logo">Homenshop</div>
+          <div className="footer-logo">homeNshop</div>
           <div className="footer-links">
             <Link href="/login">{t("footerLogin")}</Link>
             <Link href="/register">{t("footerSignup")}</Link>

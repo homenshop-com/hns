@@ -55,7 +55,7 @@ export default async function DashboardOrdersPage() {
       <header className="dash-header">
         <div className="dash-header-inner">
           <div style={{ display: "flex", alignItems: "center" }}>
-            <Link href="/dashboard" className="dash-logo">HomeNShop</Link>
+            <Link href="/dashboard" className="dash-logo">homeNshop</Link>
             <span className="dash-logo-sub">{td("cards.orders")}</span>
           </div>
           <div className="dash-header-right">

@@ -6,6 +6,8 @@ import { prisma } from "@/lib/db";
 import SignOutButton from "./sign-out-button";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ImpersonationBanner from "@/components/ImpersonationBanner";
+import EmailVerifyBanner from "./email-verify-banner";
+import { getSettingBool } from "@/lib/settings";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -13,6 +15,13 @@ export default async function DashboardPage() {
   if (!session) {
     redirect("/login");
   }
+
+  const currentUser = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { emailVerified: true, email: true },
+  });
+
+  const emailVerificationEnabled = await getSettingBool("emailVerificationEnabled");
 
   const t = await getTranslations("dashboard");
   const tFooter = await getTranslations("home");
@@ -35,7 +44,7 @@ export default async function DashboardPage() {
         <div className="dash-header-inner">
           <div style={{ display: "flex", alignItems: "center" }}>
             <Link href="/dashboard" className="dash-logo">
-              HomeNShop
+              homeNshop
             </Link>
             <span className="dash-logo-sub">{t("title")}</span>
           </div>
@@ -51,6 +60,19 @@ export default async function DashboardPage() {
 
       {/* MAIN */}
       <main className="dash-main">
+        {/* EMAIL VERIFY BANNER */}
+        {emailVerificationEnabled && !currentUser?.emailVerified && currentUser?.email !== "demo@demo.com" && (
+          <EmailVerifyBanner
+            email={currentUser?.email || ""}
+            labels={{
+              title: t("emailVerifyTitle"),
+              message: t("emailVerifyMessage"),
+              resend: t("emailVerifyResend"),
+              sent: t("emailVerifySent"),
+            }}
+          />
+        )}
+
         {/* TOOLBAR */}
         <div className="dash-toolbar">
           <div className="dash-toolbar-left">

@@ -5,6 +5,6 @@ import Home from "@/app/page";
 describe("Home", () => {
   it("renders the heading", () => {
     render(<Home />);
-    expect(screen.getByText("Homenshop")).toBeInTheDocument();
+    expect(screen.getByText("homeNshop")).toBeInTheDocument();
   });
 });

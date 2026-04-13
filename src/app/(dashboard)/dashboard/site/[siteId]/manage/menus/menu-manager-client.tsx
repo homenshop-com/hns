@@ -572,7 +572,7 @@ export default function MenuManagerClient({
         <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: 56 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: "#6b7280" }}>
             <Link href="/dashboard" style={{ fontSize: 20, fontWeight: 700, color: "#2563eb", textDecoration: "none" }}>
-              HomeNShop
+              homeNshop
             </Link>
             <span style={{ margin: "0 4px" }}>&gt;&gt;</span>
             <Link href={`/dashboard/site/${siteId}/manage`} style={{ color: "#2563eb", textDecoration: "none" }}>

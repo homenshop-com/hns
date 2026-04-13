@@ -982,7 +982,7 @@ export default function DesignEditor({
       {/* TOP HEADER BAR */}
       <header className="de-header">
         <div className="de-header-left">
-          <a href="/dashboard" className="de-logo">HomeNShop</a>
+          <a href="/dashboard" className="de-logo">homeNshop</a>
           <nav className="de-tabs">
             <button
               className={`de-tab ${activeTab === "page" ? "active" : ""}`}
@@ -1011,9 +1011,9 @@ export default function DesignEditor({
           </nav>
         </div>
         <div className="de-header-right">
-          <span className="de-url">
+          <a className="de-url" href={`https://home.homenshop.com/${shopId}/${defaultLanguage}/${pageSlug === "index" ? "" : pageSlug}`} target="_blank" rel="noopener noreferrer">
             home.homenshop.com/{shopId}/{defaultLanguage}/{pageSlug === "index" ? "" : pageSlug}
-          </span>
+          </a>
           <button
             className="de-save-btn"
             onClick={saveContent}

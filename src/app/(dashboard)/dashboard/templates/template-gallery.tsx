@@ -19,6 +19,7 @@ interface TemplateGalleryProps {
   totalCount: number;
   currentSort: string;
   currentKeyword: string;
+  emailVerified: boolean;
   labels: {
     total: string;
     count: string;
@@ -65,10 +66,14 @@ interface TemplateGalleryProps {
     uploadError: string;
     deleteTemplate: string;
     deleteConfirm: string;
+    emailVerifyRequired: string;
+    emailVerifyMessage: string;
+    emailVerifyResend: string;
+    emailVerifySent: string;
   };
 }
 
-type ModalStep = null | "preview" | "setup";
+type ModalStep = null | "preview" | "setup" | "verify";
 type Tab = "public" | "my";
 
 export default function TemplateGallery({
@@ -77,6 +82,7 @@ export default function TemplateGallery({
   totalCount,
   currentSort,
   currentKeyword,
+  emailVerified,
   labels,
 }: TemplateGalleryProps) {
   const router = useRouter();
@@ -121,9 +127,34 @@ export default function TemplateGallery({
     setError("");
   }
 
+  const [resending, setResending] = useState(false);
+  const [resendMsg, setResendMsg] = useState("");
+
   function goToSetup() {
+    if (!emailVerified) {
+      setModalStep("verify");
+      return;
+    }
     setModalStep("setup");
     setError("");
+  }
+
+  async function handleResendVerification() {
+    setResending(true);
+    setResendMsg("");
+    try {
+      const res = await fetch("/api/auth/resend-verification", { method: "POST" });
+      if (res.ok) {
+        setResendMsg(labels.emailVerifySent);
+      } else {
+        const data = await res.json();
+        setResendMsg(data.error || "Error");
+      }
+    } catch {
+      setResendMsg("Error");
+    } finally {
+      setResending(false);
+    }
   }
 
   function closeModal() {
@@ -553,6 +584,41 @@ export default function TemplateGallery({
                   [ {labels.selectDesign} ]
                 </button>
                 {error && <p className="tpl-modal-error">{error}</p>}
+              </div>
+            )}
+
+            {/* STEP: EMAIL VERIFY */}
+            {modalStep === "verify" && (
+              <div style={{ padding: "40px 32px", textAlign: "center" }}>
+                <div style={{ fontSize: 48, marginBottom: 16 }}>&#x2709;&#xFE0F;</div>
+                <h3 style={{ fontSize: 18, fontWeight: 700, color: "#1a1a2e", marginBottom: 12 }}>
+                  {labels.emailVerifyRequired}
+                </h3>
+                <p style={{ fontSize: 14, color: "#4a5568", lineHeight: 1.7, marginBottom: 24 }}>
+                  {labels.emailVerifyMessage}
+                </p>
+                <button
+                  onClick={handleResendVerification}
+                  disabled={resending}
+                  style={{
+                    padding: "10px 24px",
+                    fontSize: 14,
+                    fontWeight: 600,
+                    background: "#1a1a2e",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: 6,
+                    cursor: resending ? "default" : "pointer",
+                    opacity: resending ? 0.6 : 1,
+                  }}
+                >
+                  {resending ? "..." : labels.emailVerifyResend}
+                </button>
+                {resendMsg && (
+                  <p style={{ fontSize: 13, color: resendMsg === labels.emailVerifySent ? "#2b8a3e" : "#c92a2a", marginTop: 12 }}>
+                    {resendMsg}
+                  </p>
+                )}
               </div>
             )}
 

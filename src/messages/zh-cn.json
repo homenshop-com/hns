@@ -1,6 +1,6 @@
 {
   "common": {
-    "siteName": "Homenshop",
+    "siteName": "homeNshop",
     "nav": {
       "dashboard": "仪表盘",
       "login": "登录",
@@ -10,8 +10,8 @@
   },
   "home": {
     "ctaDashboard": "仪表盘",
-    "pageTitle": "HomenShop - 网站制作服务",
-    "metaDescription": "轻松快速地创建网站。丰富的设计模板、移动端响应式、简单编辑 - HomenShop网站构建器",
+    "pageTitle": "homeNshop - 网站制作服务",
+    "metaDescription": "轻松快速地创建网站。丰富的设计模板、移动端响应式、简单编辑 - homeNshop网站构建器",
     "navFeatures": "功能介绍",
     "navHowItWorks": "使用方法",
     "navPricing": "价格方案",
@@ -104,7 +104,7 @@
     "footerSignup": "注册",
     "footerFeatures": "功能介绍",
     "footerPricing": "价格方案",
-    "footerCompany": "HomenShop Inc.",
+    "footerCompany": "homeNshop Inc.",
     "footerBizNo": "营业执照号：199-86-03387",
     "footerCeo": "代表 崔仁哲",
     "footerAddress": "首尔市麻浦区世界杯北路400号，首尔经济振兴院2楼A-425",
@@ -169,6 +169,10 @@
     "memberInfo": "管理员信息",
     "dashboard": "仪表盘",
     "logout": "退出",
+    "emailVerifyTitle": "需要邮箱验证",
+    "emailVerifyMessage": "请完成邮箱验证以使用设计选择等主要功能。",
+    "emailVerifyResend": "发送验证邮件",
+    "emailVerifySent": "验证邮件已发送！",
     "test": "Test",
     "cards": {
       "site": "我的网站",
@@ -278,7 +282,15 @@
     "passwordMismatch": "两次输入的新密码不一致。",
     "passwordTooShort": "新密码至少需要6个字符。",
     "mySites": "拥有的网站",
-    "siteSettings": "设置"
+    "siteSettings": "设置",
+    "deleteAccount": "注销账号",
+    "deleteAccountWarning": "注销账号将永久删除所有网站、页面、商品、论坛和订单数据。此操作无法撤销。",
+    "deleteAccountConfirm": "请输入您的密码以确认注销：",
+    "deleteAccountPlaceholder": "输入密码",
+    "deleteAccountWrongPassword": "密码不正确。",
+    "deleteAccountBtn": "注销账号",
+    "deleteAccountDeleting": "处理中...",
+    "deleteAccountCancel": "取消"
   },
   "boardsPage": {
     "title": "公告板管理",
@@ -417,22 +429,26 @@
     "errorShopIdRequired": "请输入临时域名。",
     "errorShopIdFormat": "6~14个字符，仅限英文、数字、-。",
     "errorShopIdTaken": "该域名已被使用。",
-    "errorAlreadyHasSite": "您已有一个网站。"
+    "errorAlreadyHasSite": "您已有一个网站。",
+    "emailVerifyRequired": "需要邮箱验证",
+    "emailVerifyMessage": "选择设计前，请先完成邮箱验证。请查看注册时发送的验证邮件。",
+    "emailVerifyResend": "重新发送验证邮件",
+    "emailVerifySent": "验证邮件已发送，请查看您的收件箱。"
   },
   "about": {
-    "pageTitle": "关于我们 - Homenshop",
-    "metaDescription": "HomenShop是一个让任何人都能轻松创建网站的网站构建器服务。",
+    "pageTitle": "关于我们 - homeNshop",
+    "metaDescription": "homeNshop是一个让任何人都能轻松创建网站的网站构建器服务。",
     "title": "关于我们",
-    "subtitle": "轻松创建您的网站，HomenShop与您同行。",
+    "subtitle": "轻松创建您的网站，homeNshop与您同行。",
     "companyTitle": "公司介绍",
-    "companyDesc": "HomenShop自2016年以来一直为中小企业和个体经营者提供网站制作服务。我们帮助任何人在无需编程知识的情况下创建专业网站。",
+    "companyDesc": "homeNshop自2016年以来一直为中小企业和个体经营者提供网站制作服务。我们帮助任何人在无需编程知识的情况下创建专业网站。",
     "missionTitle": "使命",
     "missionDesc": "我们的目标是让每个企业都能以合理的价格拥有专业的在线形象。",
     "globalTitle": "全球服务",
     "globalDesc": "我们支持韩语、英语、中文、日语、西班牙语等6种语言，为全球用户提供服务。",
     "infoTitle": "企业信息",
     "infoCompanyName": "公司名称",
-    "infoCompanyValue": "HomenShop Inc.",
+    "infoCompanyValue": "homeNshop Inc.",
     "infoCeo": "代表",
     "infoCeoValue": "崔仁哲",
     "infoBizNo": "营业执照号",
@@ -441,8 +457,8 @@
     "infoEmail": "邮箱"
   },
   "pricing": {
-    "pageTitle": "价格方案 - Homenshop",
-    "metaDescription": "查看HomenShop价格方案。从免费到高级版，选择适合您的方案。",
+    "pageTitle": "价格方案 - homeNshop",
+    "metaDescription": "查看homeNshop价格方案。从免费到高级版，选择适合您的方案。",
     "title": "价格方案",
     "subtitle": "根据需要选择。免费开始，随时升级。",
     "freePlan": "FREE",
@@ -451,7 +467,7 @@
     "freeFeat1": "提供子域名",
     "freeFeat2": "5个基础模板",
     "freeFeat3": "最多3个页面",
-    "freeFeat4": "显示Homenshop品牌",
+    "freeFeat4": "显示homeNshop品牌",
     "freeBtn": "免费开始",
     "premiumBadge": "推荐",
     "premiumPlan": "PREMIUM",
@@ -474,12 +490,12 @@
     "faq3A": "是的，所有数据和设置都会保留。只会激活额外功能。"
   },
   "terms": {
-    "pageTitle": "使用条款 - Homenshop",
-    "metaDescription": "HomenShop服务使用条款",
+    "pageTitle": "使用条款 - homeNshop",
+    "metaDescription": "homeNshop服务使用条款",
     "title": "使用条款",
     "lastUpdated": "最后更新：2026年3月1日",
     "section1Title": "第1条 目的",
-    "section1Content": "本条款旨在规定HomenShop Inc.（以下简称\"公司\"）提供的网站制作服务（以下简称\"服务\"）的使用相关的公司与会员之间的权利、义务和责任事项。",
+    "section1Content": "本条款旨在规定homeNshop Inc.（以下简称\"公司\"）提供的网站制作服务（以下简称\"服务\"）的使用相关的公司与会员之间的权利、义务和责任事项。",
     "section2Title": "第2条 定义",
     "section2Content": "\"服务\"是指公司提供的网站制作、托管、域名绑定等所有服务。\n\"会员\"是指注册并使用服务的人。\n\"内容\"是指会员通过服务创建和上传的文字、图片、视频等所有资料。",
     "section3Title": "第3条 服务使用",
@@ -494,8 +510,8 @@
     "section7Content": "公司对因自然灾害、不可抗力等原因导致的服务中断不承担责任。\n会员对通过服务发布的内容负责。\n本条款未规定的事项按相关法律法规执行。"
   },
   "privacy": {
-    "pageTitle": "隐私政策 - Homenshop",
-    "metaDescription": "HomenShop隐私政策",
+    "pageTitle": "隐私政策 - homeNshop",
+    "metaDescription": "homeNshop隐私政策",
     "title": "隐私政策",
     "lastUpdated": "最后更新：2026年3月1日",
     "section1Title": "1. 收集的个人信息",

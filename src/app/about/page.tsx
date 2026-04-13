@@ -9,7 +9,7 @@ export async function generateMetadata(): Promise<Metadata> {
     description: t("metaDescription"),
     openGraph: {
       type: "website",
-      siteName: "Homenshop",
+      siteName: "homeNshop",
       title: t("pageTitle"),
       description: t("metaDescription"),
     },

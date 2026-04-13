@@ -7,6 +7,7 @@ import SignOutButton from "../sign-out-button";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ProfileForm from "./profile-form";
 import PasswordForm from "./password-form";
+import DeleteAccount from "./delete-account";
 
 export default async function ProfilePage() {
   const session = await auth();
@@ -35,7 +36,7 @@ export default async function ProfilePage() {
         <div className="dash-header-inner">
           <div style={{ display: "flex", alignItems: "center" }}>
             <Link href="/dashboard" className="dash-logo">
-              HomeNShop
+              homeNshop
             </Link>
             <span className="dash-logo-sub">{t("pageTitle")}</span>
           </div>
@@ -208,6 +209,24 @@ export default async function ProfilePage() {
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+          {/* 회원 탈퇴 — demo 계정 제외 */}
+          {user.email !== "demo@demo.com" && (
+            <div style={{ marginTop: 32, textAlign: "right" }}>
+              <DeleteAccount
+                labels={{
+                  title: t("deleteAccount"),
+                  warning: t("deleteAccountWarning"),
+                  confirmText: t("deleteAccountConfirm"),
+                  confirmPlaceholder: t("deleteAccountPlaceholder"),
+                  deleteBtn: t("deleteAccountBtn"),
+                  deleting: t("deleteAccountDeleting"),
+                  cancel: t("deleteAccountCancel"),
+                  error: t("error"),
+                  wrongPassword: t("deleteAccountWrongPassword"),
+                }}
+              />
             </div>
           )}
         </div>

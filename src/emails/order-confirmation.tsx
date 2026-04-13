@@ -39,7 +39,7 @@ export default function OrderConfirmationEmail({
       <Body style={main}>
         <Container style={container}>
           <Section style={header}>
-            <Heading style={logo}>Homenshop</Heading>
+            <Heading style={logo}>homeNshop</Heading>
           </Section>
 
           <Section style={content}>
@@ -88,7 +88,7 @@ export default function OrderConfirmationEmail({
 
           <Section style={footer}>
             <Text style={footerText}>
-              &copy; {new Date().getFullYear()} Homenshop. All rights reserved.
+              &copy; {new Date().getFullYear()} homeNshop. All rights reserved.
             </Text>
           </Section>
         </Container>

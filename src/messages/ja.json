@@ -1,6 +1,6 @@
 {
   "common": {
-    "siteName": "Homenshop",
+    "siteName": "homeNshop",
     "nav": {
       "dashboard": "ダッシュボード",
       "login": "ログイン",
@@ -10,8 +10,8 @@
   },
   "home": {
     "ctaDashboard": "ダッシュボード",
-    "pageTitle": "HomenShop - ホームページ制作サービス",
-    "metaDescription": "簡単・素早くホームページを作りましょう。多彩なデザインテンプレート、モバイル対応、簡単編集 - HomenShopホームページビルダー",
+    "pageTitle": "homeNshop - ホームページ制作サービス",
+    "metaDescription": "簡単・素早くホームページを作りましょう。多彩なデザインテンプレート、モバイル対応、簡単編集 - homeNshopホームページビルダー",
     "navFeatures": "機能紹介",
     "navHowItWorks": "利用方法",
     "navPricing": "料金プラン",
@@ -104,7 +104,7 @@
     "footerSignup": "会員登録",
     "footerFeatures": "機能紹介",
     "footerPricing": "料金プラン",
-    "footerCompany": "HomenShop Inc.",
+    "footerCompany": "homeNshop Inc.",
     "footerBizNo": "事業者登録番号：199-86-03387",
     "footerCeo": "代表 チェ・インチョル",
     "footerAddress": "ソウル市麻浦区ワールドカップ北路400、ソウル経済振興院2階A-425",
@@ -169,6 +169,10 @@
     "memberInfo": "管理者情報",
     "dashboard": "ダッシュボード",
     "logout": "ログアウト",
+    "emailVerifyTitle": "メール認証が必要です",
+    "emailVerifyMessage": "デザイン選択などの主要機能を利用するには、メール認証を完了してください。",
+    "emailVerifyResend": "認証メールを送信",
+    "emailVerifySent": "認証メールを送信しました！",
     "test": "Test",
     "cards": {
       "site": "マイサイト",
@@ -278,7 +282,15 @@
     "passwordMismatch": "新しいパスワードが一致しません。",
     "passwordTooShort": "新しいパスワードは6文字以上である必要があります。",
     "mySites": "保有サイト",
-    "siteSettings": "設定"
+    "siteSettings": "設定",
+    "deleteAccount": "退会",
+    "deleteAccountWarning": "退会すると、すべてのサイト、ページ、商品、掲示板、注文データが完全に削除されます。この操作は取り消せません。",
+    "deleteAccountConfirm": "確認のためパスワードを入力してください：",
+    "deleteAccountPlaceholder": "パスワード入力",
+    "deleteAccountWrongPassword": "パスワードが正しくありません。",
+    "deleteAccountBtn": "退会する",
+    "deleteAccountDeleting": "処理中...",
+    "deleteAccountCancel": "キャンセル"
   },
   "boardsPage": {
     "title": "掲示板管理",
@@ -417,22 +429,26 @@
     "errorShopIdRequired": "仮ドメインを入力してください。",
     "errorShopIdFormat": "6～14文字、英数字と-のみ使用可能です。",
     "errorShopIdTaken": "このドメインは既に使用されています。",
-    "errorAlreadyHasSite": "既にサイトがあります。"
+    "errorAlreadyHasSite": "既にサイトがあります。",
+    "emailVerifyRequired": "メール認証が必要です",
+    "emailVerifyMessage": "デザインを選択するには、まずメール認証を完了してください。登録時に送信された認証メールをご確認ください。",
+    "emailVerifyResend": "認証メールを再送信",
+    "emailVerifySent": "認証メールを送信しました。受信トレイをご確認ください。"
   },
   "about": {
-    "pageTitle": "会社概要 - Homenshop",
-    "metaDescription": "HomenShopは誰でも簡単にホームページを作れるウェブサイトビルダーサービスです。",
+    "pageTitle": "会社概要 - homeNshop",
+    "metaDescription": "homeNshopは誰でも簡単にホームページを作れるウェブサイトビルダーサービスです。",
     "title": "会社概要",
-    "subtitle": "簡単にホームページを作る。HomenShopがお手伝いします。",
+    "subtitle": "簡単にホームページを作る。homeNshopがお手伝いします。",
     "companyTitle": "会社紹介",
-    "companyDesc": "HomenShopは2016年から中小企業と個人事業主のためのホームページ制作サービスを提供しています。コーディング不要で誰でもプロフェッショナルなウェブサイトを作れるようサポートしています。",
+    "companyDesc": "homeNshopは2016年から中小企業と個人事業主のためのホームページ制作サービスを提供しています。コーディング不要で誰でもプロフェッショナルなウェブサイトを作れるようサポートしています。",
     "missionTitle": "ミッション",
     "missionDesc": "すべての事業者がリーズナブルな価格でプロフェッショナルなオンラインプレゼンスを持てるようにすることが私たちの目標です。",
     "globalTitle": "グローバルサービス",
     "globalDesc": "韓国語、英語、中国語、日本語、スペイン語など6言語をサポートし、世界中のユーザーにサービスを提供しています。",
     "infoTitle": "事業者情報",
     "infoCompanyName": "社名",
-    "infoCompanyValue": "HomenShop Inc.",
+    "infoCompanyValue": "homeNshop Inc.",
     "infoCeo": "代表者",
     "infoCeoValue": "チェ・インチョル",
     "infoBizNo": "事業者登録番号",
@@ -441,8 +457,8 @@
     "infoEmail": "メール"
   },
   "pricing": {
-    "pageTitle": "料金プラン - Homenshop",
-    "metaDescription": "HomenShopの料金プランをご確認ください。無料プランからプレミアムプランまで、ニーズに合わせてお選びください。",
+    "pageTitle": "料金プラン - homeNshop",
+    "metaDescription": "homeNshopの料金プランをご確認ください。無料プランからプレミアムプランまで、ニーズに合わせてお選びください。",
     "title": "料金プラン",
     "subtitle": "必要に応じてお選びください。無料で始めて、いつでもアップグレード可能です。",
     "freePlan": "FREE",
@@ -451,7 +467,7 @@
     "freeFeat1": "サブドメイン提供",
     "freeFeat2": "基本テンプレート5種",
     "freeFeat3": "ページ3つまで",
-    "freeFeat4": "Homenshopブランディング表示",
+    "freeFeat4": "homeNshopブランディング表示",
     "freeBtn": "無料で始める",
     "premiumBadge": "おすすめ",
     "premiumPlan": "PREMIUM",
@@ -474,12 +490,12 @@
     "faq3A": "はい、すべてのデータと設定はそのまま保持されます。追加機能のみが有効になります。"
   },
   "terms": {
-    "pageTitle": "利用規約 - Homenshop",
-    "metaDescription": "HomenShopサービス利用規約",
+    "pageTitle": "利用規約 - homeNshop",
+    "metaDescription": "homeNshopサービス利用規約",
     "title": "利用規約",
     "lastUpdated": "最終更新日：2026年3月1日",
     "section1Title": "第1条（目的）",
-    "section1Content": "この規約は、HomenShop Inc.（以下「会社」）が提供するホームページ制作サービス（以下「サービス」）の利用に関して、会社と会員間の権利、義務および責任事項を規定することを目的とします。",
+    "section1Content": "この規約は、homeNshop Inc.（以下「会社」）が提供するホームページ制作サービス（以下「サービス」）の利用に関して、会社と会員間の権利、義務および責任事項を規定することを目的とします。",
     "section2Title": "第2条（定義）",
     "section2Content": "「サービス」とは、会社が提供するホームページ制作、ホスティング、ドメイン接続等すべてのサービスを指します。\n「会員」とは、サービスに登録して利用する者を指します。\n「コンテンツ」とは、会員がサービスを通じて作成・アップロードしたテキスト、画像、動画等すべての資料を指します。",
     "section3Title": "第3条（サービス利用）",
@@ -494,8 +510,8 @@
     "section7Content": "会社は天災、不可抗力等によるサービス中断について責任を負いません。\n会員がサービスを通じて掲載したコンテンツに対する責任は会員にあります。\n本規約に明記されていない事項は関連法令に従います。"
   },
   "privacy": {
-    "pageTitle": "プライバシーポリシー - Homenshop",
-    "metaDescription": "HomenShopプライバシーポリシー",
+    "pageTitle": "プライバシーポリシー - homeNshop",
+    "metaDescription": "homeNshopプライバシーポリシー",
     "title": "プライバシーポリシー",
     "lastUpdated": "最終更新日：2026年3月1日",
     "section1Title": "1. 収集する個人情報",

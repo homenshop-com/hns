@@ -1,16 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { signIn } from "next-auth/react";
 import { useTranslations } from "next-intl";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import Turnstile from "@/components/turnstile";
 
 export default function RegisterPage() {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
   const t = useTranslations("auth.register");
+
+  const handleTurnstileVerify = useCallback((token: string) => {
+    setTurnstileToken(token);
+  }, []);
+
+  const handleTurnstileExpire = useCallback(() => {
+    setTurnstileToken("");
+  }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -41,16 +52,34 @@ export default function RegisterPage() {
         password,
         name: formData.get("name"),
         phone: formData.get("phone"),
+        turnstileToken,
+        website: formData.get("website"), // honeypot
       }),
     });
 
     const data = await res.json();
-    setLoading(false);
 
     if (!res.ok) {
       setError(data.error);
+      setLoading(false);
+      return;
+    }
+
+    // Auto-login after successful registration
+    const email = formData.get("email") as string;
+    const loginRes = await signIn("credentials", {
+      email,
+      password,
+      redirect: false,
+    });
+
+    setLoading(false);
+
+    if (loginRes?.ok) {
+      router.push("/dashboard");
     } else {
-      router.push("/login?registered=true");
+      // Fallback: redirect to login with email pre-filled
+      router.push(`/login?registered=true&email=${encodeURIComponent(email)}`);
     }
   }
 
@@ -102,6 +131,12 @@ export default function RegisterPage() {
             />
           </div>
 
+          {/* Honeypot — invisible to humans, bots fill it */}
+          <div aria-hidden="true" style={{ position: "absolute", left: "-9999px", opacity: 0, height: 0, overflow: "hidden" }}>
+            <label htmlFor="website">Website</label>
+            <input id="website" name="website" type="text" tabIndex={-1} autoComplete="off" />
+          </div>
+
           <div className="auth-row">
             <div className="auth-field">
               <label htmlFor="password">{t("password")}</label>
@@ -125,6 +160,12 @@ export default function RegisterPage() {
               />
             </div>
           </div>
+
+          {/* Cloudflare Turnstile CAPTCHA */}
+          <Turnstile
+            onVerify={handleTurnstileVerify}
+            onExpire={handleTurnstileExpire}
+          />
 
           <button type="submit" disabled={loading} className="auth-btn">
             {loading ? t("submitting") : t("submit")}

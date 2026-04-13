@@ -11,6 +11,7 @@ const navItems = [
   { href: "/admin/domains", label: "도메인 관리", icon: "domains" },
   { href: "/admin/boards", label: "게시판 관리", icon: "boards" },
   { href: "/admin/resellers", label: "리셀러 관리", icon: "resellers" },
+  { href: "/admin/settings", label: "시스템 설정", icon: "settings" },
 ];
 
 export default async function AdminLayout({

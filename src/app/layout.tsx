@@ -18,22 +18,22 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Homenshop - Multilingual Website Builder for Korean Export SMEs",
-    template: "%s | Homenshop",
+    default: "homeNshop - Multilingual Website Builder for Korean Export SMEs",
+    template: "%s | homeNshop",
   },
   description: "Multilingual website builder for Korean SMEs preparing for global export. Create product catalogs and company pages in English, Chinese, Japanese, Spanish — no coding required.",
   keywords: ["multilingual website builder", "Korean export SME", "다국어 홈페이지", "수출 중소기업 홈페이지", "product catalog website", "KOTRA website", "수출바우처 홈페이지", "해외 바이어 홈페이지", "홈페이지 제작", "홈페이지 빌더", "website builder Korea"],
-  authors: [{ name: "Homenshop" }],
-  creator: "Homenshop",
-  publisher: "Homenshop",
+  authors: [{ name: "homeNshop" }],
+  creator: "homeNshop",
+  publisher: "homeNshop",
   metadataBase: new URL("https://homenshop.com"),
   alternates: {
     canonical: "https://homenshop.com",
   },
   openGraph: {
     type: "website",
-    siteName: "Homenshop",
-    title: "Homenshop - Multilingual Website Builder for Korean Export SMEs",
+    siteName: "homeNshop",
+    title: "homeNshop - Multilingual Website Builder for Korean Export SMEs",
     description: "Create product catalogs and company pages in buyer languages. No coding required. 100+ templates, mobile responsive.",
     url: "https://homenshop.com",
     locale: "ko_KR",
@@ -41,7 +41,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Homenshop - Multilingual Website Builder for Export SMEs",
+    title: "homeNshop - Multilingual Website Builder for Export SMEs",
     description: "Create multilingual product catalogs for overseas buyers. No coding required.",
   },
   robots: {

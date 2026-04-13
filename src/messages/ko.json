@@ -1,6 +1,6 @@
 {
   "common": {
-    "siteName": "Homenshop",
+    "siteName": "homeNshop",
     "nav": {
       "dashboard": "대시보드",
       "login": "로그인",
@@ -169,6 +169,10 @@
     "memberInfo": "관리자 정보",
     "dashboard": "대시보드",
     "logout": "로그아웃",
+    "emailVerifyTitle": "이메일 인증이 필요합니다",
+    "emailVerifyMessage": "디자인 선택 등 주요 기능을 이용하려면 이메일 인증을 완료해주세요.",
+    "emailVerifyResend": "인증 이메일 보내기",
+    "emailVerifySent": "인증 이메일이 발송되었습니다!",
     "test": "Test",
     "cards": {
       "site": "내 사이트",
@@ -278,7 +282,15 @@
     "passwordMismatch": "새 비밀번호가 일치하지 않습니다.",
     "passwordTooShort": "새 비밀번호는 6자 이상이어야 합니다.",
     "mySites": "보유 사이트",
-    "siteSettings": "설정"
+    "siteSettings": "설정",
+    "deleteAccount": "회원 탈퇴",
+    "deleteAccountWarning": "회원 탈퇴 시 모든 사이트, 페이지, 상품, 게시판, 주문 데이터가 영구 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",
+    "deleteAccountConfirm": "탈퇴를 확인하려면 비밀번호를 입력하세요:",
+    "deleteAccountPlaceholder": "비밀번호 입력",
+    "deleteAccountWrongPassword": "비밀번호가 일치하지 않습니다.",
+    "deleteAccountBtn": "회원 탈퇴",
+    "deleteAccountDeleting": "탈퇴 처리중...",
+    "deleteAccountCancel": "취소"
   },
   "boardsPage": {
     "title": "게시판 관리",
@@ -431,10 +443,14 @@
     "uploadSuccess": "템플릿이 등록되었습니다.",
     "uploadError": "템플릿 업로드에 실패했습니다.",
     "deleteTemplate": "삭제",
-    "deleteConfirm": "이 템플릿을 삭제하시겠습니까?"
+    "deleteConfirm": "이 템플릿을 삭제하시겠습니까?",
+    "emailVerifyRequired": "이메일 인증이 필요합니다",
+    "emailVerifyMessage": "디자인을 선택하려면 먼저 이메일 인증을 완료해주세요. 가입 시 발송된 인증 이메일을 확인해주세요.",
+    "emailVerifyResend": "인증 이메일 다시 보내기",
+    "emailVerifySent": "인증 이메일이 발송되었습니다. 받은편지함을 확인해주세요."
   },
   "about": {
-    "pageTitle": "회사 소개 - Homenshop",
+    "pageTitle": "회사 소개 - homeNshop",
     "metaDescription": "홈앤샵은 누구나 쉽게 홈페이지를 만들 수 있는 웹사이트 빌더 서비스입니다.",
     "title": "회사 소개",
     "subtitle": "누구나 쉽게 만드는 나만의 홈페이지, 홈앤샵이 함께합니다.",
@@ -455,7 +471,7 @@
     "infoEmail": "이메일"
   },
   "pricing": {
-    "pageTitle": "요금제 - Homenshop",
+    "pageTitle": "요금제 - homeNshop",
     "metaDescription": "홈앤샵 요금제를 확인하세요. 무료 플랜부터 프리미엄 플랜까지, 필요에 맞게 선택하세요.",
     "title": "요금제",
     "subtitle": "필요에 따라 선택하세요. 무료로 시작해서 언제든 업그레이드할 수 있습니다.",
@@ -465,7 +481,7 @@
     "freeFeat1": "서브도메인 제공",
     "freeFeat2": "기본 템플릿 5종",
     "freeFeat3": "페이지 3개 제한",
-    "freeFeat4": "Homenshop 브랜딩 표시",
+    "freeFeat4": "homeNshop 브랜딩 표시",
     "freeBtn": "무료로 시작하기",
     "premiumBadge": "추천",
     "premiumPlan": "PREMIUM",
@@ -488,7 +504,7 @@
     "faq3A": "네, 모든 데이터와 설정이 그대로 유지됩니다. 추가 기능만 활성화됩니다."
   },
   "terms": {
-    "pageTitle": "이용약관 - Homenshop",
+    "pageTitle": "이용약관 - homeNshop",
     "metaDescription": "홈앤샵 서비스 이용약관",
     "title": "이용약관",
     "lastUpdated": "최종 수정일: 2026년 3월 1일",
@@ -508,7 +524,7 @@
     "section7Content": "회사는 천재지변, 불가항력 등으로 인한 서비스 중단에 대해 책임을 지지 않습니다.\n회원이 서비스를 통해 게시한 콘텐츠에 대한 책임은 회원에게 있습니다.\n본 약관에 명시되지 않은 사항은 관련 법령에 따릅니다."
   },
   "privacy": {
-    "pageTitle": "개인정보처리방침 - Homenshop",
+    "pageTitle": "개인정보처리방침 - homeNshop",
     "metaDescription": "홈앤샵 개인정보처리방침",
     "title": "개인정보처리방침",
     "lastUpdated": "최종 수정일: 2026년 3월 1일",
