@@ -856,6 +856,53 @@ export default function DesignEditor({
     setSelectedElId(null);
   }
 
+  /* ─── Alignment helpers ─── */
+  function alignSelected(align: "center-h" | "left" | "right") {
+    if (!selectedElId) return;
+    const el = document.getElementById(selectedElId);
+    if (!el) return;
+
+    const pos = window.getComputedStyle(el).position;
+
+    if (align === "center-h") {
+      if (pos === "absolute") {
+        // Absolute: center via left = (parent.width - el.width) / 2
+        const parent = el.parentElement;
+        if (parent) {
+          const pw = parent.offsetWidth;
+          const ew = el.offsetWidth;
+          el.style.left = Math.round((pw - ew) / 2) + "px";
+        }
+      } else {
+        // Relative/static: use margin auto, remove left offset
+        el.style.removeProperty("left");
+        el.style.margin = "0 auto";
+      }
+    } else if (align === "left") {
+      if (pos === "absolute") {
+        el.style.left = "0px";
+      } else {
+        el.style.removeProperty("left");
+        el.style.removeProperty("margin");
+      }
+    } else if (align === "right") {
+      if (pos === "absolute") {
+        const parent = el.parentElement;
+        if (parent) {
+          const pw = parent.offsetWidth;
+          const ew = el.offsetWidth;
+          el.style.left = (pw - ew) + "px";
+        }
+      } else {
+        el.style.removeProperty("left");
+        el.style.margin = "0 0 0 auto";
+      }
+    }
+
+    // Force re-render
+    setSelectedElId((prev) => prev);
+  }
+
   /* ─── Add new element ─── */
   function addElement(type: string) {
     const bodyEl = bodyRef.current;
@@ -1320,10 +1367,15 @@ export default function DesignEditor({
                 onChange={(e) => handlePropertyChange("z", e.target.value)} />
             </label>
             <div className="de-layer-btns">
+              <button onClick={() => alignSelected("left")} title="왼쪽 정렬">&#x25C0;</button>
+              <button onClick={() => alignSelected("center-h")} title="수평 중앙 정렬">&#x25C6;</button>
+              <button onClick={() => alignSelected("right")} title="오른쪽 정렬">&#x25B6;</button>
+              <span style={{ width: 1, background: "#555", margin: "0 2px", alignSelf: "stretch" }} />
               <button onClick={() => changeZIndex("top")} title="맨 앞으로">&#x2B06;&#x2B06;</button>
               <button onClick={() => changeZIndex("up")} title="앞으로">&#x2B06;</button>
               <button onClick={() => changeZIndex("down")} title="뒤로">&#x2B07;</button>
               <button onClick={() => changeZIndex("bottom")} title="맨 뒤로">&#x2B07;&#x2B07;</button>
+              <span style={{ width: 1, background: "#555", margin: "0 2px", alignSelf: "stretch" }} />
               <button onClick={cloneSelected} title="복제">&#x1F4CB;</button>
               <button onClick={deleteSelected} title="삭제" className="de-del-btn">&#x1F5D1;</button>
             </div>
