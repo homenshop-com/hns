@@ -7,6 +7,7 @@ const CLAUDE_MODEL = process.env.AI_EDIT_MODEL || "claude-haiku-4-5-20251001";
 const SYSTEM_PROMPT = `You are a web page HTML/CSS editor. You ONLY output valid JSON. No explanations, no questions, no comments.
 
 You receive: body HTML, header HTML, menu HTML, footer HTML, page CSS (editable), template CSS (read-only).
+You may also receive a [Selected element] section indicating which element the user has currently selected in the editor.
 
 Page structure:
 - Elements use class "dragable" with position:absolute and inline styles (top, left, width, height)
@@ -20,9 +21,24 @@ For visual changes (background, fonts, colors): modify pageCss with !important t
 For page background: use body { background: ... !important; } or .c_v_home_dft { background: ... !important; }
 For menu styling: use #hns_menu a { color: ... !important; } in pageCss.
 
+Selected element (VERY IMPORTANT):
+- When a [Selected element] section is provided, the user's request applies ONLY to that specific element (identified by its id).
+- "현재 선택된", "선택한", "이 객체", "이 요소" ALL refer to that one selected element.
+- You MUST modify ONLY the selected element. Do NOT touch any other elements in the HTML.
+- Find the element by its id in the section HTML, modify only that element, and return the full section HTML with everything else unchanged.
+- If NO [Selected element] is provided but the user mentions "선택된/선택한", apply the change to the most likely target element based on context. Never refuse — always make your best attempt.
+
+Image handling:
+- For image replacement requests, use high-quality placeholder images from https://picsum.photos/{width}/{height} (e.g. https://picsum.photos/800/600)
+- For specific themed images, use https://picsum.photos/seed/{keyword}/{width}/{height}
+- Preserve the original image dimensions (width/height attributes and inline styles)
+- For background image changes, update the CSS background-image property
+- IMPORTANT: Only replace the image in the selected element. Leave all other images untouched.
+
 CRITICAL RULES:
 - Output ONLY a JSON object: {"body":"...","header":"...","menu":"...","footer":"...","pageCss":"..."}
 - Only include keys you actually modified
+- When a selected element is provided, ONLY modify that element — keep everything else identical
 - pageCss must be the COMPLETE CSS (existing + your additions merged)
 - Prefer CSS changes over HTML changes when possible (e.g. color/font/background changes → pageCss)
 - NEVER output explanations, questions, or anything other than JSON
@@ -43,7 +59,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const { html, headerHtml, menuHtml, footerHtml, css, pageCss, templateCss, prompt } = await request.json();
+  const { html, headerHtml, menuHtml, footerHtml, css, pageCss, templateCss, prompt, selectedElement } = await request.json();
 
   if (!prompt || typeof prompt !== "string" || !prompt.trim()) {
     return NextResponse.json(
@@ -75,13 +91,21 @@ export async function POST(request: Request) {
       : css;
     userMessage += `Site CSS (read-only):\n\`\`\`css\n${truncated}\n\`\`\`\n\n`;
   }
+  if (selectedElement) {
+    userMessage += `Selected element:\n${selectedElement}\n\n`;
+  }
   userMessage += `Request: ${prompt.trim()}\n\nRespond with JSON only.`;
+
+  console.log("AI edit request:", { selectedElement: selectedElement ? "yes" : "no", promptLen: prompt.length, htmlLen: (html || "").length });
 
   const apiBody = JSON.stringify({
     model: CLAUDE_MODEL,
     max_tokens: 8192,
     system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: userMessage }],
+    messages: [
+      { role: "user", content: userMessage },
+      { role: "assistant", content: "{" },
+    ],
   });
 
   const apiHeaders = {
@@ -124,19 +148,27 @@ export async function POST(request: Request) {
       const data = await response.json();
       let resultText = data.content?.[0]?.text || "";
 
+      // Prepend "{" from assistant prefill
+      resultText = "{" + resultText;
+
       // Strip markdown code fences
       resultText = resultText
         .replace(/^```json?\s*\n?/i, "")
         .replace(/\n?```\s*$/i, "")
         .trim();
 
-      // Must be valid JSON starting with {
+      // Try to extract JSON object if response contains extra text
       if (!resultText.startsWith("{")) {
-        console.error("AI returned non-JSON:", resultText.substring(0, 200));
-        return NextResponse.json(
-          { error: "AI가 올바른 형식으로 응답하지 않았습니다. 다시 시도해주세요." },
-          { status: 502 }
-        );
+        const jsonMatch = resultText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          resultText = jsonMatch[0];
+        } else {
+          console.error("AI returned non-JSON:", resultText.substring(0, 200));
+          return NextResponse.json(
+            { error: "AI가 올바른 형식으로 응답하지 않았습니다. 다시 시도해주세요." },
+            { status: 502 }
+          );
+        }
       }
 
       try {

@@ -296,6 +296,18 @@ export default function DesignEditor({
     });
 
     try {
+      // Build selected element context for AI
+      let selectedContext = "";
+      if (selectedElId) {
+        const selEl = document.getElementById(selectedElId);
+        if (selEl) {
+          const section = selEl.closest("#hns_header") ? "header"
+            : selEl.closest("#hns_menu") ? "menu"
+            : selEl.closest("#hns_footer") ? "footer" : "body";
+          selectedContext = `[Selected element: id="${selectedElId}", section="${section}", outerHTML:\n${selEl.outerHTML.substring(0, 1500)}]`;
+        }
+      }
+
       const res = await fetch("/api/ai/edit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -308,6 +320,7 @@ export default function DesignEditor({
           css: cssText || "",
           templateCss: templateCss || "",
           prompt: aiPrompt.trim(),
+          selectedElement: selectedContext || undefined,
         }),
       });
       const data = await res.json();
@@ -341,7 +354,7 @@ export default function DesignEditor({
     } finally {
       setAiLoading(false);
     }
-  }, [aiPrompt, aiLoading, currentPageCss, cssText, templateCss]);
+  }, [aiPrompt, aiLoading, currentPageCss, cssText, templateCss, selectedElId]);
 
   const undoAiEdit = useCallback(() => {
     if (aiPrevHtmlRef.current !== null) {
