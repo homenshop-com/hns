@@ -7,6 +7,7 @@ import SignOutButton from "./sign-out-button";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ImpersonationBanner from "@/components/ImpersonationBanner";
 import EmailVerifyBanner from "./email-verify-banner";
+import AICreateButton from "./ai-create-button";
 import { getSettingBool } from "@/lib/settings";
 
 export default async function DashboardPage() {
@@ -24,7 +25,45 @@ export default async function DashboardPage() {
   const emailVerificationEnabled = await getSettingBool("emailVerificationEnabled");
 
   const t = await getTranslations("dashboard");
+  const tTpl = await getTranslations("templates");
   const tFooter = await getTranslations("home");
+
+  const aiLabels = {
+    btnNewSiteAI: t("btnNewSiteAI"),
+    aiModalTitle: t("aiModalTitle"),
+    aiNotice1: t("aiNotice1"),
+    aiNotice2: t("aiNotice2"),
+    defaultLanguage: tTpl("defaultLanguage"),
+    subdomainSetup: tTpl("subdomainSetup"),
+    subdomainPrefix: tTpl("subdomainPrefix"),
+    subdomainHint: tTpl("subdomainHint"),
+    aiSiteTitle: t("aiSiteTitle"),
+    aiSiteTitlePlaceholder: t("aiSiteTitlePlaceholder"),
+    aiPrompt: t("aiPrompt"),
+    aiPromptPlaceholder: t("aiPromptPlaceholder"),
+    aiGenerate: t("aiGenerate"),
+    aiGenerating: t("aiGenerating"),
+    langKo: tTpl("langKo"),
+    langEn: tTpl("langEn"),
+    langZhCn: tTpl("langZhCn"),
+    langJa: tTpl("langJa"),
+    langZhTw: tTpl("langZhTw"),
+    langEs: tTpl("langEs"),
+    errorShopIdRequired: tTpl("errorShopIdRequired"),
+    errorShopIdFormat: tTpl("errorShopIdFormat"),
+    errorShopIdTaken: tTpl("errorShopIdTaken"),
+    errorSiteTitleRequired: t("errorSiteTitleRequired"),
+    errorPromptRequired: t("errorPromptRequired"),
+    emailVerifyRequired: tTpl("emailVerifyRequired"),
+    emailVerifyMessage: tTpl("emailVerifyMessage"),
+    emailVerifyResend: tTpl("emailVerifyResend"),
+    emailVerifySent: tTpl("emailVerifySent"),
+  };
+  const emailVerificationEnabledForAI = emailVerificationEnabled;
+  const isEmailVerifiedForAI =
+    !emailVerificationEnabledForAI ||
+    !!currentUser?.emailVerified ||
+    currentUser?.email === "demo@demo.com";
 
   const sites = await prisma.site.findMany({
     where: { userId: session.user.id },
@@ -91,6 +130,10 @@ export default async function DashboardPage() {
             </button>
           </div>
           <div className="dash-toolbar-right">
+            <AICreateButton
+              emailVerified={isEmailVerifiedForAI}
+              labels={aiLabels}
+            />
             <Link
               href="/dashboard/templates"
               className="dash-action-btn blue"
