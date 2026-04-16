@@ -24,7 +24,7 @@ export default async function BoardPostsPage({
   const sp = await searchParams;
   const page = Math.max(1, parseInt(sp.page || "1", 10));
 
-  const board = await prisma.board.findUnique({
+  const board = await prisma.boardCategory.findUnique({
     where: { id: boardId },
     include: { site: { select: { userId: true } } },
   });
@@ -37,12 +37,12 @@ export default async function BoardPostsPage({
 
   const [posts, totalCount] = await Promise.all([
     prisma.boardPost.findMany({
-      where: { boardId },
+      where: { categoryId: boardId },
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
     }),
-    prisma.boardPost.count({ where: { boardId } }),
+    prisma.boardPost.count({ where: { categoryId: boardId } }),
   ]);
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
@@ -53,7 +53,7 @@ export default async function BoardPostsPage({
         <div className="dash-header-inner">
           <div style={{ display: "flex", alignItems: "center" }}>
             <Link href="/dashboard" className="dash-logo">homeNshop</Link>
-            <span className="dash-logo-sub">{board.title}</span>
+            <span className="dash-logo-sub">{board.name}</span>
           </div>
           <div className="dash-header-right">
             <Link href="/dashboard" className="dash-header-btn">{td("dashboard")}</Link>
@@ -72,7 +72,7 @@ export default async function BoardPostsPage({
                 &larr; 게시판 목록
               </Link>
             </div>
-            <h1 className="dash-title">{board.title}</h1>
+            <h1 className="dash-title">{board.name}</h1>
             <span style={{ fontSize: 13, color: "#868e96" }}>총 {totalCount}개의 게시글</span>
           </div>
           <Link

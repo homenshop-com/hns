@@ -6,15 +6,25 @@ export default function ImpersonationBanner() {
   const [impersonating, setImpersonating] = useState("");
 
   useEffect(() => {
-    const val = localStorage.getItem("impersonating");
-    if (val) setImpersonating(val);
+    const match = document.cookie.match(/(?:^|; )impersonating=([^;]+)/);
+    if (match) setImpersonating(decodeURIComponent(match[1]));
   }, []);
 
   if (!impersonating) return null;
 
-  function returnToAdmin() {
-    localStorage.removeItem("impersonating");
-    window.location.href = "/login?email=master@homenshop.com";
+  async function returnToAdmin() {
+    try {
+      const res = await fetch("/api/admin/impersonate", { method: "DELETE" });
+      if (res.ok) {
+        const data = await res.json();
+        window.location.href = data.redirectUrl || "/admin/sites";
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(`관리자 세션 복원 실패: ${err.error || res.status}`);
+      }
+    } catch (e) {
+      alert(`관리자 세션 복원 실패: ${String(e)}`);
+    }
   }
 
   return (

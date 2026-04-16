@@ -2,9 +2,33 @@ import { NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { prisma } from "@/lib/db";
 import { sendPasswordResetEmail } from "@/lib/email";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export async function POST(req: Request) {
   try {
+    // Rate limit: 5 requests per 15 minutes per IP — prevents account enumeration
+    // and email flood attacks. Returns 429 before any DB lookup.
+    const ip = getClientIp(req);
+    const { allowed, resetAt } = await checkRateLimit(
+      `forgot-password:${ip}`,
+      5,
+      15 * 60 * 1000
+    );
+    if (!allowed) {
+      return NextResponse.json(
+        { error: "너무 많은 요청입니다. 잠시 후 다시 시도해주세요." },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": Math.max(
+              1,
+              Math.ceil((resetAt.getTime() - Date.now()) / 1000)
+            ).toString(),
+          },
+        }
+      );
+    }
+
     const { email } = await req.json();
 
     if (!email) {

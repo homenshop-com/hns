@@ -72,7 +72,7 @@ export default async function DashboardPage() {
       pages: { select: { id: true, isHome: true, lang: true }, orderBy: { sortOrder: "asc" } },
       products: { select: { id: true } },
     },
-    orderBy: { createdAt: "asc" },
+    orderBy: { createdAt: "desc" },
   });
 
   return (

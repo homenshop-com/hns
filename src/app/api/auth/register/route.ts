@@ -3,20 +3,30 @@ import { prisma } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { sendWelcomeEmail, sendVerificationEmail } from "@/lib/email";
 import crypto from "crypto";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
   try {
-    // 1) Rate limiting — 15분에 5회까지
-    const ip =
-      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-      req.headers.get("x-real-ip") ||
-      "unknown";
+    // 1) Rate limiting — 15분에 5회까지 (PG 기반, 인스턴스/재시작 공유)
+    const ip = getClientIp(req);
+    const { allowed, resetAt } = await checkRateLimit(
+      `register:${ip}`,
+      5,
+      15 * 60 * 1000
+    );
 
-    if (!checkRateLimit(ip, 5, 15 * 60 * 1000)) {
+    if (!allowed) {
       return NextResponse.json(
         { error: "너무 많은 요청입니다. 잠시 후 다시 시도해주세요." },
-        { status: 429 }
+        {
+          status: 429,
+          headers: {
+            "Retry-After": Math.max(
+              1,
+              Math.ceil((resetAt.getTime() - Date.now()) / 1000)
+            ).toString(),
+          },
+        }
       );
     }
 

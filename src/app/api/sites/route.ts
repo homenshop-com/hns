@@ -33,7 +33,7 @@ export async function POST(request: Request) {
   const siteCount = await prisma.site.count({
     where: { userId: session.user.id },
   });
-  if (siteCount >= 50) {
+  if (siteCount >= 5) {
     return NextResponse.json(
       { error: "무료 계정은 최대 5개까지 생성 가능합니다." },
       { status: 400 }

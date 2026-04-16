@@ -11,7 +11,7 @@ export async function GET(
   const { id, postId } = await params;
 
   const post = await prisma.boardPost.findFirst({
-    where: { id: postId, boardId: id },
+    where: { id: postId, categoryId: id },
   });
 
   if (!post) {
@@ -41,15 +41,15 @@ export async function PUT(
 
   // Ownership check: board -> site -> user
   const post = await prisma.boardPost.findFirst({
-    where: { id: postId, boardId: id },
+    where: { id: postId, categoryId: id },
     include: {
-      board: {
+      category: {
         include: { site: { select: { id: true, userId: true, name: true } } },
       },
     },
   });
 
-  if (!post || post.board.site.userId !== session.user.id) {
+  if (!post || !post.category || post.category.site.userId !== session.user.id) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -72,10 +72,10 @@ export async function PUT(
       title: updated.title,
       content: updated.content,
       author: updated.author,
-      boardId: post.board.id,
-      boardTitle: post.board.title,
-      siteId: post.board.site.id,
-      siteName: post.board.site.name,
+      boardId: post.category.id,
+      boardTitle: post.category.name,
+      siteId: post.category.site.id,
+      siteName: post.category.site.name,
       views: updated.views,
       createdAt: updated.createdAt.toISOString(),
     }).catch((err) => console.error("Search index error:", err));
@@ -100,15 +100,15 @@ export async function DELETE(
 
   // Ownership check
   const post = await prisma.boardPost.findFirst({
-    where: { id: postId, boardId: id },
+    where: { id: postId, categoryId: id },
     include: {
-      board: {
+      category: {
         include: { site: { select: { userId: true } } },
       },
     },
   });
 
-  if (!post || post.board.site.userId !== session.user.id) {
+  if (!post || !post.category || post.category.site.userId !== session.user.id) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

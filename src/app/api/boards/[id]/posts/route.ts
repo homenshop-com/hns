@@ -10,7 +10,7 @@ export async function GET(
 ) {
   const { id } = await params;
 
-  const board = await prisma.board.findUnique({
+  const board = await prisma.boardCategory.findUnique({
     where: { id },
   });
 
@@ -24,12 +24,12 @@ export async function GET(
 
   const [posts, totalCount] = await Promise.all([
     prisma.boardPost.findMany({
-      where: { boardId: id },
+      where: { categoryId: id },
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * limit,
       take: limit,
     }),
-    prisma.boardPost.count({ where: { boardId: id } }),
+    prisma.boardPost.count({ where: { categoryId: id } }),
   ]);
 
   return NextResponse.json({
@@ -56,7 +56,7 @@ export async function POST(
   const { id } = await params;
 
   // Verify the board belongs to user's site
-  const board = await prisma.board.findUnique({
+  const board = await prisma.boardCategory.findUnique({
     where: { id },
     include: { site: { select: { id: true, userId: true, name: true } } },
   });
@@ -77,7 +77,8 @@ export async function POST(
 
   const post = await prisma.boardPost.create({
     data: {
-      boardId: id,
+      siteId: board.site.id,
+      categoryId: id,
       title,
       content,
       author: author || session.user.name || "익명",
@@ -92,7 +93,7 @@ export async function POST(
       content: post.content,
       author: post.author,
       boardId: board.id,
-      boardTitle: board.title,
+      boardTitle: board.name,
       siteId: board.site.id,
       siteName: board.site.name,
       views: post.views,

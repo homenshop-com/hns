@@ -41,14 +41,15 @@ export async function POST() {
 
     await reindexAllProducts(productDocs);
 
-    // Load all posts with board title and site name
+    // Load all posts with category (board) name and site name
     const posts = await prisma.boardPost.findMany({
       include: {
-        board: {
+        category: {
           include: {
             site: { select: { id: true, name: true } },
           },
         },
+        site: { select: { id: true, name: true } },
       },
     });
 
@@ -57,10 +58,10 @@ export async function POST() {
       title: p.title,
       content: p.content,
       author: p.author,
-      boardId: p.board.id,
-      boardTitle: p.board.title,
-      siteId: p.board.site.id,
-      siteName: p.board.site.name,
+      boardId: p.category?.id ?? "",
+      boardTitle: p.category?.name ?? "",
+      siteId: p.category?.site.id ?? p.site.id,
+      siteName: p.category?.site.name ?? p.site.name,
       views: p.views,
       createdAt: p.createdAt.toISOString(),
     }));

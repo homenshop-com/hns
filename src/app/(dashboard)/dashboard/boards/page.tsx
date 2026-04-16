@@ -7,12 +7,6 @@ import SignOutButton from "../sign-out-button";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import CreateBoardForm from "./create-board-form";
 
-const TYPE_LABELS: Record<string, string> = {
-  board: "게시판",
-  notice: "공지사항",
-  faq: "FAQ",
-};
-
 export default async function BoardsPage() {
   const session = await auth();
   if (!session) {
@@ -27,9 +21,9 @@ export default async function BoardsPage() {
   });
 
   const boards = site
-    ? await prisma.board.findMany({
+    ? await prisma.boardCategory.findMany({
         where: { siteId: site.id },
-        orderBy: { createdAt: "desc" },
+        orderBy: { name: "asc" },
         include: {
           _count: { select: { posts: true } },
         },
@@ -79,9 +73,8 @@ export default async function BoardsPage() {
               <thead>
                 <tr style={{ background: "#f8f9fa", borderBottom: "1px solid #e2e8f0" }}>
                   <th style={{ padding: "12px 20px", textAlign: "left", fontWeight: 700, color: "#495057" }}>게시판명</th>
-                  <th style={{ padding: "12px 20px", textAlign: "center", fontWeight: 700, color: "#495057" }}>유형</th>
+                  <th style={{ padding: "12px 20px", textAlign: "center", fontWeight: 700, color: "#495057" }}>언어</th>
                   <th style={{ padding: "12px 20px", textAlign: "right", fontWeight: 700, color: "#495057" }}>게시글 수</th>
-                  <th style={{ padding: "12px 20px", textAlign: "right", fontWeight: 700, color: "#495057" }}>생성일</th>
                   <th style={{ padding: "12px 20px", textAlign: "center", fontWeight: 700, color: "#495057" }}>관리</th>
                 </tr>
               </thead>
@@ -90,18 +83,15 @@ export default async function BoardsPage() {
                   <tr key={board.id} style={{ borderBottom: "1px solid #f1f3f5" }}>
                     <td style={{ padding: "12px 20px" }}>
                       <Link href={`/dashboard/boards/${board.id}`} style={{ color: "#1a1a2e", fontWeight: 600, textDecoration: "none" }}>
-                        {board.title}
+                        {board.name}
                       </Link>
                     </td>
                     <td style={{ padding: "12px 20px", textAlign: "center" }}>
                       <span style={{ display: "inline-block", padding: "2px 10px", fontSize: 11, fontWeight: 600, borderRadius: 20, background: "#f8f9fa", color: "#495057" }}>
-                        {TYPE_LABELS[board.type] ?? board.type}
+                        {board.lang}
                       </span>
                     </td>
                     <td style={{ padding: "12px 20px", textAlign: "right" }}>{board._count.posts}개</td>
-                    <td style={{ padding: "12px 20px", textAlign: "right", color: "#868e96" }}>
-                      {new Date(board.createdAt).toLocaleDateString("ko-KR")}
-                    </td>
                     <td style={{ padding: "12px 20px", textAlign: "center" }}>
                       <DeleteBoardButton boardId={board.id} />
                     </td>
@@ -131,12 +121,12 @@ function DeleteBoardButton({ boardId }: { boardId: string }) {
         "use server";
         const session = await auth();
         if (!session) return;
-        const board = await prisma.board.findUnique({
+        const board = await prisma.boardCategory.findUnique({
           where: { id: boardId },
           include: { site: { select: { userId: true } } },
         });
         if (!board || board.site.userId !== session.user.id) return;
-        await prisma.board.delete({ where: { id: boardId } });
+        await prisma.boardCategory.delete({ where: { id: boardId } });
         const { revalidatePath } = await import("next/cache");
         revalidatePath("/dashboard/boards");
       }}

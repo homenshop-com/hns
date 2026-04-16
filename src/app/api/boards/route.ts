@@ -17,9 +17,9 @@ export async function GET() {
     return NextResponse.json({ boards: [] });
   }
 
-  const boards = await prisma.board.findMany({
+  const boards = await prisma.boardCategory.findMany({
     where: { siteId: site.id },
-    orderBy: { createdAt: "desc" },
+    orderBy: { name: "asc" },
     include: {
       _count: {
         select: { posts: true },
@@ -30,7 +30,7 @@ export async function GET() {
   return NextResponse.json({ boards });
 }
 
-// POST /api/boards — Create a new board
+// POST /api/boards — Create a new board (BoardCategory)
 export async function POST(request: NextRequest) {
   const session = await auth();
   if (!session) {
@@ -49,20 +49,21 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { title, type } = body;
+  const { title, name, lang } = body;
+  const boardName = (name ?? title) as string | undefined;
 
-  if (!title) {
+  if (!boardName) {
     return NextResponse.json(
       { error: "게시판 제목은 필수입니다." },
       { status: 400 }
     );
   }
 
-  const board = await prisma.board.create({
+  const board = await prisma.boardCategory.create({
     data: {
       siteId: site.id,
-      title,
-      type: type || "board",
+      name: boardName,
+      lang: lang || "ko",
     },
   });
 

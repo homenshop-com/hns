@@ -1,40 +1,90 @@
-// Simple in-memory rate limiter
-// Resets on server restart — sufficient for basic bot protection
+// PostgreSQL-backed rate limiter.
+// Shared across PM2 instances and persists across restarts.
+// Uses Prisma atomic upsert + conditional increment to avoid races.
 
-const attempts = new Map<string, { count: number; resetAt: number }>();
+import { prisma } from "@/lib/db";
 
-// Cleanup old entries every 5 minutes
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, val] of attempts) {
-    if (val.resetAt < now) attempts.delete(key);
-  }
-}, 5 * 60 * 1000);
+export interface RateLimitResult {
+  allowed: boolean;
+  remaining: number;
+  resetAt: Date;
+}
 
 /**
- * Check if an IP is rate-limited.
- * @param ip - Client IP address
- * @param maxAttempts - Max attempts in the window (default: 5)
- * @param windowMs - Time window in ms (default: 15 minutes)
- * @returns true if allowed, false if rate-limited
+ * Check if a key (typically scope + IP) is within rate limit.
+ *
+ * @param key          Unique identifier (e.g. "register:1.2.3.4")
+ * @param maxAttempts  Max attempts allowed in the window (default 5)
+ * @param windowMs     Window size in ms (default 15 minutes)
  */
-export function checkRateLimit(
-  ip: string,
+export async function checkRateLimit(
+  key: string,
   maxAttempts = 5,
   windowMs = 15 * 60 * 1000
-): boolean {
-  const now = Date.now();
-  const entry = attempts.get(ip);
+): Promise<RateLimitResult> {
+  const now = new Date();
+  const windowEnd = new Date(now.getTime() + windowMs);
 
-  if (!entry || entry.resetAt < now) {
-    attempts.set(ip, { count: 1, resetAt: now + windowMs });
-    return true;
+  try {
+    // Atomic upsert: if the existing row has expired, reset to 1;
+    // otherwise increment. Using a transaction with conditional update
+    // avoids the read-then-write race typical of in-memory limiters.
+    const row = await prisma.$transaction(async (tx) => {
+      const existing = await tx.rateLimit.findUnique({ where: { key } });
+
+      if (!existing || existing.resetAt <= now) {
+        // Fresh window
+        return tx.rateLimit.upsert({
+          where: { key },
+          create: { key, count: 1, resetAt: windowEnd },
+          update: { count: 1, resetAt: windowEnd },
+        });
+      }
+
+      return tx.rateLimit.update({
+        where: { key },
+        data: { count: { increment: 1 } },
+      });
+    });
+
+    const allowed = row.count <= maxAttempts;
+    return {
+      allowed,
+      remaining: Math.max(0, maxAttempts - row.count),
+      resetAt: row.resetAt,
+    };
+  } catch (err) {
+    // Fail-open: if the DB is unreachable, allow the request rather than
+    // locking legitimate users out. Log so this is visible in monitoring.
+    console.error("Rate limit check failed, falling back to allow:", err);
+    return { allowed: true, remaining: maxAttempts, resetAt: windowEnd };
   }
+}
 
-  entry.count++;
-  if (entry.count > maxAttempts) {
-    return false;
+/**
+ * Extract the client IP from Next.js request headers.
+ * Trusts x-forwarded-for because the app runs behind nginx;
+ * defense-in-depth is nginx's job, not this helper's.
+ */
+export function getClientIp(req: Request): string {
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) {
+    const first = xff.split(",")[0]?.trim();
+    if (first) return first;
   }
+  const xreal = req.headers.get("x-real-ip");
+  if (xreal) return xreal.trim();
+  return "unknown";
+}
 
-  return true;
+/**
+ * Periodic cleanup — call from a cron / scheduled task to remove expired rows.
+ * Not strictly required for correctness (expired rows are reset in place),
+ * but keeps the table small.
+ */
+export async function cleanupExpiredRateLimits(): Promise<number> {
+  const result = await prisma.rateLimit.deleteMany({
+    where: { resetAt: { lt: new Date() } },
+  });
+  return result.count;
 }

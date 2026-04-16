@@ -16,15 +16,15 @@ export async function DELETE(
 
   // Ownership check: board -> site -> user
   const post = await prisma.boardPost.findFirst({
-    where: { id: postId, boardId: id },
+    where: { id: postId, categoryId: id },
     include: {
-      board: {
+      category: {
         include: { site: { select: { userId: true } } },
       },
     },
   });
 
-  if (!post || post.board.site.userId !== session.user.id) {
+  if (!post || !post.category || post.category.site.userId !== session.user.id) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

@@ -18,13 +18,13 @@ export default async function PostDetailPage({
   const { boardId, postId } = await params;
 
   const post = await prisma.boardPost.findFirst({
-    where: { id: postId, boardId },
+    where: { id: postId, categoryId: boardId },
     include: {
-      board: { include: { site: { select: { userId: true } } } },
+      category: { include: { site: { select: { userId: true } } } },
     },
   });
 
-  if (!post || post.board.site.userId !== session.user.id) notFound();
+  if (!post || !post.category || post.category.site.userId !== session.user.id) notFound();
 
   const td = await getTranslations("dashboard");
   const tb = await getTranslations("boardsPage");
@@ -104,10 +104,10 @@ function DeletePostButton({ boardId, postId, label }: { boardId: string; postId:
         const session = await auth();
         if (!session) return;
         const post = await prisma.boardPost.findFirst({
-          where: { id: postId, boardId },
-          include: { board: { include: { site: { select: { userId: true } } } } },
+          where: { id: postId, categoryId: boardId },
+          include: { category: { include: { site: { select: { userId: true } } } } },
         });
-        if (!post || post.board.site.userId !== session.user.id) return;
+        if (!post || !post.category || post.category.site.userId !== session.user.id) return;
         await prisma.boardPost.delete({ where: { id: postId } });
         const { redirect } = await import("next/navigation");
         redirect(`/dashboard/boards/${boardId}`);

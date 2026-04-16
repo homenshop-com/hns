@@ -4,6 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import ProductForm from "../product-form";
 
+interface ProductImage {
+  original: string;
+  thumb: string;
+  medium: string;
+  large: string;
+}
+
 interface ProductEditClientProps {
   productId: string;
   initialData: {
@@ -15,6 +22,7 @@ interface ProductEditClientProps {
     category: string;
     status: string;
     images: string[];
+    imageVariants: ProductImage[];
   };
 }
 

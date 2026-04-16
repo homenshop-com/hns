@@ -67,9 +67,9 @@ export async function uploadImageWithResize(
   }
 
   // Generate resized variants
-  const urls: Record<string, string> = {
+  const urls = {
     original: `${UPLOAD_URL}/${folder}/${origFilename}`,
-  };
+  } as { original: string } & ImageSizes;
 
   for (const cfg of SIZE_CONFIGS) {
     const resizedFilename = `${uuid}_${cfg.suffix}${outputExt}`;
@@ -88,10 +88,10 @@ export async function uploadImageWithResize(
       await resizer.jpeg({ quality: 80 }).toFile(resizedPath);
     }
 
-    urls[cfg.suffix] = `${UPLOAD_URL}/${folder}/${resizedFilename}`;
+    urls[cfg.suffix as keyof ImageSizes] = `${UPLOAD_URL}/${folder}/${resizedFilename}`;
   }
 
-  return urls as { original: string } & ImageSizes;
+  return urls;
 }
 
 /**

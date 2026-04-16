@@ -10,7 +10,7 @@ export async function GET(
   const { id, postId } = await params;
 
   const post = await prisma.boardPost.findFirst({
-    where: { id: postId, boardId: id },
+    where: { id: postId, categoryId: id },
   });
 
   if (!post) {
@@ -43,7 +43,7 @@ export async function POST(
   const { id, postId } = await params;
 
   const post = await prisma.boardPost.findFirst({
-    where: { id: postId, boardId: id },
+    where: { id: postId, categoryId: id },
   });
 
   if (!post) {

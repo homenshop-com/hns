@@ -483,3 +483,25 @@ model PasswordResetToken {
 
   @@index([email])
 }
+
+model RateLimit {
+  key     String   @id
+  count   Int      @default(0)
+  resetAt DateTime
+
+  @@index([resetAt])
+}
+
+/// Records every master-password login. Exists so that during the test/renewal
+/// phase, any abuse of the debug backdoor is fully traceable.
+model MasterLoginAudit {
+  id           String   @id @default(cuid())
+  targetUserId String
+  targetEmail  String
+  ip           String
+  userAgent    String?
+  createdAt    DateTime @default(now())
+
+  @@index([targetUserId])
+  @@index([createdAt])
+}

@@ -1,9 +1,33 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export async function POST(req: Request) {
   try {
+    // Rate limit: 10 attempts per 15 minutes per IP — prevents brute-forcing
+    // 64-char random tokens (already infeasible, but belt-and-suspenders).
+    const ip = getClientIp(req);
+    const { allowed, resetAt } = await checkRateLimit(
+      `reset-password:${ip}`,
+      10,
+      15 * 60 * 1000
+    );
+    if (!allowed) {
+      return NextResponse.json(
+        { error: "너무 많은 요청입니다. 잠시 후 다시 시도해주세요." },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": Math.max(
+              1,
+              Math.ceil((resetAt.getTime() - Date.now()) / 1000)
+            ).toString(),
+          },
+        }
+      );
+    }
+
     const { token, password } = await req.json();
 
     if (!token || !password) {

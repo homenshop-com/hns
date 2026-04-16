@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { sendVerificationEmail } from "@/lib/email";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import crypto from "crypto";
 
 export async function POST(req: Request) {
@@ -11,12 +11,23 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Rate limit: 3 resends per 15 minutes
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-  if (!checkRateLimit(`resend-${ip}`, 3, 15 * 60 * 1000)) {
+  // Rate limit: 3 resends per 15 minutes — keyed by user id when available
+  // to prevent a shared office IP from blocking each other.
+  const ip = getClientIp(req);
+  const key = `resend:${session.user.id || ip}`;
+  const { allowed, resetAt } = await checkRateLimit(key, 3, 15 * 60 * 1000);
+  if (!allowed) {
     return NextResponse.json(
       { error: "잠시 후 다시 시도해주세요." },
-      { status: 429 }
+      {
+        status: 429,
+        headers: {
+          "Retry-After": Math.max(
+            1,
+            Math.ceil((resetAt.getTime() - Date.now()) / 1000)
+          ).toString(),
+        },
+      }
     );
   }
 

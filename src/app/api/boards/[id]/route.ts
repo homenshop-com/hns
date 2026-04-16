@@ -14,7 +14,7 @@ export async function GET(
 
   const { id } = await params;
 
-  const board = await prisma.board.findUnique({
+  const board = await prisma.boardCategory.findUnique({
     where: { id },
     include: {
       site: { select: { userId: true } },
@@ -41,7 +41,7 @@ export async function PUT(
 
   const { id } = await params;
 
-  const board = await prisma.board.findUnique({
+  const board = await prisma.boardCategory.findUnique({
     where: { id },
     include: { site: { select: { userId: true } } },
   });
@@ -51,20 +51,21 @@ export async function PUT(
   }
 
   const body = await request.json();
-  const { title, type } = body;
+  const { title, name, lang } = body;
+  const nextName = (name ?? title) as string | undefined;
 
-  const updated = await prisma.board.update({
+  const updated = await prisma.boardCategory.update({
     where: { id },
     data: {
-      ...(title !== undefined && { title }),
-      ...(type !== undefined && { type }),
+      ...(nextName !== undefined && { name: nextName }),
+      ...(lang !== undefined && { lang }),
     },
   });
 
   return NextResponse.json({ board: updated });
 }
 
-// DELETE /api/boards/[id] — Delete a board (cascade deletes posts)
+// DELETE /api/boards/[id] — Delete a board (cascade deletes posts via onDelete: SetNull on category)
 export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -76,7 +77,7 @@ export async function DELETE(
 
   const { id } = await params;
 
-  const board = await prisma.board.findUnique({
+  const board = await prisma.boardCategory.findUnique({
     where: { id },
     include: { site: { select: { userId: true } } },
   });
@@ -85,7 +86,7 @@ export async function DELETE(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  await prisma.board.delete({ where: { id } });
+  await prisma.boardCategory.delete({ where: { id } });
 
   return NextResponse.json({ success: true });
 }
