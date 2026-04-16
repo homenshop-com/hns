@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { readTemplateCss, rewriteAssetUrls } from "@/lib/template-parser";
 import { renderBoardPluginContent, renderProductPluginContent } from "@/lib/plugin-renderer";
+import { parsePageParam } from "@/lib/pagination";
 
 /* ─── Board rendering helpers ─── */
 
@@ -361,9 +362,11 @@ export async function GET(
   }
 
   const action = url.searchParams.get("action") || "";
-  const boardId = parseInt(url.searchParams.get("id") || "0");
-  const boardCategory = parseInt(url.searchParams.get("category") || "0");
-  const boardPage = parseInt(url.searchParams.get("page") || "1");
+  const rawBoardId = parseInt(url.searchParams.get("id") ?? "", 10);
+  const boardId = Number.isFinite(rawBoardId) && rawBoardId > 0 ? rawBoardId : 0;
+  const rawBoardCategory = parseInt(url.searchParams.get("category") ?? "", 10);
+  const boardCategory = Number.isFinite(rawBoardCategory) && rawBoardCategory > 0 ? rawBoardCategory : 0;
+  const boardPage = parsePageParam(url.searchParams.get("page"));
   const prismaProductId = url.searchParams.get("pid") || "";
 
   // Detect custom domain: if Host header is not homenshop.com/net, omit shopId from URLs

@@ -6,6 +6,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { getTranslations } from "next-intl/server";
 import SignOutButton from "../sign-out-button";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { parsePageParam } from "@/lib/pagination";
 
 async function getCategoryMap(siteId: string): Promise<Record<string, string>> {
   const categories = await prisma.productCategory.findMany({
@@ -51,7 +52,7 @@ export default async function ProductsPage({
   const td = await getTranslations("dashboard");
 
   const { q, page: pageStr, status, cat } = await searchParams;
-  const currentPage = Math.max(1, parseInt(pageStr || "1"));
+  const currentPage = parsePageParam(pageStr);
 
   const site = await prisma.site.findFirst({
     where: { userId: session.user.id },

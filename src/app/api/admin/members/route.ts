@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { parsePageParam } from "@/lib/pagination";
 
 const PAGE_SIZE = 20;
 
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
   }
 
   const { searchParams } = request.nextUrl;
-  const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
+  const page = parsePageParam(searchParams.get("page"));
   const search = searchParams.get("search") || "";
 
   const where = search

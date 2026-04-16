@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { indexPost } from "@/lib/search";
+import { parsePageParam, parseLimitParam } from "@/lib/pagination";
 
 // GET /api/boards/[id]/posts — List posts (public, paginated)
 export async function GET(
@@ -19,8 +20,8 @@ export async function GET(
   }
 
   const { searchParams } = new URL(request.url);
-  const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
-  const limit = Math.max(1, Math.min(100, parseInt(searchParams.get("limit") || "10", 10)));
+  const page = parsePageParam(searchParams.get("page"));
+  const limit = parseLimitParam(searchParams.get("limit"), 10, 100);
 
   const [posts, totalCount] = await Promise.all([
     prisma.boardPost.findMany({

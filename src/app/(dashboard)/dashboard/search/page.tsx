@@ -5,6 +5,7 @@ import { searchProducts, searchPosts } from "@/lib/search";
 import { getTranslations } from "next-intl/server";
 import SignOutButton from "../sign-out-button";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { parsePageParam } from "@/lib/pagination";
 
 type SearchType = "all" | "products" | "posts";
 
@@ -23,7 +24,7 @@ export default async function SearchPage({
   const resolvedParams = await searchParams;
   const q = resolvedParams.q || "";
   const type = (resolvedParams.type || "all") as SearchType;
-  const page = Math.max(1, parseInt(resolvedParams.page || "1", 10));
+  const page = parsePageParam(resolvedParams.page);
   const limit = 20;
   const offset = (page - 1) * limit;
 

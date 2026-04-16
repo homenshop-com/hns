@@ -5,6 +5,7 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import SignOutButton from "../../sign-out-button";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { parsePageParam } from "@/lib/pagination";
 
 const PAGE_SIZE = 10;
 
@@ -22,7 +23,7 @@ export default async function BoardPostsPage({
 
   const { boardId } = await params;
   const sp = await searchParams;
-  const page = Math.max(1, parseInt(sp.page || "1", 10));
+  const page = parsePageParam(sp.page);
 
   const board = await prisma.boardCategory.findUnique({
     where: { id: boardId },

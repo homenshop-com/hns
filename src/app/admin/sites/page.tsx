@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import Link from "next/link";
 import SitesTable from "./sites-table";
+import { parsePageParam } from "@/lib/pagination";
 
 const TABS = [
   { key: "all", label: "전체" },
@@ -21,7 +22,7 @@ export default async function AdminSitesPage({
   const filterBy = params.filterBy || "shopId";
   const dateFrom = params.dateFrom || "";
   const dateTo = params.dateTo || "";
-  const page = parseInt(params.page || "1", 10);
+  const page = parsePageParam(params.page);
   const perPage = 20;
 
   // Build where clause

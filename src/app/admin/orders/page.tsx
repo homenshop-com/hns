@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import Link from "next/link";
+import { parsePageParam } from "@/lib/pagination";
 
 const PAGE_SIZE = 20;
 
@@ -40,7 +41,7 @@ export default async function AdminOrdersPage({
   searchParams: Promise<{ page?: string; status?: string }>;
 }) {
   const params = await searchParams;
-  const page = Math.max(1, parseInt(params.page || "1", 10));
+  const page = parsePageParam(params.page);
   const statusFilter = params.status || "";
 
   const where = statusFilter

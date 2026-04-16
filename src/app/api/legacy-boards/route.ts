@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { parsePageParam, parseLimitParam } from "@/lib/pagination";
 
 async function getSiteForUser(userId: string) {
   return prisma.site.findFirst({ where: { userId } });
@@ -16,8 +17,8 @@ export async function GET(request: NextRequest) {
 
   const sp = request.nextUrl.searchParams;
   const categoryParam = sp.get("category") || "";
-  const page = Math.max(1, parseInt(sp.get("page") || "1"));
-  const limit = Math.min(50, Math.max(1, parseInt(sp.get("limit") || "20")));
+  const page = parsePageParam(sp.get("page"));
+  const limit = parseLimitParam(sp.get("limit"), 20, 50);
   const postId = sp.get("id") || "";
 
   // Single post detail

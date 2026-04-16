@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import Link from "next/link";
 import BoardTable from "./board-table";
+import { parsePageParam } from "@/lib/pagination";
 
 const PAGE_SIZE = 30;
 
@@ -10,7 +11,7 @@ export default async function AdminBoardsPage({
   searchParams: Promise<{ page?: string; siteId?: string; q?: string }>;
 }) {
   const params = await searchParams;
-  const page = Math.max(1, parseInt(params.page || "1", 10));
+  const page = parsePageParam(params.page);
   const siteFilter = params.siteId || undefined;
   const q = params.q?.trim() || undefined;
 
