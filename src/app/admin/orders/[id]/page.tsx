@@ -15,15 +15,15 @@ const STATUS_LABELS: Record<string, string> = {
 
 const STATUS_COLORS: Record<string, string> = {
   PENDING:
-    "bg-amber-500/10 text-amber-400",
-  PAID: "bg-cyan-500/10 text-cyan-400",
+    "bg-amber-50 text-amber-700",
+  PAID: "bg-[#405189]/10 text-[#405189]",
   SHIPPING:
-    "bg-violet-500/10 text-violet-400",
+    "bg-violet-50 text-violet-700",
   DELIVERED:
-    "bg-emerald-500/10 text-emerald-400",
-  CANCELLED: "bg-red-500/10 text-red-400",
+    "bg-emerald-50 text-emerald-700",
+  CANCELLED: "bg-red-50 text-red-700",
   REFUNDED:
-    "bg-slate-500/10 text-slate-400",
+    "bg-slate-500/10 text-slate-600",
 };
 
 const ALL_STATUSES = [
@@ -149,7 +149,7 @@ export default function AdminOrderDetailPage() {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
         <p className="text-slate-500">{error || "주문을 찾을 수 없습니다."}</p>
-        <Link href="/admin/orders" className="text-cyan-400 hover:text-cyan-300">
+        <Link href="/admin/orders" className="text-[#405189] hover:text-[#405189]">
           주문 목록으로 돌아가기
         </Link>
       </div>
@@ -161,14 +161,14 @@ export default function AdminOrderDetailPage() {
       <div className="mb-6">
         <Link
           href="/admin/orders"
-          className="text-sm text-slate-500 hover:text-slate-300"
+          className="text-sm text-slate-500 hover:text-slate-700"
         >
           &larr; 주문 목록
         </Link>
       </div>
 
       <div className="flex items-center gap-4 mb-6">
-        <h1 className="text-xl font-bold text-slate-100">주문 상세</h1>
+        <h1 className="text-xl font-bold text-slate-900">주문 상세</h1>
         <span
           className={`inline-block rounded-md px-3 py-1 text-sm font-medium ${STATUS_COLORS[order.status] ?? ""}`}
         >
@@ -177,21 +177,21 @@ export default function AdminOrderDetailPage() {
       </div>
 
       {error && (
-        <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-400">
+        <div className="mb-4 rounded-lg border border-red-500/30 bg-red-50 p-4 text-sm text-red-700">
           {error}
         </div>
       )}
 
       {success && (
-        <div className="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-400">
+        <div className="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-50 p-4 text-sm text-emerald-700">
           {success}
         </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Order Info */}
-        <div className="rounded-xl border border-slate-700/30 bg-[#1e293b]/80 p-6">
-          <h2 className="text-base font-semibold text-slate-200 mb-4">주문 정보</h2>
+        <div className="rounded-xl border border-slate-200 bg-white p-6">
+          <h2 className="text-base font-semibold text-slate-800 mb-4">주문 정보</h2>
           <dl className="space-y-3">
             <InfoRow label="주문번호" value={order.orderNumber} mono />
             <InfoRow
@@ -208,17 +208,17 @@ export default function AdminOrderDetailPage() {
         </div>
 
         {/* Status Change */}
-        <div className="rounded-xl border border-slate-700/30 bg-[#1e293b]/80 p-6">
-          <h2 className="text-base font-semibold text-slate-200 mb-4">상태 변경</h2>
+        <div className="rounded-xl border border-slate-200 bg-white p-6">
+          <h2 className="text-base font-semibold text-slate-800 mb-4">상태 변경</h2>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 주문 상태
               </label>
               <select
                 value={selectedStatus}
                 onChange={(e) => setSelectedStatus(e.target.value)}
-                className="w-full rounded-lg border border-slate-600/40 bg-slate-800/50 px-3 py-2 text-sm text-slate-200"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
               >
                 {ALL_STATUSES.map((s) => (
                   <option key={s} value={s}>
@@ -231,7 +231,7 @@ export default function AdminOrderDetailPage() {
             <button
               onClick={handleStatusChange}
               disabled={saving || selectedStatus === order.status}
-              className="w-full rounded-lg bg-cyan-500 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-600 disabled:opacity-50 transition-colors"
+              className="w-full rounded-lg bg-[#405189] px-4 py-2 text-sm font-medium text-white hover:bg-[#364574] disabled:opacity-50 transition-colors"
             >
               {saving ? "변경 중..." : "상태 변경"}
             </button>
@@ -239,8 +239,8 @@ export default function AdminOrderDetailPage() {
         </div>
 
         {/* Customer Info */}
-        <div className="rounded-xl border border-slate-700/30 bg-[#1e293b]/80 p-6">
-          <h2 className="text-base font-semibold text-slate-200 mb-4">주문자 정보</h2>
+        <div className="rounded-xl border border-slate-200 bg-white p-6">
+          <h2 className="text-base font-semibold text-slate-800 mb-4">주문자 정보</h2>
           <dl className="space-y-3">
             <InfoRow label="이름" value={order.user.name || "-"} />
             <InfoRow label="이메일" value={order.user.email} />
@@ -250,8 +250,8 @@ export default function AdminOrderDetailPage() {
         </div>
 
         {/* Shipping Info */}
-        <div className="rounded-xl border border-slate-700/30 bg-[#1e293b]/80 p-6">
-          <h2 className="text-base font-semibold text-slate-200 mb-4">배송 정보</h2>
+        <div className="rounded-xl border border-slate-200 bg-white p-6">
+          <h2 className="text-base font-semibold text-slate-800 mb-4">배송 정보</h2>
           <dl className="space-y-3">
             <InfoRow label="받는분" value={order.shippingName || "-"} />
             <InfoRow label="연락처" value={order.shippingPhone || "-"} />
@@ -262,11 +262,11 @@ export default function AdminOrderDetailPage() {
       </div>
 
       {/* Order Items */}
-      <div className="mt-6 rounded-xl border border-slate-700/30 bg-[#1e293b]/80 overflow-hidden">
-        <h2 className="text-base font-semibold text-slate-200 px-6 pt-6 pb-4">주문 상품</h2>
+      <div className="mt-6 rounded-xl border border-slate-200 bg-white overflow-hidden">
+        <h2 className="text-base font-semibold text-slate-800 px-6 pt-6 pb-4">주문 상품</h2>
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-700/30">
+            <tr className="border-b border-slate-200">
               <th className="px-6 py-3 text-left font-semibold text-slate-500 text-[11px] uppercase tracking-wider">
                 상품명
               </th>
@@ -285,25 +285,25 @@ export default function AdminOrderDetailPage() {
             {order.items.map((item) => (
               <tr
                 key={item.id}
-                className="border-b border-slate-700/20 last:border-0"
+                className="border-b border-slate-100 last:border-0"
               >
-                <td className="px-6 py-4 font-medium text-slate-200">{item.product.name}</td>
+                <td className="px-6 py-4 font-medium text-slate-800">{item.product.name}</td>
                 <td className="px-6 py-4 text-right whitespace-nowrap">
                   {item.price.toLocaleString("ko-KR")}원
                 </td>
                 <td className="px-6 py-4 text-right">{item.quantity}</td>
-                <td className="px-6 py-4 text-right whitespace-nowrap font-medium text-slate-200">
+                <td className="px-6 py-4 text-right whitespace-nowrap font-medium text-slate-800">
                   {(item.price * item.quantity).toLocaleString("ko-KR")}원
                 </td>
               </tr>
             ))}
           </tbody>
           <tfoot>
-            <tr className="border-t border-slate-700/30">
-              <td colSpan={3} className="px-6 py-4 text-right font-semibold text-slate-300">
+            <tr className="border-t border-slate-200">
+              <td colSpan={3} className="px-6 py-4 text-right font-semibold text-slate-700">
                 합계
               </td>
-              <td className="px-6 py-4 text-right font-bold text-lg text-slate-100">
+              <td className="px-6 py-4 text-right font-bold text-lg text-slate-900">
                 {order.totalAmount.toLocaleString("ko-KR")}원
               </td>
             </tr>
@@ -326,7 +326,7 @@ function InfoRow({
   return (
     <div className="flex justify-between items-center">
       <dt className="text-sm text-slate-500">{label}</dt>
-      <dd className={`text-sm text-slate-200 ${mono ? "font-mono text-xs" : ""}`}>{value}</dd>
+      <dd className={`text-sm text-slate-800 ${mono ? "font-mono text-xs" : ""}`}>{value}</dd>
     </div>
   );
 }

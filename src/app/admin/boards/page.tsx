@@ -74,7 +74,7 @@ export default async function AdminBoardsPage({
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-bold text-slate-100">게시판 관리</h1>
+        <h1 className="text-xl font-bold text-slate-900">게시판 관리</h1>
         <span className="text-sm text-slate-500">
           총 {totalCount.toLocaleString()}개 게시물
         </span>
@@ -86,8 +86,8 @@ export default async function AdminBoardsPage({
           href="/admin/boards"
           className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
             !siteFilter
-              ? "bg-cyan-500/20 text-cyan-400"
-              : "border border-slate-600/40 text-slate-400 hover:bg-slate-800/40"
+              ? "bg-[#405189]/20 text-[#405189]"
+              : "border border-slate-300 text-slate-600 hover:bg-slate-100"
           }`}
         >
           전체
@@ -98,8 +98,8 @@ export default async function AdminBoardsPage({
             href={`/admin/boards?siteId=${s.id}${q ? `&q=${encodeURIComponent(q)}` : ""}`}
             className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
               siteFilter === s.id
-                ? "bg-cyan-500/20 text-cyan-400"
-                : "border border-slate-600/40 text-slate-400 hover:bg-slate-800/40"
+                ? "bg-[#405189]/20 text-[#405189]"
+                : "border border-slate-300 text-slate-600 hover:bg-slate-100"
             }`}
           >
             {s.name || s.shopId}
@@ -115,18 +115,18 @@ export default async function AdminBoardsPage({
           name="q"
           defaultValue={q || ""}
           placeholder="제목 또는 작성자 검색..."
-          className="flex-1 max-w-sm rounded-lg border border-slate-600/40 bg-slate-800/60 px-3 py-2 text-sm text-slate-200 placeholder-slate-500 outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30"
+          className="flex-1 max-w-sm rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-800 placeholder-slate-500 outline-none focus:border-[#405189]/50 focus:ring-1 focus:ring-[#405189]/30"
         />
         <button
           type="submit"
-          className="rounded-lg bg-slate-700 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-600"
+          className="rounded-lg bg-[#405189] px-4 py-2 text-sm font-medium text-white hover:bg-[#364574]"
         >
           검색
         </button>
         {q && (
           <Link
             href={`/admin/boards${siteFilter ? `?siteId=${siteFilter}` : ""}`}
-            className="rounded-lg border border-slate-600/40 px-3 py-2 text-sm text-slate-400 hover:bg-slate-800/40"
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-100"
           >
             초기화
           </Link>

@@ -72,28 +72,28 @@ export default function PostEditor({ post, replies }: { post: PostData; replies:
     }
   }
 
-  const inputCls = "w-full rounded-lg border border-slate-600/40 bg-slate-800/60 px-3 py-2 text-sm text-slate-200 outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30 disabled:opacity-50 disabled:cursor-not-allowed";
+  const inputCls = "w-full rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#405189]/50 focus:ring-1 focus:ring-[#405189]/30 disabled:opacity-50 disabled:cursor-not-allowed";
 
   return (
     <div className="space-y-6">
       {/* Meta info */}
-      <div className="rounded-xl border border-slate-700/30 bg-[#1e293b]/80 p-5">
+      <div className="rounded-xl border border-slate-200 bg-white p-5">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
           <div>
             <span className="text-slate-500 text-xs">사이트</span>
-            <p className="text-slate-200 mt-0.5">{post.siteShopId}</p>
+            <p className="text-slate-800 mt-0.5">{post.siteShopId}</p>
           </div>
           <div>
             <span className="text-slate-500 text-xs">카테고리</span>
-            <p className="text-slate-200 mt-0.5">{post.categoryName || "-"}</p>
+            <p className="text-slate-800 mt-0.5">{post.categoryName || "-"}</p>
           </div>
           <div>
             <span className="text-slate-500 text-xs">조회수</span>
-            <p className="text-slate-200 mt-0.5">{post.views.toLocaleString()}</p>
+            <p className="text-slate-800 mt-0.5">{post.views.toLocaleString()}</p>
           </div>
           <div>
             <span className="text-slate-500 text-xs">작성일</span>
-            <p className="text-slate-200 mt-0.5">{post.regdate || new Date(post.createdAt).toLocaleDateString("ko-KR")}</p>
+            <p className="text-slate-800 mt-0.5">{post.regdate || new Date(post.createdAt).toLocaleDateString("ko-KR")}</p>
           </div>
         </div>
       </div>
@@ -104,7 +104,7 @@ export default function PostEditor({ post, replies }: { post: PostData; replies:
           <>
             <button
               onClick={() => setEditing(true)}
-              className="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-500"
+              className="rounded-lg bg-[#405189] px-4 py-2 text-sm font-medium text-white hover:bg-[#405189]"
             >
               수정
             </button>
@@ -123,7 +123,7 @@ export default function PostEditor({ post, replies }: { post: PostData; replies:
             <button
               onClick={handleSave}
               disabled={isPending}
-              className="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-500 disabled:opacity-50"
+              className="rounded-lg bg-[#405189] px-4 py-2 text-sm font-medium text-white hover:bg-[#405189] disabled:opacity-50"
             >
               {isPending ? "저장중..." : "저장"}
             </button>
@@ -136,7 +136,7 @@ export default function PostEditor({ post, replies }: { post: PostData; replies:
                 setIsNotice(post.isNotice);
                 setIsPublic(post.isPublic);
               }}
-              className="rounded-lg border border-slate-600/40 px-4 py-2 text-sm text-slate-400 hover:bg-slate-800/40"
+              className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-100"
             >
               취소
             </button>
@@ -145,7 +145,7 @@ export default function PostEditor({ post, replies }: { post: PostData; replies:
       </div>
 
       {/* Edit form */}
-      <div className="rounded-xl border border-slate-700/30 bg-[#1e293b]/80 p-5 space-y-4">
+      <div className="rounded-xl border border-slate-200 bg-white p-5 space-y-4">
         <div>
           <label className="block text-xs text-slate-500 mb-1">제목</label>
           <input
@@ -169,23 +169,23 @@ export default function PostEditor({ post, replies }: { post: PostData; replies:
             />
           </div>
           <div className="flex items-end gap-4">
-            <label className="flex items-center gap-2 text-sm text-slate-300">
+            <label className="flex items-center gap-2 text-sm text-slate-700">
               <input
                 type="checkbox"
                 checked={isNotice}
                 onChange={e => setIsNotice(e.target.checked)}
                 disabled={!editing}
-                className="rounded border-slate-600 bg-slate-800 text-cyan-500"
+                className="rounded border-slate-300 bg-slate-100 text-[#405189]"
               />
               공지사항
             </label>
-            <label className="flex items-center gap-2 text-sm text-slate-300">
+            <label className="flex items-center gap-2 text-sm text-slate-700">
               <input
                 type="checkbox"
                 checked={isPublic}
                 onChange={e => setIsPublic(e.target.checked)}
                 disabled={!editing}
-                className="rounded border-slate-600 bg-slate-800 text-cyan-500"
+                className="rounded border-slate-300 bg-slate-100 text-[#405189]"
               />
               공개
             </label>
@@ -206,20 +206,20 @@ export default function PostEditor({ post, replies }: { post: PostData; replies:
         {post.photos && (
           <div>
             <label className="block text-xs text-slate-500 mb-1">첨부 사진</label>
-            <p className="text-xs text-slate-400 break-all">{post.photos}</p>
+            <p className="text-xs text-slate-600 break-all">{post.photos}</p>
           </div>
         )}
       </div>
 
       {/* Replies */}
       {replies.length > 0 && (
-        <div className="rounded-xl border border-slate-700/30 bg-[#1e293b]/80 p-5">
-          <h3 className="text-sm font-semibold text-slate-300 mb-3">댓글 ({replies.length})</h3>
+        <div className="rounded-xl border border-slate-200 bg-white p-5">
+          <h3 className="text-sm font-semibold text-slate-700 mb-3">댓글 ({replies.length})</h3>
           <div className="space-y-2">
             {replies.map(r => (
-              <div key={r.id} className="flex items-center justify-between border-b border-slate-700/20 pb-2 last:border-0">
+              <div key={r.id} className="flex items-center justify-between border-b border-slate-100 pb-2 last:border-0">
                 <div>
-                  <span className="text-sm text-slate-200">{r.title || "(내용)"}</span>
+                  <span className="text-sm text-slate-800">{r.title || "(내용)"}</span>
                   <span className="ml-2 text-xs text-slate-500">{r.author}</span>
                 </div>
                 <span className="text-xs text-slate-500">

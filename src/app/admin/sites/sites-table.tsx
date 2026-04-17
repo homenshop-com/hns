@@ -18,10 +18,10 @@ interface SiteRow {
 }
 
 const ACCOUNT_TYPES: Record<string, { label: string; color: string }> = {
-  "0": { label: "Free", color: "bg-cyan-500/10 text-cyan-400" },
-  "1": { label: "Paid", color: "bg-emerald-500/10 text-emerald-400" },
-  "2": { label: "Test", color: "bg-amber-500/10 text-amber-400" },
-  "9": { label: "Expired", color: "bg-red-500/10 text-red-400" },
+  "0": { label: "Free", color: "bg-[#405189]/10 text-[#405189]" },
+  "1": { label: "Paid", color: "bg-emerald-50 text-emerald-700" },
+  "2": { label: "Test", color: "bg-amber-50 text-amber-700" },
+  "9": { label: "Expired", color: "bg-red-50 text-red-700" },
 };
 
 export default function SitesTable({
@@ -88,12 +88,12 @@ export default function SitesTable({
   }
 
   return (
-    <div className="bg-[#1e293b]/80 rounded-xl border border-slate-700/30">
-      <div className="p-4 border-b border-slate-700/30 flex justify-between items-center">
-        <span className="font-semibold text-slate-200">Results ({totalCount} total)</span>
+    <div className="bg-white rounded-xl border border-slate-200">
+      <div className="p-4 border-b border-slate-200 flex justify-between items-center">
+        <span className="font-semibold text-slate-800">Results ({totalCount} total)</span>
         {selected.size > 0 && (
           <div className="flex items-center gap-3">
-            <span className="text-sm text-red-400 font-medium">{selected.size}개 선택</span>
+            <span className="text-sm text-red-700 font-medium">{selected.size}개 선택</span>
             <button
               onClick={bulkDelete}
               disabled={isPending}
@@ -103,7 +103,7 @@ export default function SitesTable({
             </button>
             <button
               onClick={() => setSelected(new Set())}
-              className="rounded-md border border-slate-600/40 px-3 py-1.5 text-xs text-slate-400 hover:bg-slate-800/40"
+              className="rounded-md border border-slate-300 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100"
             >
               선택 해제
             </button>
@@ -113,13 +113,13 @@ export default function SitesTable({
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-700/20 bg-slate-800/30 text-left">
+            <tr className="border-b border-slate-100 bg-slate-50 text-left">
               <th className="px-3 py-3 w-10">
                 <input
                   type="checkbox"
                   checked={allChecked}
                   onChange={toggleAll}
-                  className="rounded border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500/30"
+                  className="rounded border-slate-300 bg-slate-100 text-[#405189] focus:ring-[#405189]/30"
                 />
               </th>
               <th className="px-4 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">NO</th>
@@ -128,7 +128,7 @@ export default function SitesTable({
               <th className="px-4 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">DOMAIN</th>
               <th className="px-4 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">SITE ID</th>
               <th className="px-4 py-3 font-medium text-slate-500 text-center">
-                <span className="text-red-400">EXP DATE</span>
+                <span className="text-red-700">EXP DATE</span>
               </th>
               <th className="px-4 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">LAST UPDATE</th>
               <th className="px-4 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">REGISTERED</th>
@@ -143,14 +143,14 @@ export default function SitesTable({
               return (
                 <tr
                   key={site.id}
-                  className={`border-b border-slate-700/20 last:border-0 hover:bg-slate-800/30 ${selected.has(site.id) ? "bg-cyan-500/5" : ""}`}
+                  className={`border-b border-slate-100 last:border-0 hover:bg-slate-50 ${selected.has(site.id) ? "bg-[#405189]/5" : ""}`}
                 >
                   <td className="px-3 py-3">
                     <input
                       type="checkbox"
                       checked={selected.has(site.id)}
                       onChange={() => toggle(site.id)}
-                      className="rounded border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500/30"
+                      className="rounded border-slate-300 bg-slate-100 text-[#405189] focus:ring-[#405189]/30"
                     />
                   </td>
                   <td className="px-4 py-3 text-slate-500">{no}</td>
@@ -159,22 +159,22 @@ export default function SitesTable({
                       {typeInfo.label}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-slate-400">{site.email}</td>
+                  <td className="px-4 py-3 text-slate-600">{site.email}</td>
                   <td className="px-4 py-3">
                     {site.domain ? (
-                      <a href={`https://${site.domain}`} target="_blank" rel="noopener" className="text-cyan-400 hover:text-cyan-300 hover:underline">
+                      <a href={`https://${site.domain}`} target="_blank" rel="noopener" className="text-[#405189] hover:text-[#405189] hover:underline">
                         {site.domain}
                       </a>
                     ) : (
-                      <span className="text-slate-400">-</span>
+                      <span className="text-slate-600">-</span>
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    <a href={`https://home.homenshop.com/${site.shopId}`} target="_blank" rel="noopener" className="text-cyan-400 hover:text-cyan-300 hover:underline">
+                    <a href={`https://home.homenshop.com/${site.shopId}`} target="_blank" rel="noopener" className="text-[#405189] hover:text-[#405189] hover:underline">
                       {site.shopId}
                     </a>
                   </td>
-                  <td className={`px-4 py-3 text-center font-medium ${isExpired ? "text-red-400" : "text-emerald-400"}`}>
+                  <td className={`px-4 py-3 text-center font-medium ${isExpired ? "text-red-700" : "text-emerald-700"}`}>
                     {site.expiresAt ? new Date(site.expiresAt).toLocaleDateString("ko-KR") : "-"}
                   </td>
                   <td className="px-4 py-3 text-slate-500 text-xs">
@@ -186,7 +186,7 @@ export default function SitesTable({
                   <td className="px-4 py-3 text-right whitespace-nowrap">
                     <Link
                       href={`/admin/sites/${site.id}`}
-                      className="inline-block bg-cyan-500 text-white px-3 py-1 rounded text-xs font-medium hover:bg-cyan-600"
+                      className="inline-block bg-[#405189] text-white px-3 py-1 rounded text-xs font-medium hover:bg-[#364574]"
                     >
                       View
                     </Link>
@@ -219,10 +219,10 @@ export default function SitesTable({
                         if (el) { el.style.opacity = "1"; setTimeout(() => { el.style.opacity = "0"; }, 1500); }
                       }}
                       title={`${site.email} 로그인 링크 복사`}
-                      className="relative text-slate-400 hover:text-cyan-400 ml-1 align-middle"
+                      className="relative text-slate-600 hover:text-[#405189] ml-1 align-middle"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                      <span id={`copy-ok-${site.id}`} className="absolute -top-6 left-1/2 -translate-x-1/2 bg-slate-800 text-emerald-400 text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap opacity-0 transition-opacity pointer-events-none">Copied!</span>
+                      <span id={`copy-ok-${site.id}`} className="absolute -top-6 left-1/2 -translate-x-1/2 bg-slate-100 text-emerald-700 text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap opacity-0 transition-opacity pointer-events-none">Copied!</span>
                     </button>
                   </td>
                 </tr>
@@ -230,7 +230,7 @@ export default function SitesTable({
             })}
             {sites.length === 0 && (
               <tr>
-                <td colSpan={10} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={10} className="px-4 py-8 text-center text-slate-600">
                   결과가 없습니다.
                 </td>
               </tr>
@@ -241,9 +241,9 @@ export default function SitesTable({
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex justify-center gap-1 p-4 border-t border-slate-700/30">
+        <div className="flex justify-center gap-1 p-4 border-t border-slate-200">
           {currentPage > 1 && (
-            <Link href={pageUrl(currentPage - 1)} className="px-3 py-1 rounded text-sm border border-slate-700/30 hover:bg-slate-800/30 text-slate-400">
+            <Link href={pageUrl(currentPage - 1)} className="px-3 py-1 rounded text-sm border border-slate-200 hover:bg-slate-50 text-slate-600">
               Prev
             </Link>
           )}
@@ -255,14 +255,14 @@ export default function SitesTable({
               <Link
                 key={p}
                 href={pageUrl(p)}
-                className={`px-3 py-1 rounded text-sm ${p === currentPage ? "bg-cyan-500 text-white" : "border border-slate-700/30 hover:bg-slate-800/30 text-slate-400"}`}
+                className={`px-3 py-1 rounded text-sm ${p === currentPage ? "bg-[#405189] text-white" : "border border-slate-200 hover:bg-slate-50 text-slate-600"}`}
               >
                 {p}
               </Link>
             );
           })}
           {currentPage < totalPages && (
-            <Link href={pageUrl(currentPage + 1)} className="px-3 py-1 rounded text-sm border border-slate-700/30 hover:bg-slate-800/30 text-slate-400">
+            <Link href={pageUrl(currentPage + 1)} className="px-3 py-1 rounded text-sm border border-slate-200 hover:bg-slate-50 text-slate-600">
               Next
             </Link>
           )}

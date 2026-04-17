@@ -53,21 +53,21 @@ export default function SettingsForm({
       {settingKeys.map((s) => (
         <div
           key={s.key}
-          className="rounded-xl border border-slate-700/30 bg-[#1e293b]/80 p-5 flex items-center justify-between"
+          className="rounded-xl border border-slate-200 bg-white p-5 flex items-center justify-between"
         >
           <div>
-            <div className="text-sm font-semibold text-slate-200">{s.label}</div>
+            <div className="text-sm font-semibold text-slate-800">{s.label}</div>
             <div className="text-xs text-slate-500 mt-1">{s.description}</div>
           </div>
           <div className="flex items-center gap-3">
             {saved === s.key && (
-              <span className="text-xs text-emerald-400">저장됨</span>
+              <span className="text-xs text-emerald-700">저장됨</span>
             )}
             <button
               onClick={() => handleToggle(s.key, !values[s.key])}
               disabled={saving === s.key}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                values[s.key] ? "bg-cyan-500" : "bg-slate-600"
+                values[s.key] ? "bg-[#405189]" : "bg-slate-600"
               }`}
             >
               <span
@@ -76,7 +76,7 @@ export default function SettingsForm({
                 }`}
               />
             </button>
-            <span className={`text-xs font-medium ${values[s.key] ? "text-cyan-400" : "text-slate-500"}`}>
+            <span className={`text-xs font-medium ${values[s.key] ? "text-[#405189]" : "text-slate-500"}`}>
               {values[s.key] ? "ON" : "OFF"}
             </span>
           </div>

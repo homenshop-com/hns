@@ -58,20 +58,20 @@ export default function AdminSidebar({
   const pathname = usePathname();
 
   return (
-    <aside className="w-56 bg-[#0f172a] border-r border-slate-700/30 flex flex-col shrink-0">
+    <aside className="w-60 bg-[#405189] flex flex-col shrink-0">
       {/* Logo */}
-      <div className="px-5 py-5 border-b border-slate-700/30">
+      <div className="px-5 py-[18px] border-b border-white/10">
         <Link href="/admin" className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-md bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center">
-            <span className="text-white text-xs font-bold">H</span>
+          <div className="w-8 h-8 rounded-md bg-white/10 flex items-center justify-center ring-1 ring-white/15">
+            <span className="text-white text-sm font-bold">H</span>
           </div>
-          <span className="text-sm font-semibold text-slate-200">homeNshop</span>
+          <span className="text-[15px] font-semibold text-white">homeNshop</span>
         </Link>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 py-4 px-3 space-y-0.5">
-        <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500">Menu</p>
+      <nav className="flex-1 py-4 px-3 space-y-0.5 overflow-y-auto">
+        <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-widest text-white/40">Menu</p>
         {navItems.map((item) => {
           const isActive =
             item.href === "/admin"
@@ -84,11 +84,11 @@ export default function AdminSidebar({
               href={item.href}
               className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-[13px] font-medium transition-all ${
                 isActive
-                  ? "bg-cyan-500/10 text-cyan-400 shadow-[inset_2px_0_0_0] shadow-cyan-400"
-                  : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
+                  ? "bg-white/10 text-white"
+                  : "text-white/70 hover:bg-white/5 hover:text-white"
               }`}
             >
-              <span className={isActive ? "text-cyan-400" : "text-slate-500"}>
+              <span className={isActive ? "text-white" : "text-white/60"}>
                 {iconMap[item.icon] ?? item.icon}
               </span>
               <span>{item.label}</span>
@@ -98,25 +98,25 @@ export default function AdminSidebar({
       </nav>
 
       {/* Bottom */}
-      <div className="px-4 py-4 border-t border-slate-700/30 space-y-3">
+      <div className="px-4 py-4 border-t border-white/10 space-y-3">
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center">
-            <span className="text-[10px] font-bold text-white">
+          <div className="w-7 h-7 rounded-full bg-white/10 ring-1 ring-white/15 flex items-center justify-center">
+            <span className="text-[11px] font-bold text-white">
               {email.charAt(0).toUpperCase()}
             </span>
           </div>
-          <span className="text-[11px] text-slate-500 truncate flex-1">{email}</span>
+          <span className="text-[11px] text-white/60 truncate flex-1">{email}</span>
         </div>
         <div className="flex items-center justify-between text-[11px]">
           <Link
             href="/dashboard"
-            className="text-slate-500 hover:text-cyan-400 transition-colors"
+            className="text-white/60 hover:text-white transition-colors"
           >
             Dashboard
           </Link>
           <button
             onClick={() => signOut({ callbackUrl: "/" })}
-            className="text-slate-500 hover:text-red-400 transition-colors"
+            className="text-white/60 hover:text-red-300 transition-colors"
           >
             Logout
           </button>

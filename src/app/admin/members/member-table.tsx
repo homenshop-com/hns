@@ -68,8 +68,8 @@ export default function MemberTable({ users, search }: { users: Member[]; search
   return (
     <>
       {selected.size > 0 && (
-        <div className="mb-4 flex items-center gap-3 rounded-lg bg-red-500/10 border border-red-500/20 px-4 py-3">
-          <span className="text-sm text-red-400">
+        <div className="mb-4 flex items-center gap-3 rounded-lg bg-red-50 border border-red-500/20 px-4 py-3">
+          <span className="text-sm text-red-700">
             {selected.size}명 선택됨
           </span>
           <button
@@ -81,23 +81,23 @@ export default function MemberTable({ users, search }: { users: Member[]; search
           </button>
           <button
             onClick={() => setSelected(new Set())}
-            className="text-sm text-slate-400 hover:text-slate-300"
+            className="text-sm text-slate-600 hover:text-slate-700"
           >
             선택 해제
           </button>
         </div>
       )}
 
-      <div className="rounded-xl border border-slate-700/30 bg-[#1e293b]/80 overflow-x-auto">
+      <div className="rounded-xl border border-slate-200 bg-white overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-700/20 bg-slate-800/30 text-left">
+            <tr className="border-b border-slate-100 bg-slate-50 text-left">
               <th className="px-3 py-3 w-10">
                 <input
                   type="checkbox"
                   checked={allSelected}
                   onChange={toggleAll}
-                  className="accent-cyan-500 w-4 h-4 cursor-pointer"
+                  className="accent-[#405189] w-4 h-4 cursor-pointer"
                 />
               </th>
               <th className="px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wider">이름</th>
@@ -112,7 +112,7 @@ export default function MemberTable({ users, search }: { users: Member[]; search
             {users.map((user) => (
               <tr
                 key={user.id}
-                className={`border-b border-slate-700/20 last:border-0 hover:bg-slate-800/30 ${selected.has(user.id) ? "bg-cyan-500/5" : ""}`}
+                className={`border-b border-slate-100 last:border-0 hover:bg-slate-50 ${selected.has(user.id) ? "bg-[#405189]/5" : ""}`}
               >
                 <td className="px-3 py-3">
                   {user.role !== "ADMIN" ? (
@@ -120,7 +120,7 @@ export default function MemberTable({ users, search }: { users: Member[]; search
                       type="checkbox"
                       checked={selected.has(user.id)}
                       onChange={() => toggle(user.id)}
-                      className="accent-cyan-500 w-4 h-4 cursor-pointer"
+                      className="accent-[#405189] w-4 h-4 cursor-pointer"
                     />
                   ) : (
                     <span className="text-slate-600 text-xs">-</span>
@@ -129,12 +129,12 @@ export default function MemberTable({ users, search }: { users: Member[]; search
                 <td className="px-4 py-3">
                   <Link
                     href={`/admin/members/${user.id}`}
-                    className="text-cyan-400 hover:text-cyan-300"
+                    className="text-[#405189] hover:text-[#405189]"
                   >
                     {user.name || "-"}
                   </Link>
                 </td>
-                <td className="px-4 py-3 text-slate-400">
+                <td className="px-4 py-3 text-slate-600">
                   {user.email}
                 </td>
                 <td className="px-4 py-3">
@@ -149,7 +149,7 @@ export default function MemberTable({ users, search }: { users: Member[]; search
                       href={`https://home.homenshop.com/${user.shopId}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-cyan-400 hover:text-cyan-300"
+                      className="text-[#405189] hover:text-[#405189]"
                     >
                       {user.shopId} ↗
                     </a>
@@ -166,7 +166,7 @@ export default function MemberTable({ users, search }: { users: Member[]; search
               <tr>
                 <td
                   colSpan={7}
-                  className="px-6 py-8 text-center text-slate-400"
+                  className="px-6 py-8 text-center text-slate-600"
                 >
                   {search
                     ? `"${search}" 검색 결과가 없습니다.`
@@ -183,9 +183,9 @@ export default function MemberTable({ users, search }: { users: Member[]; search
 
 function RoleBadge({ role }: { role: string }) {
   const colors: Record<string, string> = {
-    ADMIN: "bg-cyan-500/10 text-cyan-400 ring-1 ring-inset ring-blue-600/20",
-    RESELLER: "bg-violet-500/10 text-violet-400 ring-1 ring-inset ring-purple-600/20",
-    MEMBER: "bg-slate-800/30 text-slate-400 ring-1 ring-inset ring-slate-500/20",
+    ADMIN: "bg-[#405189]/10 text-[#405189] ring-1 ring-inset ring-blue-600/20",
+    RESELLER: "bg-violet-50 text-violet-700 ring-1 ring-inset ring-purple-600/20",
+    MEMBER: "bg-slate-50 text-slate-600 ring-1 ring-inset ring-slate-500/20",
   };
 
   return (
@@ -199,9 +199,9 @@ function RoleBadge({ role }: { role: string }) {
 
 function StatusBadge({ status }: { status: string }) {
   const colors: Record<string, string> = {
-    ACTIVE: "bg-emerald-500/10 text-emerald-400 ring-1 ring-inset ring-emerald-600/20",
-    SUSPENDED: "bg-amber-500/10 text-amber-400 ring-1 ring-inset ring-amber-600/20",
-    DELETED: "bg-red-500/10 text-red-400 ring-1 ring-inset ring-red-600/20",
+    ACTIVE: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20",
+    SUSPENDED: "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20",
+    DELETED: "bg-red-50 text-red-700 ring-1 ring-inset ring-red-600/20",
   };
 
   const labels: Record<string, string> = {

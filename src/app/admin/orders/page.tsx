@@ -15,15 +15,15 @@ const STATUS_LABELS: Record<string, string> = {
 
 const STATUS_COLORS: Record<string, string> = {
   PENDING:
-    "bg-amber-500/10 text-amber-400",
-  PAID: "bg-cyan-500/10 text-cyan-400",
+    "bg-amber-50 text-amber-700",
+  PAID: "bg-[#405189]/10 text-[#405189]",
   SHIPPING:
-    "bg-violet-500/10 text-violet-400",
+    "bg-violet-50 text-violet-700",
   DELIVERED:
-    "bg-emerald-500/10 text-emerald-400",
-  CANCELLED: "bg-red-500/10 text-red-400",
+    "bg-emerald-50 text-emerald-700",
+  CANCELLED: "bg-red-50 text-red-700",
   REFUNDED:
-    "bg-slate-500/10 text-slate-400",
+    "bg-slate-500/10 text-slate-600",
 };
 
 const ALL_STATUSES = [
@@ -71,7 +71,7 @@ export default async function AdminOrdersPage({
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-bold text-slate-100">주문 관리</h1>
+        <h1 className="text-xl font-bold text-slate-900">주문 관리</h1>
         <span className="text-sm text-slate-500">
           총 {totalCount.toLocaleString()}건
         </span>
@@ -83,8 +83,8 @@ export default async function AdminOrdersPage({
           href="/admin/orders"
           className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${
             !statusFilter
-              ? "bg-[#1e293b]/80 text-white"
-              : "border border-slate-600/40 hover:bg-slate-100"
+              ? "bg-[#405189] text-white"
+              : "border border-slate-300 hover:bg-slate-100"
           }`}
         >
           전체
@@ -95,8 +95,8 @@ export default async function AdminOrdersPage({
             href={`/admin/orders?status=${s}`}
             className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${
               statusFilter === s
-                ? "bg-[#1e293b]/80 text-white"
-                : "border border-slate-600/40 hover:bg-slate-100"
+                ? "bg-[#405189] text-white"
+                : "border border-slate-300 hover:bg-slate-100"
             }`}
           >
             {STATUS_LABELS[s]}
@@ -105,10 +105,10 @@ export default async function AdminOrdersPage({
       </div>
 
       {/* Table */}
-      <div className="rounded-xl border border-slate-700/30 bg-[#1e293b]/80 overflow-x-auto">
+      <div className="rounded-xl border border-slate-200 bg-white overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-700/20 bg-slate-800/30 text-left">
+            <tr className="border-b border-slate-100 bg-slate-50 text-left">
               <th className="px-6 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">주문번호</th>
               <th className="px-6 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">회원</th>
               <th className="px-6 py-3 font-medium text-slate-500 text-right">
@@ -129,21 +129,21 @@ export default async function AdminOrdersPage({
             {orders.map((order) => (
               <tr
                 key={order.id}
-                className="border-b border-slate-700/20 last:border-0 hover:bg-slate-800/30"
+                className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
               >
                 <td className="px-6 py-3">
                   <Link
                     href={`/admin/orders/${order.id}`}
-                    className="font-mono text-sm text-cyan-400 hover:text-cyan-300"
+                    className="font-mono text-sm text-[#405189] hover:text-[#405189]"
                   >
                     {order.orderNumber}
                   </Link>
                 </td>
-                <td className="px-6 py-3 text-slate-400">
+                <td className="px-6 py-3 text-slate-600">
                   <div>{order.user.name || "-"}</div>
-                  <div className="text-xs text-slate-400">{order.user.email}</div>
+                  <div className="text-xs text-slate-600">{order.user.email}</div>
                 </td>
-                <td className="px-6 py-3 text-right whitespace-nowrap font-medium text-slate-200">
+                <td className="px-6 py-3 text-right whitespace-nowrap font-medium text-slate-800">
                   {order.totalAmount.toLocaleString("ko-KR")}원
                 </td>
                 <td className="px-6 py-3 text-center text-slate-500">
@@ -165,7 +165,7 @@ export default async function AdminOrdersPage({
               <tr>
                 <td
                   colSpan={6}
-                  className="px-6 py-8 text-center text-slate-400"
+                  className="px-6 py-8 text-center text-slate-600"
                 >
                   {statusFilter
                     ? `${STATUS_LABELS[statusFilter] || statusFilter} 상태의 주문이 없습니다.`
@@ -183,7 +183,7 @@ export default async function AdminOrdersPage({
           {page > 1 && (
             <Link
               href={`/admin/orders?page=${page - 1}${statusFilter ? `&status=${statusFilter}` : ""}`}
-              className="rounded-lg border border-slate-600/40 px-3 py-1.5 text-sm hover:bg-slate-100"
+              className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100"
             >
               이전
             </Link>
@@ -196,7 +196,7 @@ export default async function AdminOrdersPage({
           {page < totalPages && (
             <Link
               href={`/admin/orders?page=${page + 1}${statusFilter ? `&status=${statusFilter}` : ""}`}
-              className="rounded-lg border border-slate-600/40 px-3 py-1.5 text-sm hover:bg-slate-100"
+              className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100"
             >
               다음
             </Link>

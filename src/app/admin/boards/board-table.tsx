@@ -74,8 +74,8 @@ export default function BoardTable({ posts, currentPage, totalPages, qsBase }: {
     <>
       {/* Bulk action bar */}
       {selected.size > 0 && (
-        <div className="mb-3 flex items-center gap-3 rounded-lg bg-red-500/10 border border-red-500/20 px-4 py-2.5">
-          <span className="text-sm text-red-400 font-medium">{selected.size}개 선택됨</span>
+        <div className="mb-3 flex items-center gap-3 rounded-lg bg-red-50 border border-red-500/20 px-4 py-2.5">
+          <span className="text-sm text-red-700 font-medium">{selected.size}개 선택됨</span>
           <button
             onClick={bulkDelete}
             disabled={isPending}
@@ -85,7 +85,7 @@ export default function BoardTable({ posts, currentPage, totalPages, qsBase }: {
           </button>
           <button
             onClick={() => setSelected(new Set())}
-            className="rounded-md border border-slate-600/40 px-3 py-1.5 text-xs text-slate-400 hover:bg-slate-800/40"
+            className="rounded-md border border-slate-300 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100"
           >
             선택 해제
           </button>
@@ -93,16 +93,16 @@ export default function BoardTable({ posts, currentPage, totalPages, qsBase }: {
       )}
 
       {/* Table */}
-      <div className="rounded-xl border border-slate-700/30 bg-[#1e293b]/80 overflow-x-auto">
+      <div className="rounded-xl border border-slate-200 bg-white overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-700/20 bg-slate-800/30 text-left">
+            <tr className="border-b border-slate-100 bg-slate-50 text-left">
               <th className="px-3 py-3 w-10">
                 <input
                   type="checkbox"
                   checked={allChecked}
                   onChange={toggleAll}
-                  className="rounded border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500/30"
+                  className="rounded border-slate-300 bg-slate-100 text-[#405189] focus:ring-[#405189]/30"
                 />
               </th>
               <th className="px-4 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">제목</th>
@@ -118,20 +118,20 @@ export default function BoardTable({ posts, currentPage, totalPages, qsBase }: {
             {posts.map((post) => (
               <tr
                 key={post.id}
-                className={`border-b border-slate-700/20 last:border-0 hover:bg-slate-800/30 ${selected.has(post.id) ? "bg-cyan-500/5" : ""}`}
+                className={`border-b border-slate-100 last:border-0 hover:bg-slate-50 ${selected.has(post.id) ? "bg-[#405189]/5" : ""}`}
               >
                 <td className="px-3 py-3">
                   <input
                     type="checkbox"
                     checked={selected.has(post.id)}
                     onChange={() => toggle(post.id)}
-                    className="rounded border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500/30"
+                    className="rounded border-slate-300 bg-slate-100 text-[#405189] focus:ring-[#405189]/30"
                   />
                 </td>
                 <td className="px-4 py-3 max-w-sm">
                   <Link
                     href={`/admin/boards/${post.id}`}
-                    className="font-medium text-slate-200 hover:text-cyan-400 transition-colors line-clamp-1"
+                    className="font-medium text-slate-800 hover:text-[#405189] transition-colors line-clamp-1"
                   >
                     {post.title || "(제목없음)"}
                   </Link>
@@ -139,19 +139,19 @@ export default function BoardTable({ posts, currentPage, totalPages, qsBase }: {
                     <span className="ml-2 text-[10px] text-slate-500 uppercase">{post.lang}</span>
                   )}
                 </td>
-                <td className="px-4 py-3 text-slate-400 text-xs whitespace-nowrap">
+                <td className="px-4 py-3 text-slate-600 text-xs whitespace-nowrap">
                   {post.siteShopId}
                 </td>
                 <td className="px-4 py-3">
                   {post.categoryName && post.categoryName !== "-" ? (
-                    <span className="inline-block rounded-full bg-slate-700/50 px-2 py-0.5 text-xs text-slate-400">
+                    <span className="inline-block rounded-full bg-slate-700/50 px-2 py-0.5 text-xs text-slate-600">
                       {post.categoryName}
                     </span>
                   ) : (
                     <span className="text-slate-600 text-xs">-</span>
                   )}
                 </td>
-                <td className="px-4 py-3 text-slate-400 text-xs whitespace-nowrap truncate max-w-[100px]">
+                <td className="px-4 py-3 text-slate-600 text-xs whitespace-nowrap truncate max-w-[100px]">
                   {post.author || "-"}
                 </td>
                 <td className="px-4 py-3 text-right text-slate-500 text-xs">
@@ -167,7 +167,7 @@ export default function BoardTable({ posts, currentPage, totalPages, qsBase }: {
             ))}
             {posts.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-6 py-8 text-center text-slate-400">
+                <td colSpan={8} className="px-6 py-8 text-center text-slate-600">
                   게시물이 없습니다.
                 </td>
               </tr>
@@ -180,7 +180,7 @@ export default function BoardTable({ posts, currentPage, totalPages, qsBase }: {
       {totalPages > 1 && (
         <div className="mt-6 flex items-center justify-center gap-2">
           {currentPage > 1 && (
-            <Link href={pageUrl(currentPage - 1)} className="rounded-lg border border-slate-600/40 px-3 py-1.5 text-sm text-slate-400 hover:bg-slate-800/40">
+            <Link href={pageUrl(currentPage - 1)} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100">
               이전
             </Link>
           )}
@@ -188,7 +188,7 @@ export default function BoardTable({ posts, currentPage, totalPages, qsBase }: {
             {currentPage} / {totalPages} 페이지
           </span>
           {currentPage < totalPages && (
-            <Link href={pageUrl(currentPage + 1)} className="rounded-lg border border-slate-600/40 px-3 py-1.5 text-sm text-slate-400 hover:bg-slate-800/40">
+            <Link href={pageUrl(currentPage + 1)} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100">
               다음
             </Link>
           )}

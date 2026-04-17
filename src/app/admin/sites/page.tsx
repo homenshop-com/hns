@@ -104,7 +104,7 @@ export default async function AdminSitesPage({
 
   return (
     <div>
-      <h1 className="text-xl font-bold text-slate-100 mb-6">Account List</h1>
+      <h1 className="text-xl font-bold text-slate-900 mb-6">Account List</h1>
 
       {/* Tabs */}
       <div className="flex gap-2 mb-6 flex-wrap">
@@ -114,8 +114,8 @@ export default async function AdminSitesPage({
             href={buildUrl({ tab: t.key, page: "1" })}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               tab === t.key
-                ? "bg-cyan-500 text-white"
-                : "bg-[#1e293b]/80 border border-slate-700/30 text-slate-400 hover:bg-slate-800/30"
+                ? "bg-[#405189] text-white"
+                : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
             }`}
           >
             {t.label} ({counts[t.key] ?? 0})
@@ -124,30 +124,30 @@ export default async function AdminSitesPage({
       </div>
 
       {/* Search */}
-      <div className="bg-[#1e293b]/80 rounded-xl border border-slate-700/30 p-6 mb-6">
+      <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6">
         <h3 className="text-sm font-semibold text-slate-500 mb-4">Search</h3>
         <form className="flex flex-wrap gap-4 items-end">
           <input type="hidden" name="tab" value={tab} />
           <div>
             <label className="block text-xs text-slate-500 mb-1">Date</label>
             <div className="flex items-center gap-2">
-              <input type="date" name="dateFrom" defaultValue={dateFrom} className="border border-slate-600/40 rounded-lg bg-slate-800/50 px-3 py-2 text-sm text-slate-200" />
-              <span className="text-slate-400">~</span>
-              <input type="date" name="dateTo" defaultValue={dateTo} className="border border-slate-600/40 rounded-lg bg-slate-800/50 px-3 py-2 text-sm text-slate-200" />
+              <input type="date" name="dateFrom" defaultValue={dateFrom} className="border border-slate-300 rounded-lg bg-white px-3 py-2 text-sm text-slate-800" />
+              <span className="text-slate-600">~</span>
+              <input type="date" name="dateTo" defaultValue={dateTo} className="border border-slate-300 rounded-lg bg-white px-3 py-2 text-sm text-slate-800" />
             </div>
           </div>
           <div>
             <label className="block text-xs text-slate-500 mb-1">Filter</label>
             <div className="flex gap-2">
-              <select name="filterBy" defaultValue={filterBy} className="border border-slate-600/40 rounded-lg bg-slate-800/50 px-3 py-2 text-sm text-slate-200">
+              <select name="filterBy" defaultValue={filterBy} className="border border-slate-300 rounded-lg bg-white px-3 py-2 text-sm text-slate-800">
                 <option value="shopId">Site ID</option>
                 <option value="email">Email</option>
                 <option value="domain">Domain</option>
               </select>
-              <input type="text" name="search" defaultValue={search} placeholder="Search keyword" className="border border-slate-600/40 rounded-lg bg-slate-800/50 px-3 py-2 text-sm text-slate-200 w-48" />
+              <input type="text" name="search" defaultValue={search} placeholder="Search keyword" className="border border-slate-300 rounded-lg bg-white px-3 py-2 text-sm text-slate-800 w-48" />
             </div>
           </div>
-          <button type="submit" className="bg-cyan-500 text-white px-6 py-2 rounded text-sm font-medium hover:bg-cyan-600">
+          <button type="submit" className="bg-[#405189] text-white px-6 py-2 rounded text-sm font-medium hover:bg-[#364574]">
             Search
           </button>
         </form>

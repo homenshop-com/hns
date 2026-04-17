@@ -72,7 +72,7 @@ export default async function AdminDashboardPage() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-xl font-bold text-slate-100">Dashboard</h1>
+        <h1 className="text-xl font-bold text-slate-900">Dashboard</h1>
         <p className="mt-1 text-sm text-slate-500">서비스 현황을 한눈에 확인하세요.</p>
       </div>
 
@@ -82,7 +82,7 @@ export default async function AdminDashboardPage() {
           <Link
             key={stat.label}
             href={stat.href}
-            className="rounded-xl bg-[#1e293b]/80 border border-slate-700/30 p-5 hover:border-slate-600/50 transition-all group"
+            className="rounded-xl bg-white border border-slate-200 p-5 hover:border-slate-300 transition-all group"
           >
             <div className="flex items-center justify-between mb-4">
               <div className={`bg-gradient-to-br ${stat.gradient} p-2 rounded-lg text-white`}>
@@ -90,23 +90,23 @@ export default async function AdminDashboardPage() {
               </div>
             </div>
             <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">{stat.label}</p>
-            <p className="mt-1 text-2xl font-bold text-slate-100">{stat.value.toLocaleString()}</p>
+            <p className="mt-1 text-2xl font-bold text-slate-900">{stat.value.toLocaleString()}</p>
           </Link>
         ))}
       </div>
 
       {/* Recent Signups */}
-      <div className="rounded-xl bg-[#1e293b]/80 border border-slate-700/30 overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-700/30 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-slate-200">최근 가입 회원</h2>
-          <Link href="/admin/members" className="text-xs font-medium text-cyan-400 hover:text-cyan-300 transition-colors">
+      <div className="rounded-xl bg-white border border-slate-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-slate-800">최근 가입 회원</h2>
+          <Link href="/admin/members" className="text-xs font-medium text-[#405189] hover:text-[#405189] transition-colors">
             전체 보기 &rarr;
           </Link>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-700/30 bg-slate-800/30">
+              <tr className="border-b border-slate-200 bg-slate-50">
                 <th className="px-6 py-3 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider">이름</th>
                 <th className="px-6 py-3 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider">이메일</th>
                 <th className="px-6 py-3 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider">역할</th>
@@ -114,15 +114,15 @@ export default async function AdminDashboardPage() {
                 <th className="px-6 py-3 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider">가입일</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-700/20">
+            <tbody className="divide-y divide-slate-100">
               {recentUsers.map((user) => (
-                <tr key={user.id} className="hover:bg-slate-800/30 transition-colors">
+                <tr key={user.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-3">
-                    <Link href={`/admin/members/${user.id}`} className="font-medium text-slate-200 hover:text-cyan-400 transition-colors">
+                    <Link href={`/admin/members/${user.id}`} className="font-medium text-slate-800 hover:text-[#405189] transition-colors">
                       {user.name || "-"}
                     </Link>
                   </td>
-                  <td className="px-6 py-3 text-slate-400">{user.email}</td>
+                  <td className="px-6 py-3 text-slate-600">{user.email}</td>
                   <td className="px-6 py-3"><RoleBadge role={user.role} /></td>
                   <td className="px-6 py-3"><StatusBadge status={user.status} /></td>
                   <td className="px-6 py-3 text-slate-500 text-xs">{user.createdAt.toLocaleDateString("ko-KR")}</td>
@@ -141,9 +141,9 @@ export default async function AdminDashboardPage() {
 
 function RoleBadge({ role }: { role: string }) {
   const s: Record<string, string> = {
-    ADMIN: "bg-cyan-500/10 text-cyan-400 ring-cyan-400/20",
-    RESELLER: "bg-violet-500/10 text-violet-400 ring-violet-400/20",
-    MEMBER: "bg-slate-500/10 text-slate-400 ring-slate-400/20",
+    ADMIN: "bg-[#405189]/10 text-[#405189] ring-[#405189]/30",
+    RESELLER: "bg-violet-50 text-violet-700 ring-violet-200",
+    MEMBER: "bg-slate-500/10 text-slate-600 ring-slate-400/20",
   };
   return (
     <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${s[role] || s.MEMBER}`}>
@@ -154,9 +154,9 @@ function RoleBadge({ role }: { role: string }) {
 
 function StatusBadge({ status }: { status: string }) {
   const s: Record<string, string> = {
-    ACTIVE: "bg-emerald-500/10 text-emerald-400 ring-emerald-400/20",
-    SUSPENDED: "bg-amber-500/10 text-amber-400 ring-amber-400/20",
-    DELETED: "bg-red-500/10 text-red-400 ring-red-400/20",
+    ACTIVE: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+    SUSPENDED: "bg-amber-50 text-amber-700 ring-amber-200",
+    DELETED: "bg-red-50 text-red-700 ring-red-200",
   };
   const labels: Record<string, string> = { ACTIVE: "활성", SUSPENDED: "정지", DELETED: "삭제" };
   return (

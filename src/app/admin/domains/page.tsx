@@ -45,7 +45,7 @@ export default async function AdminDomainsPage({
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-bold text-slate-100">도메인 관리</h1>
+        <h1 className="text-xl font-bold text-slate-900">도메인 관리</h1>
         <span className="text-sm text-slate-500">
           총 {totalCount.toLocaleString()}개
         </span>
@@ -59,18 +59,18 @@ export default async function AdminDomainsPage({
             name="search"
             defaultValue={search}
             placeholder="도메인 또는 이메일로 검색..."
-            className="flex-1 rounded-lg border border-slate-600/40 bg-slate-800/50 px-4 py-2 text-sm text-slate-200 placeholder-slate-500 focus:border-cyan-500 focus:outline-none"
+            className="flex-1 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-800 placeholder-slate-500 focus:border-[#405189] focus:outline-none"
           />
           <button
             type="submit"
-            className="rounded-lg bg-cyan-500 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-600 transition-colors"
+            className="rounded-lg bg-[#405189] px-4 py-2 text-sm font-medium text-white hover:bg-[#364574] transition-colors"
           >
             검색
           </button>
           {search && (
             <Link
               href="/admin/domains"
-              className="rounded-lg border border-slate-600/40 px-4 py-2 text-sm hover:bg-slate-100 transition-colors"
+              className="rounded-lg border border-slate-300 px-4 py-2 text-sm hover:bg-slate-100 transition-colors"
             >
               초기화
             </Link>
@@ -79,10 +79,10 @@ export default async function AdminDomainsPage({
       </form>
 
       {/* Table */}
-      <div className="rounded-xl border border-slate-700/30 bg-[#1e293b]/80 overflow-x-auto">
+      <div className="rounded-xl border border-slate-200 bg-white overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-700/20 bg-slate-800/30 text-left">
+            <tr className="border-b border-slate-100 bg-slate-50 text-left">
               <th className="px-6 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">도메인</th>
               <th className="px-6 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">소유자</th>
               <th className="px-6 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">계정명</th>
@@ -95,35 +95,35 @@ export default async function AdminDomainsPage({
             {domains.map((domain) => (
               <tr
                 key={domain.id}
-                className="border-b border-slate-700/20 last:border-0 hover:bg-slate-800/30"
+                className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
               >
                 <td className="px-6 py-3">
                   <Link
                     href={`https://${domain.domain}`} target="_blank" rel="noopener noreferrer"
-                    className="font-mono text-cyan-400 hover:text-cyan-300"
+                    className="font-mono text-[#405189] hover:text-[#405189]"
                   >
                     {domain.domain}
                   </Link>
                 </td>
                 <td className="px-6 py-3">
                   <div>{domain.user.name || "-"}</div>
-                  <div className="text-xs text-slate-400">
+                  <div className="text-xs text-slate-600">
                     {domain.user.email}
                   </div>
                 </td>
                 <td className="px-6 py-3">
-                  <Link href={`/admin/sites/${domain.site.id}`} className="text-cyan-400 hover:text-cyan-300">{domain.site.shopId || domain.site.name}</Link>
+                  <Link href={`/admin/sites/${domain.site.id}`} className="text-[#405189] hover:text-[#405189]">{domain.site.shopId || domain.site.name}</Link>
                 </td>
                 <td className="px-6 py-3">
                   <DomainStatusBadge status={domain.status} />
                 </td>
                 <td className="px-6 py-3">
                   {domain.sslEnabled ? (
-                    <span className="inline-block rounded-md px-2 py-1 text-[11px] font-medium bg-emerald-500/10 text-emerald-400 ring-1 ring-inset ring-emerald-400/20">
+                    <span className="inline-block rounded-md px-2 py-1 text-[11px] font-medium bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200">
                       활성
                     </span>
                   ) : (
-                    <span className="inline-block rounded-md px-2 py-1 text-[11px] font-medium bg-slate-500/10 text-slate-400 ring-1 ring-inset ring-slate-400/20">
+                    <span className="inline-block rounded-md px-2 py-1 text-[11px] font-medium bg-slate-500/10 text-slate-600 ring-1 ring-inset ring-slate-400/20">
                       비활성
                     </span>
                   )}
@@ -137,7 +137,7 @@ export default async function AdminDomainsPage({
               <tr>
                 <td
                   colSpan={6}
-                  className="px-6 py-8 text-center text-slate-400"
+                  className="px-6 py-8 text-center text-slate-600"
                 >
                   {search
                     ? `"${search}" 검색 결과가 없습니다.`
@@ -155,7 +155,7 @@ export default async function AdminDomainsPage({
           {page > 1 && (
             <Link
               href={`/admin/domains?page=${page - 1}${search ? `&search=${encodeURIComponent(search)}` : ""}`}
-              className="rounded-lg border border-slate-600/40 px-3 py-1.5 text-sm hover:bg-slate-100"
+              className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100"
             >
               이전
             </Link>
@@ -168,7 +168,7 @@ export default async function AdminDomainsPage({
           {page < totalPages && (
             <Link
               href={`/admin/domains?page=${page + 1}${search ? `&search=${encodeURIComponent(search)}` : ""}`}
-              className="rounded-lg border border-slate-600/40 px-3 py-1.5 text-sm hover:bg-slate-100"
+              className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100"
             >
               다음
             </Link>
@@ -182,10 +182,10 @@ export default async function AdminDomainsPage({
 function DomainStatusBadge({ status }: { status: string }) {
   const colors: Record<string, string> = {
     PENDING:
-      "bg-amber-500/10 text-amber-400",
+      "bg-amber-50 text-amber-700",
     ACTIVE:
-      "bg-emerald-500/10 text-emerald-400",
-    EXPIRED: "bg-red-500/10 text-red-400",
+      "bg-emerald-50 text-emerald-700",
+    EXPIRED: "bg-red-50 text-red-700",
   };
 
   const labels: Record<string, string> = {

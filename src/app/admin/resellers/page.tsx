@@ -37,14 +37,14 @@ export default async function AdminResellersPage({
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-bold text-slate-100">리셀러 관리</h1>
+        <h1 className="text-xl font-bold text-slate-900">리셀러 관리</h1>
         <div className="flex items-center gap-3">
           <span className="text-sm text-slate-500">
             총 {totalCount.toLocaleString()}개
           </span>
           <Link
             href="/admin/resellers/new"
-            className="rounded-lg bg-cyan-500 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-600 transition-colors"
+            className="rounded-lg bg-[#405189] px-4 py-2 text-sm font-medium text-white hover:bg-[#364574] transition-colors"
           >
             리셀러 추가
           </Link>
@@ -59,18 +59,18 @@ export default async function AdminResellersPage({
             name="search"
             defaultValue={search}
             placeholder="도메인 또는 사이트명으로 검색..."
-            className="flex-1 rounded-lg border border-slate-600/40 bg-slate-800/50 px-4 py-2 text-sm text-slate-200 placeholder-slate-500 focus:border-cyan-500 focus:outline-none"
+            className="flex-1 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-800 placeholder-slate-500 focus:border-[#405189] focus:outline-none"
           />
           <button
             type="submit"
-            className="rounded-lg bg-cyan-500 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-600 transition-colors"
+            className="rounded-lg bg-[#405189] px-4 py-2 text-sm font-medium text-white hover:bg-[#364574] transition-colors"
           >
             검색
           </button>
           {search && (
             <Link
               href="/admin/resellers"
-              className="rounded-lg border border-slate-600/40 px-4 py-2 text-sm hover:bg-slate-100 transition-colors"
+              className="rounded-lg border border-slate-300 px-4 py-2 text-sm hover:bg-slate-100 transition-colors"
             >
               초기화
             </Link>
@@ -79,10 +79,10 @@ export default async function AdminResellersPage({
       </form>
 
       {/* Table */}
-      <div className="rounded-xl border border-slate-700/30 bg-[#1e293b]/80 overflow-x-auto">
+      <div className="rounded-xl border border-slate-200 bg-white overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-700/20 bg-slate-800/30 text-left">
+            <tr className="border-b border-slate-100 bg-slate-50 text-left">
               <th className="px-6 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">도메인</th>
               <th className="px-6 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">사이트명</th>
               <th className="px-6 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">로고</th>
@@ -96,17 +96,17 @@ export default async function AdminResellersPage({
             {resellers.map((reseller) => (
               <tr
                 key={reseller.id}
-                className="border-b border-slate-700/20 last:border-0 hover:bg-slate-800/30"
+                className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
               >
                 <td className="px-6 py-3">
                   <Link
                     href={`/admin/resellers/${reseller.id}`}
-                    className="font-mono text-cyan-400 hover:text-cyan-300"
+                    className="font-mono text-[#405189] hover:text-[#405189]"
                   >
                     {reseller.domain}
                   </Link>
                 </td>
-                <td className="px-6 py-3 text-slate-400">
+                <td className="px-6 py-3 text-slate-600">
                   {reseller.siteName}
                 </td>
                 <td className="px-6 py-3 text-slate-500 text-xs truncate max-w-[200px]">
@@ -132,7 +132,7 @@ export default async function AdminResellersPage({
               <tr>
                 <td
                   colSpan={5}
-                  className="px-6 py-8 text-center text-slate-400"
+                  className="px-6 py-8 text-center text-slate-600"
                 >
                   {search
                     ? `"${search}" 검색 결과가 없습니다.`
@@ -150,7 +150,7 @@ export default async function AdminResellersPage({
           {page > 1 && (
             <Link
               href={`/admin/resellers?page=${page - 1}${search ? `&search=${encodeURIComponent(search)}` : ""}`}
-              className="rounded-lg border border-slate-600/40 px-3 py-1.5 text-sm hover:bg-slate-100"
+              className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100"
             >
               이전
             </Link>
@@ -163,7 +163,7 @@ export default async function AdminResellersPage({
           {page < totalPages && (
             <Link
               href={`/admin/resellers?page=${page + 1}${search ? `&search=${encodeURIComponent(search)}` : ""}`}
-              className="rounded-lg border border-slate-600/40 px-3 py-1.5 text-sm hover:bg-slate-100"
+              className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100"
             >
               다음
             </Link>

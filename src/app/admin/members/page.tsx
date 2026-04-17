@@ -53,7 +53,7 @@ export default async function AdminMembersPage({
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-bold text-slate-100">회원 관리</h1>
+        <h1 className="text-xl font-bold text-slate-900">회원 관리</h1>
         <span className="text-sm text-slate-500">
           총 {totalCount.toLocaleString()}명
         </span>
@@ -67,18 +67,18 @@ export default async function AdminMembersPage({
             name="search"
             defaultValue={search}
             placeholder="이메일 또는 이름으로 검색..."
-            className="flex-1 rounded-lg border border-slate-600/40 bg-slate-800/50 px-4 py-2 text-sm text-slate-200 placeholder-slate-500 focus:border-cyan-500 focus:outline-none"
+            className="flex-1 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-800 placeholder-slate-500 focus:border-[#405189] focus:outline-none"
           />
           <button
             type="submit"
-            className="rounded-lg bg-cyan-500 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-600 transition-colors"
+            className="rounded-lg bg-[#405189] px-4 py-2 text-sm font-medium text-white hover:bg-[#364574] transition-colors"
           >
             검색
           </button>
           {search && (
             <Link
               href="/admin/members"
-              className="rounded-lg border border-slate-600/40 px-4 py-2 text-sm hover:bg-slate-100 transition-colors"
+              className="rounded-lg border border-slate-300 px-4 py-2 text-sm hover:bg-slate-100 transition-colors"
             >
               초기화
             </Link>
@@ -95,7 +95,7 @@ export default async function AdminMembersPage({
           {page > 1 && (
             <Link
               href={`/admin/members?page=${page - 1}${search ? `&search=${encodeURIComponent(search)}` : ""}`}
-              className="rounded-lg border border-slate-600/40 px-3 py-1.5 text-sm hover:bg-slate-100"
+              className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100"
             >
               이전
             </Link>
@@ -108,7 +108,7 @@ export default async function AdminMembersPage({
           {page < totalPages && (
             <Link
               href={`/admin/members?page=${page + 1}${search ? `&search=${encodeURIComponent(search)}` : ""}`}
-              className="rounded-lg border border-slate-600/40 px-3 py-1.5 text-sm hover:bg-slate-100"
+              className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100"
             >
               다음
             </Link>

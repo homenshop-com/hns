@@ -30,11 +30,11 @@ export default async function AdminBoardPostPage({
         <div className="flex items-center gap-3">
           <Link
             href="/admin/boards"
-            className="text-sm text-slate-500 hover:text-cyan-400 transition-colors"
+            className="text-sm text-slate-500 hover:text-[#405189] transition-colors"
           >
             &larr; 목록
           </Link>
-          <h1 className="text-xl font-bold text-slate-100">게시물 상세</h1>
+          <h1 className="text-xl font-bold text-slate-900">게시물 상세</h1>
         </div>
         <div className="flex items-center gap-2 text-xs text-slate-500">
           <span>{post.site?.shopId}</span>
