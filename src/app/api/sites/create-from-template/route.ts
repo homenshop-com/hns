@@ -83,6 +83,7 @@ export async function POST(request: Request) {
     slug: string;
     title: string;
     content: unknown;
+    css?: string | null;
     lang?: string;
     sortOrder?: number;
     isHome?: boolean;
@@ -103,6 +104,7 @@ export async function POST(request: Request) {
       showInMenu: p.showInMenu ?? true,
       sortOrder: p.sortOrder ?? index,
       content: (p.content ?? { html: "" }) as Prisma.InputJsonValue,
+      css: p.css ?? null,
     }));
   } else {
     const templatePages = parseTemplatePages(template.path);

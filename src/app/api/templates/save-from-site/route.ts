@@ -57,6 +57,7 @@ export async function POST(request: NextRequest) {
           slug: true,
           title: true,
           content: true,
+          css: true,
           lang: true,
           sortOrder: true,
           isHome: true,
@@ -69,6 +70,42 @@ export async function POST(request: NextRequest) {
   if (!site || site.userId !== session.user.id) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+
+  /**
+   * CSS `url(hero-bg.png)` etc. are stored as bare filenames in Site.cssText.
+   * The published renderer and editor both resolve those at display time
+   * against the site's own `templatePath` (e.g. `/tpl/personal/.../files/`).
+   *
+   * When we snapshot into a new Template, the resulting sites get a
+   * different templatePath (`user-templates/...`) where those assets don't
+   * exist — background images silently break.
+   *
+   * Fix: bake the ORIGINAL templatePath into the CSS so snapshotted copies
+   * continue to point at the source template's assets.
+   */
+  function assetBase(tplPath: string | null): string | null {
+    if (!tplPath) return null;
+    if (tplPath.startsWith("user-templates/")) {
+      const tplId = tplPath.slice("user-templates/".length);
+      return `/uploads/templates/${tplId}/files`;
+    }
+    return `/tpl/${tplPath}/files`;
+  }
+
+  function rewriteCssUrls(css: string | null, base: string | null): string | null {
+    if (!css || !base) return css ?? null;
+    return css.replace(
+      /url\(\s*['"]?(?!\/|https?:|data:)([^'")]+?)['"]?\s*\)/g,
+      (_, filename: string) => `url(${base}/${filename})`
+    );
+  }
+
+  const base = assetBase(site.templatePath);
+  const frozenCss = rewriteCssUrls(site.cssText, base);
+  const frozenPages = site.pages.map((p) => ({
+    ...p,
+    css: rewriteCssUrls(p.css, base),
+  }));
 
   // Generate unique template path (owner-scoped)
   const tplPath = `user-templates/u_${session.user.id}_${Date.now()}`;
@@ -84,8 +121,8 @@ export async function POST(request: NextRequest) {
       headerHtml: site.headerHtml ?? null,
       menuHtml: site.menuHtml ?? null,
       footerHtml: site.footerHtml ?? null,
-      cssText: site.cssText ?? null,
-      pagesSnapshot: site.pages as unknown as object,
+      cssText: frozenCss ?? null,
+      pagesSnapshot: frozenPages as unknown as object,
       isPublic: false,
       isActive: true,
     },
