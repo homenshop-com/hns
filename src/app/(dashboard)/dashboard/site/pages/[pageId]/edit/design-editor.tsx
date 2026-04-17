@@ -88,6 +88,64 @@ export default function DesignEditor({
   const [tiptapTarget, setTiptapTarget] = useState<{ elId: string; html: string } | null>(null);
   const tiptapElRef = useRef<HTMLElement | null>(null);
 
+  // "⋯" dropdown menu next to the publish button, + save-as-template modal
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const [showSaveTplModal, setShowSaveTplModal] = useState(false);
+  const [saveTplName, setSaveTplName] = useState("");
+  const [saveTplDesc, setSaveTplDesc] = useState("");
+  const [saveTplThumb, setSaveTplThumb] = useState("");
+  const [saveTplBusy, setSaveTplBusy] = useState(false);
+  const [saveTplError, setSaveTplError] = useState("");
+  const moreMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close the "⋯" menu on any outside click.
+  useEffect(() => {
+    if (!moreMenuOpen) return;
+    function onDocClick(e: MouseEvent) {
+      if (!moreMenuRef.current) return;
+      if (!moreMenuRef.current.contains(e.target as Node)) setMoreMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [moreMenuOpen]);
+
+  async function submitSaveAsTemplate(e: React.FormEvent) {
+    e.preventDefault();
+    if (!saveTplName.trim()) {
+      setSaveTplError("템플릿 이름을 입력해 주세요.");
+      return;
+    }
+    setSaveTplBusy(true);
+    setSaveTplError("");
+    try {
+      const res = await fetch("/api/templates/save-from-site", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          siteId,
+          name: saveTplName.trim(),
+          description: saveTplDesc.trim() || undefined,
+          thumbnailUrl: saveTplThumb.trim() || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setSaveTplError(err.error || `저장 실패 (${res.status})`);
+        setSaveTplBusy(false);
+        return;
+      }
+      setSaveTplBusy(false);
+      setShowSaveTplModal(false);
+      setSaveTplName("");
+      setSaveTplDesc("");
+      setSaveTplThumb("");
+      alert("나의 템플릿으로 저장되었습니다.\n대시보드 > 템플릿 > 내 템플릿 탭에서 확인하세요.");
+    } catch (err) {
+      setSaveTplError(String(err));
+      setSaveTplBusy(false);
+    }
+  }
+
   // Header/Menu/Footer settings
   const [menuMode, setMenuMode] = useState<"auto" | "custom">("auto");
   const [logoUrl, setLogoUrl] = useState("");
@@ -1310,8 +1368,190 @@ export default function DesignEditor({
           >
             {publishing ? "퍼블리싱중..." : "퍼블리싱"}
           </button>
+          {/* Overflow menu — save-as-template etc. */}
+          <div ref={moreMenuRef} style={{ position: "relative" }}>
+            <button
+              type="button"
+              onClick={() => setMoreMenuOpen((v) => !v)}
+              title="더보기"
+              aria-label="더보기"
+              aria-haspopup="menu"
+              aria-expanded={moreMenuOpen}
+              style={{
+                width: 32,
+                height: 32,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                marginLeft: 4,
+                background: moreMenuOpen ? "rgba(255,255,255,0.12)" : "transparent",
+                color: "#fff",
+                border: "1px solid rgba(255,255,255,0.2)",
+                borderRadius: 6,
+                cursor: "pointer",
+                fontSize: 18,
+                lineHeight: 1,
+              }}
+            >
+              {/* Horizontal 3-dot icon */}
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                <circle cx="3" cy="8" r="1.5" />
+                <circle cx="8" cy="8" r="1.5" />
+                <circle cx="13" cy="8" r="1.5" />
+              </svg>
+            </button>
+            {moreMenuOpen && (
+              <div
+                role="menu"
+                style={{
+                  position: "absolute",
+                  top: "calc(100% + 6px)",
+                  right: 0,
+                  minWidth: 220,
+                  background: "#fff",
+                  color: "#1f2937",
+                  borderRadius: 8,
+                  boxShadow: "0 12px 28px rgba(0,0,0,0.18)",
+                  border: "1px solid #e5e7eb",
+                  padding: "6px 0",
+                  zIndex: 1000,
+                }}
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMoreMenuOpen(false);
+                    setSaveTplName(siteName || "");
+                    setSaveTplError("");
+                    setShowSaveTplModal(true);
+                  }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    width: "100%",
+                    padding: "8px 14px",
+                    fontSize: 13,
+                    color: "#1f2937",
+                    background: "transparent",
+                    border: "none",
+                    textAlign: "left",
+                    cursor: "pointer",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "#f3f4f6")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                  </svg>
+                  <span>나의 템플릿으로 저장</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
+
+      {/* Save-as-template modal */}
+      {showSaveTplModal && (
+        <div
+          onClick={() => { if (!saveTplBusy) setShowSaveTplModal(false); }}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.55)",
+            zIndex: 9999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+        >
+          <form
+            onClick={(e) => e.stopPropagation()}
+            onSubmit={submitSaveAsTemplate}
+            style={{
+              background: "#fff",
+              borderRadius: 10,
+              width: "100%",
+              maxWidth: 480,
+              padding: 24,
+              boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
+              color: "#1f2937",
+            }}
+          >
+            <h3 style={{ margin: 0, marginBottom: 6, fontSize: 18, fontWeight: 700 }}>
+              나의 템플릿으로 저장
+            </h3>
+            <p style={{ margin: 0, marginBottom: 18, fontSize: 13, color: "#6b7280", lineHeight: 1.5 }}>
+              현재 사이트의 헤더/메뉴/푸터/CSS 및 모든 페이지를 스냅샷하여 개인 템플릿으로 저장합니다. 공개 전환은 템플릿 목록에서 가능합니다.
+            </p>
+            {saveTplError && (
+              <div style={{ background: "#fef2f2", color: "#991b1b", padding: "8px 12px", borderRadius: 6, fontSize: 13, marginBottom: 12 }}>
+                {saveTplError}
+              </div>
+            )}
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
+                템플릿 이름 <span style={{ color: "#e03131" }}>*</span>
+              </label>
+              <input
+                type="text"
+                value={saveTplName}
+                onChange={(e) => setSaveTplName(e.target.value)}
+                maxLength={100}
+                required
+                autoFocus
+                placeholder="예: 내 쇼핑몰 템플릿 v1"
+                style={{ width: "100%", padding: "8px 12px", fontSize: 14, border: "1px solid #d1d5db", borderRadius: 6, boxSizing: "border-box" }}
+              />
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
+                설명 (선택)
+              </label>
+              <textarea
+                value={saveTplDesc}
+                onChange={(e) => setSaveTplDesc(e.target.value)}
+                rows={3}
+                maxLength={500}
+                placeholder="이 템플릿에 대한 간단한 설명"
+                style={{ width: "100%", padding: "8px 12px", fontSize: 14, border: "1px solid #d1d5db", borderRadius: 6, boxSizing: "border-box", resize: "vertical" }}
+              />
+            </div>
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
+                썸네일 URL (선택)
+              </label>
+              <input
+                type="url"
+                value={saveTplThumb}
+                onChange={(e) => setSaveTplThumb(e.target.value)}
+                placeholder="https://..."
+                style={{ width: "100%", padding: "8px 12px", fontSize: 14, border: "1px solid #d1d5db", borderRadius: 6, boxSizing: "border-box" }}
+              />
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <button
+                type="button"
+                onClick={() => setShowSaveTplModal(false)}
+                disabled={saveTplBusy}
+                style={{ padding: "8px 16px", fontSize: 13, fontWeight: 600, background: "#fff", color: "#374151", border: "1px solid #d1d5db", borderRadius: 6, cursor: saveTplBusy ? "default" : "pointer" }}
+              >
+                취소
+              </button>
+              <button
+                type="submit"
+                disabled={saveTplBusy}
+                style={{ padding: "8px 18px", fontSize: 13, fontWeight: 600, background: saveTplBusy ? "#9ca3af" : "#228be6", color: "#fff", border: "none", borderRadius: 6, cursor: saveTplBusy ? "default" : "pointer" }}
+              >
+                {saveTplBusy ? "저장 중..." : "저장"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* SUB TOOLBAR */}
       <div className="de-subtoolbar">

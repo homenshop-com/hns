@@ -7,7 +7,6 @@ import SignOutButton from "../sign-out-button";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import TemplateGallery from "./template-gallery";
 import PageListWithLang from "./page-list-with-lang";
-import SaveAsTemplateButton from "./save-as-template-button";
 
 export default async function SitePage() {
   const session = await auth();
@@ -101,7 +100,6 @@ export default async function SitePage() {
                 <Link href="/dashboard/site/settings" className="dash-manage-btn">
                   {t("cards.settings")}
                 </Link>
-                <SaveAsTemplateButton siteId={site.id} />
               </div>
             </div>
 
