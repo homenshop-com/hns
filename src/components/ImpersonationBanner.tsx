@@ -1,30 +1,41 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { signOut } from "next-auth/react";
 
+/**
+ * Shown on customer dashboards when an admin is impersonating them via the
+ * master-password flow. The signal is a localStorage flag set by the admin
+ * panel's "Login" button (src/app/admin/sites/sites-table.tsx).
+ *
+ * "관리자로 돌아가기" signs the current (customer) session out and returns
+ * to /login. Because the admin's real session was never replaced in the
+ * original admin tab (master password login happens in a new tab with its
+ * own form submit), the admin typically still has a live session there and
+ * can keep working. This button only cleans up the new tab.
+ */
 export default function ImpersonationBanner() {
   const [impersonating, setImpersonating] = useState("");
 
   useEffect(() => {
-    const match = document.cookie.match(/(?:^|; )impersonating=([^;]+)/);
-    if (match) setImpersonating(decodeURIComponent(match[1]));
+    try {
+      const val = localStorage.getItem("impersonating");
+      if (val) setImpersonating(val);
+    } catch {
+      /* ignore storage errors */
+    }
   }, []);
 
   if (!impersonating) return null;
 
   async function returnToAdmin() {
     try {
-      const res = await fetch("/api/admin/impersonate", { method: "DELETE" });
-      if (res.ok) {
-        const data = await res.json();
-        window.location.href = data.redirectUrl || "/admin/sites";
-      } else {
-        const err = await res.json().catch(() => ({}));
-        alert(`관리자 세션 복원 실패: ${err.error || res.status}`);
-      }
-    } catch (e) {
-      alert(`관리자 세션 복원 실패: ${String(e)}`);
+      localStorage.removeItem("impersonating");
+    } catch {
+      /* ignore */
     }
+    await signOut({ redirect: false });
+    window.location.href = "/login";
   }
 
   return (

@@ -191,24 +191,21 @@ export default function SitesTable({
                       View
                     </Link>
                     <button
-                      onClick={async () => {
-                        if (!confirm(`${site.email} 계정으로 전환합니다.\n현재 관리자 세션은 백업되며, "관리자로 돌아가기" 버튼으로 복원됩니다.`)) return;
+                      onClick={() => {
+                        // Mark impersonation for the banner to pick up, then
+                        // open /login in a new tab — the login page will
+                        // fetch the master password from /api/admin/master-password
+                        // (admin session only) and auto-fill.
                         try {
-                          const res = await fetch("/api/admin/impersonate", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ userId: site.userId }),
-                          });
-                          if (res.ok) {
-                            const data = await res.json();
-                            window.location.href = data.redirectUrl || "/dashboard";
-                          } else {
-                            const err = await res.json().catch(() => ({}));
-                            alert(`가장 로그인 실패: ${err.error || res.status}`);
-                          }
-                        } catch (e) {
-                          alert(`가장 로그인 실패: ${String(e)}`);
+                          localStorage.setItem("impersonating", site.email);
+                        } catch {
+                          /* ignore storage errors (e.g. Safari private mode) */
                         }
+                        window.open(
+                          `/login?email=${encodeURIComponent(site.email)}`,
+                          "_blank",
+                          "noopener"
+                        );
                       }}
                       className="bg-amber-500 text-white px-3 py-1 rounded text-xs font-medium hover:bg-amber-600 ml-1"
                     >

@@ -7,8 +7,6 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 
-const MASTER_PW = "masterHNS2026!";
-
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -18,16 +16,35 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const t = useTranslations("auth.login");
 
-  // Pre-fill email from URL params (impersonation or post-registration)
+  // Pre-fill email from URL params (impersonation or post-registration).
+  // For impersonation flow, fetch the master password from an admin-only
+  // endpoint rather than hardcoding. Non-admin sessions (or no session)
+  // get a 401/403 and simply leave the password field blank — the admin
+  // can still type it manually on another browser.
   useEffect(() => {
     const paramEmail = searchParams.get("email");
-    if (paramEmail) {
-      setEmail(paramEmail);
-      // Only set master password for admin impersonation (no registered flag)
-      if (!searchParams.get("registered")) {
-        setPassword(MASTER_PW);
+    if (!paramEmail) return;
+    setEmail(paramEmail);
+    if (searchParams.get("registered")) return; // post-register, not impersonation
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/admin/master-password", {
+          credentials: "include",
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as { masterPassword?: string };
+        if (!cancelled && data.masterPassword) {
+          setPassword(data.masterPassword);
+        }
+      } catch {
+        /* network failure — leave password blank, admin types manually */
       }
-    }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [searchParams]);
 
   async function doLogin(loginEmail: string, loginPassword: string) {
