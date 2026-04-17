@@ -1342,11 +1342,19 @@ export default function DesignEditor({
               위치
             </button>
             <button
-              className={`de-tab ${activeTab === "ai" ? "active" : ""}`}
+              className={`de-tab de-tab-ai ${activeTab === "ai" ? "active" : ""}`}
               onClick={() => setActiveTab("ai")}
-              style={activeTab === "ai" ? { color: "#a78bfa", borderBottomColor: "#a78bfa" } : {}}
+              title="AI 어시스턴트로 페이지 편집"
             >
-              AI
+              <svg
+                className="sparkle"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                aria-hidden="true"
+              >
+                <path d="M12 0l2.4 9.1L24 12l-9.6 2.9L12 24l-2.4-9.1L0 12l9.6-2.9L12 0z" />
+              </svg>
+              <span className="ai-label">AI</span>
             </button>
           </nav>
         </div>
