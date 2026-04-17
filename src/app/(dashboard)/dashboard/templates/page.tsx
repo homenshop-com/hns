@@ -124,6 +124,7 @@ export default async function TemplatesPage({
             thumbnailUrl: t.thumbnailUrl,
             category: t.category,
             price: t.price,
+            isPublic: t.isPublic,
           }))}
           totalCount={templates.length}
           currentSort={sort}

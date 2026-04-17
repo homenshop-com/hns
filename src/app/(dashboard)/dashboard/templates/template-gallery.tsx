@@ -11,6 +11,7 @@ interface TemplateItem {
   thumbnailUrl: string | null;
   category: string | null;
   price: number;
+  isPublic?: boolean;
 }
 
 interface TemplateGalleryProps {
@@ -295,6 +296,30 @@ export default function TemplateGallery({
     }
   }
 
+  async function handleToggleVisibility(id: string, nextPublic: boolean) {
+    const msg = nextPublic
+      ? "이 템플릿을 공개 템플릿으로 전환하시겠습니까?\n다른 사용자도 이 템플릿으로 사이트를 만들 수 있게 됩니다."
+      : "이 템플릿을 비공개로 되돌리시겠습니까?";
+    if (!confirm(msg)) return;
+    try {
+      const res = await fetch(`/api/templates/my/${id}/visibility`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isPublic: nextPublic }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(`변경 실패: ${err.error || res.status}`);
+        return;
+      }
+      setMyTemplates((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, isPublic: nextPublic } : t))
+      );
+    } catch (e) {
+      alert(`변경 실패: ${String(e)}`);
+    }
+  }
+
   const languages = [
     { code: "ko", label: labels.langKo },
     { code: "en", label: labels.langEn },
@@ -503,19 +528,31 @@ export default function TemplateGallery({
                         <span style={{ fontSize: 32 }}>📄</span>
                       </div>
                     )}
-                    <span className="tpl-badge" style={{ background: "#228be6" }}>
-                      MY
+                    <span className="tpl-badge" style={{ background: tpl.isPublic ? "#12b886" : "#228be6" }}>
+                      {tpl.isPublic ? "PUBLIC" : "MY"}
                     </span>
                   </div>
                   <div className="tpl-card-body">
                     <span className="tpl-card-name">{tpl.name}</span>
                   </div>
-                  <div className="tpl-card-footer" style={{ display: "flex", gap: 8 }}>
+                  <div className="tpl-card-footer" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                     <button
                       className="tpl-select-btn"
                       onClick={() => openPreview(tpl)}
                     >
                       [{labels.selectTemplate}]
+                    </button>
+                    <button
+                      className="tpl-delete-btn"
+                      onClick={() => handleToggleVisibility(tpl.id, !tpl.isPublic)}
+                      style={{
+                        background: tpl.isPublic ? "#fff0f0" : "#e7f5ff",
+                        color: tpl.isPublic ? "#c92a2a" : "#1971c2",
+                        border: `1px solid ${tpl.isPublic ? "#ffc9c9" : "#a5d8ff"}`,
+                      }}
+                      title={tpl.isPublic ? "비공개로 되돌리기" : "공개 템플릿으로 전환"}
+                    >
+                      {tpl.isPublic ? "비공개로" : "공개로 전환"}
                     </button>
                     <button
                       className="tpl-delete-btn"

@@ -323,6 +323,12 @@ model Template {
   menuHtml     String?  @db.Text
   footerHtml   String?  @db.Text
   cssText      String?  @db.Text
+  /// Snapshot of Page rows at save time (array of {slug,title,content,lang,sortOrder,isHome,showInMenu}).
+  /// Takes precedence over disk-based parsing when present.
+  pagesSnapshot Json?
+  /// false = private to owner ("나의 템플릿"), true = visible to everyone ("공개 템플릿").
+  /// Public templates with a userId are user-contributed; null userId is system-authored.
+  isPublic     Boolean  @default(false)
   isActive     Boolean  @default(true)
   clicks       Int      @default(0)
   sortOrder    Int      @default(0)
@@ -334,6 +340,7 @@ model Template {
   @@index([userId])
   @@index([category])
   @@index([isActive])
+  @@index([isPublic])
 }
 
 // ============================================

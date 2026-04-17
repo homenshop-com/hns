@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { Prisma } from "@/generated/prisma/client";
 import {
   parseTemplatePages,
   readTemplateCss,
@@ -74,21 +75,49 @@ export async function POST(request: Request) {
   // Custom template (userId present) — CSS/HMF already in DB
   // Public template — read from disk
   const isCustom = !!template.userId;
-  const templatePages = parseTemplatePages(template.path);
   const templateCss = isCustom ? (template.cssText || "") : readTemplateCss(template.path);
 
-  // Build page creation data from parsed template HTML
-  const pageData = templatePages.map((page, index) => {
-    const bodyHtml = rewriteAssetUrls(page.bodyHtml, template.path);
-    return {
-      title: page.title,
-      slug: page.slug,
-      isHome: page.slug === "index",
-      showInMenu: page.showInMenu !== false,
-      sortOrder: index,
-      content: { html: bodyHtml },
-    };
-  });
+  // Prefer pagesSnapshot (DB snapshot of another site) when present; fall
+  // back to disk-based template parsing for legacy / system templates.
+  type SnapshotPage = {
+    slug: string;
+    title: string;
+    content: unknown;
+    lang?: string;
+    sortOrder?: number;
+    isHome?: boolean;
+    showInMenu?: boolean;
+  };
+  const snapshot = Array.isArray(template.pagesSnapshot)
+    ? (template.pagesSnapshot as unknown as SnapshotPage[])
+    : null;
+
+  let pageData: Prisma.PageCreateWithoutSiteInput[];
+
+  if (snapshot && snapshot.length > 0) {
+    pageData = snapshot.map((p, index) => ({
+      title: p.title,
+      slug: p.slug,
+      lang: p.lang ?? defaultLanguage ?? "ko",
+      isHome: p.isHome ?? p.slug === "index",
+      showInMenu: p.showInMenu ?? true,
+      sortOrder: p.sortOrder ?? index,
+      content: (p.content ?? { html: "" }) as Prisma.InputJsonValue,
+    }));
+  } else {
+    const templatePages = parseTemplatePages(template.path);
+    pageData = templatePages.map((page, index) => {
+      const bodyHtml = rewriteAssetUrls(page.bodyHtml, template.path);
+      return {
+        title: page.title,
+        slug: page.slug,
+        isHome: page.slug === "index",
+        showInMenu: page.showInMenu !== false,
+        sortOrder: index,
+        content: { html: bodyHtml } as Prisma.InputJsonValue,
+      };
+    });
+  }
 
   // Create site with template content
   const site = await prisma.site.create({
