@@ -106,6 +106,97 @@ export default function TemplateGallery({
   const cssRef = useRef<HTMLInputElement>(null);
   const assetRef = useRef<HTMLInputElement>(null);
 
+  // Edit-modal state (rename + re-upload thumbnail for an owner's template)
+  const [editTarget, setEditTarget] = useState<TemplateItem | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editBusy, setEditBusy] = useState(false);
+  const [editThumbUploading, setEditThumbUploading] = useState(false);
+  const [editError, setEditError] = useState("");
+  const editThumbRef = useRef<HTMLInputElement>(null);
+
+  function openEditModal(tpl: TemplateItem) {
+    setEditTarget(tpl);
+    setEditName(tpl.name);
+    setEditError("");
+  }
+  function closeEditModal() {
+    if (editBusy || editThumbUploading) return;
+    setEditTarget(null);
+    setEditError("");
+  }
+
+  async function handleEditThumbnail(e: React.ChangeEvent<HTMLInputElement>) {
+    if (!editTarget) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setEditThumbUploading(true);
+    setEditError("");
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch(`/api/templates/my/${editTarget.id}/thumbnail`, {
+        method: "POST",
+        body: fd,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setEditError(err.error || `업로드 실패 (${res.status})`);
+        return;
+      }
+      const data = await res.json();
+      const newUrl: string = data.thumbnailUrl;
+      // Update both the open modal's target and the list
+      setEditTarget({ ...editTarget, thumbnailUrl: newUrl });
+      setMyTemplates((prev) =>
+        prev.map((t) => (t.id === editTarget.id ? { ...t, thumbnailUrl: newUrl } : t))
+      );
+    } catch (err) {
+      setEditError(String(err));
+    } finally {
+      setEditThumbUploading(false);
+      if (editThumbRef.current) editThumbRef.current.value = "";
+    }
+  }
+
+  async function submitEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editTarget) return;
+    if (!editName.trim()) {
+      setEditError("이름을 입력해 주세요.");
+      return;
+    }
+    if (editName.trim() === editTarget.name) {
+      // Nothing to send (thumbnail already saved on upload)
+      setEditTarget(null);
+      return;
+    }
+    setEditBusy(true);
+    setEditError("");
+    try {
+      const res = await fetch(`/api/templates/my/${editTarget.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: editName.trim() }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setEditError(err.error || `저장 실패 (${res.status})`);
+        setEditBusy(false);
+        return;
+      }
+      const data = await res.json();
+      const newName: string = data.template.name;
+      setMyTemplates((prev) =>
+        prev.map((t) => (t.id === editTarget.id ? { ...t, name: newName } : t))
+      );
+      setEditBusy(false);
+      setEditTarget(null);
+    } catch (err) {
+      setEditError(String(err));
+      setEditBusy(false);
+    }
+  }
+
   function handleSortChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const sort = e.target.value;
     const params = new URLSearchParams();
@@ -544,6 +635,18 @@ export default function TemplateGallery({
                     </button>
                     <button
                       className="tpl-delete-btn"
+                      onClick={() => openEditModal(tpl)}
+                      style={{
+                        background: "#f1f3f5",
+                        color: "#495057",
+                        border: "1px solid #dee2e6",
+                      }}
+                      title="이름 수정 / 썸네일 교체"
+                    >
+                      수정
+                    </button>
+                    <button
+                      className="tpl-delete-btn"
                       onClick={() => handleToggleVisibility(tpl.id, !tpl.isPublic)}
                       style={{
                         background: tpl.isPublic ? "#fff0f0" : "#e7f5ff",
@@ -731,6 +834,160 @@ export default function TemplateGallery({
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* EDIT MODAL (name + thumbnail for owner's templates) */}
+      {editTarget && (
+        <div
+          onClick={closeEditModal}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.55)",
+            zIndex: 9999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+        >
+          <form
+            onClick={(e) => e.stopPropagation()}
+            onSubmit={submitEdit}
+            style={{
+              background: "#fff",
+              borderRadius: 10,
+              width: "100%",
+              maxWidth: 520,
+              padding: 24,
+              boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
+              color: "#1f2937",
+            }}
+          >
+            <h3 style={{ margin: 0, marginBottom: 6, fontSize: 18, fontWeight: 700 }}>
+              템플릿 수정
+            </h3>
+            <p style={{ margin: 0, marginBottom: 18, fontSize: 13, color: "#6b7280" }}>
+              이름과 썸네일을 변경할 수 있습니다. 썸네일 업로드는 즉시 반영됩니다.
+            </p>
+
+            {editError && (
+              <div style={{ background: "#fef2f2", color: "#991b1b", padding: "8px 12px", borderRadius: 6, fontSize: 13, marginBottom: 12 }}>
+                {editError}
+              </div>
+            )}
+
+            {/* Thumbnail preview + upload */}
+            <div style={{ marginBottom: 18, display: "flex", gap: 14, alignItems: "flex-start" }}>
+              <div
+                style={{
+                  width: 160,
+                  height: 100,
+                  borderRadius: 8,
+                  border: "1px solid #e5e7eb",
+                  background: "#f3f4f6",
+                  overflow: "hidden",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
+                {editTarget.thumbnailUrl ? (
+                  <Image
+                    src={editTarget.thumbnailUrl}
+                    alt={editTarget.name}
+                    width={160}
+                    height={100}
+                    unoptimized
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  />
+                ) : (
+                  <span style={{ color: "#9ca3af", fontSize: 24 }}>📄</span>
+                )}
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
+                  썸네일
+                </label>
+                <input
+                  ref={editThumbRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  onChange={handleEditThumbnail}
+                  disabled={editThumbUploading}
+                  style={{ fontSize: 13 }}
+                />
+                <p style={{ margin: "6px 0 0", fontSize: 11, color: "#9ca3af" }}>
+                  PNG/JPG/WEBP/GIF · 최대 10MB · 중간 크기(450px)로 저장됩니다.
+                </p>
+                {editThumbUploading && (
+                  <p style={{ margin: "6px 0 0", fontSize: 12, color: "#1971c2" }}>
+                    업로드 중...
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
+                템플릿 이름 <span style={{ color: "#e03131" }}>*</span>
+              </label>
+              <input
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                maxLength={100}
+                required
+                autoFocus
+                style={{
+                  width: "100%",
+                  padding: "8px 12px",
+                  fontSize: 14,
+                  border: "1px solid #d1d5db",
+                  borderRadius: 6,
+                  boxSizing: "border-box",
+                }}
+              />
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <button
+                type="button"
+                onClick={closeEditModal}
+                disabled={editBusy || editThumbUploading}
+                style={{
+                  padding: "8px 16px",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  background: "#fff",
+                  color: "#374151",
+                  border: "1px solid #d1d5db",
+                  borderRadius: 6,
+                  cursor: editBusy || editThumbUploading ? "default" : "pointer",
+                }}
+              >
+                취소
+              </button>
+              <button
+                type="submit"
+                disabled={editBusy || editThumbUploading}
+                style={{
+                  padding: "8px 18px",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  background: editBusy ? "#9ca3af" : "#228be6",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 6,
+                  cursor: editBusy || editThumbUploading ? "default" : "pointer",
+                }}
+              >
+                {editBusy ? "저장 중..." : "이름 저장"}
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </>
