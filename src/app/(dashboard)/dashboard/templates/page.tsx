@@ -33,15 +33,14 @@ export default async function TemplatesPage({
   const sort = params.sort || "newest";
   const keyword = params.keyword || "";
 
-  // Build query filters
-  const where: Record<string, unknown> = { isActive: true };
-  if (keyword) {
-    where.OR = [
-      { name: { contains: keyword, mode: "insensitive" } },
-      { keywords: { contains: keyword, mode: "insensitive" } },
-      { description: { contains: keyword, mode: "insensitive" } },
-    ];
-  }
+  // Keyword OR (may be combined with visibility OR via AND below)
+  const keywordOr = keyword
+    ? [
+        { name: { contains: keyword, mode: "insensitive" as const } },
+        { keywords: { contains: keyword, mode: "insensitive" as const } },
+        { description: { contains: keyword, mode: "insensitive" as const } },
+      ]
+    : null;
 
   // Build sort order (sortOrder = 1000 - legacyUid, so asc = newest first)
   type OrderBy = Record<string, string>;
@@ -62,14 +61,27 @@ export default async function TemplatesPage({
       break;
   }
 
-  // Public templates (no userId)
-  const publicWhere = { ...where, userId: null };
+  // Public templates = system templates (no owner) OR user-contributed templates flagged public
+  const visibilityOr = [
+    { userId: null },
+    { isPublic: true },
+  ];
+  const publicWhere = keywordOr
+    ? {
+        isActive: true,
+        AND: [{ OR: keywordOr }, { OR: visibilityOr }],
+      }
+    : {
+        isActive: true,
+        OR: visibilityOr,
+      };
   const templates = await prisma.template.findMany({
     where: publicWhere,
     orderBy,
   });
 
-  // User's own templates
+  // User's own templates (stays visible here even when flipped public,
+  // so the owner can still manage / revoke)
   const myTemplates = await prisma.template.findMany({
     where: { userId: session.user.id },
     orderBy: { createdAt: "desc" },
