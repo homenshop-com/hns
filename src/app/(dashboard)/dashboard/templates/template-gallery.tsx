@@ -112,12 +112,16 @@ export default function TemplateGallery({
   const [editBusy, setEditBusy] = useState(false);
   const [editThumbUploading, setEditThumbUploading] = useState(false);
   const [editError, setEditError] = useState("");
+  const [editDragOver, setEditDragOver] = useState(false);
+  const [editUrlInput, setEditUrlInput] = useState("");
   const editThumbRef = useRef<HTMLInputElement>(null);
 
   function openEditModal(tpl: TemplateItem) {
     setEditTarget(tpl);
     setEditName(tpl.name);
     setEditError("");
+    setEditUrlInput("");
+    setEditDragOver(false);
   }
   function closeEditModal() {
     if (editBusy || editThumbUploading) return;
@@ -125,10 +129,18 @@ export default function TemplateGallery({
     setEditError("");
   }
 
-  async function handleEditThumbnail(e: React.ChangeEvent<HTMLInputElement>) {
+  async function uploadThumbnailFile(file: File) {
     if (!editTarget) return;
-    const file = e.target.files?.[0];
-    if (!file) return;
+    // Client-side guards that mirror the server (give faster feedback)
+    if (!/^image\/(png|jpeg|jpg|webp|gif)$/i.test(file.type)) {
+      setEditError("이미지 파일만 업로드 가능합니다 (PNG/JPG/WEBP/GIF).");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setEditError("파일 크기는 10MB 이하여야 합니다.");
+      return;
+    }
+
     setEditThumbUploading(true);
     setEditError("");
     try {
@@ -145,7 +157,6 @@ export default function TemplateGallery({
       }
       const data = await res.json();
       const newUrl: string = data.thumbnailUrl;
-      // Update both the open modal's target and the list
       setEditTarget({ ...editTarget, thumbnailUrl: newUrl });
       setMyTemplates((prev) =>
         prev.map((t) => (t.id === editTarget.id ? { ...t, thumbnailUrl: newUrl } : t))
@@ -155,6 +166,81 @@ export default function TemplateGallery({
     } finally {
       setEditThumbUploading(false);
       if (editThumbRef.current) editThumbRef.current.value = "";
+    }
+  }
+
+  function handleEditThumbnailChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) uploadThumbnailFile(file);
+  }
+
+  function handleEditThumbnailDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setEditDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) uploadThumbnailFile(file);
+  }
+
+  async function applyThumbnailUrl() {
+    if (!editTarget) return;
+    const url = editUrlInput.trim();
+    if (!url) return;
+    if (!/^(?:https?:\/\/|\/)/i.test(url)) {
+      setEditError("URL은 http(s):// 또는 / 로 시작해야 합니다.");
+      return;
+    }
+    setEditBusy(true);
+    setEditError("");
+    try {
+      const res = await fetch(`/api/templates/my/${editTarget.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ thumbnailUrl: url }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setEditError(err.error || `저장 실패 (${res.status})`);
+        return;
+      }
+      const data = await res.json();
+      const newUrl: string | null = data.template.thumbnailUrl;
+      setEditTarget({ ...editTarget, thumbnailUrl: newUrl });
+      setMyTemplates((prev) =>
+        prev.map((t) => (t.id === editTarget.id ? { ...t, thumbnailUrl: newUrl } : t))
+      );
+      setEditUrlInput("");
+    } catch (err) {
+      setEditError(String(err));
+    } finally {
+      setEditBusy(false);
+    }
+  }
+
+  async function clearThumbnail() {
+    if (!editTarget) return;
+    if (!editTarget.thumbnailUrl) return;
+    if (!confirm("썸네일을 제거하시겠습니까?")) return;
+    setEditBusy(true);
+    setEditError("");
+    try {
+      const res = await fetch(`/api/templates/my/${editTarget.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ thumbnailUrl: null }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setEditError(err.error || `제거 실패 (${res.status})`);
+        return;
+      }
+      setEditTarget({ ...editTarget, thumbnailUrl: null });
+      setMyTemplates((prev) =>
+        prev.map((t) => (t.id === editTarget.id ? { ...t, thumbnailUrl: null } : t))
+      );
+    } catch (err) {
+      setEditError(String(err));
+    } finally {
+      setEditBusy(false);
     }
   }
 
@@ -878,56 +964,163 @@ export default function TemplateGallery({
               </div>
             )}
 
-            {/* Thumbnail preview + upload */}
-            <div style={{ marginBottom: 18, display: "flex", gap: 14, alignItems: "flex-start" }}>
+            {/* Thumbnail — dropzone + click upload + URL paste */}
+            <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
+              썸네일
+            </label>
+            <div
+              onClick={() => editThumbRef.current?.click()}
+              onDragOver={(e) => { e.preventDefault(); setEditDragOver(true); }}
+              onDragLeave={() => setEditDragOver(false)}
+              onDrop={handleEditThumbnailDrop}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  editThumbRef.current?.click();
+                }
+              }}
+              style={{
+                position: "relative",
+                width: "100%",
+                height: 160,
+                borderRadius: 8,
+                border: `2px dashed ${editDragOver ? "#1971c2" : "#d1d5db"}`,
+                background: editDragOver ? "#e7f5ff" : editTarget.thumbnailUrl ? "#fff" : "#f9fafb",
+                overflow: "hidden",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                cursor: editThumbUploading ? "progress" : "pointer",
+                marginBottom: 8,
+                transition: "border-color 0.15s, background 0.15s",
+              }}
+            >
+              {editTarget.thumbnailUrl && !editThumbUploading && (
+                <Image
+                  src={editTarget.thumbnailUrl}
+                  alt={editTarget.name}
+                  width={480}
+                  height={160}
+                  unoptimized
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                  }}
+                />
+              )}
+              {/* overlay hint (always visible over the preview for affordance) */}
               <div
                 style={{
-                  width: 160,
-                  height: 100,
-                  borderRadius: 8,
-                  border: "1px solid #e5e7eb",
-                  background: "#f3f4f6",
-                  overflow: "hidden",
+                  position: editTarget.thumbnailUrl ? "absolute" : "static",
+                  inset: 0,
                   display: "flex",
+                  flexDirection: "column",
                   alignItems: "center",
                   justifyContent: "center",
-                  flexShrink: 0,
+                  gap: 4,
+                  background: editTarget.thumbnailUrl
+                    ? "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.55) 100%)"
+                    : "transparent",
+                  color: editTarget.thumbnailUrl ? "#fff" : "#374151",
+                  padding: 12,
+                  textAlign: "center",
                 }}
               >
-                {editTarget.thumbnailUrl ? (
-                  <Image
-                    src={editTarget.thumbnailUrl}
-                    alt={editTarget.name}
-                    width={160}
-                    height={100}
-                    unoptimized
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                  />
+                {editThumbUploading ? (
+                  <>
+                    <svg className="animate-spin" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                    </svg>
+                    <span style={{ fontSize: 13, fontWeight: 600 }}>업로드 중...</span>
+                  </>
                 ) : (
-                  <span style={{ color: "#9ca3af", fontSize: 24 }}>📄</span>
+                  <>
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="17 8 12 3 7 8" />
+                      <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>
+                      {editTarget.thumbnailUrl ? "이미지 변경 — 클릭 또는 드래그" : "클릭하여 업로드 또는 여기로 드래그"}
+                    </div>
+                    <div style={{ fontSize: 11, opacity: editTarget.thumbnailUrl ? 0.9 : 0.6 }}>
+                      PNG · JPG · WEBP · GIF · 최대 10MB
+                    </div>
+                  </>
                 )}
               </div>
-              <div style={{ flex: 1 }}>
-                <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
-                  썸네일
-                </label>
-                <input
-                  ref={editThumbRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp,image/gif"
-                  onChange={handleEditThumbnail}
-                  disabled={editThumbUploading}
-                  style={{ fontSize: 13 }}
-                />
-                <p style={{ margin: "6px 0 0", fontSize: 11, color: "#9ca3af" }}>
-                  PNG/JPG/WEBP/GIF · 최대 10MB · 중간 크기(450px)로 저장됩니다.
-                </p>
-                {editThumbUploading && (
-                  <p style={{ margin: "6px 0 0", fontSize: 12, color: "#1971c2" }}>
-                    업로드 중...
-                  </p>
-                )}
-              </div>
+              <input
+                ref={editThumbRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                onChange={handleEditThumbnailChange}
+                disabled={editThumbUploading}
+                style={{ display: "none" }}
+              />
+            </div>
+
+            {/* URL 직접 입력 + 제거 액션 */}
+            <div style={{ display: "flex", gap: 6, marginBottom: 18, alignItems: "center" }}>
+              <input
+                type="url"
+                value={editUrlInput}
+                onChange={(e) => setEditUrlInput(e.target.value)}
+                placeholder="또는 이미지 URL 붙여넣기 (https://...)"
+                disabled={editBusy || editThumbUploading}
+                style={{
+                  flex: 1,
+                  padding: "6px 10px",
+                  fontSize: 12,
+                  border: "1px solid #d1d5db",
+                  borderRadius: 6,
+                  boxSizing: "border-box",
+                }}
+              />
+              <button
+                type="button"
+                onClick={applyThumbnailUrl}
+                disabled={!editUrlInput.trim() || editBusy || editThumbUploading}
+                style={{
+                  padding: "6px 12px",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  background: "#fff",
+                  color: "#1971c2",
+                  border: "1px solid #a5d8ff",
+                  borderRadius: 6,
+                  cursor: editUrlInput.trim() ? "pointer" : "default",
+                  opacity: editUrlInput.trim() ? 1 : 0.6,
+                }}
+              >
+                URL 적용
+              </button>
+              {editTarget.thumbnailUrl && (
+                <button
+                  type="button"
+                  onClick={clearThumbnail}
+                  disabled={editBusy || editThumbUploading}
+                  style={{
+                    padding: "6px 10px",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    background: "#fff",
+                    color: "#c92a2a",
+                    border: "1px solid #ffc9c9",
+                    borderRadius: 6,
+                    cursor: "pointer",
+                  }}
+                  title="썸네일 제거"
+                >
+                  제거
+                </button>
+              )}
             </div>
 
             <div style={{ marginBottom: 20 }}>
