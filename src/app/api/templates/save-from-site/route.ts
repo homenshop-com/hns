@@ -123,6 +123,9 @@ export async function POST(request: NextRequest) {
       footerHtml: site.footerHtml ?? null,
       cssText: frozenCss ?? null,
       pagesSnapshot: frozenPages as unknown as object,
+      // Remember which site this was snapshotted from so "디자인 수정" can
+      // open the live editor for it.
+      demoSiteId: site.id,
       isPublic: false,
       isActive: true,
     },

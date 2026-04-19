@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useRef } from "react";
 import Image from "next/image";
+import Link from "next/link";
 
 interface TemplateItem {
   id: string;
@@ -12,6 +13,7 @@ interface TemplateItem {
   category: string | null;
   price: number;
   isPublic?: boolean;
+  demoSiteId?: string | null;
 }
 
 interface TemplateGalleryProps {
@@ -719,6 +721,19 @@ export default function TemplateGallery({
                     >
                       [{labels.selectTemplate}]
                     </button>
+                    <Link
+                      href={`/dashboard/templates/my/${tpl.id}/edit`}
+                      className="tpl-delete-btn"
+                      style={{
+                        background: "#ede9fe",
+                        color: "#6d28d9",
+                        border: "1px solid #c4b5fd",
+                        textDecoration: "none",
+                      }}
+                      title="원본 사이트 에디터에서 디자인 편집"
+                    >
+                      디자인 수정
+                    </Link>
                     <button
                       className="tpl-delete-btn"
                       onClick={() => openEditModal(tpl)}
