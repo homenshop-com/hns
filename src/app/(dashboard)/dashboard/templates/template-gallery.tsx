@@ -742,9 +742,9 @@ export default function TemplateGallery({
                         color: "#495057",
                         border: "1px solid #dee2e6",
                       }}
-                      title="이름 수정 / 썸네일 교체"
+                      title="이름 / 썸네일 설정"
                     >
-                      수정
+                      설정
                     </button>
                     <button
                       className="tpl-delete-btn"
