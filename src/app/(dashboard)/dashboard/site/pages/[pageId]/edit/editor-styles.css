@@ -749,7 +749,7 @@
    PC layout ("PC 레이아웃 변경 금지" project rule). */
 .layerpanel-rail {
   position: fixed;
-  top: 56px;
+  top: 92px; /* de-header (44px) + de-subtoolbar (48px) */
   right: 0;
   bottom: 0;
   width: 260px;

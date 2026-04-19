@@ -200,11 +200,15 @@ function Row({
       </div>
 
       {isContainer && isOpen
-        ? ((layer as GroupLayer | import("@/lib/scene").SectionLayer).children ?? [])
-            // render top-of-stack first (Photoshop convention).
-            .slice()
-            .reverse()
-            .map((child) => (
+        ? (() => {
+            const kids = ((layer as GroupLayer | import("@/lib/scene").SectionLayer).children ?? []);
+            // Groups stack by z-order (later child paints on top) so we
+            // reverse for Photoshop convention. Sections are flow
+            // regions — document order IS visual top-to-bottom, so we
+            // keep natural order.
+            const ordered = layer.type === "section" ? kids.slice() : kids.slice().reverse();
+            return ordered;
+          })().map((child) => (
               <Row
                 key={child.id}
                 layer={child}
@@ -402,10 +406,13 @@ export function LayerPanel() {
         {root.children.length === 0 ? (
           <div className="layerpanel-empty">레이어가 없습니다.</div>
         ) : (
-          root.children
-            .slice()
-            .reverse()
-            .map((child) => (
+          (() => {
+            // When the page is section-based (flow), show top-to-bottom
+            // document order. Legacy absolute-positioned pages keep the
+            // Photoshop-style reversed stack.
+            const anySection = root.children.some((c) => c.type === "section");
+            return anySection ? root.children.slice() : root.children.slice().reverse();
+          })().map((child) => (
               <Row
                 key={child.id}
                 layer={child}
