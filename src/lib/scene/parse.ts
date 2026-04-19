@@ -349,6 +349,7 @@ function buildSectionLayer(
   el: Element,
   id: string,
   name: string,
+  children: Layer[],
 ): SectionLayer {
   const style = parseStyle(el.getAttribute("style"));
   const { frame, keys: frameKeys, important: frameImportant } = extractFrame(style);
@@ -368,13 +369,30 @@ function buildSectionLayer(
     frame,
     style: layerStyle,
     ...(transform && { transform }),
+    // innerHtml is the shell template populated by elementToLayer
+    // BEFORE this builder runs — child .dragable descendants have
+    // already been swapped for <!--scene-child:${id}--> comments.
     innerHtml: el.innerHTML,
+    children,
     legacyClassName: el.getAttribute("class") ?? DRAGABLE_CLASS,
     legacyAttrs: getAttrs(el, new Set(["class", "style", "id"])),
     legacyStyleExtras: Object.keys(extras).length ? extras : undefined,
     frameKeys: safeKeys.length ? safeKeys : undefined,
     frameImportant: safeImp.length ? safeImp : undefined,
   };
+}
+
+/** Collect topmost `.dragable` descendants under `root` — descending
+ *  into non-dragable wrappers but stopping at each dragable found. */
+function collectTopmostDragables(root: Element, out: Element[]): void {
+  for (let i = 0; i < root.children.length; i++) {
+    const c = root.children[i]!;
+    if (hasClass(c, DRAGABLE_CLASS)) {
+      out.push(c);
+    } else {
+      collectTopmostDragables(c, out);
+    }
+  }
 }
 
 function buildGroupLayer(
@@ -454,13 +472,25 @@ function elementToLayer(el: Element, nameIdx: { n: number }): Layer {
       const children = childEls.map((c) => elementToLayer(c, nameIdx));
       return buildGroupLayer(el, id, name, children);
     }
-    case "section":
-      // Tier-1 (9b): section preserves innerHtml as an opaque blob —
-      // no typed children yet. Any nested `.dragable` descendants
-      // remain inside innerHtml and will be parseable by a Tier-2
-      // promotion pass (Sprint 9c). This keeps decorative non-dragable
-      // markup (section titles, SVG backgrounds, wrapper divs) intact.
-      return buildSectionLayer(el, id, name);
+    case "section": {
+      // Tier-2 (9c): promote topmost `.dragable` descendants to
+      // first-class typed children. Each promoted child is parsed
+      // recursively, then the live DOM node is swapped for a
+      // `<!--scene-child:${id}-->` placeholder comment. The section's
+      // innerHtml (captured by buildSectionLayer right after this) is
+      // therefore the shell template with decorative markup intact
+      // and marker comments where the children go.
+      const childEls: Element[] = [];
+      collectTopmostDragables(el, childEls);
+      const children: Layer[] = [];
+      for (const ce of childEls) {
+        const layer = elementToLayer(ce, nameIdx);
+        const placeholder = el.ownerDocument!.createComment(`scene-child:${layer.id}`);
+        ce.parentNode!.replaceChild(placeholder, ce);
+        children.push(layer);
+      }
+      return buildSectionLayer(el, id, name, children);
+    }
     case "image":
       return buildImageLayer(el, id, name);
     case "text":

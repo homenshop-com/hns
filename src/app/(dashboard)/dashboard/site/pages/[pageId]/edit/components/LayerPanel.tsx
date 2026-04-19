@@ -75,8 +75,10 @@ function Row({
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const isGroup = layer.type === "group";
-  const isOpen = isGroup && expanded.has(layer.id);
+  // "Container" here means groups OR sections (Sprint 9c): both carry
+  // typed children and get an expand/collapse chevron in the panel.
+  const isContainer = layer.type === "group" || layer.type === "section";
+  const isOpen = isContainer && expanded.has(layer.id);
   const isSelected = selectedId === layer.id || multiIds.has(layer.id);
 
   const commitRename = () => {
@@ -121,7 +123,7 @@ function Row({
         style={{ paddingLeft: 6 + depth * 14 }}
         data-layer-id={layer.id}
       >
-        {isGroup ? (
+        {isContainer ? (
           <button
             type="button"
             className="layerpanel-chev"
@@ -196,8 +198,8 @@ function Row({
         </button>
       </div>
 
-      {isGroup && isOpen
-        ? (layer as GroupLayer).children
+      {isContainer && isOpen
+        ? ((layer as GroupLayer | import("@/lib/scene").SectionLayer).children ?? [])
             // render top-of-stack first (Photoshop convention).
             .slice()
             .reverse()
@@ -265,15 +267,17 @@ export function LayerPanel() {
         return;
       }
       // Drop on a leaf: insert as a sibling just before the target in the
-      // target's parent. Walk the tree to find the parent/index.
+      // target's parent. Walk the tree (groups + sections) to find
+      // the parent/index.
+      type Container = GroupLayer | import("@/lib/scene").SectionLayer;
       const locate = (
-        node: GroupLayer,
-      ): { parent: GroupLayer; index: number } | null => {
+        node: Container,
+      ): { parent: Container; index: number } | null => {
         for (let i = 0; i < node.children.length; i++) {
           const c = node.children[i]!;
           if (c.id === target.id) return { parent: node, index: i };
-          if (c.type === "group") {
-            const found = locate(c);
+          if (c.type === "group" || c.type === "section") {
+            const found = locate(c as Container);
             if (found) return found;
           }
         }
@@ -305,11 +309,12 @@ export function LayerPanel() {
   // Is the current selection a BoxLayer that could be exploded?
   const selectedLayerType = useMemo((): string | null => {
     if (!selectedId) return null;
-    const walk = (node: GroupLayer): Layer | null => {
+    type Cont = GroupLayer | import("@/lib/scene").SectionLayer;
+    const walk = (node: Cont): Layer | null => {
       for (const c of node.children) {
         if (c.id === selectedId) return c;
-        if (c.type === "group") {
-          const f = walk(c); if (f) return f;
+        if (c.type === "group" || c.type === "section") {
+          const f = walk(c as Cont); if (f) return f;
         }
       }
       return null;
@@ -329,13 +334,15 @@ export function LayerPanel() {
     if (el) el.scrollIntoView({ block: "nearest", behavior: "smooth" });
     // Also auto-expand ancestor groups so the row is visible.
     const path: LayerId[] = [];
-    const locate = (node: GroupLayer, trail: LayerId[]): boolean => {
+    type Cont = GroupLayer | import("@/lib/scene").SectionLayer;
+    const locate = (node: Cont, trail: LayerId[]): boolean => {
       for (const c of node.children) {
         if (c.id === selectedId) {
           path.push(...trail);
           return true;
         }
-        if (c.type === "group" && locate(c, [...trail, c.id])) return true;
+        if ((c.type === "group" || c.type === "section")
+            && locate(c as Cont, [...trail, c.id])) return true;
       }
       return false;
     };

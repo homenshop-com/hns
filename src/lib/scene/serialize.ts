@@ -181,9 +181,28 @@ function serializePluginInner(layer: PluginLayer): string {
 }
 
 function serializeSectionInner(layer: SectionLayer): string {
-  // Sprint 9b Tier-1: sections are innerHtml-opaque. Tier-2 (9c) will
-  // promote inner .dragable descendants to first-class children.
-  return layer.innerHtml ?? "";
+  // Sprint 9c Tier-2: replace each `<!--scene-child:${id}-->` placeholder
+  // in the shell template with the rendered HTML of the matching typed
+  // child. Any non-placeholder markup (decorative wrappers, titles, SVG
+  // backgrounds) is passed through verbatim for perfect round-trip.
+  // If a child's placeholder is missing (e.g. editor deleted the
+  // comment by mistake), the child is still appended at the end so
+  // nothing silently disappears from the document.
+  let html = layer.innerHtml ?? "";
+  const appended: string[] = [];
+  for (const child of layer.children ?? []) {
+    const marker = `<!--scene-child:${child.id}-->`;
+    const rendered = serializeLayer(child);
+    if (html.includes(marker)) {
+      html = html.replace(marker, rendered);
+    } else {
+      appended.push(rendered);
+    }
+  }
+  // Strip any orphaned placeholders (e.g. a child was deleted from the
+  // scene graph — the comment should go with it).
+  html = html.replace(/<!--scene-child:[^>]*-->/g, "");
+  return html + appended.join("");
 }
 
 function serializeLayer(layer: Layer): string {

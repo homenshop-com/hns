@@ -25,6 +25,7 @@
 import {
   DRAGABLE_CLASS,
   GROUP_CLASS,
+  hasTypedChildren,
   type GroupLayer,
   type Layer,
   type LayerId,
@@ -39,10 +40,15 @@ const HIDDEN_STYLE_OPACITY = "0.3";
 /* ─── Helpers ─── */
 
 function walk(root: GroupLayer, fn: (l: Layer) => void) {
-  for (const c of root.children) {
-    fn(c);
-    if (c.type === "group") walk(c, fn);
-  }
+  const recur = (node: Layer | GroupLayer) => {
+    if (hasTypedChildren(node)) {
+      for (const c of node.children) {
+        fn(c);
+        recur(c);
+      }
+    }
+  };
+  recur(root);
 }
 
 function collectIds(root: GroupLayer): Set<LayerId> {
@@ -177,7 +183,7 @@ function applyTransformToEl(el: HTMLElement, layer: Layer) {
  * This is what turns a "group" store action into actual DOM nesting.
  */
 export function applyStructure(scene: SceneGraph, container: HTMLElement) {
-  const reconcile = (node: GroupLayer, domParent: HTMLElement) => {
+  const reconcile = (node: GroupLayer | import("@/lib/scene").SectionLayer, domParent: HTMLElement) => {
     // Track the previous scene-ordered dragable that is already in
     // `domParent`. Used to detect out-of-order nodes without blindly
     // appending (which would push every dragable past any non-dragable
@@ -211,7 +217,7 @@ export function applyStructure(scene: SceneGraph, container: HTMLElement) {
 
       applyFrameToEl(childEl, child);
       applyTransformToEl(childEl, child);
-      if (child.type === "group") {
+      if (hasTypedChildren(child)) {
         reconcile(child, childEl);
       }
     }

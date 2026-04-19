@@ -157,14 +157,22 @@ export interface GroupLayer extends BaseLayer {
 export interface SectionLayer extends BaseLayer {
   type: "section";
   /**
-   * Complete inner HTML of the section, preserved byte-for-byte for
-   * round-trip. Treated as an opaque blob for Tier-1 (9b) — the
-   * Tier-2 roadmap (9c) will promote inner `.dragable` descendants to
-   * first-class child Layers for hierarchical editing. Keeping it as
-   * a blob now means templates with decorative non-dragable markup
-   * (section titles, SVG backgrounds, wrapper divs) don't lose content.
+   * Shell template — the section's inner HTML with each typed child
+   * `.dragable` replaced by a `<!--scene-child:${id}-->` placeholder
+   * comment. Decorative non-dragable markup (section titles, SVG
+   * backgrounds, wrapper divs) is preserved around/between the
+   * placeholders. Serialize replaces each placeholder with the child's
+   * rendered HTML, giving a perfect byte-for-byte round-trip.
    */
   innerHtml: string;
+  /**
+   * Typed first-class children — topmost `.dragable` descendants of
+   * the section, promoted to editable Layers (Sprint 9c Tier-2). In
+   * Tier-1 (9b) this array was absent; code should treat an undefined
+   * or empty array as "section with no typed children" (the innerHtml
+   * alone is the source of truth for rendering).
+   */
+  children: Layer[];
 }
 
 export interface TextLayer extends BaseLayer {
@@ -249,10 +257,9 @@ export function isGroup(l: Layer): l is GroupLayer {
 export function isSection(l: Layer): l is SectionLayer {
   return l.type === "section";
 }
-/** Tier-1 (9b): only groups have typed children. Sections will gain
- *  this in Tier-2 (9c). For now this helper just aliases isGroup. */
-export function hasTypedChildren(l: Layer): l is GroupLayer {
-  return l.type === "group";
+/** Tier-2 (9c): both groups and sections carry typed children. */
+export function hasTypedChildren(l: Layer): l is GroupLayer | SectionLayer {
+  return l.type === "group" || l.type === "section";
 }
 export function isText(l: Layer): l is TextLayer {
   return l.type === "text";

@@ -24,14 +24,19 @@
 import { create } from "zustand";
 import { temporal } from "zundo";
 import { produce } from "immer";
-import { isSection, legacyHtmlToScene, sceneToLegacyHtml } from "@/lib/scene";
+import { hasTypedChildren, isSection, legacyHtmlToScene, sceneToLegacyHtml } from "@/lib/scene";
 import type {
   GroupLayer,
   Layer,
   LayerId,
   LayerTransform,
   SceneGraph,
+  SectionLayer,
 } from "@/lib/scene";
+
+/** A Layer that owns a `children: Layer[]` array — groups (incl. the
+ *  virtual root) and sections (since Sprint 9c). */
+type Container = GroupLayer | SectionLayer;
 
 /* ─── State shape ─── */
 
@@ -116,13 +121,13 @@ export type AlignMode =
 /* ─── Helpers that operate on the Immer draft ─── */
 
 function findParentAndIndex(
-  root: GroupLayer,
+  root: Container,
   id: LayerId,
-): { parent: GroupLayer; index: number } | null {
+): { parent: Container; index: number } | null {
   for (let i = 0; i < root.children.length; i++) {
     const c = root.children[i]!;
     if (c.id === id) return { parent: root, index: i };
-    if (c.type === "group") {
+    if (hasTypedChildren(c)) {
       const found = findParentAndIndex(c, id);
       if (found) return found;
     }
@@ -130,11 +135,11 @@ function findParentAndIndex(
   return null;
 }
 
-function findLayer(root: GroupLayer, id: LayerId): Layer | null {
+function findLayer(root: Container, id: LayerId): Layer | null {
   if (root.id === id) return root;
   for (const c of root.children) {
     if (c.id === id) return c;
-    if (c.type === "group") {
+    if (hasTypedChildren(c)) {
       const sub = findLayer(c, id);
       if (sub) return sub;
     }
@@ -144,7 +149,7 @@ function findLayer(root: GroupLayer, id: LayerId): Layer | null {
 
 function collectDescendants(layer: Layer, set: Set<LayerId>) {
   set.add(layer.id);
-  if (layer.type === "group") {
+  if (hasTypedChildren(layer)) {
     for (const c of layer.children) collectDescendants(c, set);
   }
 }
@@ -265,15 +270,24 @@ export const useEditorStore = create<EditorStore>()(
             const srcLoc = findParentAndIndex(draft.root, fromId);
             if (!srcLoc) return;
             const target = findLayer(draft.root, toParentId);
-            if (!target || target.type !== "group") return;
-            // Guard: can't move a group into its own descendant.
+            if (!target || !hasTypedChildren(target)) return;
+            // Sprint 9c — sections are "closed" containers. Their
+            // children are anchored to `<!--scene-child:${id}-->`
+            // placeholders in the shell template; cross-section moves
+            // would detach a child from its anchor. Only permit moves
+            // that keep source and target in the same section (i.e.
+            // reorders within the same section), or moves that don't
+            // touch any section at all.
+            const srcInSection = isSection(srcLoc.parent);
+            const dstIsSection = isSection(target);
+            if ((srcInSection || dstIsSection) && srcLoc.parent !== target) return;
+            // Guard: can't move a container into its own descendant.
             const banned = new Set<LayerId>();
             collectDescendants(srcLoc.parent.children[srcLoc.index]!, banned);
             if (banned.has(toParentId)) return;
             const [moved] = srcLoc.parent.children.splice(srcLoc.index, 1);
-            const t = target as GroupLayer;
-            const idx = Math.min(Math.max(0, toIndex), t.children.length);
-            t.children.splice(idx, 0, moved!);
+            const idx = Math.min(Math.max(0, toIndex), target.children.length);
+            target.children.splice(idx, 0, moved!);
           }),
           dirty: true,
         })),
