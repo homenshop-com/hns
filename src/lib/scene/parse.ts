@@ -30,6 +30,7 @@ import {
   PLUGIN_CLASS_TYPE,
   PluginLayer,
   SceneGraph,
+  SectionLayer,
   TextLayer,
 } from "./types";
 import { ROOT_GROUP_ID, newLayerId } from "./ids";
@@ -177,6 +178,25 @@ function extractStyle(style: StyleMap): {
   return { layerStyle, transform, extras };
 }
 
+/** Is this element laid out in normal flow (no inline abs positioning)?
+ *  A flow-level `.dragable` that wraps other `.dragable` children is a
+ *  section (PowerPoint-style page region) — its children position
+ *  themselves within its local coord space. Parser promotes such
+ *  elements to SectionLayer so the flow-guard invariants are explicit
+ *  at the type level, not just computed at runtime. */
+function isFlowSection(el: Element): boolean {
+  const style = parseStyle(el.getAttribute("style"));
+  const hasInlineAbs =
+    style["position"] != null || style["left"] != null || style["top"] != null;
+  if (hasInlineAbs) return false;
+  // Flow-positioned `.dragable` is a section regardless of whether it
+  // has inner dragables — the flow-guard semantics apply identically
+  // ("no drag/resize, no frame mutation, no position keys on export").
+  // Labeling it a section at the type layer makes this explicit to
+  // downstream code and to the LayerPanel UX.
+  return true;
+}
+
 /** Detect the most specific LayerType for a `.dragable` element. */
 function detectType(el: Element): Layer["type"] {
   const classes = classList(el);
@@ -184,6 +204,11 @@ function detectType(el: Element): Layer["type"] {
     if (classes.includes(p.cls)) return p.type;
   }
   if (hasClass(el, GROUP_CLASS)) return "group";
+
+  // Section — flow-laid dragable with dragable children. Tested BEFORE
+  // image/box heuristics because a section can have nested <img> or
+  // plain text content that would otherwise mislead the type detector.
+  if (isFlowSection(el)) return "section";
 
   // Image: contains exactly one <img> and no other visible structural content.
   const imgs = el.querySelectorAll("img");
@@ -320,6 +345,38 @@ function buildTextLayer(el: Element, id: string, name: string): TextLayer {
   };
 }
 
+function buildSectionLayer(
+  el: Element,
+  id: string,
+  name: string,
+): SectionLayer {
+  const style = parseStyle(el.getAttribute("style"));
+  const { frame, keys: frameKeys, important: frameImportant } = extractFrame(style);
+  const { layerStyle, transform, extras } = extractStyle(style);
+  // Guard: sections must never have position/left/top in frameKeys.
+  // Strip them if present (shouldn't be, since isFlowSection rejects
+  // elements with inline position) — defense-in-depth for the
+  // invariant the editor-store flow-guard relies on.
+  const safeKeys = frameKeys.filter((k) => k !== "position" && k !== "left" && k !== "top");
+  const safeImp = frameImportant.filter((k) => k !== "position" && k !== "left" && k !== "top");
+  return {
+    id,
+    name,
+    type: "section",
+    visible: true,
+    locked: false,
+    frame,
+    style: layerStyle,
+    ...(transform && { transform }),
+    innerHtml: el.innerHTML,
+    legacyClassName: el.getAttribute("class") ?? DRAGABLE_CLASS,
+    legacyAttrs: getAttrs(el, new Set(["class", "style", "id"])),
+    legacyStyleExtras: Object.keys(extras).length ? extras : undefined,
+    frameKeys: safeKeys.length ? safeKeys : undefined,
+    frameImportant: safeImp.length ? safeImp : undefined,
+  };
+}
+
 function buildGroupLayer(
   el: Element,
   id: string,
@@ -360,6 +417,7 @@ function ensureId(el: Element): string {
 function suggestName(type: Layer["type"], idx: number): string {
   const label: Record<Layer["type"], string> = {
     group: "그룹",
+    section: "섹션",
     text: "텍스트",
     image: "이미지",
     box: "박스",
@@ -396,6 +454,13 @@ function elementToLayer(el: Element, nameIdx: { n: number }): Layer {
       const children = childEls.map((c) => elementToLayer(c, nameIdx));
       return buildGroupLayer(el, id, name, children);
     }
+    case "section":
+      // Tier-1 (9b): section preserves innerHtml as an opaque blob —
+      // no typed children yet. Any nested `.dragable` descendants
+      // remain inside innerHtml and will be parseable by a Tier-2
+      // promotion pass (Sprint 9c). This keeps decorative non-dragable
+      // markup (section titles, SVG backgrounds, wrapper divs) intact.
+      return buildSectionLayer(el, id, name);
     case "image":
       return buildImageLayer(el, id, name);
     case "text":

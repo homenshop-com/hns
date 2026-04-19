@@ -39,6 +39,7 @@ export type BlendMode =
 
 export type LayerType =
   | "group"
+  | "section"
   | "text"
   | "image"
   | "box"
@@ -134,6 +135,38 @@ export interface GroupLayer extends BaseLayer {
   virtual?: boolean;
 }
 
+/**
+ * SectionLayer — a page region laid out in normal flow (PowerPoint-
+ * style "slide" or HTML flow section). Distinct from GroupLayer:
+ *  - Section is NOT draggable/resizable/rotatable — it occupies its
+ *    place in the flow of the body and serves as the positioning
+ *    context for absolute-positioned children (offsetParent).
+ *  - Section never emits `position:absolute`, `left`, or `top` on
+ *    serialize. Its frameKeys always excludes those keys. The flow
+ *    guard in editor-store.setFrame relies on this invariant.
+ *  - Children are typed first-class Layers (unlike a BoxLayer whose
+ *    inner HTML is opaque), so the LayerPanel can show hierarchical
+ *    structure and individual children can be selected/moved within
+ *    the section.
+ *
+ * Typical inputs: top-level `.dragable` in the page body with
+ * `position:relative` (or no inline position) and inner `.dragable`
+ * children. Parser promotes such elements from BoxLayer to
+ * SectionLayer automatically.
+ */
+export interface SectionLayer extends BaseLayer {
+  type: "section";
+  /**
+   * Complete inner HTML of the section, preserved byte-for-byte for
+   * round-trip. Treated as an opaque blob for Tier-1 (9b) — the
+   * Tier-2 roadmap (9c) will promote inner `.dragable` descendants to
+   * first-class child Layers for hierarchical editing. Keeping it as
+   * a blob now means templates with decorative non-dragable markup
+   * (section titles, SVG backgrounds, wrapper divs) don't lose content.
+   */
+  innerHtml: string;
+}
+
 export interface TextLayer extends BaseLayer {
   type: "text";
   /** TipTap HTML. */
@@ -193,6 +226,7 @@ export interface PluginLayer extends BaseLayer {
 
 export type Layer =
   | GroupLayer
+  | SectionLayer
   | TextLayer
   | ImageLayer
   | BoxLayer
@@ -210,6 +244,14 @@ export interface SceneGraph {
 /* ─── Type guards ─── */
 
 export function isGroup(l: Layer): l is GroupLayer {
+  return l.type === "group";
+}
+export function isSection(l: Layer): l is SectionLayer {
+  return l.type === "section";
+}
+/** Tier-1 (9b): only groups have typed children. Sections will gain
+ *  this in Tier-2 (9c). For now this helper just aliases isGroup. */
+export function hasTypedChildren(l: Layer): l is GroupLayer {
   return l.type === "group";
 }
 export function isText(l: Layer): l is TextLayer {

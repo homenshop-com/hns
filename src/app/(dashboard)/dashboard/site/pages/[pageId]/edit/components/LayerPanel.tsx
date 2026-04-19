@@ -31,6 +31,7 @@ import type { GroupLayer, Layer, LayerId, LayerType } from "@/lib/scene";
 
 const TYPE_ICON: Record<LayerType, string> = {
   group: "📁",
+  section: "▦",
   text: "T",
   image: "🖼",
   box: "▢",

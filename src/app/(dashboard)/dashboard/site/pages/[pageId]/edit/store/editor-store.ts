@@ -24,7 +24,7 @@
 import { create } from "zustand";
 import { temporal } from "zundo";
 import { produce } from "immer";
-import { legacyHtmlToScene, sceneToLegacyHtml } from "@/lib/scene";
+import { isSection, legacyHtmlToScene, sceneToLegacyHtml } from "@/lib/scene";
 import type {
   GroupLayer,
   Layer,
@@ -391,7 +391,8 @@ export const useEditorStore = create<EditorStore>()(
             const cy = minY + boxH / 2;
 
             for (const l of layers) {
-              // Sprint 9a — skip flow-positioned layers (see setFrame note).
+              // Sprint 9a/9b — skip flow-positioned layers and sections.
+              if (isSection(l)) continue;
               const existingKeys = new Set(l.frameKeys ?? []);
               const layerIsAbsolute = existingKeys.has("position")
                 || existingKeys.has("left")
@@ -438,6 +439,8 @@ export const useEditorStore = create<EditorStore>()(
             // Reject the whole patch — this is the bug we shipped 9a to
             // kill. Upstream UI (drag handler, resize handles) should
             // have already been gated, this is defense-in-depth.
+            // Sprint 9b — sections are flow regions by type-level contract.
+            if (isSection(l)) return;
             const existingKeys = new Set(l.frameKeys ?? []);
             const layerIsAbsolute = existingKeys.has("position")
               || existingKeys.has("left")

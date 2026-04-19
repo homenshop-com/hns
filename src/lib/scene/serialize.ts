@@ -29,8 +29,10 @@ import {
   LayerStyle,
   PluginLayer,
   SceneGraph,
+  SectionLayer,
   TextLayer,
   isGroup,
+  isSection,
 } from "./types";
 import { StyleMap, printStyle } from "./parse-style";
 import { printTransform, printTransformOrigin } from "./parse-transform";
@@ -73,6 +75,10 @@ function buildClassName(layer: Layer): string {
     ensure(GROUP_CLASS);
     ensure(DRAGABLE_CLASS);
   } else if (!isGroup(layer)) {
+    // Sections and leaves both carry `dragable` so the legacy
+    // publisher and selectors continue to recognize them. Sections
+    // do NOT get `de-group` (they're structural flow regions, not
+    // floating editor groups).
     ensure(DRAGABLE_CLASS);
   }
   return existing.join(" ");
@@ -86,7 +92,13 @@ function buildStyleMap(layer: Layer): StyleMap {
   // the editor has since added by dragging/resizing). This preserves
   // layouts that rely entirely on CSS (no inline left/top/width/height),
   // which is common in custom templates.
-  const keys = layer.frameKeys ?? [];
+  // Sections (Sprint 9b): enforce the flow invariant at serialize time
+  // too — position/left/top are stripped even if they somehow made it
+  // into a section's frameKeys. defense-in-depth for the flow guard.
+  const rawKeys = layer.frameKeys ?? [];
+  const keys = isSection(layer)
+    ? rawKeys.filter((k) => k !== "position" && k !== "left" && k !== "top")
+    : rawKeys;
   const imp = new Set(layer.frameImportant ?? []);
   const mark = (k: "position" | "left" | "top" | "width" | "height", v: string) =>
     imp.has(k) ? `${v} !important` : v;
@@ -168,6 +180,12 @@ function serializePluginInner(layer: PluginLayer): string {
   return layer.legacyInnerHtml ?? "";
 }
 
+function serializeSectionInner(layer: SectionLayer): string {
+  // Sprint 9b Tier-1: sections are innerHtml-opaque. Tier-2 (9c) will
+  // promote inner .dragable descendants to first-class children.
+  return layer.innerHtml ?? "";
+}
+
 function serializeLayer(layer: Layer): string {
   if (isGroup(layer)) {
     if (layer.virtual) {
@@ -176,6 +194,10 @@ function serializeLayer(layer: Layer): string {
     const attrs = buildAttrString(layer);
     const inner = layer.children.map(serializeLayer).join("");
     return `<div ${attrs}>${inner}</div>`;
+  }
+  if (isSection(layer)) {
+    const attrs = buildAttrString(layer);
+    return `<div ${attrs}>${serializeSectionInner(layer)}</div>`;
   }
   const attrs = buildAttrString(layer);
   let inner = "";
