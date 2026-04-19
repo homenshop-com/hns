@@ -200,6 +200,17 @@ export function applyStructure(scene: SceneGraph, container: HTMLElement) {
       }
       if (!childEl) continue;
 
+      // Inline/section layers are flow-positioned and may live nested
+      // inside decorative wrappers (e.g. <span id="el_*"> inside an <h1>
+      // title, or a section inside outer structural markup). Moving them
+      // between DOM parents would rip them out of their decorative
+      // context and break layout. Skip structural reconciliation for
+      // these types — visibility/lock/selection sync still applies.
+      if (child.type === "inline" || child.type === "section") {
+        if (hasTypedChildren(child)) reconcile(child, childEl);
+        continue;
+      }
+
       if (childEl.parentElement !== domParent) {
         // Cross-parent move (group/ungroup, paste into different parent).
         // Append at end — the outer loop will handle subsequent order.
