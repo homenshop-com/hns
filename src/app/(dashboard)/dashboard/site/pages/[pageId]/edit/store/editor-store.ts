@@ -94,6 +94,11 @@ export interface EditorActions {
    *  small offset so the copy is visible. Returns the new id. */
   duplicateLayer(id: LayerId, offset?: { dx: number; dy: number }): LayerId | null;
 
+  /** Paste pre-serialized layers into the root group (or a target
+   *  parent). Ids are rewritten; frames get a small offset. Returns the
+   *  list of new ids (top-level only). */
+  pasteLayers(layers: Layer[], opts?: { parentId?: LayerId; offset?: { dx: number; dy: number } }): LayerId[];
+
   /** Clear dirty flag — call after a successful save. */
   markClean(): void;
 }
@@ -494,6 +499,44 @@ export const useEditorStore = create<EditorStore>()(
         }));
         if (newId) set(() => ({ selectedId: newId, multiSelectedIds: new Set() }));
         return newId;
+      },
+
+      pasteLayers: (layers, opts) => {
+        const dx = opts?.offset?.dx ?? 12;
+        const dy = opts?.offset?.dy ?? 12;
+        const newIds: LayerId[] = [];
+        set((s) => ({
+          scene: produce(s.scene, (draft) => {
+            const parent: GroupLayer = opts?.parentId
+              ? (findLayer(draft.root, opts.parentId) as GroupLayer | null) ?? draft.root
+              : draft.root;
+            if (!parent || parent.type !== "group") return;
+            const rewrite = (l: Layer) => {
+              l.id = `el_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+              if (l.type === "group") for (const c of l.children) rewrite(c);
+            };
+            for (const src of layers) {
+              let clone: Layer;
+              try { clone = structuredClone(src) as Layer; }
+              catch { clone = JSON.parse(JSON.stringify(src)) as Layer; }
+              rewrite(clone);
+              clone.frame = { ...clone.frame, x: clone.frame.x + dx, y: clone.frame.y + dy };
+              const keys = new Set(clone.frameKeys ?? []);
+              keys.add("position"); keys.add("left"); keys.add("top");
+              clone.frameKeys = Array.from(keys) as NonNullable<Layer["frameKeys"]>;
+              parent.children.push(clone);
+              newIds.push(clone.id);
+            }
+          }),
+          dirty: true,
+        }));
+        if (newIds.length > 0) {
+          set(() => ({
+            selectedId: newIds[newIds.length - 1] ?? null,
+            multiSelectedIds: new Set(newIds.slice(0, -1)),
+          }));
+        }
+        return newIds;
       },
 
       markClean: () => set(() => ({ dirty: false })),

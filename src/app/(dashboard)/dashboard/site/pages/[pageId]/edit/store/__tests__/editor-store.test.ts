@@ -154,6 +154,20 @@ describe("editor store", () => {
     expect(group.children.map((c) => c.id).sort()).toEqual(["x1", "y1"]);
   });
 
+  it("pasteLayers inserts deep-cloned layers with new ids into root", () => {
+    useEditorStore.getState().importHtml(SAMPLE);
+    const src = getRoot().children[0]!;
+    const copy = JSON.parse(JSON.stringify(src));
+    const ids = useEditorStore.getState().pasteLayers([copy], { offset: { dx: 10, dy: 10 } });
+    expect(ids).toHaveLength(1);
+    const root = getRoot();
+    expect(root.children).toHaveLength(4);
+    const pasted = root.children.find((c) => c.id === ids[0])!;
+    expect(pasted.id).not.toBe(src.id);
+    expect(pasted.frame.x).toBe(src.frame.x + 10);
+    expect(useEditorStore.getState().selectedId).toBe(ids[0]);
+  });
+
   it("duplicateLayer clones with new ids and offsets the copy", () => {
     useEditorStore.getState().importHtml(SAMPLE);
     const newId = useEditorStore.getState().duplicateLayer("a", { dx: 20, dy: 20 });

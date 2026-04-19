@@ -8,10 +8,16 @@ import {
   applySelection as syncApplySelection,
   syncStoreToDom,
 } from "./store/editor-sync";
+import { snapRect, type Rect as SnapRect } from "./store/snap";
 
 const TiptapModal = lazy(() => import("./tiptap-modal"));
 const LayerPanel = lazy(() => import("./components/LayerPanel"));
 const CanvasOverlay = lazy(() => import("./components/CanvasOverlay"));
+
+/** Module-scoped clipboard for V2 copy/paste. Lives for the page
+ *  session, cleared on navigation. We also mirror to navigator.clipboard
+ *  as JSON so the user can paste into another tab of the same editor. */
+let v2Clipboard: unknown[] = [];
 
 /* ─── Types ─── */
 export interface LayerData {
@@ -319,6 +325,55 @@ export default function DesignEditor({
         if (!s.selectedId) return;
         e.preventDefault();
         s.duplicateLayer(s.selectedId);
+        return;
+      }
+      // Copy (Ctrl/Cmd + C)
+      if (mod && !e.shiftKey && e.key.toLowerCase() === "c") {
+        const ids: string[] = [];
+        if (s.selectedId) ids.push(s.selectedId);
+        s.multiSelectedIds.forEach((id) => { if (!ids.includes(id)) ids.push(id); });
+        if (ids.length === 0) return;
+        e.preventDefault();
+        const collected: unknown[] = [];
+        const find = (root: any, id: string): any => {
+          if (root.id === id) return root;
+          if (root.type === "group") for (const c of root.children) {
+            const f = find(c, id); if (f) return f;
+          }
+          return null;
+        };
+        for (const id of ids) {
+          const l = find(s.scene.root, id);
+          if (l) collected.push(JSON.parse(JSON.stringify(l)));
+        }
+        v2Clipboard = collected;
+        // Best-effort cross-tab via system clipboard.
+        try {
+          navigator.clipboard?.writeText(JSON.stringify({ __hns_v2: true, layers: collected }));
+        } catch {}
+        return;
+      }
+      // Paste (Ctrl/Cmd + V)
+      if (mod && !e.shiftKey && e.key.toLowerCase() === "v") {
+        e.preventDefault();
+        const applyPaste = (layers: unknown[]) => {
+          if (!layers || layers.length === 0) return;
+          useEditorStore.getState().pasteLayers(layers as any);
+        };
+        // Try system clipboard first (cross-tab); fall back to module var.
+        (async () => {
+          try {
+            const text = await navigator.clipboard?.readText();
+            if (text) {
+              const parsed = JSON.parse(text);
+              if (parsed && parsed.__hns_v2 && Array.isArray(parsed.layers)) {
+                applyPaste(parsed.layers);
+                return;
+              }
+            }
+          } catch {}
+          applyPaste(v2Clipboard);
+        })();
         return;
       }
       // Arrow-key nudge on primary selection (+Shift = 10px).
@@ -767,6 +822,30 @@ export default function DesignEditor({
       });
     }
 
+    // V2: cache sibling rects (in container-local coords) for snap.
+    let snapSiblings: SnapRect[] | null = null;
+    let snapContainer: HTMLElement | null = null;
+    if (editorV2Enabled) {
+      const host = bodyRef.current;
+      if (host) {
+        const hostRect = host.getBoundingClientRect();
+        const movingIds = new Set<string>([dragable.id, ...others.map((o) => o.el.id)]);
+        const sibs: SnapRect[] = [];
+        host.querySelectorAll<HTMLElement>(".dragable").forEach((el) => {
+          if (!el.id || movingIds.has(el.id)) return;
+          const r = el.getBoundingClientRect();
+          sibs.push({
+            x: r.left - hostRect.left,
+            y: r.top - hostRect.top,
+            w: r.width,
+            h: r.height,
+          });
+        });
+        snapSiblings = sibs;
+        snapContainer = host;
+      }
+    }
+
     dragRef.current = {
       el: dragable,
       startX: clientX,
@@ -774,7 +853,9 @@ export default function DesignEditor({
       origLeft: parseInt(computedStyle.left) || parseInt(dragable.style.left) || 0,
       origTop: parseInt(computedStyle.top) || parseInt(dragable.style.top) || 0,
       others,
-    };
+      snapSiblings,
+      snapContainer,
+    } as any;
   }
 
   /* ─── Make dragable elements interactive (mouse + touch) ─── */
@@ -877,8 +958,24 @@ export default function DesignEditor({
       const scale = getCanvasScale();
       if (dragRef.current) {
         const { el, startX, startY, origLeft, origTop, others } = dragRef.current;
-        const dx = (clientX - startX) / scale;
-        const dy = (clientY - startY) / scale;
+        const dragAny = dragRef.current as any;
+        let dx = (clientX - startX) / scale;
+        let dy = (clientY - startY) / scale;
+        // V2 snap (disabled with Alt). Applies a single nudge to dx/dy so
+        // the whole group drags together and keeps relative offsets.
+        if (dragAny.snapSiblings && dragAny.snapContainer && !(window as any).__hnsAltDown) {
+          const liveX = origLeft + dx;
+          const liveY = origTop + dy;
+          const liveW = el.offsetWidth;
+          const liveH = el.offsetHeight;
+          const snapped = snapRect(
+            { x: liveX, y: liveY, w: liveW, h: liveH },
+            dragAny.snapSiblings,
+            6,
+          );
+          dx += snapped.x - liveX;
+          dy += snapped.y - liveY;
+        }
         el.style.left = (origLeft + dx) + "px";
         el.style.top = (origTop + dy) + "px";
         // Move all other multi-selected elements by the same delta
@@ -912,6 +1009,30 @@ export default function DesignEditor({
       if (touch) handleMove(touch.clientX, touch.clientY);
     }
     function onEnd() {
+      // V2: commit the final DOM position/size back to the scene so
+      // LayerPanel / overlay / undo stack reflect the legacy drag-resize.
+      if (editorV2Enabled) {
+        const store = useEditorStore.getState();
+        if (dragRef.current) {
+          const els: HTMLElement[] = [dragRef.current.el, ...dragRef.current.others.map((o: any) => o.el)];
+          for (const el of els) {
+            if (!el.id) continue;
+            const x = parseInt(el.style.left) || 0;
+            const y = parseInt(el.style.top) || 0;
+            store.setFrame(el.id, { x, y });
+          }
+        }
+        if (resizeRef.current) {
+          const el = resizeRef.current.el;
+          if (el.id) {
+            const x = parseInt(el.style.left) || 0;
+            const y = parseInt(el.style.top) || 0;
+            const w = el.offsetWidth;
+            const h = el.offsetHeight;
+            store.setFrame(el.id, { x, y, w, h });
+          }
+        }
+      }
       dragRef.current = null;
       resizeRef.current = null;
     }
