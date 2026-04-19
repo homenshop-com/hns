@@ -18,7 +18,7 @@
 
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   useEditorStore,
   selectRoot,
@@ -118,6 +118,7 @@ function Row({
           .filter(Boolean)
           .join(" ")}
         style={{ paddingLeft: 6 + depth * 14 }}
+        data-layer-id={layer.id}
       >
         {isGroup ? (
           <button
@@ -295,6 +296,37 @@ export function LayerPanel() {
     for (const id of selectedIds) removeAction(id);
   };
 
+  // Auto-scroll selected row into view when canvas selection changes.
+  const listRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!selectedId) return;
+    const el = listRef.current?.querySelector<HTMLElement>(
+      `[data-layer-id="${CSS.escape(selectedId)}"]`,
+    );
+    if (el) el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    // Also auto-expand ancestor groups so the row is visible.
+    const path: LayerId[] = [];
+    const locate = (node: GroupLayer, trail: LayerId[]): boolean => {
+      for (const c of node.children) {
+        if (c.id === selectedId) {
+          path.push(...trail);
+          return true;
+        }
+        if (c.type === "group" && locate(c, [...trail, c.id])) return true;
+      }
+      return false;
+    };
+    locate(root, []);
+    if (path.length > 0) {
+      setExpanded((prev) => {
+        let changed = false;
+        const next = new Set(prev);
+        for (const id of path) if (!next.has(id)) { next.add(id); changed = true; }
+        return changed ? next : prev;
+      });
+    }
+  }, [selectedId, root]);
+
   return (
     <div className="layerpanel">
       <div className="layerpanel-toolbar">
@@ -327,7 +359,7 @@ export function LayerPanel() {
         </div>
       </div>
 
-      <div className="layerpanel-list" role="tree">
+      <div className="layerpanel-list" role="tree" ref={listRef}>
         {root.children.length === 0 ? (
           <div className="layerpanel-empty">레이어가 없습니다.</div>
         ) : (

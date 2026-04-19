@@ -4,6 +4,10 @@ import { useState, useRef, useCallback, useEffect, lazy, Suspense } from "react"
 import { useRouter } from "next/navigation";
 import "./editor-styles.css";
 import { useEditorStore } from "./store/editor-store";
+import {
+  applySelection as syncApplySelection,
+  syncStoreToDom,
+} from "./store/editor-sync";
 
 const TiptapModal = lazy(() => import("./tiptap-modal"));
 const LayerPanel = lazy(() => import("./components/LayerPanel"));
@@ -214,6 +218,104 @@ export default function DesignEditor({
       bodyRef.current.innerHTML = bodyHtml;
     }
   }, [bodyHtml]);
+
+  /* ─── V2 store → DOM sync ───
+   * Subscribes once to the store. Every mutation runs a cheap DOM
+   * reconcile pass: prune deleted layers, reorder, apply visibility/
+   * lock, then apply selection highlighting. No component re-render —
+   * we use the subscribe API directly on the ref'd container. */
+  useEffect(() => {
+    if (!editorV2Enabled) return;
+    const bodyEl = bodyRef.current;
+    if (!bodyEl) return;
+    // Run once on mount with the current state.
+    {
+      const s = useEditorStore.getState();
+      syncStoreToDom(s.scene, bodyEl);
+      syncApplySelection(s.selectedId, s.multiSelectedIds, bodyEl);
+    }
+    // Zustand v5 default subscribe fires on every state change. Cache
+    // the last-seen references so we only touch the DOM when something
+    // we care about actually changed.
+    let lastScene = useEditorStore.getState().scene;
+    let lastPrimary = useEditorStore.getState().selectedId;
+    let lastMulti = useEditorStore.getState().multiSelectedIds;
+    const unsub = useEditorStore.subscribe((s) => {
+      const el = bodyRef.current;
+      if (!el) return;
+      if (s.scene !== lastScene) {
+        lastScene = s.scene;
+        syncStoreToDom(s.scene, el);
+        // Re-apply selection after order/visibility changes.
+        syncApplySelection(s.selectedId, s.multiSelectedIds, el);
+      }
+      if (s.selectedId !== lastPrimary || s.multiSelectedIds !== lastMulti) {
+        lastPrimary = s.selectedId;
+        lastMulti = s.multiSelectedIds;
+        syncApplySelection(s.selectedId, s.multiSelectedIds, el);
+      }
+    });
+    return () => unsub();
+  }, [editorV2Enabled]);
+
+  /* ─── V2 keyboard shortcuts ───
+   * Bound to window, gated by the flag, and skipped while the user is
+   * typing in a form field / contenteditable so they don't fight TipTap. */
+  useEffect(() => {
+    if (!editorV2Enabled) return;
+    function inEditable(t: EventTarget | null): boolean {
+      const el = t as HTMLElement | null;
+      if (!el) return false;
+      if (el.isContentEditable) return true;
+      const tag = el.tagName;
+      return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+    }
+    function onKey(e: KeyboardEvent) {
+      if (inEditable(e.target)) return;
+      const mod = e.ctrlKey || e.metaKey;
+      const s = useEditorStore.getState();
+      // Undo / Redo
+      if (mod && !e.shiftKey && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        useEditorStore.temporal.getState().undo();
+        return;
+      }
+      if (
+        (mod && e.shiftKey && e.key.toLowerCase() === "z") ||
+        (mod && e.key.toLowerCase() === "y")
+      ) {
+        e.preventDefault();
+        useEditorStore.temporal.getState().redo();
+        return;
+      }
+      // Group / Ungroup
+      if (mod && !e.shiftKey && e.key.toLowerCase() === "g") {
+        e.preventDefault();
+        const ids: string[] = [];
+        if (s.selectedId) ids.push(s.selectedId);
+        s.multiSelectedIds.forEach((id) => {
+          if (!ids.includes(id)) ids.push(id);
+        });
+        if (ids.length >= 2) s.group(ids);
+        return;
+      }
+      if (mod && e.shiftKey && e.key.toLowerCase() === "g") {
+        e.preventDefault();
+        if (s.selectedId) s.ungroup(s.selectedId);
+        return;
+      }
+      // Delete
+      if (e.key === "Delete" || e.key === "Backspace") {
+        if (!s.selectedId && s.multiSelectedIds.size === 0) return;
+        e.preventDefault();
+        const toRemove = new Set<string>(s.multiSelectedIds);
+        if (s.selectedId) toRemove.add(s.selectedId);
+        toRemove.forEach((id) => s.remove(id));
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [editorV2Enabled]);
 
   useEffect(() => {
     if (headerRef.current && !headerInitedRef.current) {
@@ -598,11 +700,16 @@ export default function DesignEditor({
       ms.add(dragable.id);
       setSelectedElId(dragable.id);
       setMultiSelectCount(ms.size);
+      if (editorV2Enabled) {
+        useEditorStore.getState().select(dragable.id, { additive: true });
+      }
     } else if (!ms.has(dragable.id)) {
       // Normal click on element not in multi-selection: clear multi-select
       ms.clear();
       setSelectedElId(dragable.id);
       setMultiSelectCount(0);
+      // V2: mirror to store so LayerPanel highlight follows canvas clicks.
+      if (editorV2Enabled) useEditorStore.getState().select(dragable.id);
     } else {
       // Normal click on element already in multi-selection: keep group, set as primary
       setSelectedElId(dragable.id);
