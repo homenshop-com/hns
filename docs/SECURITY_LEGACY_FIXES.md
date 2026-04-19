@@ -108,7 +108,64 @@ patched with the same pattern (owner SELECT gate → exit on mismatch).
 
 ---
 
-## 3. Enforcement in current production
+## 3. `js/system.js` + `designer/start-designer.php` — PC/Mobile switch drops `elang` / `epage` (FIXED 2026-04-19)
+
+### Finding (Codex QC)
+
+> PC/Mobile 전환 시 현재 편집 중인 페이지와 언어가 유지되지 않습니다.
+> `js/system.js:954`의 `switchDevice()`는 `esid`와 `editDevice`만 보내고,
+> `designer/start-designer.php:34`와 `:79`에서는 `elang`/`epage`가 없으면
+> 기본 언어와 `index.html`로 되돌립니다. 비기본 언어나 서브페이지를
+> 편집하다 전환하면 다른 화면으로 튕깁니다.
+
+### Not security, but UX data-loss
+
+If an editor has unsaved work in a non-default language sub-page and hits
+the PC↔Mobile toggle, the confirm dialog catches unsaved state only when
+`Desinger.modifiedObj` / `dragedorresizedObj` are populated — but once the
+user confirms (or there are no dirty flags), the next page load reopens
+the default language's `index.html` and the sub-page context is lost.
+
+### Applied patch
+
+**`js/system.js` — send the current language + page along with the switch:**
+
+```js
+// + read the live editing state from cookies set by the last editor load
+var elang = $.cookie('eLANG') || '';
+var epage = $.cookie(esid + '-epage') || '';
+var payload = { esid: esid, editDevice: device };
+if (elang) payload.elang = elang;
+if (epage) payload.epage = epage;
+$.ajax({ url: "/designer/start-designer", type: "GET", data: payload, ... });
+```
+
+**`designer/start-designer.php` — fall back to session/cookie when the query
+param is missing, so older clients and any other navigation path also
+retain context:**
+
+```php
+if (!empty($_GET['elang'])) {
+    $eLANG = trim($_GET['elang']);
+} elseif (!empty($_SESSION['eLANG'])) {        // + preserve current lang
+    $eLANG = $_SESSION['eLANG'];
+} else {
+    $eLANG = getDefaultLanguage();
+}
+
+// page: query → SID-cookie → session → default
+if (isset($_GET['epage']) && $_GET['epage'] !== '') { $ePAGE = $_GET['epage']; }
+elseif (!empty($_COOKIE[$_SID.'-epage']))           { $ePAGE = $_COOKIE[$_SID.'-epage']; }
+elseif (!empty($_SESSION['ePAGE']))                 { $ePAGE = $_SESSION['ePAGE']; }
+else                                                { $ePAGE = 'index.html'; }
+```
+
+Result: device switch (and any future caller that omits these params)
+keeps the editor on whatever language/page was active.
+
+---
+
+## 4. Enforcement in current production
 
 Even without legacy, `homenshop.com` is protected because:
 
