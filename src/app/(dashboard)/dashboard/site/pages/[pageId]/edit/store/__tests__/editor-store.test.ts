@@ -110,6 +110,27 @@ describe("editor store", () => {
     expect(root.children[0]!.id).toBe(groupId);
   });
 
+  it("setTransform merges and normalizes identity away", () => {
+    useEditorStore.getState().importHtml(SAMPLE);
+    useEditorStore.getState().setTransform("a", { rotate: 45 });
+    let a = getRoot().children.find((c) => c.id === "a")!;
+    expect(a.transform).toEqual({ rotate: 45 });
+
+    useEditorStore.getState().setTransform("a", { scaleX: 1.5, scaleY: 1.5 });
+    a = getRoot().children.find((c) => c.id === "a")!;
+    expect(a.transform).toEqual({ rotate: 45, scaleX: 1.5, scaleY: 1.5 });
+
+    // Reset rotate to 0 → dropped; scale remains.
+    useEditorStore.getState().setTransform("a", { rotate: 0 });
+    a = getRoot().children.find((c) => c.id === "a")!;
+    expect(a.transform).toEqual({ scaleX: 1.5, scaleY: 1.5 });
+
+    // Clear entirely.
+    useEditorStore.getState().setTransform("a", null);
+    a = getRoot().children.find((c) => c.id === "a")!;
+    expect(a.transform).toBeUndefined();
+  });
+
   it("select additive toggles ids in multi-set", () => {
     useEditorStore.getState().importHtml(SAMPLE);
     const s = useEditorStore.getState();

@@ -765,3 +765,45 @@
      primary interaction surface there. */
   .layerpanel-rail { display: none; }
 }
+
+.layerpanel-inspector {
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+  padding: 8px 10px;
+}
+.layerpanel-inspector-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+.layerpanel-inspector-row label {
+  width: 30px;
+  color: #374151;
+  font-weight: 600;
+}
+.layerpanel-inspector-row input[type="number"] {
+  width: 48px;
+  padding: 3px 4px;
+  border: 1px solid #d1d5db;
+  border-radius: 3px;
+  font-size: 11px;
+  outline: none;
+  background: #fff;
+}
+.layerpanel-inspector-row input[type="number"]:focus {
+  border-color: #3b82f6;
+}
+.layerpanel-inspector-unit { color: #6b7280; width: 10px; }
+.layerpanel-inspector-slider { flex: 1; }
+.layerpanel-inspector-reset {
+  width: 22px;
+  height: 22px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  border-radius: 3px;
+  font-size: 12px;
+  cursor: pointer;
+  color: #374151;
+}
+.layerpanel-inspector-reset:hover { background: #f3f4f6; }

@@ -33,6 +33,7 @@ import {
   isGroup,
 } from "./types";
 import { StyleMap, printStyle } from "./parse-style";
+import { printTransform, printTransformOrigin } from "./parse-transform";
 
 const STYLE_KEY_ORDER = [
   "position",
@@ -48,6 +49,8 @@ const STYLE_KEY_ORDER = [
   "border",
   "filter",
   "clip-path",
+  "transform",
+  "transform-origin",
   "margin",
 ];
 
@@ -100,6 +103,12 @@ function buildStyleMap(layer: Layer): StyleMap {
   if (style.border) out["border"] = style.border;
   if (style.filter) out["filter"] = style.filter;
   if (style.clipPath) out["clip-path"] = style.clipPath;
+
+  // Transform (rotate / scale) — only emitted when non-identity.
+  const tfm = printTransform(layer.transform);
+  if (tfm) out["transform"] = tfm;
+  const tfo = printTransformOrigin(layer.transform);
+  if (tfo) out["transform-origin"] = tfo;
 
   // Allow extras to override (preserves margin:auto etc. from legacy import).
   if (layer.legacyStyleExtras) {

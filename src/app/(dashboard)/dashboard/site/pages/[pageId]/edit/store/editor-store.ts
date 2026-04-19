@@ -29,6 +29,7 @@ import type {
   GroupLayer,
   Layer,
   LayerId,
+  LayerTransform,
   SceneGraph,
 } from "@/lib/scene";
 
@@ -72,6 +73,9 @@ export interface EditorActions {
    *  `ungroup` inlines the group's children into its parent. */
   group(ids: LayerId[], groupName?: string): LayerId | null;
   ungroup(groupId: LayerId): void;
+
+  /** Merge a transform patch into a layer. Pass `null` to clear. */
+  setTransform(id: LayerId, patch: Partial<LayerTransform> | null): void;
 
   /** Clear dirty flag — call after a successful save. */
   markClean(): void;
@@ -298,6 +302,26 @@ export const useEditorStore = create<EditorStore>()(
             const target = loc.parent.children[loc.index];
             if (!target || target.type !== "group") return;
             loc.parent.children.splice(loc.index, 1, ...target.children);
+          }),
+          dirty: true,
+        })),
+
+      setTransform: (id, patch) =>
+        set((s) => ({
+          scene: produce(s.scene, (draft) => {
+            const l = findLayer(draft.root, id);
+            if (!l) return;
+            if (patch === null) {
+              l.transform = undefined;
+              return;
+            }
+            const next: LayerTransform = { ...(l.transform || {}), ...patch };
+            // Normalize: drop identity so serialize stays clean.
+            if (next.rotate === 0) delete next.rotate;
+            if (next.scaleX === 1) delete next.scaleX;
+            if (next.scaleY === 1) delete next.scaleY;
+            const hasAny = Object.keys(next).length > 0;
+            l.transform = hasAny ? next : undefined;
           }),
           dirty: true,
         })),

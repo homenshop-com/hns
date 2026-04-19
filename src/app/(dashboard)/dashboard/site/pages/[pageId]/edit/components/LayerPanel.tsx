@@ -380,6 +380,76 @@ export function LayerPanel() {
             ))
         )}
       </div>
+      <TransformInspector selectedId={selectedId} root={root} />
+    </div>
+  );
+}
+
+/* ─── Transform inspector ───
+ * Shown at the bottom of the panel when exactly one layer is selected.
+ * Tier-2 only exposes rotation — scale / origin come later via the
+ * canvas transform handle gesture (Tier-3). */
+function TransformInspector({
+  selectedId,
+  root,
+}: {
+  selectedId: LayerId | null;
+  root: GroupLayer;
+}) {
+  const setTransform = useEditorStore((s) => s.setTransform);
+  // Walk once per render to resolve the selected layer; panels typically
+  // have 10s of layers so the cost is trivial.
+  const layer = useMemo<Layer | null>(() => {
+    if (!selectedId) return null;
+    const walk = (g: GroupLayer): Layer | null => {
+      for (const c of g.children) {
+        if (c.id === selectedId) return c;
+        if (c.type === "group") {
+          const r = walk(c);
+          if (r) return r;
+        }
+      }
+      return null;
+    };
+    return walk(root);
+  }, [selectedId, root]);
+
+  if (!layer) return null;
+  const rotate = layer.transform?.rotate ?? 0;
+
+  return (
+    <div className="layerpanel-inspector">
+      <div className="layerpanel-inspector-row">
+        <label htmlFor="layerpanel-rotate">회전</label>
+        <input
+          id="layerpanel-rotate"
+          type="number"
+          step="1"
+          value={Math.round(rotate)}
+          onChange={(e) => {
+            const n = parseFloat(e.target.value);
+            setTransform(layer.id, { rotate: Number.isNaN(n) ? 0 : n });
+          }}
+        />
+        <span className="layerpanel-inspector-unit">°</span>
+        <input
+          type="range"
+          min={-180}
+          max={180}
+          step={1}
+          value={rotate}
+          onChange={(e) => setTransform(layer.id, { rotate: parseFloat(e.target.value) })}
+          className="layerpanel-inspector-slider"
+        />
+        <button
+          type="button"
+          className="layerpanel-inspector-reset"
+          title="회전 초기화"
+          onClick={() => setTransform(layer.id, { rotate: 0 })}
+        >
+          ↺
+        </button>
+      </div>
     </div>
   );
 }

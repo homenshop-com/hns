@@ -22,7 +22,15 @@
  *    work too.
  */
 
-import type { GroupLayer, Layer, LayerId, SceneGraph } from "@/lib/scene";
+import {
+  DRAGABLE_CLASS,
+  GROUP_CLASS,
+  type GroupLayer,
+  type Layer,
+  type LayerId,
+  type SceneGraph,
+} from "@/lib/scene";
+import { printTransform, printTransformOrigin } from "@/lib/scene/parse-transform";
 
 const HIDDEN_ATTR = "data-de-hidden";
 const LOCKED_ATTR = "data-de-locked";
@@ -99,28 +107,88 @@ export function applyVisibilityAndLock(
   });
 }
 
-/* ─── Order ─── */
+/* ─── Structure (order + group wrappers) ─── */
 
 /**
- * Reorder DOM children inside `container` to match the top-level order
- * of `scene.root.children`. We only touch direct children that are
- * `.dragable` (the typical body layout) — anything else stays put at
- * its original DOM index.
+ * Find an existing DOM node with the given id anywhere inside `root`.
+ * We search globally (not just direct children) because group/ungroup
+ * operations may have parked nodes at arbitrary depth.
+ */
+function findById(root: HTMLElement, id: string): HTMLElement | null {
+  if (root.id === id) return root;
+  return root.querySelector<HTMLElement>(`#${CSS.escape(id)}`);
+}
+
+/** Ensure a `.de-group.dragable` wrapper div exists for a scene group.
+ *  Creates one if missing. Returns the element. */
+function ensureGroupWrapper(
+  root: HTMLElement,
+  group: GroupLayer,
+): HTMLElement {
+  let el = findById(root, group.id);
+  if (el) {
+    // Make sure it carries the expected classes for CSS / publisher.
+    if (!el.classList.contains(DRAGABLE_CLASS)) el.classList.add(DRAGABLE_CLASS);
+    if (!el.classList.contains(GROUP_CLASS)) el.classList.add(GROUP_CLASS);
+    return el;
+  }
+  el = document.createElement("div");
+  el.id = group.id;
+  el.className = `${GROUP_CLASS} ${DRAGABLE_CLASS}`;
+  el.style.position = "absolute";
+  el.style.left = `${group.frame.x}px`;
+  el.style.top = `${group.frame.y}px`;
+  return el;
+}
+
+/** Apply the scene's transform (rotate/scale/origin) to a DOM node. */
+function applyTransformToEl(el: HTMLElement, layer: Layer) {
+  const tfm = printTransform(layer.transform);
+  if (tfm) el.style.transform = tfm;
+  else el.style.removeProperty("transform");
+  const tfo = printTransformOrigin(layer.transform);
+  if (tfo) el.style.transformOrigin = tfo;
+  else el.style.removeProperty("transform-origin");
+}
+
+/**
+ * Reconcile DOM structure to match the scene tree:
+ *  - Groups get (or reuse) a `.de-group.dragable` wrapper div.
+ *  - Children of each scene group are appended to the corresponding
+ *    wrapper in scene order.
+ *  - Non-scene elements inside `container` stay untouched at their
+ *    relative position.
+ *  - Transform is pushed to each node.
+ *
+ * This is what turns a "group" store action into actual DOM nesting.
+ */
+export function applyStructure(scene: SceneGraph, container: HTMLElement) {
+  const reconcile = (node: GroupLayer, domParent: HTMLElement) => {
+    for (const child of node.children) {
+      let childEl: HTMLElement | null;
+      if (child.type === "group") {
+        childEl = ensureGroupWrapper(container, child);
+      } else {
+        childEl = findById(container, child.id);
+      }
+      if (!childEl) continue;
+      // Move into the correct parent / order slot.
+      domParent.appendChild(childEl);
+      applyTransformToEl(childEl, child);
+      if (child.type === "group") {
+        reconcile(child, childEl);
+      }
+    }
+  };
+  reconcile(scene.root, container);
+}
+
+/**
+ * Back-compat alias for the flat-only order sync used pre-Tier-2.
+ * New code should prefer `applyStructure`.
  */
 export function applyOrder(scene: SceneGraph, container: HTMLElement) {
-  const desired = scene.root.children.map((c) => c.id);
-  const byId = new Map<string, HTMLElement>();
-  for (const el of Array.from(container.children)) {
-    if (el instanceof HTMLElement && el.classList.contains("dragable") && el.id) {
-      byId.set(el.id, el);
-    }
-  }
-  // Re-append in the desired order. Nodes not in `desired` keep their
-  // relative order at the start of the container.
-  for (const id of desired) {
-    const el = byId.get(id);
-    if (el) container.appendChild(el);
-  }
+  applyStructure(scene, container);
 }
 
 /* ─── Deletion ─── */
@@ -168,7 +236,10 @@ export function applySelection(
  * beyond what the mutations actually require).
  */
 export function syncStoreToDom(scene: SceneGraph, container: HTMLElement) {
+  // Order matters: structure first (moves children into the correct
+  // parents, creating group wrappers as needed). Prune second so we
+  // only remove wrappers that are genuinely orphan after the move.
+  applyStructure(scene, container);
   pruneOrphans(scene, container);
-  applyOrder(scene, container);
   applyVisibilityAndLock(scene, container);
 }

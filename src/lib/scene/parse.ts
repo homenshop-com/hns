@@ -34,6 +34,7 @@ import {
 } from "./types";
 import { ROOT_GROUP_ID, newLayerId } from "./ids";
 import { StyleMap, parseStyle, pxNum, hasImportant } from "./parse-style";
+import { parseTransform, parseTransformOrigin } from "./parse-transform";
 
 /* ─── DOM adapter (works in browser + jsdom) ─── */
 
@@ -104,10 +105,12 @@ function extractFrame(style: StyleMap): {
 
 function extractStyle(style: StyleMap): {
   layerStyle: LayerStyle;
+  transform?: import("./types").LayerTransform;
   extras: Record<string, string>;
 } {
   const layerStyle: LayerStyle = {};
   const extras: Record<string, string> = {};
+  let transform: import("./types").LayerTransform | undefined;
 
   for (const [k, v] of Object.entries(style)) {
     switch (k) {
@@ -119,6 +122,26 @@ function extractStyle(style: StyleMap): {
         // Handled by frame or implicit (position:absolute is the default
         // for all .dragable layers — we reassert it on serialize).
         break;
+      case "transform": {
+        const t = parseTransform(v);
+        if (t) {
+          transform = { ...(transform || {}), ...t };
+        } else {
+          // Couldn't cleanly decompose — preserve verbatim so the
+          // source rendering isn't lost on roundtrip.
+          extras[k] = v;
+        }
+        break;
+      }
+      case "transform-origin": {
+        const o = parseTransformOrigin(v);
+        if (o) {
+          transform = { ...(transform || {}), ...o };
+        } else {
+          extras[k] = v;
+        }
+        break;
+      }
       case "z-index": {
         const n = pxNum(v);
         if (n != null) layerStyle.zIndex = n;
@@ -151,7 +174,7 @@ function extractStyle(style: StyleMap): {
         extras[k] = v;
     }
   }
-  return { layerStyle, extras };
+  return { layerStyle, transform, extras };
 }
 
 /** Detect the most specific LayerType for a `.dragable` element. */
@@ -196,7 +219,7 @@ function detectType(el: Element): Layer["type"] {
 function buildImageLayer(el: Element, id: string, name: string): ImageLayer {
   const style = parseStyle(el.getAttribute("style"));
   const { frame, keys: frameKeys, important: frameImportant } = extractFrame(style);
-  const { layerStyle, extras } = extractStyle(style);
+  const { layerStyle, transform, extras } = extractStyle(style);
 
   const img = el.querySelector("img");
   const a = el.querySelector("a");
@@ -209,6 +232,7 @@ function buildImageLayer(el: Element, id: string, name: string): ImageLayer {
     locked: false,
     frame,
     style: layerStyle,
+    ...(transform && { transform }),
     src: img?.getAttribute("src") ?? "",
     alt: img?.getAttribute("alt") ?? undefined,
     innerHtml: el.innerHTML,
@@ -233,7 +257,7 @@ function buildPluginLayer(
 ): PluginLayer {
   const style = parseStyle(el.getAttribute("style"));
   const { frame, keys: frameKeys, important: frameImportant } = extractFrame(style);
-  const { layerStyle, extras } = extractStyle(style);
+  const { layerStyle, transform, extras } = extractStyle(style);
   return {
     id,
     name,
@@ -242,6 +266,7 @@ function buildPluginLayer(
     locked: false,
     frame,
     style: layerStyle,
+    ...(transform && { transform }),
     legacyInnerHtml: el.innerHTML,
     legacyClassName: el.getAttribute("class") ?? DRAGABLE_CLASS,
     legacyAttrs: getAttrs(el, new Set(["class", "style", "id"])),
@@ -254,7 +279,7 @@ function buildPluginLayer(
 function buildBoxLayer(el: Element, id: string, name: string): BoxLayer {
   const style = parseStyle(el.getAttribute("style"));
   const { frame, keys: frameKeys, important: frameImportant } = extractFrame(style);
-  const { layerStyle, extras } = extractStyle(style);
+  const { layerStyle, transform, extras } = extractStyle(style);
   return {
     id,
     name,
@@ -263,6 +288,7 @@ function buildBoxLayer(el: Element, id: string, name: string): BoxLayer {
     locked: false,
     frame,
     style: layerStyle,
+    ...(transform && { transform }),
     innerHtml: el.innerHTML,
     legacyClassName: el.getAttribute("class") ?? DRAGABLE_CLASS,
     legacyAttrs: getAttrs(el, new Set(["class", "style", "id"])),
@@ -275,7 +301,7 @@ function buildBoxLayer(el: Element, id: string, name: string): BoxLayer {
 function buildTextLayer(el: Element, id: string, name: string): TextLayer {
   const style = parseStyle(el.getAttribute("style"));
   const { frame, keys: frameKeys, important: frameImportant } = extractFrame(style);
-  const { layerStyle, extras } = extractStyle(style);
+  const { layerStyle, transform, extras } = extractStyle(style);
   return {
     id,
     name,
@@ -284,6 +310,7 @@ function buildTextLayer(el: Element, id: string, name: string): TextLayer {
     locked: false,
     frame,
     style: layerStyle,
+    ...(transform && { transform }),
     html: el.innerHTML,
     legacyClassName: el.getAttribute("class") ?? DRAGABLE_CLASS,
     legacyAttrs: getAttrs(el, new Set(["class", "style", "id"])),
@@ -301,7 +328,7 @@ function buildGroupLayer(
 ): GroupLayer {
   const style = parseStyle(el.getAttribute("style"));
   const { frame, keys: frameKeys, important: frameImportant } = extractFrame(style);
-  const { layerStyle, extras } = extractStyle(style);
+  const { layerStyle, transform, extras } = extractStyle(style);
   return {
     id,
     name,
@@ -310,6 +337,7 @@ function buildGroupLayer(
     locked: false,
     frame,
     style: layerStyle,
+    ...(transform && { transform }),
     children,
     legacyClassName: el.getAttribute("class") ?? `${GROUP_CLASS} ${DRAGABLE_CLASS}`,
     legacyAttrs: getAttrs(el, new Set(["class", "style", "id"])),
