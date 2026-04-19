@@ -62,7 +62,7 @@ export default async function EditMyTemplatePage({
   }
 
   // Prefer the home page; fall back to any page of the site.
-  let homePageId = site.pages[0]?.id;
+  let homePageId: string | undefined = site.pages[0]?.id;
   if (!homePageId) {
     const anyPage = await prisma.page.findFirst({
       where: { siteId: site.id },
