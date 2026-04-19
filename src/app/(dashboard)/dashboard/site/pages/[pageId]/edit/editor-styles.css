@@ -753,11 +753,23 @@
   right: 0;
   bottom: 0;
   width: 260px;
-  z-index: 40;
+  /* Above the canvas and any absolutely-positioned template elements
+     (phone badges, floating buttons) which commonly use z-index up to
+     ~100 in legacy templates. */
+  z-index: 1000;
   box-shadow: -1px 0 4px rgba(0, 0, 0, 0.06);
   background: #fff;
   display: flex;
   flex-direction: column;
+}
+
+/* Reserve canvas space for the rail on wide screens so template-edge
+   elements (right-aligned phone, hero images) don't sit under the
+   panel. Width matches .layerpanel-rail. */
+@media (min-width: 901px) {
+  body:has(.layerpanel-rail) .de-canvas-wrapper {
+    padding-right: 280px;
+  }
 }
 
 @media (max-width: 900px) {
