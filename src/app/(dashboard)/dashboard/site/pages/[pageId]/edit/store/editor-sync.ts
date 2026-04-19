@@ -72,14 +72,12 @@ export function applyVisibilityAndLock(
   const byId = new Map<LayerId, Layer>();
   walk(scene.root, (l) => byId.set(l.id, l));
 
-  const nodes = container.querySelectorAll<HTMLElement>(".dragable");
-  nodes.forEach((el) => {
-    if (!el.id) return;
-    const layer = byId.get(el.id);
-    if (!layer) {
-      // Orphan — leave alone (pruneOrphans decides removal).
-      return;
-    }
+  // Iterate by scene id (not just .dragable) so InlineLayer elements
+  // — which are <span>/<a> with `id="el_*"` and no `.dragable` class —
+  // also receive visibility/lock state.
+  byId.forEach((layer, id) => {
+    const el = container.querySelector<HTMLElement>(`#${CSS.escape(id)}`);
+    if (!el) return;
 
     // Visibility: we represent "hidden" as opacity:0.3 + pointer-events:none
     // in the editor (so users can still see and re-select the layer). The
@@ -153,6 +151,10 @@ function ensureGroupWrapper(
  *  virtual groups (root). */
 function applyFrameToEl(el: HTMLElement, layer: Layer) {
   if (layer.type === "group" && (layer as GroupLayer).virtual) return;
+  // Inline layers are flow-positioned — touching inline style would
+  // override responsive CSS and break layout. Section itself is also
+  // flow; its frame.x/y are 0 and it must never gain position:absolute.
+  if (layer.type === "inline" || layer.type === "section") return;
   const keys = new Set(layer.frameKeys ?? []);
   if (keys.has("position")) el.style.position = "absolute";
   if (keys.has("left")) el.style.left = `${layer.frame.x}px`;
@@ -263,7 +265,10 @@ export function applySelection(
   const wanted = new Set<LayerId>(multi);
   if (primary) wanted.add(primary);
 
-  container.querySelectorAll<HTMLElement>(".dragable").forEach((el) => {
+  // Include both `.dragable` leaves and inline-promoted elements
+  // (spans/anchors with `id="el_*"`); the store's selection may refer
+  // to any layer type.
+  container.querySelectorAll<HTMLElement>(".dragable, [id^='el_']").forEach((el) => {
     if (!el.id) return;
     if (wanted.has(el.id)) el.classList.add("de-selected");
     else el.classList.remove("de-selected");

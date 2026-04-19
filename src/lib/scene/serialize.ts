@@ -25,6 +25,7 @@ import {
   GROUP_CLASS,
   GroupLayer,
   ImageLayer,
+  InlineLayer,
   Layer,
   LayerStyle,
   PluginLayer,
@@ -32,6 +33,7 @@ import {
   SectionLayer,
   TextLayer,
   isGroup,
+  isInline,
   isSection,
 } from "./types";
 import { StyleMap, printStyle } from "./parse-style";
@@ -74,6 +76,10 @@ function buildClassName(layer: Layer): string {
   if (isGroup(layer) && !layer.virtual) {
     ensure(GROUP_CLASS);
     ensure(DRAGABLE_CLASS);
+  } else if (isInline(layer)) {
+    // Inline layers preserve their source classes verbatim — they were
+    // never `.dragable` in the template and adding the class would
+    // reshape them for CSS that targets `.dragable > *`.
   } else if (!isGroup(layer)) {
     // Sections and leaves both carry `dragable` so the legacy
     // publisher and selectors continue to recognize them. Sections
@@ -205,6 +211,40 @@ function serializeSectionInner(layer: SectionLayer): string {
   return html + appended.join("");
 }
 
+function serializeInline(layer: InlineLayer): string {
+  // Inline layers emit using their ORIGINAL tag — no wrapping div, no
+  // enforced position styles, no DRAGABLE_CLASS injection. They are
+  // flow-inline text/link elements authored as span/a/strong/etc. in
+  // legacy templates. All style keys are preserved via
+  // legacyStyleExtras (not through buildStyleMap, which would filter
+  // positional keys — inappropriate for flow-inline elements).
+  const parts: string[] = [];
+  const emitted = new Set<string>();
+  const emit = (k: string, v: string) => {
+    if (emitted.has(k)) return;
+    emitted.add(k);
+    parts.push(`${k}="${escapeAttr(v)}"`);
+  };
+  emit("id", layer.id);
+  // Preserve legacyClassName verbatim — including empty string, which
+  // real templates (TipTap-authored) commonly emit and the realpage
+  // roundtrip test compares byte-for-byte.
+  if (layer.legacyClassName !== undefined) emit("class", layer.legacyClassName);
+  const styleMap: StyleMap = { ...(layer.legacyStyleExtras ?? {}) };
+  const styleStr = printStyle(styleMap, STYLE_KEY_ORDER);
+  if (styleStr) emit("style", styleStr);
+  if (layer.legacyAttrs) {
+    const keys = Object.keys(layer.legacyAttrs).sort();
+    for (const k of keys) {
+      if (ATTR_KEY_ORDER.includes(k)) continue;
+      emit(k, layer.legacyAttrs[k]!);
+    }
+  }
+  const tag = layer.tag || "span";
+  const attrStr = parts.join(" ");
+  return `<${tag}${attrStr ? " " + attrStr : ""}>${layer.innerHtml ?? ""}</${tag}>`;
+}
+
 function serializeLayer(layer: Layer): string {
   if (isGroup(layer)) {
     if (layer.virtual) {
@@ -217,6 +257,9 @@ function serializeLayer(layer: Layer): string {
   if (isSection(layer)) {
     const attrs = buildAttrString(layer);
     return `<div ${attrs}>${serializeSectionInner(layer)}</div>`;
+  }
+  if (isInline(layer)) {
+    return serializeInline(layer);
   }
   const attrs = buildAttrString(layer);
   let inner = "";

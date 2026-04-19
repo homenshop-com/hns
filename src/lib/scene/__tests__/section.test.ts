@@ -10,7 +10,7 @@
 import { describe, expect, it } from "vitest";
 import { legacyHtmlToScene } from "../parse";
 import { sceneToLegacyHtml } from "../serialize";
-import { isSection, SectionLayer } from "../types";
+import { InlineLayer, isSection, SectionLayer } from "../types";
 
 describe("SectionLayer — parse", () => {
   it("promotes flow-level .dragable (no inline position) to section", () => {
@@ -125,6 +125,70 @@ describe("SectionLayer — typed children (9c)", () => {
     const out = sceneToLegacyHtml(scene);
     expect(out).toContain(`id="keep"`);
     expect(out).not.toContain(`id="drop"`);
+    expect(out).not.toContain("scene-child:");
+  });
+
+  /* ─── Path-1 (9d) — legacy el_* inline promotion ─── */
+
+  it("promotes legacy id=el_* spans/anchors inside sections as InlineLayer", () => {
+    const html =
+      `<div id="hero" class="dragable sol-replacible-text">`
+      + `<span class="hero-title" id="el_111_aaa">Title</span>`
+      + `<a href="/apply" class="btn-primary" id="el_222_bbb">Apply</a>`
+      + `<span class="sub">decorative</span>`  // no el_ id → stays in shell
+      + `</div>`;
+    const scene = legacyHtmlToScene(html);
+    const sec = scene.root.children[0] as SectionLayer;
+    expect(sec.children).toHaveLength(2);
+    const [title, apply] = sec.children as [InlineLayer, InlineLayer];
+    expect(title.type).toBe("inline");
+    expect(title.tag).toBe("span");
+    expect(title.innerHtml).toBe("Title");
+    expect(title.name).toBe("hero-title");
+    expect(apply.type).toBe("inline");
+    expect(apply.tag).toBe("a");
+    expect(apply.legacyAttrs?.href).toBe("/apply");
+    expect(apply.name).toBe("btn-primary");
+    // Decorative span (no el_ id) stayed in the shell.
+    expect(sec.innerHtml).toContain(`<span class="sub">decorative</span>`);
+  });
+
+  it("serializes InlineLayer with original tag, no wrapper div, no position", () => {
+    const html =
+      `<div id="hero" class="dragable">`
+      + `<a href="/x" class="btn-primary" id="el_1_a">Go</a>`
+      + `</div>`;
+    const scene = legacyHtmlToScene(html);
+    const out = sceneToLegacyHtml(scene);
+    expect(out).toContain(`<a`);
+    expect(out).toContain(`href="/x"`);
+    expect(out).toContain(`class="btn-primary"`);
+    expect(out).toContain(`id="el_1_a"`);
+    expect(out).toContain(`>Go</a>`);
+    // Must NOT wrap in div, must NOT inject position/dragable.
+    expect(out).not.toMatch(/<div[^>]*id="el_1_a"/);
+    expect(out).not.toMatch(/class="[^"]*dragable[^"]*"[^>]*id="el_1_a"/);
+    expect(out).not.toMatch(/id="el_1_a"[^>]*style="[^"]*position/);
+  });
+
+  it("round-trip preserves ordering of dragables, inline layers, and decorative markup", () => {
+    const html =
+      `<div id="hero" class="dragable">`
+      + `<h1>Big title</h1>`
+      + `<span class="sub" id="el_1_a">subtitle</span>`
+      + `<div id="cta" class="dragable" style="position:absolute;left:10px;top:20px;width:50px;height:20px">CTA</div>`
+      + `<a href="/x" id="el_2_b">link</a>`
+      + `</div>`;
+    const scene = legacyHtmlToScene(html);
+    const out = sceneToLegacyHtml(scene);
+    const iH1 = out.indexOf("<h1>");
+    const iSub = out.indexOf(`id="el_1_a"`);
+    const iCta = out.indexOf(`id="cta"`);
+    const iLink = out.indexOf(`id="el_2_b"`);
+    expect(iH1).toBeGreaterThanOrEqual(0);
+    expect(iSub).toBeGreaterThan(iH1);
+    expect(iCta).toBeGreaterThan(iSub);
+    expect(iLink).toBeGreaterThan(iCta);
     expect(out).not.toContain("scene-child:");
   });
 

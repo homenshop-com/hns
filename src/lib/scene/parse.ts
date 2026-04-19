@@ -25,6 +25,7 @@ import {
   GROUP_CLASS,
   GroupLayer,
   ImageLayer,
+  InlineLayer,
   Layer,
   LayerStyle,
   PLUGIN_CLASS_TYPE,
@@ -395,6 +396,83 @@ function collectTopmostDragables(root: Element, out: Element[]): void {
   }
 }
 
+/** Does this element look like a legacy-designer inline object? The
+ *  PHP designer tagged each editable text sub-element of a section
+ *  with `id="el_<timestamp>_<suffix>"`. We promote these to InlineLayer
+ *  so the LayerPanel can select/rename them individually. */
+const EL_ID_RE = /^el_[0-9a-z_]+$/i;
+function isInlineCandidate(el: Element): boolean {
+  if (hasClass(el, DRAGABLE_CLASS)) return false;
+  const id = el.getAttribute("id") || "";
+  if (!EL_ID_RE.test(id)) return false;
+  // Skip elements that contain another inline candidate or a dragable —
+  // they'd be extracted as their own layer and this one would end up
+  // hollow. Keep only innermost / leaf-ish inline wrappers with real
+  // content.
+  // (We allow arbitrary markup inside — spans w/ SVG icons, etc.)
+  return true;
+}
+
+/** Walk `root` collecting both `.dragable` topmost descendants AND
+ *  inline candidates (legacy `id="el_*"` text objects). Each found
+ *  element is a terminator — the walk does not descend into it. */
+function collectSectionChildren(root: Element, out: Element[]): void {
+  for (let i = 0; i < root.children.length; i++) {
+    const c = root.children[i]!;
+    if (hasClass(c, DRAGABLE_CLASS) || isInlineCandidate(c)) {
+      out.push(c);
+    } else {
+      collectSectionChildren(c, out);
+    }
+  }
+}
+
+/** Friendly name for an inline layer, derived from its className
+ *  (`hero-title`, `btn-primary`, ...) when available. Falls back to
+ *  the tag name + index. */
+function suggestInlineName(el: Element, idx: number): string {
+  const classes = classList(el);
+  for (const cls of classes) {
+    // Skip generic utility classes and our own markers.
+    if (/^(el_|de-|sol-)/i.test(cls)) continue;
+    if (cls.length < 2) continue;
+    return cls;
+  }
+  return `${el.tagName.toLowerCase()} ${idx}`;
+}
+
+function buildInlineLayer(el: Element, id: string, name: string): InlineLayer {
+  const style = parseStyle(el.getAttribute("style"));
+  // Inline layers preserve ALL style keys verbatim via legacyStyleExtras.
+  // Unlike absolute-positioned dragables, `left`/`top`/`width`/`height`
+  // on an inline element are CSS flow tweaks (e.g. `width: 250px` on a
+  // thumbnail span, `left: -6px` as a nudge for kerning/alignment) —
+  // NOT absolute positioning. Passing the map straight through avoids
+  // extractStyle's positional filter dropping them on roundtrip.
+  const extras: Record<string, string> = { ...style };
+  // `class=""` is meaningless but templates written by TipTap often
+  // carry it; preserve it literally so realpage roundtrip stays byte-
+  // stable.
+  const classAttr = el.getAttribute("class");
+  return {
+    id,
+    name,
+    type: "inline",
+    visible: true,
+    locked: false,
+    // Flow-inline — frame is not meaningful. Kept as a zero rect for
+    // uniformity with BaseLayer; editor UI hides frame controls.
+    frame: { x: 0, y: 0, w: 0, h: 0 },
+    style: {},
+    tag: el.tagName.toLowerCase(),
+    innerHtml: el.innerHTML,
+    ...(classAttr != null && { legacyClassName: classAttr }),
+    legacyAttrs: getAttrs(el, new Set(["class", "style", "id"])),
+    legacyStyleExtras: Object.keys(extras).length ? extras : undefined,
+    // No frameKeys — inline layers must never emit position styles.
+  };
+}
+
 function buildGroupLayer(
   el: Element,
   id: string,
@@ -436,6 +514,7 @@ function suggestName(type: Layer["type"], idx: number): string {
   const label: Record<Layer["type"], string> = {
     group: "그룹",
     section: "섹션",
+    inline: "요소",
     text: "텍스트",
     image: "이미지",
     box: "박스",
@@ -473,18 +552,24 @@ function elementToLayer(el: Element, nameIdx: { n: number }): Layer {
       return buildGroupLayer(el, id, name, children);
     }
     case "section": {
-      // Tier-2 (9c): promote topmost `.dragable` descendants to
-      // first-class typed children. Each promoted child is parsed
-      // recursively, then the live DOM node is swapped for a
-      // `<!--scene-child:${id}-->` placeholder comment. The section's
-      // innerHtml (captured by buildSectionLayer right after this) is
-      // therefore the shell template with decorative markup intact
-      // and marker comments where the children go.
+      // Tier-2 (9c) + Path-1 (9d): promote both topmost `.dragable`
+      // descendants AND legacy `id="el_*"` inline elements to typed
+      // children. Each is replaced with a `<!--scene-child:${id}-->`
+      // placeholder comment in the shell template, so decorative
+      // markup around them is preserved on round-trip.
       const childEls: Element[] = [];
-      collectTopmostDragables(el, childEls);
+      collectSectionChildren(el, childEls);
       const children: Layer[] = [];
       for (const ce of childEls) {
-        const layer = elementToLayer(ce, nameIdx);
+        let layer: Layer;
+        if (hasClass(ce, DRAGABLE_CLASS)) {
+          layer = elementToLayer(ce, nameIdx);
+        } else {
+          // Inline path: legacy el_* element.
+          const cid = ensureId(ce);
+          const cname = suggestInlineName(ce, ++nameIdx.n);
+          layer = buildInlineLayer(ce, cid, cname);
+        }
         const placeholder = el.ownerDocument!.createComment(`scene-child:${layer.id}`);
         ce.parentNode!.replaceChild(placeholder, ce);
         children.push(layer);

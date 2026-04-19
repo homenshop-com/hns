@@ -40,6 +40,7 @@ export type BlendMode =
 export type LayerType =
   | "group"
   | "section"
+  | "inline"
   | "text"
   | "image"
   | "box"
@@ -196,6 +197,32 @@ export interface ImageLayer extends BaseLayer {
   innerHtml: string;
 }
 
+/**
+ * InlineLayer — a flow-positioned sub-element inside a section, promoted
+ * from the legacy `id="el_*"` pattern used by the PHP designer (spans,
+ * anchors, etc. marked as text objects within a rich-text section).
+ *
+ * Unlike .dragable leaves, inline layers:
+ *  - Retain their original tag (`<span>`, `<a>`, `<strong>`, ...) on
+ *    serialize — no wrapper `<div>`, no `.dragable` class injection.
+ *  - Are flow-positioned by CSS (never emit position/left/top/width/height).
+ *  - Can still be selected/renamed/hidden in the LayerPanel and have
+ *    their text/inner HTML edited via the same TipTap pipeline.
+ *
+ * This opens a practical "PPT-like" editing UX for templates authored
+ * in the legacy rich-text style (hero sections with inline text
+ * objects) without requiring the source markup to be rewritten to
+ * absolute-positioned divs.
+ */
+export interface InlineLayer extends BaseLayer {
+  type: "inline";
+  /** Original tag name, lower-cased. Preserved so serialize can emit
+   *  `<span>...</span>` / `<a>...</a>` / etc. verbatim. */
+  tag: string;
+  /** Editable inner HTML (TipTap-compatible subset). */
+  innerHtml: string;
+}
+
 export interface BoxLayer extends BaseLayer {
   type: "box";
   /**
@@ -235,6 +262,7 @@ export interface PluginLayer extends BaseLayer {
 export type Layer =
   | GroupLayer
   | SectionLayer
+  | InlineLayer
   | TextLayer
   | ImageLayer
   | BoxLayer
@@ -260,6 +288,9 @@ export function isSection(l: Layer): l is SectionLayer {
 /** Tier-2 (9c): both groups and sections carry typed children. */
 export function hasTypedChildren(l: Layer): l is GroupLayer | SectionLayer {
   return l.type === "group" || l.type === "section";
+}
+export function isInline(l: Layer): l is InlineLayer {
+  return l.type === "inline";
 }
 export function isText(l: Layer): l is TextLayer {
   return l.type === "text";
