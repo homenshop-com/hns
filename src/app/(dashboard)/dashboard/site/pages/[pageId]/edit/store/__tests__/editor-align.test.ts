@@ -16,6 +16,9 @@ function makeBox(id: string, x: number, y: number, w: number, h: number): Layer 
     visible: true,
     locked: false,
     frame: { x, y, w, h },
+    // Mark as absolute-positioned so the Sprint 9a flow-guard lets align
+    // operate. Real parsed scenes always set these for absolute layers.
+    frameKeys: ["position", "left", "top", "width", "height"],
     style: {},
   } as Layer;
 }

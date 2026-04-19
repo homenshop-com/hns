@@ -806,6 +806,19 @@ export default function DesignEditor({
 
     // Build drag data with all multi-selected elements' positions
     const computedStyle = window.getComputedStyle(dragable);
+
+    // Sprint 9a — FLOW-ELEMENT GUARD.
+    // A `.dragable` that isn't absolute/fixed-positioned is a section
+    // container laid out in normal flow (e.g. `index-hero`). Moving it
+    // via inline top/left rips it out of flow and collapses the page.
+    // We still allow selection (so LayerPanel can show it), but we do
+    // NOT arm dragRef → no drag, no frame commit, no reorder.
+    const pos = computedStyle.position;
+    const isFlow = pos !== "absolute" && pos !== "fixed";
+    if (isFlow) {
+      return;
+    }
+
     const others: Array<{ el: HTMLElement; origLeft: number; origTop: number }> = [];
     if (ms.size > 0) {
       ms.forEach((id) => {
@@ -1081,6 +1094,16 @@ export default function DesignEditor({
     if (!el) return;
 
     el.classList.add("de-selected");
+
+    // Sprint 9a — FLOW-ELEMENT GUARD (resize side).
+    // Don't render resize handles on flow-positioned sections; resizing
+    // them via inline width/height would fight the template's responsive
+    // CSS and look broken. Selection still works so the LayerPanel can
+    // display/rename/visibility-toggle the section.
+    {
+      const pos = window.getComputedStyle(el).position;
+      if (pos !== "absolute" && pos !== "fixed") return;
+    }
 
     // Add resize handles only to primary selection (not multi-selected others)
     const handles = ["n", "ne", "e", "se", "s", "sw", "w", "nw"];

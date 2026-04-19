@@ -363,7 +363,14 @@ export const useEditorStore = create<EditorStore>()(
             const layers: Layer[] = [];
             for (const id of ids) {
               const l = findLayer(draft.root, id);
-              if (l && l.id !== draft.root.id) layers.push(l);
+              if (!l || l.id === draft.root.id) continue;
+              // Sprint 9a — flow-positioned layers don't participate in
+              // align (their frame.x/y aren't authored; aligning to them
+              // would drag the bbox to 0,0 and warp real layers).
+              const lk = new Set(l.frameKeys ?? []);
+              const isAbs = lk.has("position") || lk.has("left") || lk.has("top");
+              if (!isAbs) continue;
+              layers.push(l);
             }
             if (layers.length < 2) return;
 
@@ -384,6 +391,13 @@ export const useEditorStore = create<EditorStore>()(
             const cy = minY + boxH / 2;
 
             for (const l of layers) {
+              // Sprint 9a — skip flow-positioned layers (see setFrame note).
+              const existingKeys = new Set(l.frameKeys ?? []);
+              const layerIsAbsolute = existingKeys.has("position")
+                || existingKeys.has("left")
+                || existingKeys.has("top");
+              if (!layerIsAbsolute) continue;
+
               const f = l.frame;
               switch (mode) {
                 case "left":    f.x = minX; break;
@@ -395,7 +409,7 @@ export const useEditorStore = create<EditorStore>()(
               }
               // Ensure the serializer emits left/top/position so the change
               // is persisted. Preserve any existing keys + !important flags.
-              const keys = new Set(l.frameKeys ?? []);
+              const keys = new Set(existingKeys);
               keys.add("position");
               if (mode === "left" || mode === "right" || mode === "centerH") keys.add("left");
               if (mode === "top"  || mode === "bottom" || mode === "middleV") keys.add("top");
@@ -410,14 +424,42 @@ export const useEditorStore = create<EditorStore>()(
           scene: produce(s.scene, (draft) => {
             const l = findLayer(draft.root, id);
             if (!l || l.id === draft.root.id) return;
-            if (typeof patch.x === "number") l.frame.x = Math.round(patch.x);
-            if (typeof patch.y === "number") l.frame.y = Math.round(patch.y);
+
+            // Sprint 9a — FLOW-ELEMENT INVARIANT.
+            // If the layer was parsed without `position`/`left`/`top` in
+            // its inline style, it's a flow-laid-out section (e.g.
+            // `index-hero`). Writing frame.x/y would then cause the
+            // serializer to emit `position:absolute; left; top;` on
+            // export — ripping the section out of flow and collapsing
+            // the page. Refuse the mutation entirely; the drag handler
+            // already blocks flow elements at the UI layer, this is
+            // defense-in-depth for align/nudge/paste paths.
+            const existingKeys = new Set(l.frameKeys ?? []);
+            const layerIsAbsolute = existingKeys.has("position")
+              || existingKeys.has("left")
+              || existingKeys.has("top");
+            const wantsPositionMove = patch.x !== undefined || patch.y !== undefined;
+            if (wantsPositionMove && !layerIsAbsolute) {
+              // Silently ignore position writes on flow layers. Size
+              // writes (w/h) are still permitted below — they don't
+              // affect flow positioning.
+              if (patch.w === undefined && patch.h === undefined) return;
+            }
+
+            if (typeof patch.x === "number" && layerIsAbsolute) l.frame.x = Math.round(patch.x);
+            if (typeof patch.y === "number" && layerIsAbsolute) l.frame.y = Math.round(patch.y);
             if (typeof patch.w === "number") l.frame.w = Math.max(1, Math.round(patch.w));
             if (typeof patch.h === "number") l.frame.h = Math.max(1, Math.round(patch.h));
-            const keys = new Set(l.frameKeys ?? []);
-            keys.add("position");
-            if (patch.x !== undefined) keys.add("left");
-            if (patch.y !== undefined) keys.add("top");
+
+            const keys = new Set(existingKeys);
+            // Preserve original-layer invariant: only *augment* keys that
+            // were already absolute-positioned. Never promote a flow
+            // layer to absolute by adding `position`/`left`/`top` keys.
+            if (layerIsAbsolute) {
+              keys.add("position");
+              if (patch.x !== undefined) keys.add("left");
+              if (patch.y !== undefined) keys.add("top");
+            }
             if (patch.w !== undefined) keys.add("width");
             if (patch.h !== undefined) keys.add("height");
             l.frameKeys = Array.from(keys) as NonNullable<Layer["frameKeys"]>;
