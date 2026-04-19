@@ -87,21 +87,28 @@ export default function CanvasOverlay({ containerRef }: Props) {
   // section collapses it — see editor-store setFrame notes).
   const [singleRect, setSingleRect] = useState<Rect | null>(null);
   const [singleIsFlow, setSingleIsFlow] = useState(false);
+  const [singleIsInline, setSingleIsInline] = useState(false);
   useLayoutEffect(() => {
     if (!single || !container) {
       setSingleRect(null);
       setSingleIsFlow(false);
+      setSingleIsInline(false);
       return;
     }
     const el = container.ownerDocument.getElementById(single);
     if (!el) {
       setSingleRect(null);
       setSingleIsFlow(false);
+      setSingleIsInline(false);
       return;
     }
     setSingleRect(measureEl(el));
     const pos = container.ownerDocument.defaultView?.getComputedStyle(el).position ?? "";
     setSingleIsFlow(pos !== "absolute" && pos !== "fixed");
+    // Flow-inline text elements (<span>, <a>, etc.) — resize via width
+    // doesn't make sense (text reflows), but rotation still does.
+    const tag = el.tagName;
+    setSingleIsInline(tag !== "DIV" && tag !== "SECTION" && tag !== "ARTICLE");
   }, [single, container, tick]);
 
   // Measure multi-selection union bbox for toolbar placement.
@@ -234,12 +241,27 @@ export default function CanvasOverlay({ containerRef }: Props) {
       });
     });
 
+    // Flow-positioned layers (sections) typically have frame 0/0/0/0
+    // because no inline width/height was authored. Measure the DOM
+    // rect as the true starting frame so resize deltas are meaningful.
+    const domEl = container.ownerDocument.getElementById(single);
+    let startFrame = { ...layer.frame };
+    if (domEl && (startFrame.w === 0 || startFrame.h === 0)) {
+      const r = domEl.getBoundingClientRect();
+      startFrame = {
+        x: r.left - containerRect.left,
+        y: r.top - containerRect.top,
+        w: r.width,
+        h: r.height,
+      };
+    }
+
     resizeState.current = {
       id: single,
       handle,
       startX: e.clientX,
       startY: e.clientY,
-      startFrame: { ...layer.frame },
+      startFrame,
       siblings,
     };
   }, [single, container]);
@@ -302,9 +324,10 @@ export default function CanvasOverlay({ containerRef }: Props) {
 
   return (
     <>
-      {/* Single-selection resize handles (8). Hidden for flow-positioned
-          sections — resizing them would collapse the page layout. */}
-      {single && singleRect && !singleIsFlow && (
+      {/* Single-selection resize handles (8). Hidden for inline text
+          layers (span/a) where width resize would fight text flow.
+          Shown for sections and absolute dragables. */}
+      {single && singleRect && !singleIsInline && (
         <>
           {(["nw","n","ne","e","se","s","sw","w"] as const).map((h) => {
             const pos = handlePosition(h, singleRect);
@@ -362,10 +385,10 @@ export default function CanvasOverlay({ containerRef }: Props) {
         />
       )}
 
-      {/* Single-selection rotation handle. Also hidden for flow sections
-          — rotating them via transform would visually detach them from
-          the page flow. */}
-      {single && singleRect && !singleIsFlow && (
+      {/* Single-selection rotation handle. Shown for all selectable
+          layer types (dragable, section, inline) — rotation via
+          transform is visual-only and doesn't break flow layout. */}
+      {single && singleRect && (
         <div
           className="de-overlay-rotate"
           style={{

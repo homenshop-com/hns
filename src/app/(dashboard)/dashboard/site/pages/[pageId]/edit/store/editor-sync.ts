@@ -151,11 +151,18 @@ function ensureGroupWrapper(
  *  virtual groups (root). */
 function applyFrameToEl(el: HTMLElement, layer: Layer) {
   if (layer.type === "group" && (layer as GroupLayer).virtual) return;
-  // Inline layers are flow-positioned — touching inline style would
-  // override responsive CSS and break layout. Section itself is also
-  // flow; its frame.x/y are 0 and it must never gain position:absolute.
-  if (layer.type === "inline" || layer.type === "section") return;
+  // Inline text layers (span/a) — width/height via inline style would
+  // override responsive CSS and fight text flow. Skip entirely.
+  if (layer.type === "inline") return;
   const keys = new Set(layer.frameKeys ?? []);
+  // Sections are flow regions — never emit position/left/top (would
+  // rip them out of document flow), but width/height are allowed
+  // (users may want to resize a hero section's height).
+  if (layer.type === "section") {
+    if (keys.has("width")) el.style.width = `${layer.frame.w}px`;
+    if (keys.has("height")) el.style.height = `${layer.frame.h}px`;
+    return;
+  }
   if (keys.has("position")) el.style.position = "absolute";
   if (keys.has("left")) el.style.left = `${layer.frame.x}px`;
   if (keys.has("top")) el.style.top = `${layer.frame.y}px`;
@@ -207,6 +214,11 @@ export function applyStructure(scene: SceneGraph, container: HTMLElement) {
       // context and break layout. Skip structural reconciliation for
       // these types — visibility/lock/selection sync still applies.
       if (child.type === "inline" || child.type === "section") {
+        // Skip structural reconciliation (would rip flow elements out of
+        // their decorative wrappers), but apply transform + frame — the
+        // user may rotate or resize section height from the overlay.
+        applyFrameToEl(childEl, child);
+        applyTransformToEl(childEl, child);
         if (hasTypedChildren(child)) reconcile(child, childEl);
         continue;
       }

@@ -454,7 +454,20 @@ export const useEditorStore = create<EditorStore>()(
             // kill. Upstream UI (drag handler, resize handles) should
             // have already been gated, this is defense-in-depth.
             // Sprint 9b — sections are flow regions by type-level contract.
-            if (isSection(l)) return;
+            // Sprint 9e — allow width/height resize on sections, but never
+            // position/left/top. Height commonly tweaked on hero regions.
+            if (isSection(l)) {
+              if (typeof patch.w === "number") l.frame.w = Math.max(1, Math.round(patch.w));
+              if (typeof patch.h === "number") l.frame.h = Math.max(1, Math.round(patch.h));
+              const keys = new Set(l.frameKeys ?? []);
+              if (patch.w !== undefined) keys.add("width");
+              if (patch.h !== undefined) keys.add("height");
+              // Ensure position/left/top never land on sections — see
+              // buildSectionLayer's safeKeys filter for the same rule.
+              keys.delete("position"); keys.delete("left"); keys.delete("top");
+              l.frameKeys = Array.from(keys) as NonNullable<Layer["frameKeys"]>;
+              return;
+            }
             const existingKeys = new Set(l.frameKeys ?? []);
             const layerIsAbsolute = existingKeys.has("position")
               || existingKeys.has("left")

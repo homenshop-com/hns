@@ -389,9 +389,15 @@
 #de-canvas-inner .dragable:hover {
   outline: 1px dashed rgba(74, 144, 217, 0.5);
 }
-#de-canvas-inner .dragable.de-selected {
+#de-canvas-inner .dragable.de-selected,
+#de-canvas-inner [id^="el_"].de-selected {
   outline: 2px solid #4a90d9 !important;
   box-shadow: 0 0 0 1px rgba(74, 144, 217, 0.3);
+}
+/* Inline flow-text layers (spans, anchors promoted from id=el_*) need
+   a visible outline too — they're not .dragable. */
+#de-canvas-inner [id^="el_"]:hover {
+  outline: 1px dashed rgba(74, 144, 217, 0.5);
 }
 #de-canvas-inner .dragable.de-editing {
   outline: 2px solid #ffc107 !important;
