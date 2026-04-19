@@ -178,6 +178,11 @@ function applyTransformToEl(el: HTMLElement, layer: Layer) {
  */
 export function applyStructure(scene: SceneGraph, container: HTMLElement) {
   const reconcile = (node: GroupLayer, domParent: HTMLElement) => {
+    // Track the previous scene-ordered dragable that is already in
+    // `domParent`. Used to detect out-of-order nodes without blindly
+    // appending (which would push every dragable past any non-dragable
+    // siblings that happen to live between them).
+    let prevInOrder: HTMLElement | null = null;
     for (const child of node.children) {
       let childEl: HTMLElement | null;
       if (child.type === "group") {
@@ -186,8 +191,24 @@ export function applyStructure(scene: SceneGraph, container: HTMLElement) {
         childEl = findById(container, child.id);
       }
       if (!childEl) continue;
-      // Move into the correct parent / order slot.
-      domParent.appendChild(childEl);
+
+      if (childEl.parentElement !== domParent) {
+        // Cross-parent move (group/ungroup, paste into different parent).
+        // Append at end — the outer loop will handle subsequent order.
+        domParent.appendChild(childEl);
+      } else if (prevInOrder) {
+        // Same parent — only move if the current DOM order doesn't
+        // already place childEl after prevInOrder. This preserves any
+        // non-dragable siblings interleaved with layers.
+        const pos = childEl.compareDocumentPosition(prevInOrder);
+        const childIsBeforePrev = (pos & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+        if (childIsBeforePrev) {
+          // childEl comes before prev — swap by inserting after prev.
+          prevInOrder.after(childEl);
+        }
+      }
+      prevInOrder = childEl;
+
       applyFrameToEl(childEl, child);
       applyTransformToEl(childEl, child);
       if (child.type === "group") {
