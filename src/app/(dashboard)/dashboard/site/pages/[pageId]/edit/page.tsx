@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { renderBoardPluginContent, renderProductPluginContent } from "@/lib/plugin-renderer";
 import { readTemplateCss } from "@/lib/template-parser";
+import { isEditorV2Enabled } from "@/lib/editor-flags";
 import DesignEditor from "./design-editor";
 
 interface EditPageProps {
@@ -115,6 +116,7 @@ export default async function EditPagePage({ params }: EditPageProps) {
       currentLang={currentLang}
       siteLanguages={siteLanguages}
       langPageMap={langPageMap}
+      editorV2Enabled={isEditorV2Enabled(session.user?.email)}
     />
   );
 }

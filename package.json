@@ -40,6 +40,7 @@
     "grapesjs-plugin-forms": "^2.0.6",
     "grapesjs-preset-webpage": "^1.0.3",
     "grapesjs-tabs": "^1.0.6",
+    "immer": "^11.1.4",
     "meilisearch": "^0.55.0",
     "next": "16.1.6",
     "next-auth": "^5.0.0-beta.30",
@@ -51,7 +52,9 @@
     "react-email": "^5.2.9",
     "react-rnd": "^10.5.3",
     "resend": "^6.9.3",
-    "shadcn": "^4.0.6"
+    "shadcn": "^4.0.6",
+    "zundo": "^2.3.0",
+    "zustand": "^5.0.12"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

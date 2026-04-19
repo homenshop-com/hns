@@ -612,3 +612,156 @@
   .de-logo { font-size: 13px; padding-right: 8px; }
   .de-canvas { transform: scale(0.35); transform-origin: top left; }
 }
+
+/* ─── LayerPanel (Editor V2) ─── */
+
+.layerpanel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: #fff;
+  border-left: 1px solid #e5e7eb;
+  font-size: 12px;
+  color: #1f2937;
+}
+
+.layerpanel-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.layerpanel-title { font-weight: 600; font-size: 12px; color: #111827; }
+
+.layerpanel-toolbar-actions { display: flex; gap: 4px; }
+.layerpanel-toolbar-actions button {
+  padding: 3px 8px;
+  font-size: 11px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #374151;
+}
+.layerpanel-toolbar-actions button:hover:not(:disabled) { background: #f3f4f6; }
+.layerpanel-toolbar-actions button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.layerpanel-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 4px 0;
+}
+
+.layerpanel-empty {
+  padding: 24px 12px;
+  text-align: center;
+  color: #9ca3af;
+  font-size: 11px;
+}
+
+.layerpanel-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px 3px 6px;
+  min-height: 26px;
+  cursor: pointer;
+  user-select: none;
+  border-left: 2px solid transparent;
+}
+.layerpanel-row:hover { background: #f3f4f6; }
+.layerpanel-row.is-selected {
+  background: #eff6ff;
+  border-left-color: #3b82f6;
+}
+.layerpanel-row.is-drop-target { background: #dbeafe; outline: 1px dashed #3b82f6; }
+.layerpanel-row.is-hidden .layerpanel-name,
+.layerpanel-row.is-hidden .layerpanel-icon { opacity: 0.4; }
+.layerpanel-row.is-locked .layerpanel-name { font-style: italic; }
+
+.layerpanel-chev,
+.layerpanel-chev-spacer {
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: #6b7280;
+  font-size: 10px;
+  padding: 0;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.layerpanel-chev:hover { color: #111827; }
+
+.layerpanel-icon {
+  width: 16px;
+  flex: 0 0 auto;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.layerpanel-name {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.layerpanel-name-input {
+  flex: 1 1 auto;
+  font-size: 12px;
+  padding: 2px 4px;
+  border: 1px solid #3b82f6;
+  border-radius: 3px;
+  outline: none;
+  background: #fff;
+  min-width: 0;
+}
+
+.layerpanel-action {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  border-radius: 3px;
+  cursor: pointer;
+  color: #6b7280;
+  font-size: 13px;
+  padding: 0;
+  flex: 0 0 auto;
+}
+.layerpanel-action:hover { background: #e5e7eb; color: #111827; }
+
+/* V2 fixed-right rail (behind NEXT_PUBLIC_EDITOR_V2_USERS flag).
+   Intentionally overlay-positioned so it doesn't disturb the existing
+   PC layout ("PC 레이아웃 변경 금지" project rule). */
+.layerpanel-rail {
+  position: fixed;
+  top: 56px;
+  right: 0;
+  bottom: 0;
+  width: 260px;
+  z-index: 40;
+  box-shadow: -1px 0 4px rgba(0, 0, 0, 0.06);
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 900px) {
+  /* On narrow screens, hide the V2 rail — the legacy bottom-tab UI is the
+     primary interaction surface there. */
+  .layerpanel-rail { display: none; }
+}

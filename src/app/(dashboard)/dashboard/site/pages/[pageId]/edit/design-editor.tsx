@@ -3,8 +3,10 @@
 import { useState, useRef, useCallback, useEffect, lazy, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import "./editor-styles.css";
+import { useEditorStore } from "./store/editor-store";
 
 const TiptapModal = lazy(() => import("./tiptap-modal"));
+const LayerPanel = lazy(() => import("./components/LayerPanel"));
 
 /* ─── Types ─── */
 export interface LayerData {
@@ -47,6 +49,8 @@ interface DesignEditorProps {
   currentLang: string;
   siteLanguages: string[];
   langPageMap?: Record<string, string>;
+  /** Editor V2 (scene-graph + LayerPanel) enabled for this user. Default off. */
+  editorV2Enabled?: boolean;
 }
 
 /* ─── Component ─── */
@@ -71,8 +75,18 @@ export default function DesignEditor({
   currentLang,
   siteLanguages,
   langPageMap = {},
+  editorV2Enabled = false,
 }: DesignEditorProps) {
   const router = useRouter();
+
+  // V2: keep the scene graph store in sync with the body HTML that the
+  // DOM-first editor is rendering. Importing a fresh scene on every
+  // bodyHtml change is cheap and guarantees the LayerPanel reflects AI
+  // edits, undo, page switches, etc. Skip entirely when the flag is off.
+  useEffect(() => {
+    if (!editorV2Enabled) return;
+    useEditorStore.getState().importHtml(bodyHtml || "");
+  }, [editorV2Enabled, bodyHtml, pageId]);
 
   // State
   const [currentBodyHtml, setCurrentBodyHtml] = useState(bodyHtml);
@@ -290,12 +304,23 @@ export default function DesignEditor({
       }
       const html = bodyEl ? bodyEl.innerHTML : currentBodyHtml;
 
+      // V2 dual-save: attach the current scene graph alongside the HTML.
+      // Publisher / legacy consumers keep reading `content.html`; V2-aware
+      // editor paths can preferentially hydrate from `content.layers` to
+      // get the typed tree without re-parsing.
+      const v2Scene = editorV2Enabled
+        ? useEditorStore.getState().scene
+        : null;
+
       // Save page body + CSS
       const res = await fetch(`/api/sites/${siteId}/pages/${pageId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          content: { html },
+          content: {
+            html,
+            ...(v2Scene && { layers: v2Scene, schemaVersion: 1 }),
+          },
           ...(currentPageCss !== pageCss && { css: currentPageCss }),
         }),
       });
@@ -1885,6 +1910,15 @@ export default function DesignEditor({
       {/* TOOLTIP for double-click */}
       {selectedElId && !editingTextId && (
         <div className="de-tooltip">더블 클릭 하시면 해당객체를 수정하실 수 있습니다.</div>
+      )}
+
+      {/* V2 LAYER PANEL (feature-flagged, fixed right rail) */}
+      {editorV2Enabled && (
+        <Suspense fallback={null}>
+          <div className="layerpanel-rail">
+            <LayerPanel />
+          </div>
+        </Suspense>
       )}
 
       {/* TIPTAP EDITOR MODAL */}
