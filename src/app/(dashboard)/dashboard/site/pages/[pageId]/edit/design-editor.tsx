@@ -260,6 +260,16 @@ export default function DesignEditor({
         lastPrimary = s.selectedId;
         lastMulti = s.multiSelectedIds;
         syncApplySelection(s.selectedId, s.multiSelectedIds, el);
+        // Mirror LayerPanel selection → legacy canvas state so the
+        // position tab, drag/resize handles, and keyboard shortcuts
+        // pick up the target. Also auto-switch to the 위치 tab so the
+        // user immediately sees the selected layer's props.
+        if (s.selectedId) {
+          setSelectedElId(s.selectedId);
+          setActiveTab((t) => (t === "page" || t === "object" ? "position" : t));
+        } else {
+          setSelectedElId(null);
+        }
       }
     });
     return () => unsub();
