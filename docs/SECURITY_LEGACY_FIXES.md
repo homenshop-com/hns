@@ -217,7 +217,44 @@ applies if addressed later.
 
 ---
 
-## 5. Enforcement in current production
+## 5. `designer/system-header.php` — "사이트 보기" 링크가 항상 PC URL (FIXED 2026-04-19)
+
+### Finding (Codex QC)
+
+> 모바일 편집 모드에서도 상단 "사이트 보기" 링크가 PC URL을 가리킵니다.
+> `designer/system-header.php:73`에서 항상 `/{shop}/{lang}/`로만 링크를
+> 만들고 `/m/` 분기를 하지 않습니다. 모바일 템플릿 확인 동선에서 잘못된
+> 화면을 열게 됩니다.
+
+### URL convention confirmed elsewhere in the tree
+
+- `designer/editor.php:97`: `https://home.{DOMAIN}/{SID}/m/{eLANG}/{ePAGE}`
+- `designer/preview.php:42`: `https://home.{DOMAIN}/{SID}/m/{eLANG}/{ePAGE}`
+- `lib/function/publisher.php:242`: `/m/` prefix when `$_DEVICE_MODE === 'mobile'`
+
+So the correct shape is `{SID}/m/{lang}/` (the `m` segment sits between
+SID and lang, not at the very start).
+
+### Applied patch
+
+```php
+$_viewDevice = isset($_SESSION['editDevice']) ? $_SESSION['editDevice'] : 'pc';
+$_viewPath   = ($_viewDevice === 'mobile')
+    ? ($_SID . '/m/' . $_SESSION['eLANG'] . '/')
+    : ($_SID . '/'   . $_SESSION['eLANG'] . '/');
+?>
+<a href="https://home.<?= $GLOBAL['DOMAIN'] ?>/<?= $_viewPath ?>" target="_blank" class="sys-header-url">
+    home.<?= $GLOBAL['DOMAIN'] ?>/<?= $_viewPath ?>
+</a>
+```
+
+Clicking "사이트 보기" while the editor is in mobile mode now opens the
+mobile URL; PC mode keeps the original link. Shares the same session key
+(`editDevice`) that the PC/Mobile toggle reads/writes.
+
+---
+
+## 6. Enforcement in current production
 
 Even without legacy, `homenshop.com` is protected because:
 
