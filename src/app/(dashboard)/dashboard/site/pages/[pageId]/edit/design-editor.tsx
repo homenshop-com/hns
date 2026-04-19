@@ -1162,6 +1162,9 @@ export default function DesignEditor({
    * Custom template dragables wrap entire sections with complex HTML.
    */
   function isSimpleDragable(el: HTMLElement): boolean {
+    // Sections with promoted inline children (id=el_*) must never be
+    // edited as a single blob — each inline is its own selectable layer.
+    if (el.querySelector('[id^="el_"]')) return false;
     // If it has no child elements at all (text-only), it's simple
     if (el.children.length === 0) return true;
     // If it has only inline children (span, a, strong, em, br, img), it's simple
