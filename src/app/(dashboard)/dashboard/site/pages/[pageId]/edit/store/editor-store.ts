@@ -81,6 +81,15 @@ export interface EditorActions {
    *  and augments `frameKeys` so the serializer emits `left`/`top`. */
   alignLayers(ids: LayerId[], mode: AlignMode): void;
 
+  /** Partial frame patch (for drag-move / resize). Augments frameKeys so
+   *  the changed coords get serialized. */
+  setFrame(id: LayerId, patch: Partial<{ x: number; y: number; w: number; h: number }>): void;
+
+  /** Promote a BoxLayer's `.dragable` inner children into first-class
+   *  layers, replacing the BoxLayer with a GroupLayer. Returns the new
+   *  group id, or null if nothing to explode. */
+  explodeBox(id: LayerId): LayerId | null;
+
   /** Clear dirty flag — call after a successful save. */
   markClean(): void;
 }
@@ -386,6 +395,64 @@ export const useEditorStore = create<EditorStore>()(
           }),
           dirty: true,
         })),
+
+      setFrame: (id, patch) =>
+        set((s) => ({
+          scene: produce(s.scene, (draft) => {
+            const l = findLayer(draft.root, id);
+            if (!l || l.id === draft.root.id) return;
+            if (typeof patch.x === "number") l.frame.x = Math.round(patch.x);
+            if (typeof patch.y === "number") l.frame.y = Math.round(patch.y);
+            if (typeof patch.w === "number") l.frame.w = Math.max(1, Math.round(patch.w));
+            if (typeof patch.h === "number") l.frame.h = Math.max(1, Math.round(patch.h));
+            const keys = new Set(l.frameKeys ?? []);
+            keys.add("position");
+            if (patch.x !== undefined) keys.add("left");
+            if (patch.y !== undefined) keys.add("top");
+            if (patch.w !== undefined) keys.add("width");
+            if (patch.h !== undefined) keys.add("height");
+            l.frameKeys = Array.from(keys) as NonNullable<Layer["frameKeys"]>;
+          }),
+          dirty: true,
+        })),
+
+      explodeBox: (id) => {
+        let newId: LayerId | null = null;
+        set((s) => ({
+          scene: produce(s.scene, (draft) => {
+            const loc = findParentAndIndex(draft.root, id);
+            if (!loc) return;
+            const target = loc.parent.children[loc.index];
+            if (!target || target.type !== "box") return;
+            // Parse the box's innerHtml looking for .dragable children.
+            let parsed: SceneGraph;
+            try {
+              parsed = legacyHtmlToScene(target.innerHtml);
+            } catch {
+              return;
+            }
+            if (parsed.root.children.length === 0) return;
+            const group: GroupLayer = {
+              id: `el_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+              name: target.name || "그룹",
+              type: "group",
+              visible: target.visible,
+              locked: target.locked,
+              frame: { ...target.frame },
+              frameKeys: target.frameKeys,
+              frameImportant: target.frameImportant,
+              transform: target.transform,
+              style: target.style,
+              children: parsed.root.children,
+            };
+            newId = group.id;
+            loc.parent.children.splice(loc.index, 1, group);
+          }),
+          dirty: true,
+        }));
+        if (newId) set(() => ({ selectedId: newId, multiSelectedIds: new Set() }));
+        return newId;
+      },
 
       markClean: () => set(() => ({ dirty: false })),
     }),

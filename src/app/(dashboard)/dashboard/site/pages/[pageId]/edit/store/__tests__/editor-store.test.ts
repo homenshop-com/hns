@@ -131,6 +131,36 @@ describe("editor store", () => {
     expect(a.transform).toBeUndefined();
   });
 
+  it("setFrame updates size + augments frameKeys", () => {
+    useEditorStore.getState().importHtml(SAMPLE);
+    useEditorStore.getState().setFrame("a", { x: 50, w: 200 });
+    const a = getRoot().children.find((c) => c.id === "a")!;
+    expect(a.frame.x).toBe(50);
+    expect(a.frame.w).toBe(200);
+    expect(a.frameKeys).toContain("left");
+    expect(a.frameKeys).toContain("width");
+  });
+
+  it("explodeBox promotes a box's inner .dragable children into a group", () => {
+    const inner = `<div id="x1" class="dragable" style="position:absolute;left:5px;top:5px;width:20px;height:20px">X</div><div id="y1" class="dragable" style="position:absolute;left:30px;top:5px;width:20px;height:20px">Y</div>`;
+    const hostHtml = `<div id="box1" class="dragable" style="position:absolute;left:100px;top:100px;width:200px;height:200px">${inner}</div>`;
+    useEditorStore.getState().importHtml(hostHtml);
+    const newId = useEditorStore.getState().explodeBox("box1");
+    expect(newId).toBeTruthy();
+    const root = getRoot();
+    expect(root.children).toHaveLength(1);
+    const group = root.children[0] as GroupLayer;
+    expect(group.type).toBe("group");
+    expect(group.children.map((c) => c.id).sort()).toEqual(["x1", "y1"]);
+  });
+
+  it("explodeBox returns null when box has no .dragable children", () => {
+    const hostHtml = `<div id="plain" class="dragable" style="position:absolute;left:0;top:0;width:100px;height:100px">just text</div>`;
+    useEditorStore.getState().importHtml(hostHtml);
+    const out = useEditorStore.getState().explodeBox("plain");
+    expect(out).toBeNull();
+  });
+
   it("select additive toggles ids in multi-set", () => {
     useEditorStore.getState().importHtml(SAMPLE);
     const s = useEditorStore.getState();

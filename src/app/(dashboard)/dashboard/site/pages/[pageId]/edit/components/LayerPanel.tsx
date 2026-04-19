@@ -228,6 +228,7 @@ export function LayerPanel() {
   const groupAction = useEditorStore((s) => s.group);
   const ungroupAction = useEditorStore((s) => s.ungroup);
   const removeAction = useEditorStore((s) => s.remove);
+  const explodeAction = useEditorStore((s) => s.explodeBox);
 
   // Initially expand only the root so the user sees the top level.
   const [expanded, setExpanded] = useState<Set<LayerId>>(
@@ -295,6 +296,27 @@ export function LayerPanel() {
   const doRemove = () => {
     for (const id of selectedIds) removeAction(id);
   };
+  const doExplode = () => {
+    if (!selectedId) return;
+    explodeAction(selectedId);
+  };
+
+  // Is the current selection a BoxLayer that could be exploded?
+  const selectedLayerType = useMemo((): string | null => {
+    if (!selectedId) return null;
+    const walk = (node: GroupLayer): Layer | null => {
+      for (const c of node.children) {
+        if (c.id === selectedId) return c;
+        if (c.type === "group") {
+          const f = walk(c); if (f) return f;
+        }
+      }
+      return null;
+    };
+    const l = walk(root);
+    return l ? l.type : null;
+  }, [selectedId, root]);
+  const canExplode = selectedLayerType === "box";
 
   // Auto-scroll selected row into view when canvas selection changes.
   const listRef = useRef<HTMLDivElement>(null);
@@ -347,6 +369,14 @@ export function LayerPanel() {
             title="그룹 해제 (Ctrl+Shift+G)"
           >
             해제
+          </button>
+          <button
+            type="button"
+            onClick={doExplode}
+            disabled={!canExplode}
+            title="박스 분해 — 내부 요소를 개별 레이어로 승격"
+          >
+            분해
           </button>
           <button
             type="button"

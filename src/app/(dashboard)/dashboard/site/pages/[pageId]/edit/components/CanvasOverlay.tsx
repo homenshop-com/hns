@@ -15,6 +15,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, useCallback } from "react";
 import { useEditorStore, type AlignMode } from "../store/editor-store";
+import { snapResize, type Rect as SnapRect } from "../store/snap";
 
 interface Props {
   /** The canvas content element — used to scope element lookups and to
@@ -176,6 +177,106 @@ export default function CanvasOverlay({ containerRef }: Props) {
     };
   }, []);
 
+  /* ── Resize drag (8 handles) ── */
+  const resizeState = useRef<{
+    id: string;
+    handle: string;
+    startX: number;
+    startY: number;
+    startFrame: { x: number; y: number; w: number; h: number };
+    /** Sibling rects in the same container-local coord system as startFrame. */
+    siblings: SnapRect[];
+  } | null>(null);
+  const [guides, setGuides] = useState<{ x: number | null; y: number | null }>({ x: null, y: null });
+
+  const onResizeStart = useCallback((handle: string) => (e: React.PointerEvent) => {
+    if (!single || !container) return;
+    e.preventDefault();
+    e.stopPropagation();
+    (e.target as Element).setPointerCapture?.(e.pointerId);
+    const s = useEditorStore.getState();
+    const findLayer = (root: any): any => {
+      if (root.id === single) return root;
+      if (root.type === "group") for (const c of root.children) {
+        const f = findLayer(c); if (f) return f;
+      }
+      return null;
+    };
+    const layer = findLayer(s.scene.root);
+    if (!layer) return;
+
+    // Collect sibling rects from DOM (in viewport coords → converted into
+    // layer-frame coord space via the container's top-left offset).
+    const containerRect = container.getBoundingClientRect();
+    const siblings: SnapRect[] = [];
+    container.querySelectorAll<HTMLElement>(".dragable").forEach((el) => {
+      if (!el.id || el.id === single) return;
+      const r = el.getBoundingClientRect();
+      siblings.push({
+        x: r.left - containerRect.left,
+        y: r.top - containerRect.top,
+        w: r.width,
+        h: r.height,
+      });
+    });
+
+    resizeState.current = {
+      id: single,
+      handle,
+      startX: e.clientX,
+      startY: e.clientY,
+      startFrame: { ...layer.frame },
+      siblings,
+    };
+  }, [single, container]);
+
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      const r = resizeState.current;
+      if (!r) return;
+      const dx = e.clientX - r.startX;
+      const dy = e.clientY - r.startY;
+      const hasW = r.handle.includes("w");
+      const hasE = r.handle.includes("e");
+      const hasN = r.handle.includes("n");
+      const hasS = r.handle.includes("s");
+
+      let { x, y, w, h } = r.startFrame;
+      if (hasE) w = r.startFrame.w + dx;
+      if (hasW) { x = r.startFrame.x + dx; w = r.startFrame.w - dx; }
+      if (hasS) h = r.startFrame.h + dy;
+      if (hasN) { y = r.startFrame.y + dy; h = r.startFrame.h - dy; }
+      // Clamp min size.
+      if (w < 4) { if (hasW) x -= (4 - w); w = 4; }
+      if (h < 4) { if (hasN) y -= (4 - h); h = 4; }
+
+      // Snap (unless Alt held to override).
+      let guideX: number | null = null;
+      let guideY: number | null = null;
+      if (!e.altKey) {
+        const snapped = snapResize({ x, y, w, h }, r.handle, r.siblings);
+        x = snapped.x; y = snapped.y; w = snapped.w; h = snapped.h;
+        guideX = snapped.guideX;
+        guideY = snapped.guideY;
+      }
+      setGuides({ x: guideX, y: guideY });
+
+      useEditorStore.getState().setFrame(r.id, { x, y, w, h });
+    };
+    const onUp = () => {
+      resizeState.current = null;
+      setGuides({ x: null, y: null });
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+    };
+  }, []);
+
   /* ── Align toolbar actions ── */
   const doAlign = useCallback((mode: AlignMode) => {
     useEditorStore.getState().alignLayers(selectedIds, mode);
@@ -187,6 +288,65 @@ export default function CanvasOverlay({ containerRef }: Props) {
 
   return (
     <>
+      {/* Single-selection resize handles (8) */}
+      {single && singleRect && (
+        <>
+          {(["nw","n","ne","e","se","s","sw","w"] as const).map((h) => {
+            const pos = handlePosition(h, singleRect);
+            return (
+              <div
+                key={h}
+                className={`de-overlay-resize de-overlay-resize-${h}`}
+                style={{
+                  position: "fixed",
+                  left: pos.left - 5,
+                  top: pos.top - 5,
+                  width: 10,
+                  height: 10,
+                  background: "#fff",
+                  border: "1.5px solid #2a79ff",
+                  borderRadius: 2,
+                  zIndex: 9400,
+                  cursor: cursorFor(h),
+                  pointerEvents: "auto",
+                }}
+                onPointerDown={onResizeStart(h)}
+              />
+            );
+          })}
+        </>
+      )}
+
+      {/* Snap guide lines */}
+      {guides.x !== null && (
+        <div
+          style={{
+            position: "fixed",
+            left: guides.x,
+            top: 0,
+            width: 1,
+            height: "100vh",
+            background: "#ff00aa",
+            zIndex: 9300,
+            pointerEvents: "none",
+          }}
+        />
+      )}
+      {guides.y !== null && (
+        <div
+          style={{
+            position: "fixed",
+            left: 0,
+            top: guides.y,
+            width: "100vw",
+            height: 1,
+            background: "#ff00aa",
+            zIndex: 9300,
+            pointerEvents: "none",
+          }}
+        />
+      )}
+
       {/* Single-selection rotation handle */}
       {single && singleRect && (
         <div
@@ -254,6 +414,34 @@ export default function CanvasOverlay({ containerRef }: Props) {
       )}
     </>
   );
+}
+
+function handlePosition(h: string, r: Rect): { left: number; top: number } {
+  const midX = r.left + r.width / 2;
+  const midY = r.top + r.height / 2;
+  const right = r.left + r.width;
+  const bottom = r.top + r.height;
+  switch (h) {
+    case "nw": return { left: r.left,  top: r.top };
+    case "n":  return { left: midX,    top: r.top };
+    case "ne": return { left: right,   top: r.top };
+    case "e":  return { left: right,   top: midY };
+    case "se": return { left: right,   top: bottom };
+    case "s":  return { left: midX,    top: bottom };
+    case "sw": return { left: r.left,  top: bottom };
+    case "w":  return { left: r.left,  top: midY };
+    default:   return { left: midX,    top: midY };
+  }
+}
+
+function cursorFor(h: string): string {
+  switch (h) {
+    case "n": case "s": return "ns-resize";
+    case "e": case "w": return "ew-resize";
+    case "ne": case "sw": return "nesw-resize";
+    case "nw": case "se": return "nwse-resize";
+    default: return "default";
+  }
 }
 
 function AlignBtn({
