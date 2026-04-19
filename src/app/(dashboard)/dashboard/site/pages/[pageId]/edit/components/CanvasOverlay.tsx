@@ -82,12 +82,26 @@ export default function CanvasOverlay({ containerRef }: Props) {
   const multiMode = selectedIds.length >= 2;
 
   // Measure single-selection element rect.
+  // Sprint 9a — also track whether the element is flow-positioned so
+  // we can suppress resize/rotation handles (operating on a flow
+  // section collapses it — see editor-store setFrame notes).
   const [singleRect, setSingleRect] = useState<Rect | null>(null);
+  const [singleIsFlow, setSingleIsFlow] = useState(false);
   useLayoutEffect(() => {
-    if (!single || !container) { setSingleRect(null); return; }
+    if (!single || !container) {
+      setSingleRect(null);
+      setSingleIsFlow(false);
+      return;
+    }
     const el = container.ownerDocument.getElementById(single);
-    if (!el) { setSingleRect(null); return; }
+    if (!el) {
+      setSingleRect(null);
+      setSingleIsFlow(false);
+      return;
+    }
     setSingleRect(measureEl(el));
+    const pos = container.ownerDocument.defaultView?.getComputedStyle(el).position ?? "";
+    setSingleIsFlow(pos !== "absolute" && pos !== "fixed");
   }, [single, container, tick]);
 
   // Measure multi-selection union bbox for toolbar placement.
@@ -288,8 +302,9 @@ export default function CanvasOverlay({ containerRef }: Props) {
 
   return (
     <>
-      {/* Single-selection resize handles (8) */}
-      {single && singleRect && (
+      {/* Single-selection resize handles (8). Hidden for flow-positioned
+          sections — resizing them would collapse the page layout. */}
+      {single && singleRect && !singleIsFlow && (
         <>
           {(["nw","n","ne","e","se","s","sw","w"] as const).map((h) => {
             const pos = handlePosition(h, singleRect);
@@ -347,8 +362,10 @@ export default function CanvasOverlay({ containerRef }: Props) {
         />
       )}
 
-      {/* Single-selection rotation handle */}
-      {single && singleRect && (
+      {/* Single-selection rotation handle. Also hidden for flow sections
+          — rotating them via transform would visually detach them from
+          the page flow. */}
+      {single && singleRect && !singleIsFlow && (
         <div
           className="de-overlay-rotate"
           style={{

@@ -428,38 +428,31 @@ export const useEditorStore = create<EditorStore>()(
             // Sprint 9a — FLOW-ELEMENT INVARIANT.
             // If the layer was parsed without `position`/`left`/`top` in
             // its inline style, it's a flow-laid-out section (e.g.
-            // `index-hero`). Writing frame.x/y would then cause the
-            // serializer to emit `position:absolute; left; top;` on
-            // export — ripping the section out of flow and collapsing
-            // the page. Refuse the mutation entirely; the drag handler
-            // already blocks flow elements at the UI layer, this is
-            // defense-in-depth for align/nudge/paste paths.
+            // `index-hero`). ANY frame mutation is dangerous:
+            //  - x/y writes would emit `position:absolute; left; top;`
+            //    on export, ripping the section out of flow.
+            //  - w/h writes would override the template's CSS-driven
+            //    responsive width (typically 100%) with a fixed pixel
+            //    value, collapsing the section and letting following
+            //    sections overlap it.
+            // Reject the whole patch — this is the bug we shipped 9a to
+            // kill. Upstream UI (drag handler, resize handles) should
+            // have already been gated, this is defense-in-depth.
             const existingKeys = new Set(l.frameKeys ?? []);
             const layerIsAbsolute = existingKeys.has("position")
               || existingKeys.has("left")
               || existingKeys.has("top");
-            const wantsPositionMove = patch.x !== undefined || patch.y !== undefined;
-            if (wantsPositionMove && !layerIsAbsolute) {
-              // Silently ignore position writes on flow layers. Size
-              // writes (w/h) are still permitted below — they don't
-              // affect flow positioning.
-              if (patch.w === undefined && patch.h === undefined) return;
-            }
+            if (!layerIsAbsolute) return;
 
-            if (typeof patch.x === "number" && layerIsAbsolute) l.frame.x = Math.round(patch.x);
-            if (typeof patch.y === "number" && layerIsAbsolute) l.frame.y = Math.round(patch.y);
+            if (typeof patch.x === "number") l.frame.x = Math.round(patch.x);
+            if (typeof patch.y === "number") l.frame.y = Math.round(patch.y);
             if (typeof patch.w === "number") l.frame.w = Math.max(1, Math.round(patch.w));
             if (typeof patch.h === "number") l.frame.h = Math.max(1, Math.round(patch.h));
 
             const keys = new Set(existingKeys);
-            // Preserve original-layer invariant: only *augment* keys that
-            // were already absolute-positioned. Never promote a flow
-            // layer to absolute by adding `position`/`left`/`top` keys.
-            if (layerIsAbsolute) {
-              keys.add("position");
-              if (patch.x !== undefined) keys.add("left");
-              if (patch.y !== undefined) keys.add("top");
-            }
+            keys.add("position");
+            if (patch.x !== undefined) keys.add("left");
+            if (patch.y !== undefined) keys.add("top");
             if (patch.w !== undefined) keys.add("width");
             if (patch.h !== undefined) keys.add("height");
             l.frameKeys = Array.from(keys) as NonNullable<Layer["frameKeys"]>;

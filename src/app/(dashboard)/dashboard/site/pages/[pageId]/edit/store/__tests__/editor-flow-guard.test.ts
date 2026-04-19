@@ -89,14 +89,17 @@ describe("editor-store — flow-element guard", () => {
     expect(abs.frameKeys).toContain("top");
   });
 
-  it("setFrame width/height on flow layer is still allowed (size doesn't affect flow)", () => {
+  it("setFrame width/height on flow layer is REJECTED (would override CSS-driven responsive width)", () => {
+    const before = { ...findChild("flow-hero")!.frame };
     useEditorStore.getState().setFrame("flow-hero", { w: 800, h: 400 });
     const flow = findChild("flow-hero")!;
-    expect(flow.frame.w).toBe(800);
-    expect(flow.frame.h).toBe(400);
-    expect(flow.frameKeys ?? []).toContain("width");
-    expect(flow.frameKeys ?? []).toContain("height");
-    // Still must not promote to absolute.
+    // Frame unchanged — w/h writes on a flow section would inline
+    // `width:800px` which overrides responsive CSS (e.g. width:100%)
+    // and collapses the section, letting following sections overlap.
+    expect(flow.frame.w).toBe(before.w);
+    expect(flow.frame.h).toBe(before.h);
+    expect(flow.frameKeys ?? []).not.toContain("width");
+    expect(flow.frameKeys ?? []).not.toContain("height");
     expect(flow.frameKeys ?? []).not.toContain("position");
   });
 
