@@ -961,6 +961,11 @@ export default function DesignEditor({
         const dragAny = dragRef.current as any;
         let dx = (clientX - startX) / scale;
         let dy = (clientY - startY) / scale;
+        // Flag "actually moved" so click-without-drag doesn't commit
+        // a spurious setFrame on mouseup. 2px threshold absorbs pointer
+        // jitter on trackpads.
+        if (Math.abs(dx) > 2 || Math.abs(dy) > 2) dragAny.moved = true;
+        if (!dragAny.moved) return;
         // V2 snap (disabled with Alt). Applies a single nudge to dx/dy so
         // the whole group drags together and keeps relative offsets.
         if (dragAny.snapSiblings && dragAny.snapContainer && !(window as any).__hnsAltDown) {
@@ -988,6 +993,8 @@ export default function DesignEditor({
         const r = resizeRef.current;
         const dx = (clientX - r.startX) / scale;
         const dy = (clientY - r.startY) / scale;
+        if (Math.abs(dx) > 2 || Math.abs(dy) > 2) (r as any).moved = true;
+        if (!(r as any).moved) return;
         if (r.handle.includes("e")) r.el.style.width = Math.max(30, r.origWidth + dx) + "px";
         if (r.handle.includes("w")) {
           r.el.style.width = Math.max(30, r.origWidth - dx) + "px";
@@ -1011,9 +1018,12 @@ export default function DesignEditor({
     function onEnd() {
       // V2: commit the final DOM position/size back to the scene so
       // LayerPanel / overlay / undo stack reflect the legacy drag-resize.
+      // Only if the gesture ACTUALLY moved — a plain click leaves the
+      // element where it was (and may not have inline left/top at all,
+      // which would otherwise collapse the element to 0,0).
       if (editorV2Enabled) {
         const store = useEditorStore.getState();
-        if (dragRef.current) {
+        if (dragRef.current && (dragRef.current as any).moved) {
           const els: HTMLElement[] = [dragRef.current.el, ...dragRef.current.others.map((o: any) => o.el)];
           for (const el of els) {
             if (!el.id) continue;
@@ -1022,7 +1032,7 @@ export default function DesignEditor({
             store.setFrame(el.id, { x, y });
           }
         }
-        if (resizeRef.current) {
+        if (resizeRef.current && (resizeRef.current as any).moved) {
           const el = resizeRef.current.el;
           if (el.id) {
             const x = parseInt(el.style.left) || 0;
