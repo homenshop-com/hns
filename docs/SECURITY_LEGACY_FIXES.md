@@ -165,7 +165,59 @@ keeps the editor on whatever language/page was active.
 
 ---
 
-## 4. Enforcement in current production
+## 4. `member/my-template.php` — pagination 링크 깨짐 (FIXED 2026-04-19)
+
+### Finding (Codex QC)
+
+> 카테고리별 목록에서 pagination 링크가 깨집니다. `member/my-template.php:47`에서
+> `alt` 필터일 때 `$parameter = 'alt='.$alt;`로 끝나고, `member/my-template.php:614`에서
+> 그대로 `?'.$parameter.'page=...`를 붙여 `?alt=personal/newtemp/pt123page=2` 형태가
+> 됩니다. 카테고리 내 템플릿이 100개를 넘으면 2페이지 이상 이동이 안 됩니다.
+
+### Scope larger than reported
+
+The same `$parameter` concatenation pattern is used for `kw`, `ord`, `cid` —
+each appends `&key=val`, and the final pagination template is
+`?{parameter}page=N`. Without a trailing `&`, the last value runs into
+`page=N` for every filter, not just `alt`. The `alt` branch was worse
+because it REPLACED `$parameter` (`=`, not `.=`) and its value contains
+slashes (URL-corrupting without urlencode).
+
+Also: `$alt` and `$kw` are concatenated directly into a LIKE clause
+(`tpfolder like '%$alt%'`) — SQL injection exposure.
+
+### Applied patch
+
+```php
+if (!empty($_GET['alt'])) {
+    $alt = $_GET['alt'];
+    // + .= instead of = so kw/ord/cid aren't wiped when alt is also present
+    // + urlencode to survive `/` and other special chars in pagination hrefs
+    // + addslashes on the SQL side
+    $altEsc = addslashes($alt);
+    $parameter .= '&alt='.urlencode($alt);
+    $ext_sql .= " and (tpfolder like '%".$altEsc."%') ";
+}
+
+// + normalize $parameter to "k=v&k=v&" (no leading '&', trailing '&' if non-empty)
+// + so "?{parameter}page=N" renders as "?k=v&page=N" instead of "?k=vpage=N"
+$parameter = ltrim($parameter, '&');
+if ($parameter !== '' && substr($parameter, -1) !== '&') {
+    $parameter .= '&';
+}
+```
+
+Pagination <a href> templates (`?'.$parameter.'page=N'`) are untouched — the
+normalization step makes every existing link render correctly for all
+filter combinations.
+
+Still outstanding in this file: `$kw` is also concatenated into SQL
+without escaping (line 29). Not in the reported finding; same pattern
+applies if addressed later.
+
+---
+
+## 5. Enforcement in current production
 
 Even without legacy, `homenshop.com` is protected because:
 
