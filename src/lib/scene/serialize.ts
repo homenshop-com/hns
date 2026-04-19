@@ -79,11 +79,19 @@ function buildStyleMap(layer: Layer): StyleMap {
   const { frame, style } = layer;
   const out: StyleMap = {};
 
-  out["position"] = "absolute";
-  if (frame.x || frame.x === 0) out["left"] = `${frame.x}px`;
-  if (frame.y || frame.y === 0) out["top"] = `${frame.y}px`;
-  if (frame.w) out["width"] = `${frame.w}px`;
-  if (frame.h) out["height"] = `${frame.h}px`;
+  // Only emit positional/sizing keys the source explicitly had (or that
+  // the editor has since added by dragging/resizing). This preserves
+  // layouts that rely entirely on CSS (no inline left/top/width/height),
+  // which is common in custom templates.
+  const keys = layer.frameKeys ?? [];
+  const imp = new Set(layer.frameImportant ?? []);
+  const mark = (k: "position" | "left" | "top" | "width" | "height", v: string) =>
+    imp.has(k) ? `${v} !important` : v;
+  if (keys.includes("position")) out["position"] = mark("position", "absolute");
+  if (keys.includes("left")) out["left"] = mark("left", `${frame.x}px`);
+  if (keys.includes("top")) out["top"] = mark("top", `${frame.y}px`);
+  if (keys.includes("width")) out["width"] = mark("width", `${frame.w}px`);
+  if (keys.includes("height")) out["height"] = mark("height", `${frame.h}px`);
 
   if (style.zIndex != null) out["z-index"] = String(style.zIndex);
   if (style.opacity != null && style.opacity !== 1) out["opacity"] = String(style.opacity);
@@ -133,15 +141,10 @@ function buildAttrString(layer: Layer): string {
 /* ─── Per-type inner HTML ─── */
 
 function serializeImageInner(layer: ImageLayer): string {
-  const altAttr = layer.alt != null ? ` alt="${escapeAttr(layer.alt)}"` : "";
-  const imgTag = `<img src="${escapeAttr(layer.src)}"${altAttr}>`;
-  if (layer.href) {
-    const target = layer.hrefTarget
-      ? ` target="${escapeAttr(layer.hrefTarget)}"`
-      : "";
-    return `<a href="${escapeAttr(layer.href)}"${target}>${imgTag}</a>`;
-  }
-  return imgTag;
+  // Prefer the preserved innerHTML — it retains img-level styles, classes,
+  // and any `<a>` wrapper verbatim. The typed src/alt/href fields are for
+  // editor UI; editor-level mutations must rewrite innerHtml in parallel.
+  return layer.innerHtml ?? "";
 }
 
 function serializeTextInner(layer: TextLayer): string {

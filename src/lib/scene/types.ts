@@ -108,6 +108,17 @@ export interface BaseLayer {
    * on roundtrip. E.g. `margin: "0 auto"` for centered layers.
    */
   legacyStyleExtras?: Record<string, string>;
+  /**
+   * Which of `position|left|top|width|height` were present in the source
+   * inline style (or explicitly set by the editor after the fact).
+   * Serializer emits ONLY these keys so CSS-driven layouts (no inline
+   * frame) survive roundtrip untouched. Editor drag/resize actions
+   * augment this set as needed.
+   */
+  frameKeys?: Array<"position" | "left" | "top" | "width" | "height">;
+  /** Subset of `frameKeys` that carried a `!important` flag in the source.
+   *  Re-emitted verbatim so overrides vs. template CSS aren't neutered. */
+  frameImportant?: Array<"position" | "left" | "top" | "width" | "height">;
 }
 
 export interface GroupLayer extends BaseLayer {
@@ -131,16 +142,17 @@ export interface TextLayer extends BaseLayer {
 
 export interface ImageLayer extends BaseLayer {
   type: "image";
+  /** Parsed-for-convenience. Editor displays/edits these; serializer uses
+   *  `innerHtml`. When editor updates src/alt/href, it also rewrites
+   *  `innerHtml` so they stay in sync. */
   src: string;
   alt?: string;
-  /** CSS object-fit value when the image is treated as a background fill. */
-  objectFit?: "cover" | "contain" | "fill" | "none" | "scale-down";
-  /** If true, the image is nested inside a wrapper div (legacy pattern).
-   *  Serializer preserves the wrapper instead of emitting bare `<img>`. */
-  wrapped?: boolean;
-  /** Optional link href if the image is wrapped in an `<a>`. */
   href?: string;
   hrefTarget?: string;
+  objectFit?: "cover" | "contain" | "fill" | "none" | "scale-down";
+  /** Source of truth for the wrapper's inner HTML. Preserves img-level
+   *  styles, classes, and any surrounding markup (e.g. `<a>` wrapper). */
+  innerHtml: string;
 }
 
 export interface BoxLayer extends BaseLayer {

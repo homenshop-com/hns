@@ -36,15 +36,26 @@ export function printStyle(map: StyleMap, keyOrder?: string[]): string {
   return ordered.map((k) => `${k}: ${map[k]}`).join("; ");
 }
 
-/** Parse a numeric css length like "123px" / "123" → 123. Returns
- *  undefined if the value isn't a plain pixel length. */
+/** Parse a numeric css length like "123px" / "123" / "123px !important"
+ *  → 123. Returns undefined if the value isn't a pixel length. */
 export function pxNum(v: string | undefined): number | undefined {
   if (v == null) return undefined;
-  const t = v.trim();
+  const t = stripImportant(v).trim();
   if (t === "") return undefined;
   if (/^-?\d+(\.\d+)?px$/i.test(t)) return parseFloat(t);
   if (/^-?\d+(\.\d+)?$/.test(t)) return parseFloat(t);
   return undefined;
+}
+
+/** Returns true if the value ends with the `!important` flag. */
+export function hasImportant(v: string | undefined): boolean {
+  if (v == null) return false;
+  return /!\s*important\s*$/i.test(v);
+}
+
+/** Strip the `!important` flag and trailing whitespace. */
+export function stripImportant(v: string): string {
+  return v.replace(/\s*!\s*important\s*$/i, "").trim();
 }
 
 export function numToPx(n: number | undefined): string | undefined {

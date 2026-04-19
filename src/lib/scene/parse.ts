@@ -33,7 +33,7 @@ import {
   TextLayer,
 } from "./types";
 import { ROOT_GROUP_ID, newLayerId } from "./ids";
-import { StyleMap, parseStyle, pxNum } from "./parse-style";
+import { StyleMap, parseStyle, pxNum, hasImportant } from "./parse-style";
 
 /* ─── DOM adapter (works in browser + jsdom) ─── */
 
@@ -72,12 +72,33 @@ function getAttrs(el: Element, skip: Set<string>): Record<string, string> {
   return out;
 }
 
-function extractFrame(style: StyleMap): { x: number; y: number; w: number; h: number } {
+function extractFrame(style: StyleMap): {
+  frame: { x: number; y: number; w: number; h: number };
+  keys: Array<"position" | "left" | "top" | "width" | "height">;
+  important: Array<"position" | "left" | "top" | "width" | "height">;
+} {
+  const keys: Array<"position" | "left" | "top" | "width" | "height"> = [];
+  const important: Array<"position" | "left" | "top" | "width" | "height"> = [];
+  const check = (k: "position" | "left" | "top" | "width" | "height") => {
+    if (style[k] != null) {
+      keys.push(k);
+      if (hasImportant(style[k])) important.push(k);
+    }
+  };
+  check("position");
+  check("left");
+  check("top");
+  check("width");
+  check("height");
   return {
-    x: pxNum(style["left"]) ?? 0,
-    y: pxNum(style["top"]) ?? 0,
-    w: pxNum(style["width"]) ?? 0,
-    h: pxNum(style["height"]) ?? 0,
+    frame: {
+      x: pxNum(style["left"]) ?? 0,
+      y: pxNum(style["top"]) ?? 0,
+      w: pxNum(style["width"]) ?? 0,
+      h: pxNum(style["height"]) ?? 0,
+    },
+    keys,
+    important,
   };
 }
 
@@ -153,7 +174,7 @@ function detectType(el: Element): Layer["type"] {
 
   // Text: if the element has the legacy marker class, or its text-only
   // content with no nested structural blocks.
-  if (classes.includes("sol-replicable-text") || classes.includes("sol-replicable-word")) {
+  if (classes.includes("sol-replacible-text") || classes.includes("sol-replacible-word")) {
     return "text";
   }
   const structural = el.querySelectorAll(
@@ -174,7 +195,7 @@ function detectType(el: Element): Layer["type"] {
 
 function buildImageLayer(el: Element, id: string, name: string): ImageLayer {
   const style = parseStyle(el.getAttribute("style"));
-  const frame = extractFrame(style);
+  const { frame, keys: frameKeys, important: frameImportant } = extractFrame(style);
   const { layerStyle, extras } = extractStyle(style);
 
   const img = el.querySelector("img");
@@ -190,10 +211,12 @@ function buildImageLayer(el: Element, id: string, name: string): ImageLayer {
     style: layerStyle,
     src: img?.getAttribute("src") ?? "",
     alt: img?.getAttribute("alt") ?? undefined,
-    wrapped: true, // legacy dragables always wrap the img in a div
+    innerHtml: el.innerHTML,
     legacyClassName: el.getAttribute("class") ?? DRAGABLE_CLASS,
     legacyAttrs: getAttrs(el, new Set(["class", "style", "id"])),
     legacyStyleExtras: Object.keys(extras).length ? extras : undefined,
+    frameKeys: frameKeys.length ? frameKeys : undefined,
+    frameImportant: frameImportant.length ? frameImportant : undefined,
   };
   if (a) {
     layer.href = a.getAttribute("href") ?? undefined;
@@ -209,7 +232,7 @@ function buildPluginLayer(
   type: PluginLayer["type"],
 ): PluginLayer {
   const style = parseStyle(el.getAttribute("style"));
-  const frame = extractFrame(style);
+  const { frame, keys: frameKeys, important: frameImportant } = extractFrame(style);
   const { layerStyle, extras } = extractStyle(style);
   return {
     id,
@@ -223,12 +246,14 @@ function buildPluginLayer(
     legacyClassName: el.getAttribute("class") ?? DRAGABLE_CLASS,
     legacyAttrs: getAttrs(el, new Set(["class", "style", "id"])),
     legacyStyleExtras: Object.keys(extras).length ? extras : undefined,
+    frameKeys: frameKeys.length ? frameKeys : undefined,
+    frameImportant: frameImportant.length ? frameImportant : undefined,
   };
 }
 
 function buildBoxLayer(el: Element, id: string, name: string): BoxLayer {
   const style = parseStyle(el.getAttribute("style"));
-  const frame = extractFrame(style);
+  const { frame, keys: frameKeys, important: frameImportant } = extractFrame(style);
   const { layerStyle, extras } = extractStyle(style);
   return {
     id,
@@ -242,12 +267,14 @@ function buildBoxLayer(el: Element, id: string, name: string): BoxLayer {
     legacyClassName: el.getAttribute("class") ?? DRAGABLE_CLASS,
     legacyAttrs: getAttrs(el, new Set(["class", "style", "id"])),
     legacyStyleExtras: Object.keys(extras).length ? extras : undefined,
+    frameKeys: frameKeys.length ? frameKeys : undefined,
+    frameImportant: frameImportant.length ? frameImportant : undefined,
   };
 }
 
 function buildTextLayer(el: Element, id: string, name: string): TextLayer {
   const style = parseStyle(el.getAttribute("style"));
-  const frame = extractFrame(style);
+  const { frame, keys: frameKeys, important: frameImportant } = extractFrame(style);
   const { layerStyle, extras } = extractStyle(style);
   return {
     id,
@@ -261,6 +288,8 @@ function buildTextLayer(el: Element, id: string, name: string): TextLayer {
     legacyClassName: el.getAttribute("class") ?? DRAGABLE_CLASS,
     legacyAttrs: getAttrs(el, new Set(["class", "style", "id"])),
     legacyStyleExtras: Object.keys(extras).length ? extras : undefined,
+    frameKeys: frameKeys.length ? frameKeys : undefined,
+    frameImportant: frameImportant.length ? frameImportant : undefined,
   };
 }
 
@@ -271,7 +300,7 @@ function buildGroupLayer(
   children: Layer[],
 ): GroupLayer {
   const style = parseStyle(el.getAttribute("style"));
-  const frame = extractFrame(style);
+  const { frame, keys: frameKeys, important: frameImportant } = extractFrame(style);
   const { layerStyle, extras } = extractStyle(style);
   return {
     id,
@@ -285,6 +314,8 @@ function buildGroupLayer(
     legacyClassName: el.getAttribute("class") ?? `${GROUP_CLASS} ${DRAGABLE_CLASS}`,
     legacyAttrs: getAttrs(el, new Set(["class", "style", "id"])),
     legacyStyleExtras: Object.keys(extras).length ? extras : undefined,
+    frameKeys: frameKeys.length ? frameKeys : undefined,
+    frameImportant: frameImportant.length ? frameImportant : undefined,
   };
 }
 

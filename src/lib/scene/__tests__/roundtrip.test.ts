@@ -113,7 +113,7 @@ const FX_GROUP = `<div id="grp_1" class="de-group dragable" style="position: abs
 const FX_NESTED_GROUP = `<div id="grp_outer" class="de-group dragable" style="position: absolute; left: 0px; top: 0px; width: 800px; height: 600px"><div id="grp_inner" class="de-group dragable" style="position: absolute; left: 50px; top: 50px; width: 400px; height: 300px">${FX_TEXT}</div>${FX_IMAGE}</div>`;
 
 /** Preserve custom attributes + extras like margin:auto. */
-const FX_EXTRAS = `<div id="el_9_xyz" class="dragable sol-replicable-text" data-role="heading" style="position: absolute; left: 0px; top: 0px; width: 600px; height: 80px; margin: 0 auto">Centered</div>`;
+const FX_EXTRAS = `<div id="el_9_xyz" class="dragable sol-replacible-text" data-role="heading" style="position: absolute; left: 0px; top: 0px; width: 600px; height: 80px; margin: 0 auto">Centered</div>`;
 
 /* ─── Tests ─── */
 
