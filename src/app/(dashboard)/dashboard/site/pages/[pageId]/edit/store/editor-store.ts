@@ -77,11 +77,23 @@ export interface EditorActions {
   /** Merge a transform patch into a layer. Pass `null` to clear. */
   setTransform(id: LayerId, patch: Partial<LayerTransform> | null): void;
 
+  /** Align multiple layers along an axis. Mutates each layer's frame.x/y
+   *  and augments `frameKeys` so the serializer emits `left`/`top`. */
+  alignLayers(ids: LayerId[], mode: AlignMode): void;
+
   /** Clear dirty flag — call after a successful save. */
   markClean(): void;
 }
 
 export type EditorStore = EditorState & EditorActions;
+
+export type AlignMode =
+  | "left"
+  | "centerH"
+  | "right"
+  | "top"
+  | "middleV"
+  | "bottom";
 
 /* ─── Helpers that operate on the Immer draft ─── */
 
@@ -322,6 +334,55 @@ export const useEditorStore = create<EditorStore>()(
             if (next.scaleY === 1) delete next.scaleY;
             const hasAny = Object.keys(next).length > 0;
             l.transform = hasAny ? next : undefined;
+          }),
+          dirty: true,
+        })),
+
+      alignLayers: (ids, mode) =>
+        set((s) => ({
+          scene: produce(s.scene, (draft) => {
+            if (ids.length < 2) return;
+            const layers: Layer[] = [];
+            for (const id of ids) {
+              const l = findLayer(draft.root, id);
+              if (l && l.id !== draft.root.id) layers.push(l);
+            }
+            if (layers.length < 2) return;
+
+            // Bounding box (axis-aligned, using stored frame — ignores
+            // transform rotation, which is what most design tools do for
+            // align commands).
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            for (const l of layers) {
+              const { x, y, w, h } = l.frame;
+              if (x < minX) minX = x;
+              if (y < minY) minY = y;
+              if (x + w > maxX) maxX = x + w;
+              if (y + h > maxY) maxY = y + h;
+            }
+            const boxW = maxX - minX;
+            const boxH = maxY - minY;
+            const cx = minX + boxW / 2;
+            const cy = minY + boxH / 2;
+
+            for (const l of layers) {
+              const f = l.frame;
+              switch (mode) {
+                case "left":    f.x = minX; break;
+                case "right":   f.x = maxX - f.w; break;
+                case "centerH": f.x = Math.round(cx - f.w / 2); break;
+                case "top":     f.y = minY; break;
+                case "bottom":  f.y = maxY - f.h; break;
+                case "middleV": f.y = Math.round(cy - f.h / 2); break;
+              }
+              // Ensure the serializer emits left/top/position so the change
+              // is persisted. Preserve any existing keys + !important flags.
+              const keys = new Set(l.frameKeys ?? []);
+              keys.add("position");
+              if (mode === "left" || mode === "right" || mode === "centerH") keys.add("left");
+              if (mode === "top"  || mode === "bottom" || mode === "middleV") keys.add("top");
+              l.frameKeys = Array.from(keys) as NonNullable<Layer["frameKeys"]>;
+            }
           }),
           dirty: true,
         })),

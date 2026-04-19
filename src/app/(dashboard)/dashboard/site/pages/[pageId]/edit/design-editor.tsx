@@ -11,6 +11,7 @@ import {
 
 const TiptapModal = lazy(() => import("./tiptap-modal"));
 const LayerPanel = lazy(() => import("./components/LayerPanel"));
+const CanvasOverlay = lazy(() => import("./components/CanvasOverlay"));
 
 /* ─── Types ─── */
 export interface LayerData {
@@ -2025,6 +2026,13 @@ export default function DesignEditor({
           <div className="layerpanel-rail">
             <LayerPanel />
           </div>
+        </Suspense>
+      )}
+
+      {/* V2 CANVAS OVERLAY — rotation handle + align toolbar */}
+      {editorV2Enabled && (
+        <Suspense fallback={null}>
+          <CanvasOverlay containerRef={bodyRef} />
         </Suspense>
       )}
 
