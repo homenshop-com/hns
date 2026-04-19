@@ -90,6 +90,10 @@ export interface EditorActions {
    *  group id, or null if nothing to explode. */
   explodeBox(id: LayerId): LayerId | null;
 
+  /** Deep-clone a layer and insert it right after the original, with a
+   *  small offset so the copy is visible. Returns the new id. */
+  duplicateLayer(id: LayerId, offset?: { dx: number; dy: number }): LayerId | null;
+
   /** Clear dirty flag — call after a successful save. */
   markClean(): void;
 }
@@ -447,6 +451,44 @@ export const useEditorStore = create<EditorStore>()(
             };
             newId = group.id;
             loc.parent.children.splice(loc.index, 1, group);
+          }),
+          dirty: true,
+        }));
+        if (newId) set(() => ({ selectedId: newId, multiSelectedIds: new Set() }));
+        return newId;
+      },
+
+      duplicateLayer: (id, offset) => {
+        const dx = offset?.dx ?? 12;
+        const dy = offset?.dy ?? 12;
+        let newId: LayerId | null = null;
+        set((s) => ({
+          scene: produce(s.scene, (draft) => {
+            const loc = findParentAndIndex(draft.root, id);
+            if (!loc) return;
+            const src = loc.parent.children[loc.index];
+            if (!src) return;
+            // Deep clone (structuredClone if available; immer drafts aren't
+            // structured-cloneable directly, so fall back to JSON).
+            let clone: Layer;
+            try {
+              clone = structuredClone(src) as Layer;
+            } catch {
+              clone = JSON.parse(JSON.stringify(src)) as Layer;
+            }
+            // Rewrite every id in the clone to avoid collisions.
+            const rewrite = (l: Layer) => {
+              l.id = `el_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+              if (l.type === "group") for (const c of l.children) rewrite(c);
+            };
+            rewrite(clone);
+            clone.frame = { ...clone.frame, x: clone.frame.x + dx, y: clone.frame.y + dy };
+            // Ensure serializer emits left/top on the copy.
+            const keys = new Set(clone.frameKeys ?? []);
+            keys.add("position"); keys.add("left"); keys.add("top");
+            clone.frameKeys = Array.from(keys) as NonNullable<Layer["frameKeys"]>;
+            newId = clone.id;
+            loc.parent.children.splice(loc.index + 1, 0, clone);
           }),
           dirty: true,
         }));

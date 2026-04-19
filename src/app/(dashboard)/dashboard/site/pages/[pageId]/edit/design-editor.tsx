@@ -312,6 +312,39 @@ export default function DesignEditor({
         const toRemove = new Set<string>(s.multiSelectedIds);
         if (s.selectedId) toRemove.add(s.selectedId);
         toRemove.forEach((id) => s.remove(id));
+        return;
+      }
+      // Duplicate (Ctrl/Cmd + D)
+      if (mod && !e.shiftKey && e.key.toLowerCase() === "d") {
+        if (!s.selectedId) return;
+        e.preventDefault();
+        s.duplicateLayer(s.selectedId);
+        return;
+      }
+      // Arrow-key nudge on primary selection (+Shift = 10px).
+      const isArrow =
+        e.key === "ArrowLeft" || e.key === "ArrowRight" ||
+        e.key === "ArrowUp"   || e.key === "ArrowDown";
+      if (isArrow && s.selectedId) {
+        // Find the layer's current frame so we know where "here" is.
+        const find = (root: any): any => {
+          if (root.id === s.selectedId) return root;
+          if (root.type === "group") for (const c of root.children) {
+            const f = find(c); if (f) return f;
+          }
+          return null;
+        };
+        const layer = find(s.scene.root);
+        if (!layer) return;
+        e.preventDefault();
+        const step = e.shiftKey ? 10 : 1;
+        const patch: { x?: number; y?: number } = {};
+        if (e.key === "ArrowLeft")  patch.x = layer.frame.x - step;
+        if (e.key === "ArrowRight") patch.x = layer.frame.x + step;
+        if (e.key === "ArrowUp")    patch.y = layer.frame.y - step;
+        if (e.key === "ArrowDown")  patch.y = layer.frame.y + step;
+        s.setFrame(s.selectedId, patch);
+        return;
       }
     }
     window.addEventListener("keydown", onKey);

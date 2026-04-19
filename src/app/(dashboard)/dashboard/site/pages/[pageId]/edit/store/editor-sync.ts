@@ -141,6 +141,20 @@ function ensureGroupWrapper(
   return el;
 }
 
+/** Push the layer's frame (x/y/w/h) into the DOM element's inline style
+ *  based on `frameKeys`. Ensures V2 store mutations (resize, align,
+ *  nudge, duplicate) are immediately visible on the canvas. Skipped for
+ *  virtual groups (root). */
+function applyFrameToEl(el: HTMLElement, layer: Layer) {
+  if (layer.type === "group" && (layer as GroupLayer).virtual) return;
+  const keys = new Set(layer.frameKeys ?? []);
+  if (keys.has("position")) el.style.position = "absolute";
+  if (keys.has("left")) el.style.left = `${layer.frame.x}px`;
+  if (keys.has("top")) el.style.top = `${layer.frame.y}px`;
+  if (keys.has("width")) el.style.width = `${layer.frame.w}px`;
+  if (keys.has("height")) el.style.height = `${layer.frame.h}px`;
+}
+
 /** Apply the scene's transform (rotate/scale/origin) to a DOM node. */
 function applyTransformToEl(el: HTMLElement, layer: Layer) {
   const tfm = printTransform(layer.transform);
@@ -174,6 +188,7 @@ export function applyStructure(scene: SceneGraph, container: HTMLElement) {
       if (!childEl) continue;
       // Move into the correct parent / order slot.
       domParent.appendChild(childEl);
+      applyFrameToEl(childEl, child);
       applyTransformToEl(childEl, child);
       if (child.type === "group") {
         reconcile(child, childEl);

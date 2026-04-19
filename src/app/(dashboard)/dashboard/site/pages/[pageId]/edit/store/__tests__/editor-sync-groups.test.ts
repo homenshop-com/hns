@@ -69,6 +69,19 @@ describe("applyStructure — grouping & ungrouping", () => {
     expect(host.querySelector("#b")).not.toBeNull();
   });
 
+  it("pushes layer.frame (left/top/width/height) into the DOM style", () => {
+    // Force frameKeys so the sync knows to emit all 4.
+    const a = scene.root.children[0]!;
+    a.frame = { x: 77, y: 88, w: 222, h: 111 };
+    a.frameKeys = ["position", "left", "top", "width", "height"];
+    applyStructure(scene, host);
+    const el = host.querySelector<HTMLElement>("#a")!;
+    expect(el.style.left).toBe("77px");
+    expect(el.style.top).toBe("88px");
+    expect(el.style.width).toBe("222px");
+    expect(el.style.height).toBe("111px");
+  });
+
   it("pushes layer.transform into the DOM element's style", () => {
     scene.root.children[0]!.transform = { rotate: 30 };
     applyStructure(scene, host);

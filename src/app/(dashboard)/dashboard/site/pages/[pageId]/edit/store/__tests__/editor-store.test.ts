@@ -154,6 +154,19 @@ describe("editor store", () => {
     expect(group.children.map((c) => c.id).sort()).toEqual(["x1", "y1"]);
   });
 
+  it("duplicateLayer clones with new ids and offsets the copy", () => {
+    useEditorStore.getState().importHtml(SAMPLE);
+    const newId = useEditorStore.getState().duplicateLayer("a", { dx: 20, dy: 20 });
+    expect(newId).toBeTruthy();
+    const root = getRoot();
+    expect(root.children).toHaveLength(4);
+    const copy = root.children.find((c) => c.id === newId)!;
+    expect(copy.id).not.toBe("a");
+    expect(copy.frame.x).toBe(20); // a.x was 0, +20
+    expect(copy.frame.y).toBe(20);
+    expect(useEditorStore.getState().selectedId).toBe(newId);
+  });
+
   it("explodeBox returns null when box has no .dragable children", () => {
     const hostHtml = `<div id="plain" class="dragable" style="position:absolute;left:0;top:0;width:100px;height:100px">just text</div>`;
     useEditorStore.getState().importHtml(hostHtml);
