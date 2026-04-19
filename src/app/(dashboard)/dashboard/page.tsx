@@ -66,7 +66,7 @@ export default async function DashboardPage() {
     currentUser?.email === "demo@demo.com";
 
   const sites = await prisma.site.findMany({
-    where: { userId: session.user.id },
+    where: { userId: session.user.id, isTemplateStorage: false },
     include: {
       domains: true,
       pages: { select: { id: true, isHome: true, lang: true }, orderBy: { sortOrder: "asc" } },

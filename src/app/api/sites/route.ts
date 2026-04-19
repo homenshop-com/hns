@@ -10,7 +10,7 @@ export async function GET() {
   }
 
   const sites = await prisma.site.findMany({
-    where: { userId: session.user.id },
+    where: { userId: session.user.id, isTemplateStorage: false },
     include: {
       pages: {
         orderBy: { sortOrder: "asc" },
@@ -29,9 +29,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
   }
 
-  // Check free site limit (max 5)
+  // Check free site limit (max 5) — exclude hidden template-storage sites
   const siteCount = await prisma.site.count({
-    where: { userId: session.user.id },
+    where: { userId: session.user.id, isTemplateStorage: false },
   });
   if (siteCount >= 5) {
     return NextResponse.json(

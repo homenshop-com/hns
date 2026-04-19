@@ -17,7 +17,7 @@ export default async function BoardsPage() {
   const td = await getTranslations("dashboard");
 
   const site = await prisma.site.findFirst({
-    where: { userId: session.user.id },
+    where: { userId: session.user.id, isTemplateStorage: false },
   });
 
   const boards = site

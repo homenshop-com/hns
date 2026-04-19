@@ -10,7 +10,7 @@ export async function GET() {
   }
 
   const site = await prisma.site.findFirst({
-    where: { userId: session.user.id },
+    where: { userId: session.user.id, isTemplateStorage: false },
   });
 
   if (!site) {
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
   }
 
   const site = await prisma.site.findFirst({
-    where: { userId: session.user.id },
+    where: { userId: session.user.id, isTemplateStorage: false },
   });
 
   if (!site) {

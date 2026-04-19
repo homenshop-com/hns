@@ -36,12 +36,12 @@ export async function POST(request: Request) {
     );
   }
 
-  // Check free site limit (max 5)
+  // Check free site limit (max 5) — exclude hidden template-storage sites
   const siteCount = await prisma.site.count({
-    where: { userId: session.user.id },
+    where: { userId: session.user.id, isTemplateStorage: false },
   });
 
-  if (siteCount >= 50) {
+  if (siteCount >= 5) {
     return NextResponse.json(
       { error: "Maximum 5 free sites allowed" },
       { status: 409 }

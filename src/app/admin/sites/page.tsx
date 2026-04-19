@@ -25,8 +25,8 @@ export default async function AdminSitesPage({
   const page = parsePageParam(params.page);
   const perPage = 20;
 
-  // Build where clause
-  const where: Record<string, unknown> = {};
+  // Build where clause — hide template-storage clones from admin lists
+  const where: Record<string, unknown> = { isTemplateStorage: false };
   const activeTab = TABS.find((t) => t.key === tab);
   if (activeTab && activeTab.type !== undefined) {
     where.accountType = activeTab.type;
@@ -60,11 +60,11 @@ export default async function AdminSitesPage({
     }),
     prisma.site.count({ where: where as any }),
     Promise.all([
-      prisma.site.count(),
-      prisma.site.count({ where: { accountType: "0" } }),
-      prisma.site.count({ where: { accountType: "1" } }),
-      prisma.site.count({ where: { accountType: "9" } }),
-      prisma.site.count({ where: { accountType: "2" } }),
+      prisma.site.count({ where: { isTemplateStorage: false } }),
+      prisma.site.count({ where: { isTemplateStorage: false, accountType: "0" } }),
+      prisma.site.count({ where: { isTemplateStorage: false, accountType: "1" } }),
+      prisma.site.count({ where: { isTemplateStorage: false, accountType: "9" } }),
+      prisma.site.count({ where: { isTemplateStorage: false, accountType: "2" } }),
     ]),
   ]);
 

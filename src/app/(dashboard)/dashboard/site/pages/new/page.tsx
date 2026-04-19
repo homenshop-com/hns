@@ -15,7 +15,7 @@ export default async function NewPagePage() {
   }
 
   const site = await prisma.site.findFirst({
-    where: { userId: session.user.id },
+    where: { userId: session.user.id, isTemplateStorage: false },
   });
 
   if (!site) {

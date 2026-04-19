@@ -121,6 +121,10 @@ model Site {
   googleAnalyticsId  String?
   googleVerification String?
   productSettings    Json?
+  /// true = a hidden "template storage" site created by save-from-site.
+  /// Filtered out of all user/admin site listings, site count limits, etc.
+  /// Only reachable via Template.demoSiteId → 디자인 수정.
+  isTemplateStorage  Boolean   @default(false)
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
@@ -136,6 +140,7 @@ model Site {
   hmfTranslations   SiteHmf[]
 
   @@index([userId])
+  @@index([isTemplateStorage])
 }
 
 model SiteHmf {

@@ -55,7 +55,7 @@ export default async function ProductsPage({
   const currentPage = parsePageParam(pageStr);
 
   const site = await prisma.site.findFirst({
-    where: { userId: session.user.id },
+    where: { userId: session.user.id, isTemplateStorage: false },
   });
 
   const categoryMap = site ? await getCategoryMap(site.id) : {};

@@ -91,11 +91,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "prompt is required" }, { status: 400 });
   }
 
-  // Per-user site limit (mirrors create-from-template)
+  // Per-user site limit — exclude hidden template-storage sites
   const siteCount = await prisma.site.count({
-    where: { userId: session.user.id },
+    where: { userId: session.user.id, isTemplateStorage: false },
   });
-  if (siteCount >= 50) {
+  if (siteCount >= 5) {
     return NextResponse.json(
       { error: "Maximum sites reached" },
       { status: 409 }

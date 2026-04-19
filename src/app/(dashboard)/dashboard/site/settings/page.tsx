@@ -32,7 +32,7 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
         include: { domains: true },
       })
     : await prisma.site.findFirst({
-        where: { userId: session.user.id },
+        where: { userId: session.user.id, isTemplateStorage: false },
         include: { domains: true },
       });
 

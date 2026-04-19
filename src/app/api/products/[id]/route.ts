@@ -16,7 +16,7 @@ export async function GET(
   const { id } = await params;
 
   const site = await prisma.site.findFirst({
-    where: { userId: session.user.id },
+    where: { userId: session.user.id, isTemplateStorage: false },
   });
 
   if (!site) {
@@ -47,7 +47,7 @@ export async function PUT(
   const { id } = await params;
 
   const site = await prisma.site.findFirst({
-    where: { userId: session.user.id },
+    where: { userId: session.user.id, isTemplateStorage: false },
   });
 
   if (!site) {
@@ -116,7 +116,7 @@ export async function DELETE(
   const { id } = await params;
 
   const site = await prisma.site.findFirst({
-    where: { userId: session.user.id },
+    where: { userId: session.user.id, isTemplateStorage: false },
   });
 
   if (!site) {

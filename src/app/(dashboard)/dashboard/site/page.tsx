@@ -21,7 +21,7 @@ export default async function SitePage() {
   const tFooter = await getTranslations("home");
 
   const site = await prisma.site.findFirst({
-    where: { userId: session.user.id },
+    where: { userId: session.user.id, isTemplateStorage: false },
     include: {
       pages: { orderBy: { sortOrder: "asc" } },
       domains: true,

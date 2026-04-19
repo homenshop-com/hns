@@ -22,7 +22,7 @@ export default async function ProductDetailPage({
   const { id } = await params;
 
   const site = await prisma.site.findFirst({
-    where: { userId: session.user.id },
+    where: { userId: session.user.id, isTemplateStorage: false },
   });
 
   if (!site) {
