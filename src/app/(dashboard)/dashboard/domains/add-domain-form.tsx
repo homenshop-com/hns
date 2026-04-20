@@ -87,10 +87,10 @@ export default function AddDomainForm() {
             📖 설정 예시 보기 (클릭하여 펼치기)
           </summary>
           <div style={{ background: "#fff", border: "1px solid #c6daf7", borderRadius: 6, padding: 12, marginTop: 8, fontSize: 12, color: "#444", lineHeight: 1.7 }}>
-            <p style={{ fontWeight: 600, marginBottom: 6, color: "#2c5fa0" }}>예시) youngdrivingschool.com.au 도메인 연결</p>
+            <p style={{ fontWeight: 600, marginBottom: 6, color: "#2c5fa0" }}>예시) mydomain.com 도메인 연결</p>
             <ol style={{ paddingLeft: 18, margin: 0 }}>
               <li>도메인 구입 업체 사이트에 로그인 (예: GoDaddy, Cafe24, 가비아, Crazy Domains 등)</li>
-              <li>내 도메인 목록에서 <strong>youngdrivingschool.com.au</strong> 선택</li>
+              <li>내 도메인 목록에서 <strong>mydomain.com</strong> 선택</li>
               <li><strong>DNS 관리</strong> 또는 <strong>DNS Settings</strong> 메뉴 진입</li>
               <li>기존 A 레코드가 있다면 값을 <code style={{ background: "#eef4fc", padding: "1px 4px", borderRadius: 2 }}>167.71.199.28</code>로 수정, 없다면 <strong>Add Record</strong>로 추가</li>
               <li>위 표의 3개 레코드를 모두 등록하고 저장</li>
