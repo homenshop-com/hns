@@ -75,7 +75,12 @@ export default function AddDomainForm() {
         <input
           type="text"
           value={domain}
-          onChange={(e) => setDomain(e.target.value)}
+          onChange={(e) => setDomain(e.target.value.replace(/\s+/g, ""))}
+          onPaste={(e) => {
+            e.preventDefault();
+            const text = e.clipboardData.getData("text");
+            setDomain(text.replace(/\s+/g, ""));
+          }}
           placeholder="example.com"
           required
           style={{
