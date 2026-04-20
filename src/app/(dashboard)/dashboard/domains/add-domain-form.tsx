@@ -73,7 +73,10 @@ export default function AddDomainForm() {
       check = await runDnsCheck();
       if (!check) return;
     }
-    if (!check.allOk) {
+    // 부분 성공도 허용 — apex 또는 www 중 하나라도 서버를 가리키면 등록 가능.
+    // (www만 설정하고 @ 는 유지하는 케이스 등 실사용 패턴을 반영)
+    const anyOk = check.apex.ok || check.www.ok;
+    if (!anyOk) {
       setError("DNS 설정이 완료되지 않았습니다. A 레코드를 확인 후 다시 시도해주세요.");
       return;
     }
@@ -191,29 +194,44 @@ export default function AddDomainForm() {
       )}
 
       {/* DNS check result panel */}
-      {dnsCheck && (
-        <div
-          style={{
-            background: dnsCheck.allOk ? "#f0fdf4" : "#fff7ed",
-            border: `1px solid ${dnsCheck.allOk ? "#bbf7d0" : "#fed7aa"}`,
-            borderRadius: 6,
-            padding: 12,
-            marginBottom: 12,
-            fontSize: 13,
-          }}
-        >
-          <p style={{ fontWeight: 700, color: dnsCheck.allOk ? "#16a34a" : "#c2410c", marginBottom: 8 }}>
-            {dnsCheck.allOk ? "✅ DNS 설정이 확인되었습니다. 도메인을 추가할 수 있습니다." : "⚠️ DNS 설정이 완료되지 않았습니다."}
-          </p>
-          <DnsRow label="@" host={dnsCheck.apex} serverIp={dnsCheck.serverIp} />
-          <DnsRow label="www" host={dnsCheck.www} serverIp={dnsCheck.serverIp} />
-          {!dnsCheck.allOk && (
-            <p style={{ marginTop: 8, fontSize: 12, color: "#7c2d12" }}>
-              💡 DNS 변경 직후라면 전파 대기 중일 수 있습니다. 5~30분 후 다시 확인해주세요.
-            </p>
-          )}
-        </div>
-      )}
+      {dnsCheck && (() => {
+        const anyOk = dnsCheck.apex.ok || dnsCheck.www.ok;
+        const partial = anyOk && !dnsCheck.allOk;
+        const bg = dnsCheck.allOk ? "#f0fdf4" : partial ? "#fefce8" : "#fff7ed";
+        const border = dnsCheck.allOk ? "#bbf7d0" : partial ? "#fde68a" : "#fed7aa";
+        const color = dnsCheck.allOk ? "#16a34a" : partial ? "#a16207" : "#c2410c";
+        const title = dnsCheck.allOk
+          ? "✅ DNS 설정이 확인되었습니다. 도메인을 추가할 수 있습니다."
+          : partial
+            ? "⚠️ 부분 설정됨 — 등록은 가능하지만 누락된 레코드를 확인해주세요."
+            : "⚠️ DNS 설정이 완료되지 않았습니다.";
+        return (
+          <div
+            style={{
+              background: bg,
+              border: `1px solid ${border}`,
+              borderRadius: 6,
+              padding: 12,
+              marginBottom: 12,
+              fontSize: 13,
+            }}
+          >
+            <p style={{ fontWeight: 700, color, marginBottom: 8 }}>{title}</p>
+            <DnsRow label="@" host={dnsCheck.apex} serverIp={dnsCheck.serverIp} />
+            <DnsRow label="www" host={dnsCheck.www} serverIp={dnsCheck.serverIp} />
+            {!anyOk && (
+              <p style={{ marginTop: 8, fontSize: 12, color: "#7c2d12" }}>
+                💡 DNS 변경 직후라면 전파 대기 중일 수 있습니다. 5~30분 후 다시 확인해주세요.
+              </p>
+            )}
+            {partial && (
+              <p style={{ marginTop: 8, fontSize: 12, color: "#713f12" }}>
+                💡 하나만 설정되어도 서비스는 동작하지만, <strong>@</strong>와 <strong>www</strong> 둘 다 등록하시는 것을 권장합니다.
+              </p>
+            )}
+          </div>
+        );
+      })()}
 
       <form onSubmit={handleSubmit} style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         <input
@@ -256,26 +274,31 @@ export default function AddDomainForm() {
         </button>
         <button
           type="submit"
-          disabled={loading || checking || !domain.trim() || (dnsCheck !== null && !dnsCheck.allOk)}
+          disabled={
+            loading || checking || !domain.trim() ||
+            (dnsCheck !== null && !(dnsCheck.apex.ok || dnsCheck.www.ok))
+          }
           style={{
             padding: "8px 20px",
             fontSize: 13,
             fontWeight: 600,
             background:
-              loading || checking || !domain.trim() || (dnsCheck !== null && !dnsCheck.allOk)
+              loading || checking || !domain.trim() ||
+              (dnsCheck !== null && !(dnsCheck.apex.ok || dnsCheck.www.ok))
                 ? "#aaa"
                 : "#4a90d9",
             color: "#fff",
             border: "none",
             borderRadius: 6,
             cursor:
-              loading || checking || !domain.trim() || (dnsCheck !== null && !dnsCheck.allOk)
+              loading || checking || !domain.trim() ||
+              (dnsCheck !== null && !(dnsCheck.apex.ok || dnsCheck.www.ok))
                 ? "default"
                 : "pointer",
           }}
           title={
-            dnsCheck !== null && !dnsCheck.allOk
-              ? "DNS 설정이 완료된 후 추가할 수 있습니다."
+            dnsCheck !== null && !(dnsCheck.apex.ok || dnsCheck.www.ok)
+              ? "최소 하나(@ 또는 www)의 A 레코드가 서버를 가리켜야 합니다."
               : undefined
           }
         >
