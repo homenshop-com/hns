@@ -6,6 +6,7 @@ import { getTranslations } from "next-intl/server";
 import SignOutButton from "../sign-out-button";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import AddDomainForm from "./add-domain-form";
+import ProvisionSslButton from "./provision-ssl-button";
 
 export default async function DashboardDomainsPage() {
   const session = await auth();
@@ -89,6 +90,8 @@ export default async function DashboardDomainsPage() {
                         <span style={{ display: "inline-block", padding: "2px 10px", fontSize: 11, fontWeight: 600, borderRadius: 20, background: "#f0fdf4", color: "#22c55e" }}>
                           {t("sslActive")}
                         </span>
+                      ) : domain.status === "ACTIVE" ? (
+                        <ProvisionSslButton domainId={domain.id} />
                       ) : (
                         <span style={{ display: "inline-block", padding: "2px 10px", fontSize: 11, fontWeight: 600, borderRadius: 20, background: "#f8f9fa", color: "#868e96" }}>
                           {t("sslInactive")}
