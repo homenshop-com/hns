@@ -3,40 +3,107 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+type DnsCheckHost = {
+  host: string;
+  ips: string[];
+  ok: boolean;
+  error: string | null;
+};
+
+type DnsCheck = {
+  domain: string;
+  serverIp: string;
+  allOk: boolean;
+  apex: DnsCheckHost;
+  www: DnsCheckHost;
+};
+
 export default function AddDomainForm() {
   const router = useRouter();
   const [domain, setDomain] = useState("");
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [dnsCheck, setDnsCheck] = useState<DnsCheck | null>(null);
+
+  function normalizeDomain(v: string) {
+    return v
+      .replace(/\s+/g, "")
+      .replace(/^https?:\/\//i, "")
+      .replace(/\/.*$/, "")
+      .toLowerCase();
+  }
+
+  async function runDnsCheck(): Promise<DnsCheck | null> {
+    setChecking(true);
+    setError("");
+    setDnsCheck(null);
+    try {
+      const res = await fetch("/api/domains/verify-dns", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ domain: domain.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "DNS 확인에 실패했습니다.");
+      setDnsCheck(data);
+      return data;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "DNS 확인 중 오류가 발생했습니다.");
+      return null;
+    } finally {
+      setChecking(false);
+    }
+  }
+
+  async function handleCheckClick() {
+    await runDnsCheck();
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
     setError("");
     setSuccess("");
 
+    // Require a successful DNS check before allowing registration.
+    // Either the user clicked "DNS 확인" and got allOk, or we run it now.
+    let check = dnsCheck;
+    if (!check || check.domain !== normalizeDomain(domain)) {
+      check = await runDnsCheck();
+      if (!check) return;
+    }
+    if (!check.allOk) {
+      setError("DNS 설정이 완료되지 않았습니다. A 레코드를 확인 후 다시 시도해주세요.");
+      return;
+    }
+
+    setLoading(true);
     try {
       const res = await fetch("/api/domains", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ domain: domain.trim() }),
       });
-
       const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "도메인 추가에 실패했습니다.");
-      }
+      if (!res.ok) throw new Error(data.error || "도메인 추가에 실패했습니다.");
 
       setSuccess(`${data.domain} 도메인이 등록되었습니다.`);
       setDomain("");
+      setDnsCheck(null);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "오류가 발생했습니다.");
     } finally {
       setLoading(false);
     }
+  }
+
+  // Reset DNS check when domain input changes — stale results would mislead.
+  function handleDomainChange(v: string) {
+    const next = normalizeDomain(v);
+    setDomain(next);
+    if (dnsCheck && dnsCheck.domain !== next) setDnsCheck(null);
   }
 
   return (
@@ -81,7 +148,6 @@ export default function AddDomainForm() {
           </div>
         </div>
 
-        {/* Example image / reference */}
         <details style={{ marginBottom: 10 }}>
           <summary style={{ fontSize: 12, fontWeight: 600, color: "#4a90d9", cursor: "pointer", padding: "4px 0" }}>
             📖 설정 예시 보기 (클릭하여 펼치기)
@@ -106,7 +172,7 @@ export default function AddDomainForm() {
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", fontSize: 11, color: "#6ba3d6" }}>
           <span>⏱ DNS 전파: 최대 48시간</span>
           <span>•</span>
-          <span>🔒 SSL 인증서: 자동 발급 (Let's Encrypt)</span>
+          <span>🔒 SSL 인증서: 자동 발급 (Let&apos;s Encrypt)</span>
           <span>•</span>
           <span>✅ 무료</span>
         </div>
@@ -124,20 +190,46 @@ export default function AddDomainForm() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} style={{ display: "flex", gap: 8 }}>
+      {/* DNS check result panel */}
+      {dnsCheck && (
+        <div
+          style={{
+            background: dnsCheck.allOk ? "#f0fdf4" : "#fff7ed",
+            border: `1px solid ${dnsCheck.allOk ? "#bbf7d0" : "#fed7aa"}`,
+            borderRadius: 6,
+            padding: 12,
+            marginBottom: 12,
+            fontSize: 13,
+          }}
+        >
+          <p style={{ fontWeight: 700, color: dnsCheck.allOk ? "#16a34a" : "#c2410c", marginBottom: 8 }}>
+            {dnsCheck.allOk ? "✅ DNS 설정이 확인되었습니다. 도메인을 추가할 수 있습니다." : "⚠️ DNS 설정이 완료되지 않았습니다."}
+          </p>
+          <DnsRow label="@" host={dnsCheck.apex} serverIp={dnsCheck.serverIp} />
+          <DnsRow label="www" host={dnsCheck.www} serverIp={dnsCheck.serverIp} />
+          {!dnsCheck.allOk && (
+            <p style={{ marginTop: 8, fontSize: 12, color: "#7c2d12" }}>
+              💡 DNS 변경 직후라면 전파 대기 중일 수 있습니다. 5~30분 후 다시 확인해주세요.
+            </p>
+          )}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         <input
           type="text"
           value={domain}
-          onChange={(e) => setDomain(e.target.value.replace(/\s+/g, ""))}
+          onChange={(e) => handleDomainChange(e.target.value)}
           onPaste={(e) => {
             e.preventDefault();
             const text = e.clipboardData.getData("text");
-            setDomain(text.replace(/\s+/g, ""));
+            handleDomainChange(text);
           }}
           placeholder="example.com"
           required
           style={{
             flex: 1,
+            minWidth: 200,
             padding: "8px 14px",
             fontSize: 13,
             border: "1px solid #e2e8f0",
@@ -146,22 +238,75 @@ export default function AddDomainForm() {
           }}
         />
         <button
+          type="button"
+          onClick={handleCheckClick}
+          disabled={checking || !domain.trim()}
+          style={{
+            padding: "8px 16px",
+            fontSize: 13,
+            fontWeight: 600,
+            background: "#fff",
+            color: checking || !domain.trim() ? "#aaa" : "#4a90d9",
+            border: `1px solid ${checking || !domain.trim() ? "#e2e8f0" : "#4a90d9"}`,
+            borderRadius: 6,
+            cursor: checking || !domain.trim() ? "default" : "pointer",
+          }}
+        >
+          {checking ? "확인 중..." : "DNS 확인"}
+        </button>
+        <button
           type="submit"
-          disabled={loading || !domain.trim()}
+          disabled={loading || checking || !domain.trim() || (dnsCheck !== null && !dnsCheck.allOk)}
           style={{
             padding: "8px 20px",
             fontSize: 13,
             fontWeight: 600,
-            background: loading || !domain.trim() ? "#aaa" : "#4a90d9",
+            background:
+              loading || checking || !domain.trim() || (dnsCheck !== null && !dnsCheck.allOk)
+                ? "#aaa"
+                : "#4a90d9",
             color: "#fff",
             border: "none",
             borderRadius: 6,
-            cursor: loading || !domain.trim() ? "default" : "pointer",
+            cursor:
+              loading || checking || !domain.trim() || (dnsCheck !== null && !dnsCheck.allOk)
+                ? "default"
+                : "pointer",
           }}
+          title={
+            dnsCheck !== null && !dnsCheck.allOk
+              ? "DNS 설정이 완료된 후 추가할 수 있습니다."
+              : undefined
+          }
         >
           {loading ? "추가 중..." : "도메인 추가"}
         </button>
       </form>
+      <p style={{ fontSize: 11, color: "#888", marginTop: 8 }}>
+        💡 <strong>DNS 확인</strong> 버튼으로 먼저 설정을 검증한 후 도메인을 추가하세요.
+      </p>
+    </div>
+  );
+}
+
+function DnsRow({ label, host, serverIp }: { label: string; host: DnsCheckHost; serverIp: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, padding: "4px 0", fontFamily: "monospace" }}>
+      <span style={{ minWidth: 40, fontWeight: 700, color: "#555" }}>{label}</span>
+      <span style={{ color: host.ok ? "#16a34a" : "#dc2626", fontWeight: 700 }}>
+        {host.ok ? "✓" : "✗"}
+      </span>
+      <span style={{ color: "#555" }}>{host.host} →</span>
+      <span style={{ color: host.ok ? "#16a34a" : "#dc2626" }}>
+        {host.error
+          ? host.error
+          : host.ips.length === 0
+            ? "레코드 없음"
+            : host.ips.join(", ")}
+      </span>
+      {!host.ok && !host.error && host.ips.length > 0 && (
+        <span style={{ color: "#888" }}>(기대값: {serverIp})</span>
+      )}
     </div>
   );
 }
