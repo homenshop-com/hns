@@ -1,8 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { promises as dns } from "dns";
 
 const DOMAIN_REGEX = /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/;
+const SERVER_IP = "167.71.199.28";
+
+async function resolvesToServer(host: string): Promise<boolean> {
+  try {
+    const ips = await dns.resolve4(host);
+    return ips.includes(SERVER_IP);
+  } catch {
+    return false;
+  }
+}
 
 export async function GET() {
   const session = await auth();
@@ -72,12 +83,22 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Auto-activate if at least one A record (@ or www) already points to us.
+  // The add-form runs the same verify-dns check before POSTing, so in the
+  // normal path we've already confirmed connectivity — no reason to park
+  // the row in "대기중" when the user will just wait for an admin nudge.
+  const [apexOk, wwwOk] = await Promise.all([
+    resolvesToServer(normalizedDomain),
+    resolvesToServer(`www.${normalizedDomain}`),
+  ]);
+  const initialStatus = apexOk || wwwOk ? "ACTIVE" : "PENDING";
+
   const newDomain = await prisma.domain.create({
     data: {
       domain: normalizedDomain,
       siteId: site.id,
       userId: session.user.id,
-      status: "PENDING",
+      status: initialStatus,
     },
     include: {
       site: {
