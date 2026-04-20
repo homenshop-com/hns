@@ -11,11 +11,15 @@
   --white: #ffffff;
   --radius: 12px;
   --shadow: 0 2px 20px rgba(0, 0, 0, 0.07);
-  font-family: -apple-system, BlinkMacSystemFont, "Malgun Gothic", "맑은 고딕",
-    "Apple SD Gothic Neo", sans-serif;
+  font-family: "Pretendard Variable", Pretendard, -apple-system,
+    BlinkMacSystemFont, system-ui, "Apple SD Gothic Neo", "Malgun Gothic",
+    "맑은 고딕", sans-serif;
   color: var(--text);
   line-height: 1.6;
   font-size: 15px;
+  letter-spacing: -0.3px;
+  font-feature-settings: "ss03", "cv11", "tnum";
+  -webkit-font-smoothing: antialiased;
   scroll-behavior: smooth;
 }
 

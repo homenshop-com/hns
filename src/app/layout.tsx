@@ -1,16 +1,14 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import SessionProvider from "@/components/SessionProvider";
 import "./globals.css";
 import "./landing.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
+// Pretendard is loaded via a CDN <link> in <head>. It's the Korean-
+// optimized variable font used by Toss / Naver / Kakao and pairs well
+// with our Toss-inspired typography scale in globals.css.
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
@@ -67,8 +65,15 @@ export default async function RootLayout({
 
   return (
     <html lang={locale}>
+      <head>
+        {/* Pretendard Variable — Korean-optimized font (Toss / Naver standard) */}
+        <link
+          rel="stylesheet"
+          href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+        />
+      </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistMono.variable} antialiased`}
       >
         <NextIntlClientProvider locale={locale} messages={messages}>
           <SessionProvider>{children}</SessionProvider>

@@ -3,20 +3,135 @@
 /* Force light mode — dark: variants only activate with .dark class (never added) */
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * ───────────────────────────────────────────────────────────────
+ * Typography — Toss-inspired system
+ * ───────────────────────────────────────────────────────────────
+ * Reference: https://toss.im/
+ *
+ * - Font: Pretendard Variable (한글 최적화, Toss/Naver/Kakao 사용)
+ * - Base: 15px body, 1.6 line-height, -0.3px letter-spacing (Korean tight)
+ * - Scale: xs/sm/base/lg/xl/2xl/3xl/4xl/5xl (1.2 modular)
+ * - Weights: 400 body / 600 emphasis / 700 heading
+ * - Numbers: tabular (tnum) for aligned digit columns
+ */
+
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #191f28; /* Toss primary text color */
+
+  /* Toss-style font stack */
+  --font-sans:
+    "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
+    system-ui, "Apple SD Gothic Neo", "Malgun Gothic", "맑은 고딕",
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono:
+    var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+
+  /* Type scale (1.2 modular, Toss-like) */
+  --fs-xs: 12px;    /* caption, micro labels */
+  --fs-sm: 13px;    /* secondary body, table */
+  --fs-base: 15px;  /* body default */
+  --fs-md: 16px;    /* primary body / button */
+  --fs-lg: 17px;    /* subheading */
+  --fs-xl: 19px;    /* h4 */
+  --fs-2xl: 22px;   /* h3 */
+  --fs-3xl: 28px;   /* h2 */
+  --fs-4xl: 36px;   /* h1 */
+  --fs-5xl: 48px;   /* display */
+
+  /* Line heights */
+  --lh-tight: 1.3;
+  --lh-snug: 1.45;
+  --lh-normal: 1.6;
+  --lh-loose: 1.75;
+
+  /* Letter spacing (Korean tight, Toss-style) */
+  --ls-tighter: -0.6px;
+  --ls-tight: -0.4px;
+  --ls-normal: -0.3px;
+  --ls-wide: 0;
+
+  /* Toss semantic colors (subset) */
+  --tx-primary: #191f28;
+  --tx-secondary: #4e5968;
+  --tx-tertiary: #8b95a1;
+  --tx-disabled: #c1c7cf;
+  --tx-link: #3182f6;
+
+  --bg-app: #f9fafb;
+  --bg-card: #ffffff;
+  --border-subtle: #e5e8eb;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+}
+
+html {
+  font-size: 16px; /* keep rem base stable */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  line-height: var(--lh-normal);
+  letter-spacing: var(--ls-normal);
+  font-weight: 400;
+  font-feature-settings: "ss03", "cv11", "tnum"; /* Pretendard stylistic sets + tabular numbers */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Heading scale — Toss uses bold 700 + tighter letter-spacing */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-sans);
+  color: var(--tx-primary);
+  font-weight: 700;
+  letter-spacing: var(--ls-tight);
+  line-height: var(--lh-tight);
+}
+
+h1 { font-size: var(--fs-4xl); }
+h2 { font-size: var(--fs-3xl); }
+h3 { font-size: var(--fs-2xl); }
+h4 { font-size: var(--fs-xl); }
+h5 { font-size: var(--fs-lg); }
+h6 { font-size: var(--fs-md); }
+
+/* Inputs & buttons inherit the Pretendard stack — browsers default to
+ * the system UI font which breaks visual consistency with body copy. */
+input, textarea, select, button {
+  font-family: inherit;
+  font-size: inherit;
+  letter-spacing: inherit;
+}
+
+/* Tabular digits for number-heavy tables/admin pages */
+table, .tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Monospace class — for IPs, code, domain strings */
+code, kbd, samp, pre, .mono {
+  font-family: var(--font-mono);
+  font-feature-settings: normal;
+}
+
+/* Anchor default — Toss uses a cooler blue */
+a {
+  color: var(--tx-link);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
 }
