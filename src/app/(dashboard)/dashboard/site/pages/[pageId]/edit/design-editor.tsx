@@ -1531,10 +1531,24 @@ export default function DesignEditor({
     }
     return result;
   };
+  // Boost page CSS position/size props to !important — mirrors the
+  // published route (route.ts:480-484). Without this, the template's
+  // `site-upgrade.css` !important rules override per-element top/left/
+  // width/height/position/z-index from pageCss, collapsing absolutely
+  // positioned sections to default positions and producing a bare
+  // skeleton view (tiny hero, huge gap, plain text at bottom).
+  const boostImportant = (css: string) =>
+    css.replace(
+      /(\b(?:top|left|width|height|display|position|z-index)\s*:\s*)([^;!}]+)(;|})/gi,
+      (_: string, prop: string, val: string, end: string) =>
+        val.trim().includes("!important")
+          ? `${prop}${val}${end}`
+          : `${prop}${val.trim()} !important${end}`,
+    );
   const canvasCss = [
     templateCss ? scopeAndRewrite(templateCss, true) : "",
     cssText ? scopeAndRewrite(cssText) : "",
-    currentPageCss ? scopeAndRewrite(currentPageCss) : "",
+    currentPageCss ? scopeAndRewrite(boostImportant(currentPageCss)) : "",
   ].filter(Boolean).join("\n");
 
   const selectedProps = getSelectedElProps();

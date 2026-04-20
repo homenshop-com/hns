@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { renderBoardPluginContent, renderProductPluginContent } from "@/lib/plugin-renderer";
-import { readTemplateCss } from "@/lib/template-parser";
+import { readTemplateCss, rewriteAssetUrls } from "@/lib/template-parser";
 import { isEditorV2Enabled } from "@/lib/editor-flags";
 import DesignEditor from "./design-editor";
 
@@ -94,6 +94,21 @@ export default async function EditPagePage({ params }: EditPageProps) {
   const templatePath = site.templatePath || "";
   const templateCss = templatePath ? readTemplateCss(templatePath) : "";
 
+  // Rewrite relative asset URLs (`../files/...`, `./files/...`) to absolute
+  // `/tpl/<templatePath>/files/...`. The published route does this at
+  // render time (route.ts:605-607); without it, images in the editor
+  // iframe 404 and the page looks empty. Migrated legacy templates in
+  // particular have tons of these relative paths in Page.content.
+  let headerHtmlFinal = headerHtml;
+  let footerHtmlFinal = footerHtml;
+  let menuHtmlFinal = menuHtml;
+  if (templatePath) {
+    bodyHtml = rewriteAssetUrls(bodyHtml, templatePath);
+    headerHtmlFinal = rewriteAssetUrls(headerHtml, templatePath);
+    footerHtmlFinal = rewriteAssetUrls(footerHtml, templatePath);
+    menuHtmlFinal = rewriteAssetUrls(menuHtml, templatePath);
+  }
+
   return (
     <DesignEditor
       siteId={site.id}
@@ -101,9 +116,9 @@ export default async function EditPagePage({ params }: EditPageProps) {
       siteName={site.name}
       defaultLanguage={site.defaultLanguage}
       templatePath={templatePath}
-      headerHtml={headerHtml}
-      menuHtml={menuHtml}
-      footerHtml={footerHtml}
+      headerHtml={headerHtmlFinal}
+      menuHtml={menuHtmlFinal}
+      footerHtml={footerHtmlFinal}
       cssText={site.cssText || ""}
       pageCss={pageCss}
       templateCss={templateCss}
