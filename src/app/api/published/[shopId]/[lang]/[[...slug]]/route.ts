@@ -640,7 +640,7 @@ export async function GET(
     }
     .de-resize-handle { display: none !important; }
     html, body { overflow-x: hidden; }
-    .c_v_home_dft { overflow: hidden; width: 1000px !important; margin: 0 auto !important; }
+    .c_v_home_dft { overflow-x: hidden; overflow-y: visible; width: 1000px !important; margin: 0 auto !important; }
     `;
 
   // Scale-to-fit script only for legacy templates
@@ -649,7 +649,7 @@ export async function GET(
   if (!el) return;
   document.documentElement.style.cssText += 'margin:0;padding:0;overflow-x:hidden;';
   document.body.style.cssText += 'margin:0;padding:0;overflow-x:hidden;';
-  el.style.cssText += 'width:1000px;margin:0 auto;overflow:hidden;position:relative;';
+  el.style.cssText += 'width:1000px;margin:0 auto;overflow-x:hidden;overflow-y:visible;position:relative;';
   function sf() {
     var vw = document.documentElement.clientWidth;
     if (vw < 1000) {
@@ -671,7 +671,7 @@ export async function GET(
   // Recalculate after images load for accurate heights
   const minHeightScript = isModernTemplate || isBoardAction || isProductAction
     ? ''
-    : `<script>(function(){var el=document.getElementById('hns_body');if(!el)return;function calc(){var m=0;var all=el.querySelectorAll('.dragable');for(var i=0;i<all.length;i++){var c=all[i],cs=window.getComputedStyle(c);if(cs.position==='absolute'){var t=parseInt(cs.top)||0,h=c.offsetHeight||0;if(t+h>m)m=t+h;}}if(m>0)el.style.minHeight=m+'px';}calc();var imgs=el.querySelectorAll('img');var n=0;function onImg(){n++;if(n>=imgs.length)calc();}for(var j=0;j<imgs.length;j++){if(imgs[j].complete)n++;else{imgs[j].addEventListener('load',onImg);imgs[j].addEventListener('error',onImg);}}if(n>=imgs.length&&imgs.length>0)calc();setTimeout(calc,500);})();</script>`;
+    : `<script>(function(){var el=document.getElementById('hns_body');if(!el)return;function calc(){var m=0;var all=el.querySelectorAll('.dragable');for(var i=0;i<all.length;i++){var c=all[i],cs=window.getComputedStyle(c);if(cs.position==='absolute'){var t=parseInt(cs.top)||0,h=Math.max(c.offsetHeight||0,c.scrollHeight||0);if(t+h>m)m=t+h;}}if(m>0)el.style.minHeight=m+'px';}calc();var imgs=el.querySelectorAll('img');var n=0;function onImg(){n++;if(n>=imgs.length)calc();}for(var j=0;j<imgs.length;j++){if(imgs[j].complete)n++;else{imgs[j].addEventListener('load',onImg);imgs[j].addEventListener('error',onImg);}}if(n>=imgs.length&&imgs.length>0)calc();setTimeout(calc,500);setTimeout(calc,1500);})();</script>`;
 
   const boardPageCss = '';
 
