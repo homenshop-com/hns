@@ -65,6 +65,9 @@ export default function MenuManager({
   const [newParentId, setNewParentId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
 
+  // Sync with canvas menu
+  const [syncing, setSyncing] = useState(false);
+
   const langPages = pages.filter((p) => p.lang === selectedLang);
 
   // 트리 구조로 변환
@@ -266,6 +269,35 @@ export default function MenuManager({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ items: newItems }),
     });
+  }
+
+  /* ─── 캔버스 메뉴와 동기화 ───
+   * Reads each page's slug, compares against the <a href> list in the
+   * canvas header/menu HTML (per language), and flips showInMenu to
+   * match. Prevents the "16 pages listed, 6 actually render" drift
+   * that happens after template migration. */
+  async function syncWithCanvas() {
+    if (syncing) return;
+    if (!confirm("캔버스 디자인에 표시된 메뉴 항목만 '메뉴에 표시' 상태로 동기화합니다.\n계속하시겠습니까?")) return;
+    setSyncing(true);
+    try {
+      const res = await fetch(`/api/sites/${siteId}/sync-menu-visibility`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "동기화에 실패했습니다.");
+
+      if (data.synced === 0) {
+        alert(data.message || "이미 동기화되어 있습니다.");
+      } else {
+        alert(`동기화 완료: ${data.synced}개 페이지 변경 (표시 ${data.shownCount ?? 0}, 숨김 ${data.hiddenCount ?? 0})`);
+        router.refresh();
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "오류가 발생했습니다.");
+    } finally {
+      setSyncing(false);
+    }
   }
 
   /* ─── 외부 링크 추가 ─── */
@@ -507,10 +539,24 @@ export default function MenuManager({
         </div>
       )}
 
-      {/* 안내 */}
-      <p className="text-xs text-zinc-400 mb-4">
-        드래그하여 순서 변경. 항목 위 가운데로 드래그하면 하위 메뉴로 설정됩니다. (최대 2단계)
-      </p>
+      {/* 안내 + 동기화 */}
+      <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+        <p className="text-xs text-zinc-400">
+          드래그하여 순서 변경. 항목 위 가운데로 드래그하면 하위 메뉴로 설정됩니다. (최대 2단계)
+        </p>
+        <button
+          onClick={syncWithCanvas}
+          disabled={syncing}
+          title="캔버스 디자인의 헤더/메뉴 HTML에 실제로 포함된 페이지만 '메뉴에 표시'로 활성화합니다."
+          className={`rounded-lg border px-3 py-1.5 text-xs font-medium whitespace-nowrap ${
+            syncing
+              ? "bg-zinc-100 text-zinc-400 border-zinc-200 cursor-default"
+              : "bg-white text-blue-600 border-blue-300 hover:bg-blue-50"
+          }`}
+        >
+          {syncing ? "동기화 중..." : "🔄 캔버스 메뉴와 동기화"}
+        </button>
+      </div>
 
       {/* 편집 패널 */}
       {renderEditPanel()}
