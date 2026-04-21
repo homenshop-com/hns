@@ -29,6 +29,8 @@ import type {
   GroupLayer,
   Layer,
   LayerId,
+  LayerInteraction,
+  LayerStyle,
   LayerTransform,
   SceneGraph,
   SectionLayer,
@@ -91,6 +93,21 @@ export interface EditorActions {
 
   /** Merge a transform patch into a layer. Pass `null` to clear. */
   setTransform(id: LayerId, patch: Partial<LayerTransform> | null): void;
+
+  /**
+   * Merge a style patch into a layer (typography, fill, border, effect,
+   * opacity, etc.). Pass `undefined` for any individual key to clear it.
+   * Sprint 9k — wires the InspectorPanel's design tab to the scene graph.
+   */
+  setStyle(id: LayerId, patch: Partial<LayerStyle>): void;
+
+  /**
+   * Set or clear a click-time interaction on a layer. `null` removes the
+   * interaction entry. Sprint 9k — powers the 인터랙션 tab's link/scroll/
+   * modal actions, which are rendered into the published HTML at publish
+   * time (see plugin-renderer + published route).
+   */
+  setInteraction(id: LayerId, patch: LayerInteraction | null): void;
 
   /** Align multiple layers along an axis. Mutates each layer's frame.x/y
    *  and augments `frameKeys` so the serializer emits `left`/`top`. */
@@ -369,6 +386,45 @@ export const useEditorStore = create<EditorStore>()(
             const target = loc.parent.children[loc.index];
             if (!target || target.type !== "group") return;
             loc.parent.children.splice(loc.index, 1, ...target.children);
+          }),
+          dirty: true,
+        })),
+
+      setStyle: (id, patch) =>
+        set((s) => ({
+          scene: produce(s.scene, (draft) => {
+            const l = findLayer(draft.root, id);
+            if (!l) return;
+            // Merge with empty-string / null treated as "clear this key".
+            // Treating "" as clear lets the Inspector color/text inputs
+            // remove a value by blanking the field.
+            const next: LayerStyle = { ...(l.style ?? {}) };
+            for (const [k, v] of Object.entries(patch) as Array<
+              [keyof LayerStyle, LayerStyle[keyof LayerStyle]]
+            >) {
+              if (v === undefined || v === null || v === "") {
+                delete next[k];
+              } else {
+                // Type assertion: TS loses the value-type correlation
+                // when iterating Object.entries(). Runtime shape matches.
+                (next as Record<string, unknown>)[k as string] = v;
+              }
+            }
+            l.style = next;
+          }),
+          dirty: true,
+        })),
+
+      setInteraction: (id, patch) =>
+        set((s) => ({
+          scene: produce(s.scene, (draft) => {
+            const l = findLayer(draft.root, id);
+            if (!l) return;
+            if (patch === null) {
+              l.interaction = undefined;
+            } else {
+              l.interaction = patch;
+            }
           }),
           dirty: true,
         })),

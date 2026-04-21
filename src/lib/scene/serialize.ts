@@ -53,7 +53,19 @@ const STYLE_KEY_ORDER = [
   "mix-blend-mode",
   "background",
   "background-color",
+  "color",
+  "font-family",
+  "font-size",
+  "font-weight",
+  "line-height",
+  "letter-spacing",
+  "text-align",
   "border",
+  "border-color",
+  "border-width",
+  "border-style",
+  "border-radius",
+  "box-shadow",
   "filter",
   "clip-path",
   "transform",
@@ -121,7 +133,21 @@ function buildStyleMap(layer: Layer): StyleMap {
   if (style.opacity != null && style.opacity !== 1) out["opacity"] = String(style.opacity);
   if (style.blendMode && style.blendMode !== "normal") out["mix-blend-mode"] = style.blendMode;
   if (style.background) out["background"] = style.background;
+  // Typography tokens (Sprint 9k)
+  if (style.color) out["color"] = style.color;
+  if (style.fontFamily) out["font-family"] = style.fontFamily;
+  if (style.fontSize) out["font-size"] = style.fontSize;
+  if (style.fontWeight != null) out["font-weight"] = String(style.fontWeight);
+  if (style.lineHeight) out["line-height"] = style.lineHeight;
+  if (style.letterSpacing) out["letter-spacing"] = style.letterSpacing;
+  if (style.textAlign) out["text-align"] = style.textAlign;
+  // Border split + shorthand (shorthand preserved for existing content)
   if (style.border) out["border"] = style.border;
+  if (style.borderColor) out["border-color"] = style.borderColor;
+  if (style.borderWidth) out["border-width"] = style.borderWidth;
+  if (style.borderStyle) out["border-style"] = style.borderStyle;
+  if (style.borderRadius) out["border-radius"] = style.borderRadius;
+  if (style.boxShadow) out["box-shadow"] = style.boxShadow;
   if (style.filter) out["filter"] = style.filter;
   if (style.clipPath) out["clip-path"] = style.clipPath;
 
@@ -156,11 +182,26 @@ function buildAttrString(layer: Layer): string {
   if (cls) emit("class", cls);
   if (styleStr) emit("style", styleStr);
 
+  // Sprint 9k — click-time interaction. Serialized as a JSON payload in
+  // data-hns-interaction; the published route's tiny runtime reads this
+  // attribute and wires up the behavior. Kept out of the normal style
+  // stream so it round-trips cleanly and doesn't collide with legacy
+  // inline handlers.
+  if (layer.interaction) {
+    try {
+      emit("data-hns-interaction", JSON.stringify(layer.interaction));
+    } catch {
+      // Defensive — bad payload shouldn't break serialization.
+    }
+  }
+
   // Extra legacy attributes preserved from import.
   if (layer.legacyAttrs) {
     const keys = Object.keys(layer.legacyAttrs).sort();
     for (const k of keys) {
       if (ATTR_KEY_ORDER.includes(k)) continue;
+      // Don't double-emit the interaction attr from a stale legacyAttrs.
+      if (k === "data-hns-interaction") continue;
       emit(k, layer.legacyAttrs[k]!);
     }
   }

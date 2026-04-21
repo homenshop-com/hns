@@ -77,10 +77,37 @@ export interface LayerStyle {
   zIndex?: number;
   blendMode?: BlendMode;
   background?: string;
+  /** Shorthand border (retained for round-trip compatibility). New edits
+   *  from the Inspector panel write the split fields below instead. */
   border?: string;
   /** Full CSS filter string, e.g. "blur(4px) drop-shadow(0 2px 4px #000)" */
   filter?: string;
   clipPath?: string;
+
+  /* ─── Typography tokens (Sprint 9k) ────────────────────────────────
+   * Applied as inline-style on the layer root. Child text inherits
+   * unless overridden by inner markup. These survive round-trip via
+   * parse.ts `extractStyle` and serialize.ts `buildStyleMap`.
+   */
+  color?: string;
+  fontFamily?: string;
+  /** CSS font-size string ("16px", "1.1rem"). Kept as raw string so
+   *  non-px sources round-trip unchanged. */
+  fontSize?: string;
+  fontWeight?: string | number;
+  lineHeight?: string;
+  letterSpacing?: string;
+  textAlign?: "left" | "center" | "right" | "justify" | "start" | "end";
+
+  /* ─── Border split fields ─────────────────────────────────────────── */
+  borderColor?: string;
+  borderWidth?: string;
+  borderStyle?: "solid" | "dashed" | "dotted" | "double" | "none";
+  borderRadius?: string;
+
+  /* ─── Effects ─────────────────────────────────────────────────────── */
+  /** CSS box-shadow. Multiple shadows can be comma-separated. */
+  boxShadow?: string;
 }
 
 export interface BaseLayer {
@@ -123,6 +150,14 @@ export interface BaseLayer {
   frameImportant?: Array<"position" | "left" | "top" | "width" | "height">;
 
   /**
+   * Click-time interaction (Sprint 9k). Drives the 인터랙션 tab in the
+   * InspectorPanel and is emitted as a `data-hns-interaction` attribute
+   * on the layer root during serialize. The published route reads the
+   * attribute and wires up the behavior at page load.
+   */
+  interaction?: LayerInteraction;
+
+  /**
    * ═══════════════════════════════════════════════════════════════════
    * Mobile viewport override (≤ MOBILE_BREAKPOINT px).
    * ═══════════════════════════════════════════════════════════════════
@@ -142,6 +177,21 @@ export interface BaseLayer {
   mobileFrameKeys?: Array<"position" | "left" | "top" | "width" | "height">;
   mobileTransform?: LayerTransform;
 }
+
+/**
+ * LayerInteraction — click-time behavior attached to any layer. Emitted
+ * as a `data-hns-interaction` JSON attribute on serialize; a tiny runtime
+ * in the published route reads the attribute and calls the matching
+ * action (smooth-scroll, navigate, open modal, toggle class).
+ *
+ * Keep this struct small and JSON-friendly — it's stored in the DB as
+ * part of the scene graph and serialized to an HTML attribute.
+ */
+export type LayerInteraction =
+  | { kind: "link"; href: string; target?: "_self" | "_blank" }
+  | { kind: "scrollTo"; targetId: string; smooth?: boolean }
+  | { kind: "modal"; targetId: string }
+  | { kind: "toggle"; targetId: string; className: string };
 
 /** Single source of truth for the desktop/mobile breakpoint. Must match
  *  the value used by the published route's `<meta name="viewport">` and

@@ -17,6 +17,8 @@ import {
   sceneToMobileCss,
   stripMobileCssBlock,
 } from "@/lib/scene";
+// Sprint 9k — section preset library for LeftPalette "섹션 블록" list.
+import { SECTION_PRESETS } from "./components/section-library";
 
 const TiptapModal = lazy(() => import("./tiptap-modal"));
 // LayerPanel is rendered by InspectorPanel's "레이어" tab; no direct
@@ -25,6 +27,8 @@ const TiptapModal = lazy(() => import("./tiptap-modal"));
 const LeftPalette = lazy(() => import("./components/LeftPalette"));
 const InspectorPanel = lazy(() => import("./components/InspectorPanel"));
 const CanvasRulers = lazy(() => import("./components/CanvasRulers"));
+// Sprint 9k — drag-to-insert ghost + drop indicator
+const DragInsertLayer = lazy(() => import("./components/DragInsertLayer"));
 const CanvasOverlay = lazy(() => import("./components/CanvasOverlay"));
 
 /** Module-scoped clipboard for V2 copy/paste. Lives for the page
@@ -1566,6 +1570,35 @@ export default function DesignEditor({
   }
 
   /* ─── Add new element ─── */
+  /**
+   * Sprint 9k — insert a prebuilt multi-element section preset from the
+   * LeftPalette's "섹션 블록" list. The preset HTML follows atomic layering
+   * rules so the scene parser types every sub-element correctly.
+   *
+   * We append the fragment to the end of #hns_body, then refresh the scene
+   * graph so the new layers appear in the LayerPanel immediately. The
+   * editor is marked dirty so the save pipeline knows to persist.
+   */
+  function insertSectionPreset(presetId: string, afterId: string | null = null) {
+    const bodyEl = bodyRef.current;
+    if (!bodyEl) return;
+    const preset = SECTION_PRESETS.find((p) => p.id === presetId);
+    if (!preset) return;
+    const tpl = document.createElement("div");
+    tpl.innerHTML = preset.build();
+    // Resolve anchor: when afterId is provided we insert AFTER that sibling
+    // (via element.after()); otherwise append at the end of bodyEl.
+    const anchor = afterId ? bodyEl.querySelector<HTMLElement>(`#${CSS.escape(afterId)}`) : null;
+    const frag = document.createDocumentFragment();
+    while (tpl.firstChild) frag.appendChild(tpl.firstChild);
+    if (anchor) anchor.after(frag);
+    else bodyEl.appendChild(frag);
+    setCurrentBodyHtml(bodyEl.innerHTML);
+    if (editorV2Enabled) {
+      useEditorStore.getState().importHtml(bodyEl.innerHTML, currentPageCss);
+    }
+  }
+
   function addElement(type: string) {
     const bodyEl = bodyRef.current;
     if (!bodyEl) return;
@@ -2512,10 +2545,30 @@ export default function DesignEditor({
         <div className="de-tooltip">더블 클릭 하시면 해당객체를 수정하실 수 있습니다.</div>
       )}
 
-      {/* Sprint 9j — Figma-style left component palette (fixed left rail) */}
+      {/* Sprint 9j / 9k — Figma-style left component palette (fixed left rail) */}
       {editorV2Enabled && (
         <Suspense fallback={null}>
-          <LeftPalette onInsert={(type) => addElement(type)} />
+          <LeftPalette
+            onInsert={(type) => addElement(type)}
+            onInsertSection={(presetId) => insertSectionPreset(presetId)}
+          />
+        </Suspense>
+      )}
+
+      {/* Sprint 9k — Drag-to-insert overlay (ghost + drop indicator) */}
+      {editorV2Enabled && (
+        <Suspense fallback={null}>
+          <DragInsertLayer
+            wrapperRef={canvasWrapperRef}
+            bodyRef={bodyRef}
+            onDrop={(payload, target) => {
+              if (payload.kind === "type") {
+                addElement(payload.value);
+              } else {
+                insertSectionPreset(payload.value, target?.afterId ?? null);
+              }
+            }}
+          />
         </Suspense>
       )}
 

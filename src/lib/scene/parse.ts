@@ -75,6 +75,29 @@ function getAttrs(el: Element, skip: Set<string>): Record<string, string> {
   return out;
 }
 
+/** Read `data-hns-interaction="{...json}"` into a typed LayerInteraction.
+ *  Silently drops malformed payloads — safer than crashing page load. */
+function extractInteraction(el: Element): import("./types").LayerInteraction | undefined {
+  const raw = el.getAttribute("data-hns-interaction");
+  if (!raw) return undefined;
+  try {
+    const parsed = JSON.parse(raw) as import("./types").LayerInteraction;
+    if (!parsed || typeof parsed !== "object") return undefined;
+    const kind = (parsed as { kind?: string }).kind;
+    if (
+      kind !== "link" &&
+      kind !== "scrollTo" &&
+      kind !== "modal" &&
+      kind !== "toggle"
+    ) {
+      return undefined;
+    }
+    return parsed;
+  } catch {
+    return undefined;
+  }
+}
+
 function extractFrame(style: StyleMap): {
   frame: { x: number; y: number; w: number; h: number };
   keys: Array<"position" | "left" | "top" | "width" | "height">;
@@ -165,6 +188,42 @@ function extractStyle(style: StyleMap): {
         break;
       case "border":
         layerStyle.border = v;
+        break;
+      case "border-color":
+        layerStyle.borderColor = v;
+        break;
+      case "border-width":
+        layerStyle.borderWidth = v;
+        break;
+      case "border-style":
+        layerStyle.borderStyle = v as LayerStyle["borderStyle"];
+        break;
+      case "border-radius":
+        layerStyle.borderRadius = v;
+        break;
+      case "box-shadow":
+        layerStyle.boxShadow = v;
+        break;
+      case "color":
+        layerStyle.color = v;
+        break;
+      case "font-family":
+        layerStyle.fontFamily = v;
+        break;
+      case "font-size":
+        layerStyle.fontSize = v;
+        break;
+      case "font-weight":
+        layerStyle.fontWeight = v;
+        break;
+      case "line-height":
+        layerStyle.lineHeight = v;
+        break;
+      case "letter-spacing":
+        layerStyle.letterSpacing = v;
+        break;
+      case "text-align":
+        layerStyle.textAlign = v as LayerStyle["textAlign"];
         break;
       case "filter":
         layerStyle.filter = v;
@@ -271,11 +330,13 @@ function buildImageLayer(el: Element, id: string, name: string): ImageLayer {
     alt: img?.getAttribute("alt") ?? undefined,
     innerHtml: el.innerHTML,
     legacyClassName: el.getAttribute("class") ?? DRAGABLE_CLASS,
-    legacyAttrs: getAttrs(el, new Set(["class", "style", "id"])),
+    legacyAttrs: getAttrs(el, new Set(["class", "style", "id", "data-hns-interaction"])),
     legacyStyleExtras: Object.keys(extras).length ? extras : undefined,
     frameKeys: frameKeys.length ? frameKeys : undefined,
     frameImportant: frameImportant.length ? frameImportant : undefined,
   };
+  const interaction = extractInteraction(el);
+  if (interaction) layer.interaction = interaction;
   if (a) {
     layer.href = a.getAttribute("href") ?? undefined;
     layer.hrefTarget = a.getAttribute("target") ?? undefined;
@@ -292,6 +353,7 @@ function buildPluginLayer(
   const style = parseStyle(el.getAttribute("style"));
   const { frame, keys: frameKeys, important: frameImportant } = extractFrame(style);
   const { layerStyle, transform, extras } = extractStyle(style);
+  const interaction = extractInteraction(el);
   return {
     id,
     name,
@@ -301,9 +363,10 @@ function buildPluginLayer(
     frame,
     style: layerStyle,
     ...(transform && { transform }),
+    ...(interaction && { interaction }),
     legacyInnerHtml: el.innerHTML,
     legacyClassName: el.getAttribute("class") ?? DRAGABLE_CLASS,
-    legacyAttrs: getAttrs(el, new Set(["class", "style", "id"])),
+    legacyAttrs: getAttrs(el, new Set(["class", "style", "id", "data-hns-interaction"])),
     legacyStyleExtras: Object.keys(extras).length ? extras : undefined,
     frameKeys: frameKeys.length ? frameKeys : undefined,
     frameImportant: frameImportant.length ? frameImportant : undefined,
@@ -314,6 +377,7 @@ function buildBoxLayer(el: Element, id: string, name: string): BoxLayer {
   const style = parseStyle(el.getAttribute("style"));
   const { frame, keys: frameKeys, important: frameImportant } = extractFrame(style);
   const { layerStyle, transform, extras } = extractStyle(style);
+  const interaction = extractInteraction(el);
   return {
     id,
     name,
@@ -323,9 +387,10 @@ function buildBoxLayer(el: Element, id: string, name: string): BoxLayer {
     frame,
     style: layerStyle,
     ...(transform && { transform }),
+    ...(interaction && { interaction }),
     innerHtml: el.innerHTML,
     legacyClassName: el.getAttribute("class") ?? DRAGABLE_CLASS,
-    legacyAttrs: getAttrs(el, new Set(["class", "style", "id"])),
+    legacyAttrs: getAttrs(el, new Set(["class", "style", "id", "data-hns-interaction"])),
     legacyStyleExtras: Object.keys(extras).length ? extras : undefined,
     frameKeys: frameKeys.length ? frameKeys : undefined,
     frameImportant: frameImportant.length ? frameImportant : undefined,
@@ -336,6 +401,7 @@ function buildTextLayer(el: Element, id: string, name: string): TextLayer {
   const style = parseStyle(el.getAttribute("style"));
   const { frame, keys: frameKeys, important: frameImportant } = extractFrame(style);
   const { layerStyle, transform, extras } = extractStyle(style);
+  const interaction = extractInteraction(el);
   return {
     id,
     name,
@@ -345,9 +411,10 @@ function buildTextLayer(el: Element, id: string, name: string): TextLayer {
     frame,
     style: layerStyle,
     ...(transform && { transform }),
+    ...(interaction && { interaction }),
     html: el.innerHTML,
     legacyClassName: el.getAttribute("class") ?? DRAGABLE_CLASS,
-    legacyAttrs: getAttrs(el, new Set(["class", "style", "id"])),
+    legacyAttrs: getAttrs(el, new Set(["class", "style", "id", "data-hns-interaction"])),
     legacyStyleExtras: Object.keys(extras).length ? extras : undefined,
     frameKeys: frameKeys.length ? frameKeys : undefined,
     frameImportant: frameImportant.length ? frameImportant : undefined,
@@ -369,6 +436,7 @@ function buildSectionLayer(
   // invariant the editor-store flow-guard relies on.
   const safeKeys = frameKeys.filter((k) => k !== "position" && k !== "left" && k !== "top");
   const safeImp = frameImportant.filter((k) => k !== "position" && k !== "left" && k !== "top");
+  const interaction = extractInteraction(el);
   return {
     id,
     name,
@@ -378,13 +446,14 @@ function buildSectionLayer(
     frame,
     style: layerStyle,
     ...(transform && { transform }),
+    ...(interaction && { interaction }),
     // innerHtml is the shell template populated by elementToLayer
     // BEFORE this builder runs — child .dragable descendants have
     // already been swapped for <!--scene-child:${id}--> comments.
     innerHtml: el.innerHTML,
     children,
     legacyClassName: el.getAttribute("class") ?? DRAGABLE_CLASS,
-    legacyAttrs: getAttrs(el, new Set(["class", "style", "id"])),
+    legacyAttrs: getAttrs(el, new Set(["class", "style", "id", "data-hns-interaction"])),
     legacyStyleExtras: Object.keys(extras).length ? extras : undefined,
     frameKeys: safeKeys.length ? safeKeys : undefined,
     frameImportant: safeImp.length ? safeImp : undefined,
@@ -462,6 +531,7 @@ function buildInlineLayer(el: Element, id: string, name: string): InlineLayer {
   // carry it; preserve it literally so realpage roundtrip stays byte-
   // stable.
   const classAttr = el.getAttribute("class");
+  const interaction = extractInteraction(el);
   return {
     id,
     name,
@@ -474,8 +544,9 @@ function buildInlineLayer(el: Element, id: string, name: string): InlineLayer {
     style: {},
     tag: el.tagName.toLowerCase(),
     innerHtml: el.innerHTML,
+    ...(interaction && { interaction }),
     ...(classAttr != null && { legacyClassName: classAttr }),
-    legacyAttrs: getAttrs(el, new Set(["class", "style", "id"])),
+    legacyAttrs: getAttrs(el, new Set(["class", "style", "id", "data-hns-interaction"])),
     legacyStyleExtras: Object.keys(extras).length ? extras : undefined,
     // No frameKeys — inline layers must never emit position styles.
   };
@@ -490,6 +561,7 @@ function buildGroupLayer(
   const style = parseStyle(el.getAttribute("style"));
   const { frame, keys: frameKeys, important: frameImportant } = extractFrame(style);
   const { layerStyle, transform, extras } = extractStyle(style);
+  const interaction = extractInteraction(el);
   return {
     id,
     name,
@@ -499,9 +571,10 @@ function buildGroupLayer(
     frame,
     style: layerStyle,
     ...(transform && { transform }),
+    ...(interaction && { interaction }),
     children,
     legacyClassName: el.getAttribute("class") ?? `${GROUP_CLASS} ${DRAGABLE_CLASS}`,
-    legacyAttrs: getAttrs(el, new Set(["class", "style", "id"])),
+    legacyAttrs: getAttrs(el, new Set(["class", "style", "id", "data-hns-interaction"])),
     legacyStyleExtras: Object.keys(extras).length ? extras : undefined,
     frameKeys: frameKeys.length ? frameKeys : undefined,
     frameImportant: frameImportant.length ? frameImportant : undefined,

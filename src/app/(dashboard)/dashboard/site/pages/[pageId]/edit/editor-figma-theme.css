@@ -1229,3 +1229,269 @@ body:has(.inspector-rail) .de-canvas-wrapper {
   /* Give extra top space so rulers don't overlap the canvas */
   margin-top: 24px;
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+ *  Sprint 9k — LayerPanel dark-theme override (nested inside inspector)
+ *  The LayerPanel component was authored against a light palette. We
+ *  keep its markup untouched and re-skin it via class-level overrides.
+ * ═══════════════════════════════════════════════════════════════════ */
+.inspector-rail .layerpanel {
+  background: var(--fig-bg-1);
+  color: var(--fig-text-0);
+  border-left: 0;
+}
+.inspector-rail .layerpanel-toolbar {
+  background: var(--fig-bg-1);
+  border-bottom: 1px solid var(--fig-line);
+  padding: 8px 10px;
+}
+.inspector-rail .layerpanel-title {
+  color: var(--fig-text-3);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.inspector-rail .layerpanel-toolbar-actions button {
+  background: var(--fig-bg-2);
+  border: 1px solid var(--fig-line-2);
+  color: var(--fig-text-1);
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 11px;
+}
+.inspector-rail .layerpanel-toolbar-actions button:hover:not(:disabled) {
+  background: var(--fig-bg-3);
+  color: var(--fig-text-0);
+  border-color: var(--fig-accent);
+}
+.inspector-rail .layerpanel-list { padding: 4px 0; }
+.inspector-rail .layerpanel-empty { color: var(--fig-text-3); }
+.inspector-rail .layerpanel-row {
+  padding: 0 10px 0 6px;
+  min-height: 26px;
+  font-size: 12px;
+  color: var(--fig-text-1);
+}
+.inspector-rail .layerpanel-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--fig-text-0);
+}
+.inspector-rail .layerpanel-row.is-selected {
+  background: rgba(76, 142, 255, 0.15);
+  border-left-color: var(--fig-selection);
+  color: var(--fig-text-0);
+}
+.inspector-rail .layerpanel-row.is-drop-target {
+  background: rgba(91, 229, 179, 0.1);
+  outline: 1px dashed var(--fig-accent);
+}
+.inspector-rail .layerpanel-chev,
+.inspector-rail .layerpanel-chev-spacer {
+  color: var(--fig-text-3);
+}
+.inspector-rail .layerpanel-chev:hover { color: var(--fig-text-0); }
+.inspector-rail .layerpanel-icon { color: var(--fig-text-2); }
+.inspector-rail .layerpanel-row.is-selected .layerpanel-icon {
+  color: var(--fig-blue);
+}
+.inspector-rail .layerpanel-name-input {
+  background: var(--fig-bg-2);
+  border: 1px solid var(--fig-accent);
+  color: var(--fig-text-0);
+  border-radius: 3px;
+}
+.inspector-rail .layerpanel-action {
+  color: var(--fig-text-3);
+}
+.inspector-rail .layerpanel-action:hover:not(:disabled) {
+  color: var(--fig-text-0);
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+ *  Sprint 9k — Drag-to-insert ghost + drop indicator
+ * ═══════════════════════════════════════════════════════════════════ */
+.de-drag-ghost {
+  position: fixed;
+  z-index: 10000;
+  pointer-events: none;
+  background: var(--fig-bg-3);
+  color: var(--fig-text-0);
+  border: 1px solid var(--fig-accent);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(91, 229, 179, 0.25);
+  transform: translate(12px, 12px);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.de-drag-ghost i { color: var(--fig-accent); }
+
+.de-drag-indicator {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  height: 6px;
+  display: flex;
+  align-items: center;
+}
+.de-drag-indicator-bar {
+  flex: 1;
+  height: 2px;
+  background: var(--fig-accent);
+  box-shadow:
+    0 0 0 1px rgba(91, 229, 179, 0.35),
+    0 0 12px rgba(91, 229, 179, 0.55);
+  border-radius: 2px;
+  position: relative;
+}
+.de-drag-indicator-bar::before,
+.de-drag-indicator-bar::after {
+  content: "";
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--fig-accent);
+  top: 50%;
+  transform: translateY(-50%);
+}
+.de-drag-indicator-bar::before { left: -4px; }
+.de-drag-indicator-bar::after  { right: -4px; }
+.de-drag-indicator-label {
+  position: absolute;
+  right: -6px;
+  transform: translate(100%, -50%);
+  top: 50%;
+  background: var(--fig-accent);
+  color: var(--fig-accent-ink);
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+/* ─── Inspector — live style editors (Sprint 9k) ──────────────────── */
+
+/* Wide prop (spans both columns of the row grid). */
+.ins-prop.wide { grid-column: 1 / -1; }
+.ins-prop input::placeholder { color: var(--fig-text-3); opacity: 0.6; }
+
+/* <select> styled like .ins-prop inputs. */
+.ins-select {
+  all: unset;
+  flex: 1;
+  min-width: 0;
+  text-align: right;
+  color: var(--fig-text-0);
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 11.5px;
+  cursor: pointer;
+  padding-right: 2px;
+}
+.ins-select option {
+  background: var(--fig-bg-3);
+  color: var(--fig-text-0);
+}
+
+/* Color swatch editor (typography color, fill, border color). */
+.ins-swatch-editor {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 8px 0 6px;
+  border-radius: 4px;
+  background: var(--fig-bg-2);
+  margin-top: 6px;
+}
+.ins-swatch-editor label {
+  color: var(--fig-text-3);
+  font-size: 10.5px;
+  font-weight: 500;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  min-width: 48px;
+}
+.ins-swatch-color {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.ins-swatch-color::-webkit-color-swatch-wrapper { padding: 0; }
+.ins-swatch-color::-webkit-color-swatch { border: 0; border-radius: 3px; }
+.ins-swatch-input {
+  all: unset;
+  flex: 1;
+  min-width: 0;
+  text-align: right;
+  color: var(--fig-text-0);
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+.ins-swatch-input::placeholder { color: var(--fig-text-3); opacity: 0.6; }
+
+/* Alignment toggle (text-align) — four-button segmented control. */
+.ins-align-toggle {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+  padding: 2px;
+  border-radius: 4px;
+  background: var(--fig-bg-2);
+}
+.ins-align-btn {
+  all: unset;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 3px;
+  color: var(--fig-text-3);
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.12s, color 0.12s;
+}
+.ins-align-btn:hover { background: var(--fig-bg-3); color: var(--fig-text-1); }
+.ins-align-btn.active {
+  background: var(--fig-accent);
+  color: var(--fig-accent-ink);
+}
+
+/* Interaction tab scaffolding. */
+.ins-interaction-tab .ins-sel-name-static {
+  flex: 1;
+  color: var(--fig-text-0);
+  font-size: 12.5px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ins-interaction-tab .ins-empty-btn {
+  margin-top: 12px;
+  background: transparent;
+  color: var(--fig-text-2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.ins-interaction-tab .ins-empty-btn:hover:not(:disabled) {
+  background: var(--fig-bg-3);
+  color: var(--fig-text-0);
+}
+

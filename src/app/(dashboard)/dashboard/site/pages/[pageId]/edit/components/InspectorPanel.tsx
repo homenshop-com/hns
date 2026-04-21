@@ -2,18 +2,15 @@
  * InspectorPanel — right-side inspector with three tabs (디자인 / 레이어 /
  * 인터랙션), matching the Claude Design "Editor Canvas.html" prototype.
  *
- * - 디자인 tab: live selection header (icon + name + layer-type badge +
- *   ancestor breadcrumb) + editable position / size / rotation. Wired
- *   to the Zustand scene store — edits flow through the same setFrame /
- *   rename actions that the canvas drag handlers use, so undo/redo
- *   (zundo) captures them automatically.
+ * - 디자인 tab: live selection header + editable position/size/rotation +
+ *   typography/채우기/테두리/이펙트 controls, all wired to the Zustand
+ *   scene store (setFrame / setTransform / setStyle). Undo/redo (zundo)
+ *   captures every edit for free.
  * - 레이어 tab: wraps the existing LayerPanel component.
- * - 인터랙션 tab: placeholder (no trigger/action backend yet).
- *
- * Typography / fill / border / effect sections are **read-only visual
- * scaffolding** in this first pass — they preview the Figma design but
- * don't yet mutate the scene. Wiring them to the serializer requires
- * extending LayerStyle with typography tokens, which is a separate job.
+ * - 인터랙션 tab: pick a click-time action — link / scrollTo / modal /
+ *   toggle — persisted on the layer via setInteraction and emitted as
+ *   data-hns-interaction on publish. The published route wires up the
+ *   runtime; this panel only mutates the scene.
  */
 
 "use client";
@@ -22,9 +19,8 @@ import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import {
   useEditorStore,
   selectRoot,
-  selectSelectedId,
 } from "../store/editor-store";
-import type { Layer, LayerId } from "@/lib/scene";
+import type { Layer, LayerId, LayerInteraction, LayerStyle } from "@/lib/scene";
 
 const LayerPanel = lazy(() => import("./LayerPanel"));
 
@@ -136,20 +132,7 @@ export default function InspectorPanel({ enabled }: Props) {
         )}
 
         {tab === "proto" && (
-          <div className="ins-empty">
-            <div className="ins-empty-icon">
-              <i className="fa-solid fa-bolt" aria-hidden />
-            </div>
-            <div className="ins-empty-title">인터랙션 없음</div>
-            <div className="ins-empty-sub">
-              호버·클릭·스크롤에 반응하는
-              <br />
-              애니메이션을 추가하세요
-            </div>
-            <button type="button" className="ins-empty-btn" disabled>
-              <i className="fa-solid fa-plus" aria-hidden /> 새 인터랙션
-            </button>
-          </div>
+          <InteractionTab layer={layer} />
         )}
       </div>
     </aside>
@@ -195,44 +178,13 @@ function DesignTab({ layer, path }: DesignTabProps) {
         disabled={layer.type === "section" || layer.type === "inline"}
       />
 
-      {/* Typography / Fill / Border / Effect / Interaction — visual stubs */}
-      <Section title="타이포그래피">
-        <ReadOnlyRow icon="fa-font" label="Pretendard" meta="Variable" />
-        <ReadOnlyRow icon="fa-text-height" label="Semibold 16 / 24" meta="" />
-      </Section>
+      <TypographySection layer={layer} />
 
-      <Section title="채우기" onAdd>
-        <SwatchRow color="#1a3a6b" alpha="100%" />
-      </Section>
+      <FillSection layer={layer} />
 
-      <Section title="테두리" onAdd>
-        <SwatchRow color="#FFFFFF" alpha="67%" />
-        <div className="ins-prop-row">
-          <PropField label="두께" value="1.5" unit="px" />
-          <PropField label="⌒" value="4" unit="px" />
-        </div>
-      </Section>
+      <BorderSection layer={layer} />
 
-      <Section title="이펙트" onAdd>
-        <div className="ins-effect-row">
-          <span className="ins-effect-swatch" />
-          <div className="ins-effect-label">호버 글로우</div>
-          <div className="ins-effect-meta">Y·4 · 10</div>
-        </div>
-      </Section>
-
-      <Section title="인터랙션" onAdd>
-        <div className="ins-interaction-row">
-          <span className="ins-interaction-icon">
-            <i className="fa-solid fa-link" aria-hidden />
-          </span>
-          <div className="ins-interaction-main">
-            <div className="ins-interaction-top">클릭 시</div>
-            <div className="ins-interaction-sub">→ #{layer.id}</div>
-          </div>
-          <i className="fa-solid fa-ellipsis ins-interaction-more" aria-hidden />
-        </div>
-      </Section>
+      <EffectSection layer={layer} />
     </>
   );
 }
@@ -354,6 +306,350 @@ function PositionSizeSection({ frame, rotate, layerId, disabled }: PosProps) {
   );
 }
 
+/* ─── Style-editing sections (Sprint 9k) ──────────────────────────── */
+
+function TypographySection({ layer }: { layer: Layer }) {
+  const setStyle = useEditorStore((s) => s.setStyle);
+  const s = layer.style ?? {};
+  return (
+    <Section title="타이포그래피">
+      <div className="ins-prop-row">
+        <TextField
+          label="폰트"
+          value={s.fontFamily ?? ""}
+          placeholder="Pretendard"
+          onCommit={(v) => setStyle(layer.id, { fontFamily: v })}
+        />
+      </div>
+      <div className="ins-prop-row">
+        <TextField
+          label="크기"
+          value={s.fontSize ?? ""}
+          placeholder="16px"
+          onCommit={(v) => setStyle(layer.id, { fontSize: v })}
+        />
+        <TextField
+          label="굵기"
+          value={s.fontWeight != null ? String(s.fontWeight) : ""}
+          placeholder="400"
+          onCommit={(v) => setStyle(layer.id, { fontWeight: v })}
+        />
+      </div>
+      <div className="ins-prop-row">
+        <TextField
+          label="행간"
+          value={s.lineHeight ?? ""}
+          placeholder="1.6"
+          onCommit={(v) => setStyle(layer.id, { lineHeight: v })}
+        />
+        <TextField
+          label="자간"
+          value={s.letterSpacing ?? ""}
+          placeholder="0"
+          onCommit={(v) => setStyle(layer.id, { letterSpacing: v })}
+        />
+      </div>
+      <div className="ins-prop-row">
+        <AlignToggle
+          value={s.textAlign ?? ""}
+          onChange={(v) => setStyle(layer.id, { textAlign: v as LayerStyle["textAlign"] })}
+        />
+      </div>
+      <SwatchEditor
+        label="글자색"
+        value={s.color ?? ""}
+        onChange={(v) => setStyle(layer.id, { color: v })}
+      />
+    </Section>
+  );
+}
+
+function FillSection({ layer }: { layer: Layer }) {
+  const setStyle = useEditorStore((s) => s.setStyle);
+  const s = layer.style ?? {};
+  return (
+    <Section title="채우기">
+      <SwatchEditor
+        label="배경"
+        value={s.background ?? ""}
+        onChange={(v) => setStyle(layer.id, { background: v })}
+      />
+      <div className="ins-prop-row">
+        <TextField
+          label="투명도"
+          value={s.opacity != null ? String(s.opacity) : ""}
+          placeholder="1"
+          onCommit={(v) => {
+            if (v === "") {
+              setStyle(layer.id, { opacity: undefined });
+              return;
+            }
+            const n = parseFloat(v);
+            if (Number.isFinite(n)) {
+              setStyle(layer.id, { opacity: Math.max(0, Math.min(1, n)) });
+            }
+          }}
+        />
+      </div>
+    </Section>
+  );
+}
+
+function BorderSection({ layer }: { layer: Layer }) {
+  const setStyle = useEditorStore((s) => s.setStyle);
+  const s = layer.style ?? {};
+  return (
+    <Section title="테두리">
+      <SwatchEditor
+        label="색상"
+        value={s.borderColor ?? ""}
+        onChange={(v) => setStyle(layer.id, { borderColor: v })}
+      />
+      <div className="ins-prop-row">
+        <TextField
+          label="두께"
+          value={s.borderWidth ?? ""}
+          placeholder="1px"
+          onCommit={(v) => setStyle(layer.id, { borderWidth: v })}
+        />
+        <TextField
+          label="라운드"
+          value={s.borderRadius ?? ""}
+          placeholder="8px"
+          onCommit={(v) => setStyle(layer.id, { borderRadius: v })}
+        />
+      </div>
+      <div className="ins-prop-row">
+        <SelectField
+          label="스타일"
+          value={s.borderStyle ?? ""}
+          options={[
+            ["", "없음"],
+            ["solid", "solid"],
+            ["dashed", "dashed"],
+            ["dotted", "dotted"],
+            ["double", "double"],
+          ]}
+          onChange={(v) =>
+            setStyle(layer.id, { borderStyle: (v || undefined) as LayerStyle["borderStyle"] })
+          }
+        />
+      </div>
+    </Section>
+  );
+}
+
+function EffectSection({ layer }: { layer: Layer }) {
+  const setStyle = useEditorStore((s) => s.setStyle);
+  const s = layer.style ?? {};
+  return (
+    <Section title="이펙트">
+      <div className="ins-prop-row">
+        <TextField
+          label="box-shadow"
+          value={s.boxShadow ?? ""}
+          placeholder="0 4px 10px rgba(0,0,0,.25)"
+          onCommit={(v) => setStyle(layer.id, { boxShadow: v })}
+          wide
+        />
+      </div>
+      <div className="ins-prop-row">
+        <TextField
+          label="filter"
+          value={s.filter ?? ""}
+          placeholder="blur(4px)"
+          onCommit={(v) => setStyle(layer.id, { filter: v })}
+          wide
+        />
+      </div>
+    </Section>
+  );
+}
+
+/* ─── Interaction tab (Sprint 9k) ─────────────────────────────────── */
+
+function InteractionTab({ layer }: { layer: Layer | null }) {
+  const setInteraction = useEditorStore((s) => s.setInteraction);
+
+  if (!layer) {
+    return (
+      <div className="ins-empty">
+        <div className="ins-empty-icon">
+          <i className="fa-solid fa-bolt" aria-hidden />
+        </div>
+        <div className="ins-empty-title">선택된 요소 없음</div>
+        <div className="ins-empty-sub">
+          인터랙션을 추가하려면
+          <br />
+          레이어를 먼저 선택하세요
+        </div>
+      </div>
+    );
+  }
+
+  const interaction = layer.interaction ?? null;
+  const kind = interaction?.kind ?? "";
+
+  const setKind = (k: string) => {
+    if (k === "") {
+      setInteraction(layer.id, null);
+      return;
+    }
+    if (k === "link") setInteraction(layer.id, { kind: "link", href: "" });
+    else if (k === "scrollTo") setInteraction(layer.id, { kind: "scrollTo", targetId: "", smooth: true });
+    else if (k === "modal") setInteraction(layer.id, { kind: "modal", targetId: "" });
+    else if (k === "toggle") setInteraction(layer.id, { kind: "toggle", targetId: "", className: "active" });
+  };
+
+  return (
+    <div className="ins-interaction-tab">
+      <header className="ins-sel-header">
+        <div className="ins-sel-row">
+          <div className="ins-sel-icon" style={{ color: "#f4b66a" }}>
+            <i className="fa-solid fa-bolt" aria-hidden />
+          </div>
+          <div className="ins-sel-name-static">{layer.name}</div>
+        </div>
+      </header>
+
+      <Section title="클릭 시 동작">
+        <div className="ins-prop-row">
+          <SelectField
+            label="액션"
+            value={kind}
+            options={[
+              ["", "없음"],
+              ["link", "링크 이동"],
+              ["scrollTo", "섹션으로 스크롤"],
+              ["modal", "모달 열기"],
+              ["toggle", "클래스 토글"],
+            ]}
+            onChange={setKind}
+          />
+        </div>
+
+        {interaction?.kind === "link" && (
+          <>
+            <div className="ins-prop-row">
+              <TextField
+                label="URL"
+                value={interaction.href}
+                placeholder="https://..."
+                onCommit={(v) =>
+                  setInteraction(layer.id, { ...interaction, href: v })
+                }
+                wide
+              />
+            </div>
+            <div className="ins-prop-row">
+              <SelectField
+                label="대상"
+                value={interaction.target ?? "_self"}
+                options={[
+                  ["_self", "같은 창"],
+                  ["_blank", "새 창"],
+                ]}
+                onChange={(v) =>
+                  setInteraction(layer.id, {
+                    ...interaction,
+                    target: v === "_blank" ? "_blank" : "_self",
+                  })
+                }
+              />
+            </div>
+          </>
+        )}
+
+        {interaction?.kind === "scrollTo" && (
+          <>
+            <div className="ins-prop-row">
+              <TextField
+                label="대상 ID"
+                value={interaction.targetId}
+                placeholder="obj_sec_xxx"
+                onCommit={(v) =>
+                  setInteraction(layer.id, { ...interaction, targetId: v })
+                }
+                wide
+              />
+            </div>
+            <div className="ins-prop-row">
+              <SelectField
+                label="부드럽게"
+                value={interaction.smooth ? "1" : "0"}
+                options={[
+                  ["1", "예 (smooth)"],
+                  ["0", "아니오"],
+                ]}
+                onChange={(v) =>
+                  setInteraction(layer.id, { ...interaction, smooth: v === "1" })
+                }
+              />
+            </div>
+          </>
+        )}
+
+        {interaction?.kind === "modal" && (
+          <div className="ins-prop-row">
+            <TextField
+              label="모달 ID"
+              value={interaction.targetId}
+              placeholder="modal-xxx"
+              onCommit={(v) =>
+                setInteraction(layer.id, { ...interaction, targetId: v })
+              }
+              wide
+            />
+          </div>
+        )}
+
+        {interaction?.kind === "toggle" && (
+          <>
+            <div className="ins-prop-row">
+              <TextField
+                label="대상 ID"
+                value={interaction.targetId}
+                placeholder="menu-panel"
+                onCommit={(v) =>
+                  setInteraction(layer.id, { ...interaction, targetId: v })
+                }
+                wide
+              />
+            </div>
+            <div className="ins-prop-row">
+              <TextField
+                label="클래스"
+                value={interaction.className}
+                placeholder="active"
+                onCommit={(v) =>
+                  setInteraction(layer.id, { ...interaction, className: v })
+                }
+                wide
+              />
+            </div>
+          </>
+        )}
+
+        {kind !== "" && (
+          <button
+            type="button"
+            className="ins-empty-btn"
+            onClick={() => setInteraction(layer.id, null)}
+          >
+            <i className="fa-solid fa-xmark" aria-hidden /> 인터랙션 제거
+          </button>
+        )}
+      </Section>
+
+      <div className="ins-empty-sub" style={{ padding: "0 16px", marginTop: 8 }}>
+        인터랙션은 저장 후 실제 사이트에서 동작합니다.
+      </div>
+    </div>
+  );
+}
+
+/* ─── Small reusable editors ──────────────────────────────────────── */
+
 function EditableProp({
   label,
   value,
@@ -395,57 +691,162 @@ function EditableProp({
   );
 }
 
+function TextField({
+  label,
+  value,
+  placeholder,
+  onCommit,
+  wide,
+}: {
+  label: string;
+  value: string;
+  placeholder?: string;
+  onCommit(value: string): void;
+  wide?: boolean;
+}) {
+  const [draft, setDraft] = useState(value);
+  useEffect(() => setDraft(value), [value]);
+  return (
+    <div className={`ins-prop${wide ? " wide" : ""}`}>
+      <label>{label}</label>
+      <input
+        value={draft}
+        placeholder={placeholder}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => {
+          if (draft !== value) onCommit(draft);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+          if (e.key === "Escape") {
+            setDraft(value);
+            (e.target as HTMLInputElement).blur();
+          }
+        }}
+      />
+    </div>
+  );
+}
+
+function SelectField({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: Array<readonly [string, string]>;
+  onChange(value: string): void;
+}) {
+  return (
+    <div className="ins-prop">
+      <label>{label}</label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="ins-select"
+      >
+        {options.map(([v, l]) => (
+          <option key={v} value={v}>
+            {l}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function AlignToggle({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange(value: string): void;
+}) {
+  const opts: Array<[string, string, string]> = [
+    ["left",    "fa-align-left",    "왼쪽"],
+    ["center",  "fa-align-center",  "가운데"],
+    ["right",   "fa-align-right",   "오른쪽"],
+    ["justify", "fa-align-justify", "양쪽"],
+  ];
+  return (
+    <div className="ins-align-toggle" role="radiogroup" aria-label="정렬">
+      {opts.map(([v, icon, label]) => (
+        <button
+          key={v}
+          type="button"
+          role="radio"
+          aria-checked={value === v}
+          title={label}
+          className={`ins-align-btn${value === v ? " active" : ""}`}
+          onClick={() => onChange(value === v ? "" : v)}
+        >
+          <i className={`fa-solid ${icon}`} aria-hidden />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function SwatchEditor({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange(value: string): void;
+}) {
+  const [draft, setDraft] = useState(value);
+  useEffect(() => setDraft(value), [value]);
+  const colorProbe = /^#[0-9a-f]{3,8}$/i.test(value) ? value : "#000000";
+  return (
+    <div className="ins-swatch-editor">
+      <label>{label}</label>
+      <input
+        type="color"
+        className="ins-swatch-color"
+        value={colorProbe}
+        onChange={(e) => {
+          setDraft(e.target.value);
+          onChange(e.target.value);
+        }}
+      />
+      <input
+        className="ins-swatch-input"
+        value={draft}
+        placeholder="#000000"
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => {
+          if (draft !== value) onChange(draft);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+          if (e.key === "Escape") {
+            setDraft(value);
+            (e.target as HTMLInputElement).blur();
+          }
+        }}
+      />
+    </div>
+  );
+}
+
 function Section({
   title,
-  onAdd,
   children,
 }: {
   title: string;
-  onAdd?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <section className="ins-section">
-      <h5>
-        {title}
-        {onAdd && (
-          <span className="ins-add-btn" aria-label="추가">
-            <i className="fa-solid fa-plus" aria-hidden />
-          </span>
-        )}
-      </h5>
+      <h5>{title}</h5>
       {children}
     </section>
   );
 }
 
-function PropField({ label, value, unit }: { label: string; value: string; unit: string }) {
-  return (
-    <div className="ins-prop">
-      <label>{label}</label>
-      <input defaultValue={value} />
-      <span className="unit">{unit}</span>
-    </div>
-  );
-}
-
-function ReadOnlyRow({ icon, label, meta }: { icon: string; label: string; meta: string }) {
-  return (
-    <div className="ins-type-row">
-      <i className={`fa-solid ${icon} ins-type-icon`} aria-hidden />
-      <span className="ins-type-label">{label}</span>
-      {meta && <span className="ins-type-meta">{meta}</span>}
-    </div>
-  );
-}
-
-function SwatchRow({ color, alpha }: { color: string; alpha: string }) {
-  return (
-    <div className="ins-swatch-row">
-      <span className="ins-swatch" style={{ background: color }} />
-      <span className="ins-swatch-val">{color}</span>
-      <span className="ins-swatch-alpha">{alpha}</span>
-      <i className="fa-solid fa-eye ins-swatch-eye" aria-hidden />
-    </div>
-  );
-}
+// Silence unused-var warning for LayerInteraction used only as a type.
+export type __InspectorInteractionRef = LayerInteraction;

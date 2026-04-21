@@ -21,6 +21,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { SECTION_PRESETS } from "./section-library";
 
 type InsertType =
   | "text"
@@ -32,35 +33,11 @@ type InsertType =
   | "login"
   | "mail";
 
-/** A richer section-block payload — insert pre-built multi-element scaffolds
- *  in the future. For MVP we map section blocks to basic types. */
-interface SectionBlock {
-  id: string;
-  label: string;
-  icon: string;     // Font Awesome class (without "fa-" prefix)
-  hint: string;
-  /** Which basic type to insert when the block is clicked. Future work:
-   *  build real multi-element sections. */
-  mapsTo: InsertType;
-}
-
 const BASIC_ELEMENTS: Array<{ id: InsertType; label: string; icon: string; swatch: string }> = [
   { id: "text",  label: "텍스트", icon: "fa-font",        swatch: "text" },
   { id: "box",   label: "버튼",   icon: "fa-hand-pointer", swatch: "button" },
   { id: "image", label: "이미지", icon: "fa-image",       swatch: "image" },
   { id: "box",   label: "도형",   icon: "fa-shapes",      swatch: "shape" },
-];
-
-const SECTION_BLOCKS: SectionBlock[] = [
-  { id: "hero",       label: "히어로 배너",  icon: "fa-table-columns",  hint: "12",  mapsTo: "box" },
-  { id: "nav",        label: "네비게이션",    icon: "fa-bars",           hint: "6",   mapsTo: "box" },
-  { id: "gallery",    label: "갤러리 · 포트폴리오", icon: "fa-images",    hint: "9",   mapsTo: "exhibition" },
-  { id: "form",       label: "예약 · 문의 폼", icon: "fa-square-pen",     hint: "7",   mapsTo: "mail" },
-  { id: "video",      label: "비디오 섹션",   icon: "fa-video",          hint: "4",   mapsTo: "box" },
-  { id: "reviews",    label: "후기 · 평점",   icon: "fa-star",           hint: "8",   mapsTo: "board" },
-  { id: "cta",        label: "CTA 섹션",     icon: "fa-bullhorn",       hint: "5",   mapsTo: "box" },
-  { id: "products",   label: "상품 목록",     icon: "fa-bag-shopping",   hint: "6",   mapsTo: "product" },
-  { id: "members",    label: "회원 영역",     icon: "fa-user-lock",      hint: "3",   mapsTo: "login" },
 ];
 
 const MY_COMPONENTS = [
@@ -71,16 +48,20 @@ const MY_COMPONENTS = [
 
 interface Props {
   onInsert(type: InsertType): void;
+  /** Insert a pre-built section preset (by preset.id). Wired to
+   *  design-editor.tsx's insertSectionPresetHtml helper, which appends the
+   *  full multi-element HTML into #hns_body + refreshes the scene store. */
+  onInsertSection(presetId: string): void;
 }
 
-export default function LeftPalette({ onInsert }: Props) {
+export default function LeftPalette({ onInsert, onInsertSection }: Props) {
   const [tab, setTab] = useState<"insert" | "assets" | "pages" | "theme">("insert");
   const [query, setQuery] = useState("");
 
   const filteredSections = useMemo(() => {
-    if (!query.trim()) return SECTION_BLOCKS;
+    if (!query.trim()) return SECTION_PRESETS;
     const q = query.toLowerCase();
-    return SECTION_BLOCKS.filter((b) => b.label.toLowerCase().includes(q));
+    return SECTION_PRESETS.filter((b) => b.label.toLowerCase().includes(q));
   }, [query]);
 
   const filteredBasics = useMemo(() => {
@@ -169,17 +150,22 @@ export default function LeftPalette({ onInsert }: Props) {
                       type="button"
                       className="lp-row"
                       draggable
-                      onClick={() => onInsert(s.mapsTo)}
+                      onClick={() => onInsertSection(s.id)}
                       onDragStart={(e) => {
-                        e.dataTransfer.setData("text/x-homenshop-insert", s.mapsTo);
+                        e.dataTransfer.setData("text/x-homenshop-section", s.id);
                         e.dataTransfer.effectAllowed = "copy";
                       }}
+                      title={s.label}
                     >
                       <span className="lp-row-icon">
                         <i className={`fa-solid ${s.icon}`} aria-hidden />
                       </span>
                       <span className="lp-row-label">{s.label}</span>
-                      <span className="lp-row-count">{s.hint}</span>
+                      <i
+                        className="fa-solid fa-plus"
+                        style={{ color: "var(--fig-text-3)", fontSize: 10 }}
+                        aria-hidden
+                      />
                     </button>
                   ))}
                 </div>

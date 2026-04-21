@@ -709,6 +709,60 @@ export async function GET(
     ? ''
     : `<script>(function(){var el=document.getElementById('hns_body');if(!el)return;function calc(){var m=0;var all=el.querySelectorAll('.dragable');for(var i=0;i<all.length;i++){var c=all[i],cs=window.getComputedStyle(c);if(cs.position==='absolute'){var t=parseInt(cs.top)||0,h=Math.max(c.offsetHeight||0,c.scrollHeight||0);if(t+h>m)m=t+h;}}if(m>0)el.style.minHeight=m+'px';}calc();var imgs=el.querySelectorAll('img');var n=0;function onImg(){n++;if(n>=imgs.length)calc();}for(var j=0;j<imgs.length;j++){if(imgs[j].complete)n++;else{imgs[j].addEventListener('load',onImg);imgs[j].addEventListener('error',onImg);}}if(n>=imgs.length&&imgs.length>0)calc();setTimeout(calc,500);setTimeout(calc,1500);})();</script>`;
 
+  // ─── Sprint 9k: runtime for `data-hns-interaction` ────────────────
+  // The editor's InspectorPanel writes a JSON payload into this attribute
+  // on any layer. We wire up the matching click behavior here so the
+  // editor doesn't need to emit different HTML per interaction kind.
+  const interactionScript = `<script>(function(){
+    function scrollTo(id, smooth){
+      if(!id) return;
+      var el = document.getElementById(id);
+      if(!el) return;
+      el.scrollIntoView({behavior: smooth ? 'smooth' : 'auto', block: 'start'});
+    }
+    function toggleCls(id, cls){
+      if(!id || !cls) return;
+      var el = document.getElementById(id);
+      if(!el) return;
+      el.classList.toggle(cls);
+    }
+    function openModal(id){
+      if(!id) return;
+      var el = document.getElementById(id);
+      if(!el) return;
+      el.classList.add('is-open');
+      el.setAttribute('aria-hidden', 'false');
+    }
+    document.addEventListener('click', function(e){
+      var t = e.target;
+      while(t && t.nodeType === 1){
+        if(t.hasAttribute && t.hasAttribute('data-hns-interaction')) break;
+        t = t.parentNode;
+      }
+      if(!t || !t.getAttribute) return;
+      var raw = t.getAttribute('data-hns-interaction');
+      if(!raw) return;
+      var cfg;
+      try { cfg = JSON.parse(raw); } catch(_){ return; }
+      if(!cfg || !cfg.kind) return;
+      if(cfg.kind === 'link'){
+        if(!cfg.href) return;
+        e.preventDefault();
+        if(cfg.target === '_blank') window.open(cfg.href, '_blank', 'noopener');
+        else window.location.href = cfg.href;
+      } else if(cfg.kind === 'scrollTo'){
+        e.preventDefault();
+        scrollTo(cfg.targetId, cfg.smooth !== false);
+      } else if(cfg.kind === 'modal'){
+        e.preventDefault();
+        openModal(cfg.targetId);
+      } else if(cfg.kind === 'toggle'){
+        e.preventDefault();
+        toggleCls(cfg.targetId, cfg.className);
+      }
+    }, false);
+  })();</script>`;
+
   const boardPageCss = '';
 
   // Per-item SEO: override page-level SEO with product/board item data
@@ -968,6 +1022,7 @@ export async function GET(
     }`}
   })();</script>
   ${scaleScript}
+  ${interactionScript}
 </body>
 </html>`
   : `<!DOCTYPE html>
@@ -1018,6 +1073,7 @@ export async function GET(
   </div>
   ${minHeightScript}
   ${scaleScript}
+  ${interactionScript}
 </body>
 </html>`;
 
