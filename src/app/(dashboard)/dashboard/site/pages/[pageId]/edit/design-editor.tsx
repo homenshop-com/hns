@@ -3,6 +3,10 @@
 import { useState, useRef, useCallback, useEffect, lazy, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import "./editor-styles.css";
+// Sprint 9i (2026-04-22) — Figma-inspired dark theme overlay, recreating
+// "Editor Canvas.html" from Claude Design. Must import AFTER editor-styles.css
+// so its higher specificity rules win.
+import "./editor-figma-theme.css";
 import { useEditorStore } from "./store/editor-store";
 import {
   applySelection as syncApplySelection,
@@ -121,6 +125,26 @@ export default function DesignEditor({
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"" | "saved" | "error">("");
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
+  // Sprint 9i — Figma-style zoom + cursor coord for the status bar / floating
+  // zoom pill. Zoom only drives a CSS transform on the canvas; drag math is
+  // unaffected (handlers use getBoundingClientRect which reflects the scale).
+  const [zoom, setZoom] = useState(100);
+  const [cursorCoord, setCursorCoord] = useState<[number, number] | null>(null);
+  // Live layer count for the status bar — updated from the store.
+  const [layerCount, setLayerCount] = useState(0);
+  useEffect(() => {
+    if (!editorV2Enabled) return;
+    const countLayers = (node: unknown): number => {
+      const n = node as { children?: unknown[] };
+      let c = 0;
+      if (Array.isArray(n?.children)) for (const ch of n.children) c += 1 + countLayers(ch);
+      return c;
+    };
+    setLayerCount(countLayers(useEditorStore.getState().scene.root));
+    return useEditorStore.subscribe((s) => {
+      setLayerCount(countLayers(s.scene.root));
+    });
+  }, [editorV2Enabled]);
   const [isPublished, setIsPublished] = useState(initialPublished);
   const [publishing, setPublishing] = useState(false);
   const [showPublishModal, setShowPublishModal] = useState(false);
@@ -2366,8 +2390,45 @@ export default function DesignEditor({
       </div>
 
       {/* CANVAS */}
-      <div className={`de-canvas-wrapper${viewportMode === "mobile" ? " mobile-preview" : ""}`}>
-        <div className="de-canvas" ref={canvasRef}>
+      <div
+        className={`de-canvas-wrapper${viewportMode === "mobile" ? " mobile-preview" : ""}`}
+        onMouseMove={(e) => {
+          const host = bodyRef.current;
+          if (!host) return;
+          const r = host.getBoundingClientRect();
+          const x = Math.round((e.clientX - r.left) / (zoom / 100));
+          const y = Math.round((e.clientY - r.top) / (zoom / 100));
+          if (x >= 0 && y >= 0 && x < 4000 && y < 10000) setCursorCoord([x, y]);
+        }}
+        onMouseLeave={() => setCursorCoord(null)}
+      >
+        {/* Artboard label — top-left above the canvas (Figma-style) */}
+        <div
+          className="de-artboard-label"
+          style={{
+            top: viewportMode === "mobile" ? 10 : 20,
+            left: "50%",
+            transform: "translateX(-50%)",
+            position: "absolute",
+            zIndex: 3,
+          }}
+        >
+          <span className="chip">
+            {viewportMode === "mobile" ? "📱 모바일" : "🖥 데스크탑"}
+          </span>
+          <span className="dev">
+            {viewportMode === "mobile" ? "375 × auto" : "1000 × auto"}
+          </span>
+        </div>
+
+        <div
+          className="de-canvas"
+          ref={canvasRef}
+          style={{
+            transform: zoom !== 100 ? `scale(${zoom / 100})` : undefined,
+            transformOrigin: "top center",
+          }}
+        >
           <div className="de-canvas-content c_v_home_dft" id="de-canvas-inner">
             {/* HEADER — ref-only, set via useEffect to preserve drag edits */}
             <div id="hns_header" ref={headerRef} />
@@ -2380,6 +2441,48 @@ export default function DesignEditor({
 
             {/* FOOTER — ref-only */}
             <div id="hns_footer" ref={footerRef} />
+          </div>
+        </div>
+
+        {/* Floating zoom controls — bottom-right pill (Figma-style) */}
+        <div className="de-canvas-float-br">
+          <div className="de-float-group">
+            <button
+              type="button"
+              className="de-icon-btn"
+              title="축소 (⌘−)"
+              onClick={() => setZoom((z) => Math.max(25, z - 10))}
+              aria-label="축소"
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                <path d="M3 8h10" />
+              </svg>
+            </button>
+            <div className="de-zoom">{zoom}%</div>
+            <button
+              type="button"
+              className="de-icon-btn"
+              title="확대 (⌘+)"
+              onClick={() => setZoom((z) => Math.min(400, z + 10))}
+              aria-label="확대"
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                <path d="M8 3v10M3 8h10" />
+              </svg>
+            </button>
+          </div>
+          <div className="de-float-group">
+            <button
+              type="button"
+              className="de-icon-btn"
+              title="화면 맞춤 (⇧1)"
+              onClick={() => setZoom(100)}
+              aria-label="화면 맞춤"
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                <path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" />
+              </svg>
+            </button>
           </div>
         </div>
       </div>
@@ -2551,6 +2654,44 @@ export default function DesignEditor({
           </div>
         </div>
       )}
+
+      {/* ═══ Sprint 9i — Status bar (Figma-style, bottom of editor) ═══ */}
+      <div className="de-status-bar" aria-label="에디터 상태 표시줄">
+        <span className={`item${saveStatus === "saved" ? " ok" : ""}`}>
+          <span className="dot" />
+          {saving
+            ? "저장 중…"
+            : saveStatus === "error"
+              ? "저장 실패"
+              : saveStatus === "saved"
+                ? "저장됨 · 방금"
+                : "모든 변경사항 저장됨"}
+        </span>
+        <span className="item">
+          페이지 <span className="mono">{pageSlug}</span>
+        </span>
+        {editorV2Enabled && (
+          <span className="item">
+            요소 <span className="mono">{layerCount}</span>
+          </span>
+        )}
+        <span className="item">
+          언어 <span className="mono">{currentLang}</span>
+        </span>
+        <span className="spacer" />
+        <span className="item cursor">
+          커서{" "}
+          <span className="mono">
+            {cursorCoord ? `${cursorCoord[0]}, ${cursorCoord[1]}` : "—"}
+          </span>
+        </span>
+        <span className="item">
+          줌 <span className="mono">{zoom}%</span>
+        </span>
+        <span className="item">
+          뷰포트 <span className="mono">{viewportMode === "mobile" ? "375" : "1000"}</span>
+        </span>
+      </div>
     </div>
   );
 }

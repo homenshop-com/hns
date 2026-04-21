@@ -1,0 +1,569 @@
+/* ═══════════════════════════════════════════════════════════════════
+ *  editor-figma-theme.css
+ *  ------------------------------------------------------------------
+ *  Figma-inspired dark theme overlay for the homeNshop Design Editor,
+ *  recreating the design delivered in "Editor Canvas.html" from
+ *  Claude Design (claude.ai/design) on 2026-04-22.
+ *
+ *  Strategy: layered ON TOP of editor-styles.css so all existing
+ *  behavior, layouts, and component wiring stay intact. Only colors,
+ *  borders, typography, density, and a handful of new floating
+ *  overlays are changed. Classes match the legacy `.de-*` names so
+ *  no JSX restructuring is required.
+ * ═══════════════════════════════════════════════════════════════════ */
+
+.de-root {
+  /* Figma-inspired palette */
+  --fig-bg-0: #0b0c10;    /* app floor (outside panels) */
+  --fig-bg-1: #121319;    /* panel surface */
+  --fig-bg-2: #181922;    /* input / subtle */
+  --fig-bg-3: #1f2230;    /* active / selected */
+  --fig-bg-4: #272a3a;    /* hover / stronger */
+  --fig-line: #24263195;
+  --fig-line-2: #2f3245;
+  --fig-text-0: #f1f2f7;
+  --fig-text-1: #c6c9d6;
+  --fig-text-2: #8a8fa3;
+  --fig-text-3: #5c6277;
+  --fig-accent: #5be5b3;
+  --fig-accent-2: #3ccf97;
+  --fig-accent-ink: #062117;
+  --fig-blue: #6ea8ff;
+  --fig-amber: #f4b66a;
+  --fig-pink: #ff8bb1;
+  --fig-violet: #a897ff;
+  --fig-selection: #4c8eff;
+  --fig-canvas-floor: #0e0f14;
+
+  background: var(--fig-bg-0) !important;
+  color: var(--fig-text-0);
+  font-family:
+    "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", system-ui, "Malgun Gothic", "맑은 고딕", sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* ───── Header (44px) ─────────────────────────────────────────────── */
+.de-root .de-header {
+  background: var(--fig-bg-1);
+  border-bottom: 1px solid var(--fig-line-2);
+  height: 44px;
+  padding: 0 10px 0 14px;
+  gap: 0;
+}
+.de-root .de-logo {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--fig-text-0);
+  padding-right: 18px;
+  letter-spacing: -0.01em;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.de-root .de-logo::before {
+  content: "h";
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, var(--fig-accent), var(--fig-accent-2) 70%);
+  color: var(--fig-accent-ink);
+  font-weight: 800;
+  font-size: 12px;
+  box-shadow:
+    0 0 0 1px rgba(91, 229, 179, 0.25),
+    0 4px 10px -4px rgba(91, 229, 179, 0.5);
+}
+
+/* Tabs — compact pill-style matching Figma */
+.de-root .de-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.de-root .de-tab {
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 5px;
+  border-bottom: 0;
+  color: var(--fig-text-1);
+  font-size: 12.5px;
+  font-weight: 500;
+  background: transparent;
+  transition: background 0.12s, color 0.12s;
+}
+.de-root .de-tab:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--fig-text-0);
+}
+.de-root .de-tab.active {
+  background: var(--fig-bg-3);
+  color: var(--fig-text-0);
+  border-bottom-color: transparent;
+}
+/* Keep AI tab's existing gradient treatment but align spacing */
+.de-root .de-tab-ai {
+  padding: 0 12px;
+  height: 28px;
+  border-radius: 5px;
+}
+
+/* URL pill — match Figma green-dot pill design */
+.de-root .de-url {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 10px 0 10px;
+  border-radius: 14px;
+  background: #0d0e14;
+  border: 1px solid var(--fig-line-2);
+  color: var(--fig-text-2);
+  font-size: 12px;
+  font-family: inherit;
+}
+.de-root .de-url::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--fig-accent);
+  box-shadow: 0 0 8px rgba(91, 229, 179, 0.66);
+}
+
+/* Save / Publish buttons */
+.de-root .de-save-btn,
+.de-root .de-publish-btn {
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.de-root .de-save-btn {
+  background: var(--fig-bg-2);
+  color: var(--fig-text-0);
+  border: 1px solid var(--fig-line-2);
+}
+.de-root .de-save-btn:hover {
+  background: var(--fig-bg-3);
+}
+.de-root .de-publish-btn {
+  background: var(--fig-accent);
+  color: var(--fig-accent-ink);
+  border: 1px solid transparent;
+}
+.de-root .de-publish-btn:hover {
+  background: var(--fig-accent-2);
+}
+
+/* PC / Mobile viewport toggle — pill-style */
+.de-root .de-viewport-toggle {
+  background: var(--fig-bg-2);
+  border: 1px solid var(--fig-line-2);
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+}
+.de-root .de-viewport-btn {
+  color: var(--fig-text-2);
+  padding: 4px 10px;
+  font-size: 11.5px;
+  border-radius: 4px;
+}
+.de-root .de-viewport-btn:hover {
+  color: var(--fig-text-0);
+  background: rgba(255, 255, 255, 0.04);
+}
+.de-root .de-viewport-btn.active {
+  background: var(--fig-bg-4);
+  color: var(--fig-text-0);
+}
+
+/* ───── Sub-toolbar (contextual tools + numeric fields) ───────────── */
+.de-root .de-subtoolbar {
+  background: var(--fig-bg-1);
+  border-bottom: 1px solid var(--fig-line);
+  box-shadow: 0 1px 0 #00000030;
+  min-height: 40px;
+  padding: 0 10px;
+  gap: 2px;
+}
+.de-root .de-subtoolbar .tool-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 4px;
+}
+.de-root .de-subtoolbar .tool-group + .tool-group {
+  border-left: 1px solid var(--fig-line-2);
+  margin-left: 4px;
+  padding-left: 8px;
+}
+
+/* Numeric scrubbable fields — X/Y/W/H/⟳ */
+.de-num-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 6px 0 8px;
+  border-radius: 4px;
+  background: var(--fig-bg-2);
+  border: 1px solid transparent;
+  color: var(--fig-text-1);
+  font-size: 12px;
+  min-width: 66px;
+  transition: background 0.12s, border-color 0.12s;
+}
+.de-num-field:hover { background: var(--fig-bg-3); }
+.de-num-field:focus-within {
+  border-color: var(--fig-accent);
+  background: var(--fig-bg-2);
+}
+.de-num-field label {
+  color: var(--fig-text-3);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  cursor: ew-resize;
+  user-select: none;
+  min-width: 10px;
+  font-size: 10.5px;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+}
+.de-num-field input {
+  all: unset;
+  width: 40px;
+  text-align: right;
+  color: var(--fig-text-0);
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.de-num-field .unit {
+  color: var(--fig-text-3);
+  font-size: 10px;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+}
+
+/* Icon buttons (tool bar) — generic 28×28 */
+.de-icon-btn {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  background: transparent;
+  border: 0;
+  color: var(--fig-text-1);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.de-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--fig-text-0);
+}
+.de-icon-btn.active {
+  background: var(--fig-bg-3);
+  color: var(--fig-accent);
+}
+
+/* ───── Canvas wrapper ────────────────────────────────────────────── */
+.de-root .de-canvas-wrapper {
+  background:
+    radial-gradient(circle at 50% 50%, #1a1d26 0%, var(--fig-canvas-floor) 70%);
+  position: relative;
+}
+/* Soft dot grid overlay on the canvas floor */
+.de-root .de-canvas-wrapper::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(#ffffff14 1px, transparent 1px);
+  background-size: 20px 20px;
+  background-position: 10px 10px;
+  pointer-events: none;
+  z-index: 0;
+}
+.de-root .de-canvas {
+  background: #fff;
+  box-shadow:
+    0 30px 80px -20px #000000cc,
+    0 0 0 1px #00000060;
+  border-radius: 2px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Mobile preview — refine phone frame */
+.de-root .de-canvas-wrapper.mobile-preview {
+  padding: 32px 20px 60px;
+  background:
+    radial-gradient(circle at 50% 30%, #1a1d26 0%, var(--fig-canvas-floor) 70%);
+}
+.de-root .de-canvas-wrapper.mobile-preview .de-canvas {
+  border: 8px solid #111827;
+  border-radius: 28px;
+  overflow: hidden;
+}
+
+/* Floating breakpoint switcher (top-left on canvas) — NEW */
+.de-canvas-float-tl {
+  position: absolute;
+  left: 14px;
+  top: 14px;
+  z-index: 4;
+  display: flex;
+  gap: 6px;
+  pointer-events: none;
+}
+.de-canvas-float-tl > * { pointer-events: auto; }
+
+/* Floating zoom (bottom-right on canvas) — NEW */
+.de-canvas-float-br {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  z-index: 4;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  pointer-events: none;
+}
+.de-canvas-float-br > * { pointer-events: auto; }
+
+.de-float-group {
+  background: rgba(18, 19, 26, 0.86);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--fig-line-2);
+  border-radius: 999px;
+  padding: 3px;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+.de-float-group .de-icon-btn {
+  width: 26px;
+  height: 26px;
+}
+.de-zoom {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 10px;
+  height: 26px;
+  color: var(--fig-text-1);
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 11.5px;
+  min-width: 56px;
+  justify-content: center;
+  user-select: none;
+}
+
+/* Artboard label floating above the canvas — NEW */
+.de-artboard-label {
+  position: absolute;
+  top: -24px;
+  left: 0;
+  color: var(--fig-text-2);
+  font-size: 11px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+.de-artboard-label .dev {
+  color: var(--fig-text-3);
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 10.5px;
+}
+.de-artboard-label .chip {
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: var(--fig-bg-3);
+  color: var(--fig-text-1);
+  font-size: 10.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Hover-hint ribbon at bottom of the canvas (preserved behavior) */
+.de-root .de-tooltip {
+  background: rgba(13, 14, 20, 0.86);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: var(--fig-text-1);
+  font-size: 11.5px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--fig-line-2);
+  font-family: inherit;
+}
+
+/* ───── Layer Panel (right rail) ──────────────────────────────────── */
+.de-root .layerpanel-rail {
+  background: var(--fig-bg-1);
+  border-left: 1px solid var(--fig-line-2);
+  width: 280px;
+  color: var(--fig-text-1);
+}
+.de-root .layerpanel-rail h3,
+.de-root .layerpanel-rail .layerpanel-title {
+  color: var(--fig-text-0);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Generic section dividers inside panels */
+.de-root .de-panel-sect {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--fig-line);
+}
+.de-root .de-panel-sect h5 {
+  margin: 0 0 10px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fig-text-3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Property rows (X/Y/W/H grid in the position tab) */
+.de-root .de-subtoolbar input[type="number"],
+.de-root .de-subtoolbar input[type="text"],
+.de-root .de-position-panel input {
+  background: var(--fig-bg-2);
+  color: var(--fig-text-0);
+  border: 1px solid transparent;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ───── Left object / settings panels ─────────────────────────────── */
+.de-root .de-object-panel,
+.de-root .de-settings-panel,
+.de-root .de-page-tabs,
+.de-root .de-position-panel {
+  background: var(--fig-bg-1);
+  border-bottom: 1px solid var(--fig-line);
+  color: var(--fig-text-1);
+}
+.de-root .de-obj-btn {
+  background: var(--fig-bg-2);
+  color: var(--fig-text-1);
+  border: 1px solid var(--fig-line-2);
+  border-radius: 6px;
+  font-size: 12px;
+  padding: 6px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.de-root .de-obj-btn:hover {
+  background: var(--fig-bg-3);
+  color: var(--fig-text-0);
+  border-color: var(--fig-accent);
+}
+.de-root .de-obj-icon {
+  color: var(--fig-text-2);
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+}
+
+/* ───── Status bar (bottom, NEW) ──────────────────────────────────── */
+.de-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 14px;
+  background: var(--fig-bg-1);
+  border-top: 1px solid var(--fig-line-2);
+  font-size: 11px;
+  color: var(--fig-text-3);
+  height: 26px;
+  flex-shrink: 0;
+  user-select: none;
+}
+.de-status-bar .item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.de-status-bar .item.ok { color: var(--fig-accent); }
+.de-status-bar .item.ok .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 6px currentColor;
+}
+.de-status-bar .spacer { flex: 1; }
+.de-status-bar .mono {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  color: var(--fig-text-2);
+}
+.de-status-bar .item.cursor {
+  letter-spacing: 0.03em;
+}
+.de-status-bar .avatars {
+  display: flex;
+  margin-left: -4px;
+}
+.de-status-bar .avatar {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-weight: 600;
+  font-size: 9px;
+  margin-left: -6px;
+  border: 1.5px solid var(--fig-bg-1);
+}
+.de-status-bar .a-blue { background: linear-gradient(135deg, #6ea8ff, #4c8eff); }
+.de-status-bar .a-violet { background: linear-gradient(135deg, #a897ff, #8b6bff); }
+.de-status-bar .a-amber { background: linear-gradient(135deg, #f4b66a, #ff8b5e); }
+
+/* ───── AI subtop panel (preserve gradient but match Figma surface) ── */
+.de-root .de-subtoolbar textarea {
+  background: var(--fig-bg-2);
+  color: var(--fig-text-0);
+  border: 1px solid var(--fig-line-2);
+  font-family: inherit;
+}
+.de-root .de-subtoolbar textarea:focus {
+  border-color: var(--fig-accent);
+}
+
+/* ───── Scrollbars (dark, unobtrusive) ────────────────────────────── */
+.de-root *::-webkit-scrollbar { width: 8px; height: 8px; }
+.de-root *::-webkit-scrollbar-thumb {
+  background: #2a2d3c;
+  border-radius: 8px;
+  border: 2px solid var(--fig-bg-1);
+}
+.de-root *::-webkit-scrollbar-track { background: transparent; }
+
+/* ───── Minor legibility tweaks ───────────────────────────────────── */
+.de-root .de-obj-btn span:first-child { opacity: 0.8; }
+.de-root .de-tab { font-family: inherit; }
+.de-root { font-feature-settings: "tnum" 1; }
