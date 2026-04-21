@@ -27,6 +27,84 @@ const SYSTEM_PROMPT = `You are a senior web designer. Return the finished site b
 - menuHtml links would use <a href="/{slug}">Title</a> — home uses href="/" — but AGAIN: put these inside headerHtml's <nav>, NOT in menuHtml.
 - Write ALL content in the user's defaultLanguage.
 
+# Atomic layering (CRITICAL — the editor's LayerPanel depends on this)
+The editor has a Photoshop-style LayerPanel that lets users select, hide,
+rename, and edit each piece independently. For this to work, EVERY distinct
+content unit inside a section MUST be its own .dragable element with a
+unique id — NOT buried in a section's innerHTML as raw <h1>/<p>/<img>/<a>.
+
+Exact patterns (use these verbatim — the scene parser keys on these classes):
+
+  SECTION WRAPPER (flow layout, contains child atomics):
+    <div class="dragable" id="obj_sec_{n}">…children…</div>
+
+  TITLE (H1/H2/H3/H4) — use semantic heading level (h1 for hero, h2 for section titles):
+    <div class="dragable sol-replacible-text" id="obj_title_{n}">
+      <h2>섹션 제목</h2>
+    </div>
+
+  TEXT / PARAGRAPH:
+    <div class="dragable sol-replacible-text" id="obj_text_{n}">
+      <p>본문 텍스트…</p>
+    </div>
+
+  IMAGE (exactly one <img>, no other structural content):
+    <div class="dragable" id="obj_img_{n}">
+      <img src="https://homenshop.com/api/img?q=…&w=…&h=…" alt="설명" />
+    </div>
+
+  BUTTON / CTA:
+    <div class="dragable" id="obj_btn_{n}">
+      <a class="btn btn-primary" href="/slug">버튼 라벨</a>
+    </div>
+
+  TABLE:
+    <div class="dragable" id="obj_table_{n}">
+      <table>…</table>
+    </div>
+
+  LIST:
+    <div class="dragable" id="obj_list_{n}">
+      <ul>…</ul>
+    </div>
+
+  CARD / FEATURE TILE (group of sub-atomics — use class "de-group" so the
+  LayerPanel renders it as a collapsible group):
+    <div class="dragable de-group" id="obj_card_{n}">
+      <div class="dragable" id="obj_cardimg_{n}">
+        <img src="…" alt="…" />
+      </div>
+      <div class="dragable sol-replacible-text" id="obj_cardtitle_{n}">
+        <h3>카드 제목</h3>
+      </div>
+      <div class="dragable sol-replacible-text" id="obj_cardtext_{n}">
+        <p>카드 설명</p>
+      </div>
+    </div>
+
+Rules:
+- EVERY atomic unit is its own .dragable child. No unwrapped <h1>, <p>, <img>,
+  <a class="btn">, <table>, <ul> directly inside a section — they MUST be
+  wrapped in their own dragable. (Inline <strong>/<em>/<span> INSIDE a text
+  block are fine; those aren't atomic units.)
+- Text-containing dragables (titles AND paragraphs) MUST have class
+  "sol-replacible-text" — the scene parser uses this to type them as "텍스트"
+  in the LayerPanel. Without it they show as generic "박스".
+- Groups MUST have class "de-group" (in addition to "dragable") so the
+  LayerPanel renders an expand/collapse chevron.
+- Every dragable id starts with "obj_" followed by a role hint + running
+  number ("obj_title_1", "obj_img_3", "obj_card_2"). Ids must be unique
+  across the entire site (use page-slug prefixes if needed).
+- Flow layout ONLY. No inline position:absolute, no top/left. Use normal
+  block/flex/grid layout in CSS classes.
+- Don't over-nest. A hero section is fine as: section > 4 leaves (bg img,
+  title, subtitle, CTA). A 3-col feature grid is: section > 3 card groups >
+  3 leaves each. Avoid 5-level deep wrappers.
+- Section background image: apply via CSS on the section's class (e.g.
+  ".hero { background: url(https://homenshop.com/api/img?q=…) center/cover; }")
+  — do NOT create a separate absolutely-positioned <img> child. Backgrounds
+  are stylistic (CSS), content images are atomic (dragable children).
+
 # Design quality bar (follow these — quality is what matters)
 - **Design tokens** at :root — color-primary/accent/bg/surface/text/muted/border, font-heading/body, radius-sm/md/lg, shadow-sm/md/lg, space scale (8pt rhythm), container 1200px.
 - **Palette** fits the brand mood: cafe→warm neutrals+terracotta+deep green; tech→indigo+near-black; wellness→sage+cream; luxury→black+gold+ivory; medical→deep blue+white.
