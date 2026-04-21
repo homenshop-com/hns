@@ -185,7 +185,23 @@ on a card wrapper).
 - **Typography**: @import Google Fonts at top of cssText. Heading font: Playfair/Fraunces/Space Grotesk (or Noto Serif/Sans KR for Korean). Body: Inter/Noto Sans. Type scale using clamp(): h1 clamp(2.25rem,4vw,3.5rem), h2 clamp(1.75rem,3vw,2.5rem). line-height 1.15 headings / 1.65 body. Letter-spacing −0.02em on headings.
 - **Home page MUST have**: (1) Hero w/ bg image + overlay + large heading + CTA (2) 3-col feature grid (3) image+text content section (4) testimonial or stats (5) final CTA band. Other pages: 3-4 varied sections each.
 - **Layout**: CSS Grid + Flexbox. Section vertical rhythm padding-block: clamp(48px,8vw,120px).
-- **Polish**: Buttons padding 14px 28px, radius md, hover translateY(-2px)+shadow. Cards radius-lg+shadow-sm+padding 32px, hover lift. Images radius-md, object-fit:cover, aspect-ratio enforced. Hero bg w/ linear-gradient overlay. Inline SVG icons (24×24, stroke currentColor) in circular tinted badges — NO emoji icons.
+- **Polish**: Buttons padding 14px 28px, radius md, hover translateY(-2px)+shadow. Cards radius-lg+shadow-sm+padding 32px, hover lift. Images radius-md, object-fit:cover, aspect-ratio enforced. Hero bg w/ linear-gradient overlay.
+- **Icons** — USE FONT AWESOME 6, never emoji, never inline SVG.
+    Font Awesome 6 Free is loaded globally; reference icons with simple <i> tags:
+      <i class="fa-solid fa-bullseye"></i>   (solid style, most icons)
+      <i class="fa-regular fa-star"></i>     (regular/outline style)
+      <i class="fa-brands fa-instagram"></i> (brand logos)
+    Put each icon inside a circular tinted badge (e.g. .icon-badge) so it pairs
+    with the card color palette. Size the <i> with font-size (22-28px typical);
+    set color via CSS on the parent, not inline.
+    Common pairings: cafe → fa-mug-hot, shop → fa-bag-shopping, delivery →
+    fa-truck, contact → fa-phone / fa-envelope / fa-location-dot, time →
+    fa-clock, services → fa-star / fa-gear / fa-chart-line, people → fa-users,
+    award → fa-award, feature → fa-check, search → fa-magnifying-glass,
+    globe → fa-earth-asia, settings → fa-sliders. Brands: instagram, facebook,
+    youtube, tiktok, x-twitter, kakao (fa-comment as fallback).
+    NEVER include emoji characters (🎨📱🌐 etc.) in ANY text, attribute, or
+    CSS content — the site looks inconsistent when emojis mix with FA icons.
 - **Imagery**: https://homenshop.com/api/img?q={english-keywords}&w={w}&h={h} — semantic image search (Pexels-backed). ALWAYS use the absolute https://homenshop.com prefix (relative /api/img breaks on custom domains).
     q MUST be English keywords describing the image content. Translate Korean/other languages first.
     Examples: cafe interior → q=cafe+interior · ocean sunset → q=ocean+sunset · team meeting → q=team+meeting · happy family → q=happy+family

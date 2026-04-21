@@ -247,17 +247,19 @@ export default async function Home() {
           </div>
           <div className="features-grid">
             {[
-              { icon: "\u{1F3A8}", color: "blue", n: 1 },
-              { icon: "\u{1F4F1}", color: "green", n: 2 },
-              { icon: "\u270E", color: "purple", n: 3 },
-              { icon: "\u{1F310}", color: "orange", n: 4 },
-              { icon: "\u{1F50D}", color: "red", n: 7 },
-              { icon: "\u{1F916}", color: "violet", n: 8 },
-              { icon: "\u{1F517}", color: "pink", n: 5 },
-              { icon: "\u2601", color: "teal", n: 6 },
+              { icon: "fa-palette", color: "blue", n: 1 },              // 디자인 템플릿
+              { icon: "fa-mobile-screen-button", color: "green", n: 2 }, // 반응형
+              { icon: "fa-pen-ruler", color: "purple", n: 3 },           // 드래그 편집기
+              { icon: "fa-globe", color: "orange", n: 4 },               // 다국어
+              { icon: "fa-magnifying-glass", color: "red", n: 7 },       // SEO
+              { icon: "fa-robot", color: "violet", n: 8 },               // AI
+              { icon: "fa-link", color: "pink", n: 5 },                  // 도메인 연결
+              { icon: "fa-cloud", color: "teal", n: 6 },                 // 호스팅
             ].map(({ icon, color, n }) => (
               <div key={n} className="feature-card">
-                <div className={`feature-icon ${color}`}>{icon}</div>
+                <div className={`feature-icon ${color}`}>
+                  <i className={`fa-solid ${icon}`} aria-hidden="true" />
+                </div>
                 <div className="feature-title">
                   {t(`feat${n}Title` as never)}
                 </div>
@@ -321,12 +323,14 @@ export default async function Home() {
           </div>
           <div className="solution-points">
             {[
-              { icon: "\u{1F30D}", n: 1 },
-              { icon: "\u{1F6E0}\uFE0F", n: 2 },
-              { icon: "\u{1F3AF}", n: 3 },
+              { icon: "fa-earth-asia", n: 1 },         // 바이어 언어로 제품 카탈로그
+              { icon: "fa-screwdriver-wrench", n: 2 }, // 코딩 없이 직접 관리
+              { icon: "fa-bullseye", n: 3 },           // 수출 기업 맞춤 설계
             ].map(({ icon, n }) => (
               <div key={n} className="solution-point">
-                <div className="solution-point-icon">{icon}</div>
+                <div className="solution-point-icon">
+                  <i className={`fa-solid ${icon}`} aria-hidden="true" />
+                </div>
                 <div>
                   <div className="solution-point-title">
                     {t(`solutionPoint${n}Title` as never)}

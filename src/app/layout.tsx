@@ -5,6 +5,10 @@ import { getLocale, getMessages } from "next-intl/server";
 import SessionProvider from "@/components/SessionProvider";
 import "./globals.css";
 import "./landing.css";
+// Font Awesome 6 Free — replaces emoji icons in landing + about + AI sites.
+// Import the CSS only (not the JS kit) so SSR renders icons server-side
+// and the bundle stays small (icons are webfont glyphs).
+import "@fortawesome/fontawesome-free/css/all.min.css";
 
 // Pretendard is loaded via a CDN <link> in <head>. It's the Korean-
 // optimized variable font used by Toss / Naver / Kakao and pairs well

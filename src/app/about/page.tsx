@@ -29,17 +29,23 @@ export default async function AboutPage() {
 
           <div className="about-grid">
             <div className="about-card">
-              <div className="about-icon">🏢</div>
+              <div className="about-icon">
+                <i className="fa-solid fa-building" aria-hidden="true" />
+              </div>
               <h3>{t("companyTitle")}</h3>
               <p>{t("companyDesc")}</p>
             </div>
             <div className="about-card">
-              <div className="about-icon">🎯</div>
+              <div className="about-icon">
+                <i className="fa-solid fa-bullseye" aria-hidden="true" />
+              </div>
               <h3>{t("missionTitle")}</h3>
               <p>{t("missionDesc")}</p>
             </div>
             <div className="about-card">
-              <div className="about-icon">🌏</div>
+              <div className="about-icon">
+                <i className="fa-solid fa-earth-asia" aria-hidden="true" />
+              </div>
               <h3>{t("globalTitle")}</h3>
               <p>{t("globalDesc")}</p>
             </div>

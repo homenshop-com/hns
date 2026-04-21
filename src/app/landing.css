@@ -295,7 +295,7 @@
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 .solution-point-icon {
-  font-size: 28px;
+  font-size: 22px;
   flex-shrink: 0;
   width: 48px;
   height: 48px;
@@ -304,7 +304,9 @@
   justify-content: center;
   background: var(--blue-light);
   border-radius: 12px;
+  color: var(--blue);
 }
+.solution-point-icon i { line-height: 1; }
 .solution-point-title {
   font-size: 16px;
   font-weight: 700;
@@ -357,33 +359,27 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 26px;
+  font-size: 24px;
   margin-bottom: 20px;
 }
-.feature-icon.blue {
-  background: #eef5fc;
-}
-.feature-icon.green {
-  background: #ecfdf5;
-}
-.feature-icon.purple {
-  background: #f5f3ff;
-}
-.feature-icon.orange {
-  background: #fff7ed;
-}
-.feature-icon.pink {
-  background: #fdf2f8;
-}
-.feature-icon.teal {
-  background: #f0fdfa;
-}
-.feature-icon.red {
-  background: #fef2f2;
-}
-.feature-icon.violet {
-  background: #f5f3ff;
-}
+/* Tint the Font Awesome glyph to match the card's color theme */
+.feature-icon i { line-height: 1; }
+.feature-icon.blue   { background: #eef5fc; }
+.feature-icon.blue   i { color: #2563eb; }
+.feature-icon.green  { background: #ecfdf5; }
+.feature-icon.green  i { color: #059669; }
+.feature-icon.purple { background: #f5f3ff; }
+.feature-icon.purple i { color: #7c3aed; }
+.feature-icon.orange { background: #fff7ed; }
+.feature-icon.orange i { color: #ea580c; }
+.feature-icon.pink   { background: #fdf2f8; }
+.feature-icon.pink   i { color: #db2777; }
+.feature-icon.teal   { background: #f0fdfa; }
+.feature-icon.teal   i { color: #0d9488; }
+.feature-icon.red    { background: #fef2f2; }
+.feature-icon.red    i { color: #dc2626; }
+.feature-icon.violet { background: #f5f3ff; }
+.feature-icon.violet i { color: #7c3aed; }
 .feature-title {
   font-size: 17px;
   font-weight: 700;
@@ -2542,9 +2538,18 @@
   border: 1px solid var(--border);
 }
 .about-icon {
-  font-size: 36px;
-  margin-bottom: 16px;
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  background: var(--blue-light);
+  color: var(--blue);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  margin: 0 auto 16px;
 }
+.about-icon i { line-height: 1; }
 .about-card h3 {
   font-size: 17px;
   font-weight: 700;
