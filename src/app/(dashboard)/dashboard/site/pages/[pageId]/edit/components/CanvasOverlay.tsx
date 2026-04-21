@@ -324,12 +324,22 @@ export default function CanvasOverlay({ containerRef }: Props) {
 
   return (
     <>
-      {/* Single-selection resize handles (8). Hidden for inline text
-          layers (span/a) where width resize would fight text flow.
-          Shown for sections and absolute dragables. */}
+      {/* Single-selection resize handles.
+          - Hidden for inline text layers (span/a) where width resize would
+            fight text flow.
+          - For flow-positioned layers (sections + atomic children inside
+            sections): only E / S / SE are useful — the other five would
+            try to move the top-left corner, which isn't meaningful when
+            the layer is placed by normal flow. We hide them to keep the
+            resize UX honest. Sections keep full w/h resize; atomic flow
+            children get the same set.
+          - Absolute/fixed dragables: all 8 handles. */}
       {single && singleRect && !singleIsInline && (
         <>
-          {(["nw","n","ne","e","se","s","sw","w"] as const).map((h) => {
+          {(singleIsFlow
+            ? (["e", "se", "s"] as const)
+            : (["nw","n","ne","e","se","s","sw","w"] as const)
+          ).map((h) => {
             const pos = handlePosition(h, singleRect);
             return (
               <div

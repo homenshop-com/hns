@@ -472,7 +472,28 @@ export const useEditorStore = create<EditorStore>()(
             const layerIsAbsolute = existingKeys.has("position")
               || existingKeys.has("left")
               || existingKeys.has("top");
-            if (!layerIsAbsolute) return;
+
+            // Flow-positioned non-section layer (e.g. atomic child dragables
+            // inside a section: text/image/button).
+            // Sprint 9f — accept width/height so the resize handles actually
+            // do something. Reject x/y so the element stays in normal flow
+            // layout (no stray `position:absolute` escaping). Matches the
+            // section carve-out above in spirit.
+            if (!layerIsAbsolute) {
+              if (typeof patch.w !== "number" && typeof patch.h !== "number") {
+                // Nothing we can apply (pure x/y patch on a flow layer).
+                return;
+              }
+              if (typeof patch.w === "number") l.frame.w = Math.max(1, Math.round(patch.w));
+              if (typeof patch.h === "number") l.frame.h = Math.max(1, Math.round(patch.h));
+              const keys = new Set(existingKeys);
+              if (patch.w !== undefined) keys.add("width");
+              if (patch.h !== undefined) keys.add("height");
+              // Never add position/left/top here — that would rip the layer
+              // out of flow the same way it would for sections.
+              l.frameKeys = Array.from(keys) as NonNullable<Layer["frameKeys"]>;
+              return;
+            }
 
             if (typeof patch.x === "number") l.frame.x = Math.round(patch.x);
             if (typeof patch.y === "number") l.frame.y = Math.round(patch.y);
