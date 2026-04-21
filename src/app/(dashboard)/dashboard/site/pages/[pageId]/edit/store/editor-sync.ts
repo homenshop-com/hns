@@ -26,6 +26,7 @@ import {
   DRAGABLE_CLASS,
   GROUP_CLASS,
   hasTypedChildren,
+  isSection,
   type GroupLayer,
   type Layer,
   type LayerId,
@@ -231,6 +232,19 @@ export function applyStructure(
   viewportMode: "desktop" | "mobile" = "desktop",
 ) {
   const reconcile = (node: GroupLayer | import("@/lib/scene").SectionLayer, domParent: HTMLElement) => {
+    // Sprint 9h — when reconciling a SECTION's children, respect the
+    // section's innerHtml template: children commonly live inside a
+    // decorative non-dragable wrapper (e.g. `<div class="split-sec">`
+    // with `display:grid`, or `<div class="stats-inner">` with
+    // `grid-template-columns: repeat(4,1fr)`). Reparenting those
+    // children directly under the section element destroys the grid /
+    // flex layout the wrapper was providing.
+    //
+    // Rule: for section children, only touch the DOM if the child is
+    // OUTSIDE the section entirely (e.g. paste, cross-section move).
+    // Otherwise leave it where the innerHtml template put it.
+    const parentIsSection = isSection(node);
+
     let prevInOrder: HTMLElement | null = null;
     for (const child of node.children) {
       let childEl: HTMLElement | null;
@@ -248,7 +262,18 @@ export function applyStructure(
         continue;
       }
 
-      if (childEl.parentElement !== domParent) {
+      if (parentIsSection) {
+        // Section child: only move if it escaped the section entirely.
+        // `.contains(child)` is true even through decorative wrappers
+        // (CSS grid/flex wrappers, margin-auto layouts, etc.).
+        if (!domParent.contains(childEl)) {
+          domParent.appendChild(childEl);
+        }
+        // Skip order reconciliation — the section's innerHtml template
+        // (with <!--scene-child:id--> placeholders) is the source of
+        // truth for section layout, not scene order.
+      } else if (childEl.parentElement !== domParent) {
+        // Group: children should be direct kids of the group wrapper.
         domParent.appendChild(childEl);
       } else if (prevInOrder) {
         const pos = childEl.compareDocumentPosition(prevInOrder);
@@ -257,7 +282,7 @@ export function applyStructure(
           prevInOrder.after(childEl);
         }
       }
-      prevInOrder = childEl;
+      if (!parentIsSection) prevInOrder = childEl;
 
       applyFrameToEl(childEl, child, viewportMode);
       applyTransformToEl(childEl, child, viewportMode);
