@@ -85,26 +85,35 @@ export default function CanvasOverlay({ containerRef }: Props) {
   // Sprint 9a — also track whether the element is flow-positioned so
   // we can suppress resize/rotation handles (operating on a flow
   // section collapses it — see editor-store setFrame notes).
+  // Sprint 9f — split "is section container" from "is flow-positioned":
+  // atomic flow children (button/text/image wrappers) are flow-positioned
+  // at rest but should get the full 8-handle treatment because they'll be
+  // promoted to absolute on first drag. Only real section containers
+  // (flow dragable with dragable descendants) keep the W/H-only restriction.
   const [singleRect, setSingleRect] = useState<Rect | null>(null);
-  const [singleIsFlow, setSingleIsFlow] = useState(false);
+  const [singleIsSection, setSingleIsSection] = useState(false);
   const [singleIsInline, setSingleIsInline] = useState(false);
   useLayoutEffect(() => {
     if (!single || !container) {
       setSingleRect(null);
-      setSingleIsFlow(false);
+      setSingleIsSection(false);
       setSingleIsInline(false);
       return;
     }
     const el = container.ownerDocument.getElementById(single);
     if (!el) {
       setSingleRect(null);
-      setSingleIsFlow(false);
+      setSingleIsSection(false);
       setSingleIsInline(false);
       return;
     }
     setSingleRect(measureEl(el));
     const pos = container.ownerDocument.defaultView?.getComputedStyle(el).position ?? "";
-    setSingleIsFlow(pos !== "absolute" && pos !== "fixed");
+    const isFlow = pos !== "absolute" && pos !== "fixed";
+    const hasDragableChild = el.querySelector(".dragable") !== null;
+    // Section = flow-positioned container of other dragables. Atomic
+    // flow children (no dragable descendants) are NOT sections.
+    setSingleIsSection(isFlow && hasDragableChild);
     // Flow-inline text elements (<span>, <a>, etc.) — resize via width
     // doesn't make sense (text reflows), but rotation still does.
     const tag = el.tagName;
@@ -325,18 +334,16 @@ export default function CanvasOverlay({ containerRef }: Props) {
   return (
     <>
       {/* Single-selection resize handles.
-          - Hidden for inline text layers (span/a) where width resize would
-            fight text flow.
-          - For flow-positioned layers (sections + atomic children inside
-            sections): only E / S / SE are useful — the other five would
-            try to move the top-left corner, which isn't meaningful when
-            the layer is placed by normal flow. We hide them to keep the
-            resize UX honest. Sections keep full w/h resize; atomic flow
-            children get the same set.
-          - Absolute/fixed dragables: all 8 handles. */}
+          - Hidden for inline text layers (span/a).
+          - Sections (flow containers with dragable children): only E / S / SE
+            — the other five would try to move the top-left corner, which
+            isn't meaningful for a flow page-region.
+          - Everything else (atomic dragables whether currently flow or
+            absolute): all 8 handles. Atomic flow children get promoted to
+            absolute on first drag/resize, so all directions are valid. */}
       {single && singleRect && !singleIsInline && (
         <>
-          {(singleIsFlow
+          {(singleIsSection
             ? (["e", "se", "s"] as const)
             : (["nw","n","ne","e","se","s","sw","w"] as const)
           ).map((h) => {

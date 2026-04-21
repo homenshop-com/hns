@@ -179,23 +179,26 @@ function extractStyle(style: StyleMap): {
   return { layerStyle, transform, extras };
 }
 
-/** Is this element laid out in normal flow (no inline abs positioning)?
- *  A flow-level `.dragable` that wraps other `.dragable` children is a
- *  section (PowerPoint-style page region) — its children position
- *  themselves within its local coord space. Parser promotes such
- *  elements to SectionLayer so the flow-guard invariants are explicit
- *  at the type level, not just computed at runtime. */
+/** Is this element laid out in normal flow AND a container for other
+ *  dragables? A "section" is a page region that holds atomic children
+ *  (title, text, image, button). A flow-positioned `.dragable` WITHOUT
+ *  any dragable descendants is an atomic leaf (button/text/image
+ *  wrapper) — classify it by content, not as a section.
+ *
+ *  Sprint 9f — previously every flow dragable was a section, which
+ *  blocked users from moving/resizing atomic children inside AI-
+ *  generated sites. Now the section guard only fires for real
+ *  containers; atomic children can be freely repositioned. */
 function isFlowSection(el: Element): boolean {
   const style = parseStyle(el.getAttribute("style"));
   const hasInlineAbs =
     style["position"] != null || style["left"] != null || style["top"] != null;
   if (hasInlineAbs) return false;
-  // Flow-positioned `.dragable` is a section regardless of whether it
-  // has inner dragables — the flow-guard semantics apply identically
-  // ("no drag/resize, no frame mutation, no position keys on export").
-  // Labeling it a section at the type layer makes this explicit to
-  // downstream code and to the LayerPanel UX.
-  return true;
+  // A flow dragable is only a section if it contains other dragables.
+  // An atomic flow dragable (e.g. button wrapper) falls through to
+  // image/text/box detection and becomes a regular editable layer.
+  const hasDragableChild = el.querySelector(`.${DRAGABLE_CLASS}`) !== null;
+  return hasDragableChild;
 }
 
 /** Detect the most specific LayerType for a `.dragable` element. */

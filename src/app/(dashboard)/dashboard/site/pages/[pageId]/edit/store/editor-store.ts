@@ -468,40 +468,30 @@ export const useEditorStore = create<EditorStore>()(
               l.frameKeys = Array.from(keys) as NonNullable<Layer["frameKeys"]>;
               return;
             }
-            const existingKeys = new Set(l.frameKeys ?? []);
-            const layerIsAbsolute = existingKeys.has("position")
-              || existingKeys.has("left")
-              || existingKeys.has("top");
-
-            // Flow-positioned non-section layer (e.g. atomic child dragables
-            // inside a section: text/image/button).
-            // Sprint 9f — accept width/height so the resize handles actually
-            // do something. Reject x/y so the element stays in normal flow
-            // layout (no stray `position:absolute` escaping). Matches the
-            // section carve-out above in spirit.
-            if (!layerIsAbsolute) {
-              if (typeof patch.w !== "number" && typeof patch.h !== "number") {
-                // Nothing we can apply (pure x/y patch on a flow layer).
-                return;
-              }
-              if (typeof patch.w === "number") l.frame.w = Math.max(1, Math.round(patch.w));
-              if (typeof patch.h === "number") l.frame.h = Math.max(1, Math.round(patch.h));
-              const keys = new Set(existingKeys);
-              if (patch.w !== undefined) keys.add("width");
-              if (patch.h !== undefined) keys.add("height");
-              // Never add position/left/top here — that would rip the layer
-              // out of flow the same way it would for sections.
-              l.frameKeys = Array.from(keys) as NonNullable<Layer["frameKeys"]>;
-              return;
-            }
-
+            // Non-section layer (box, text, image, group, or atomic flow
+            // child that used to be misclassified as "section").
+            //
+            // Sprint 9f — promote to absolute positioning on any x/y patch.
+            // Atomic children inside sections start out without inline
+            // position (flow layout). The first time the user drags or
+            // resizes one, we promote it: add position/left/top/width/height
+            // to frameKeys and accept the patch as-is. The drag handler is
+            // responsible for capturing the correct starting x/y (from
+            // offsetLeft/offsetTop relative to the nearest positioned
+            // ancestor) so the element doesn't visually jump.
             if (typeof patch.x === "number") l.frame.x = Math.round(patch.x);
             if (typeof patch.y === "number") l.frame.y = Math.round(patch.y);
             if (typeof patch.w === "number") l.frame.w = Math.max(1, Math.round(patch.w));
             if (typeof patch.h === "number") l.frame.h = Math.max(1, Math.round(patch.h));
 
-            const keys = new Set(existingKeys);
-            keys.add("position");
+            const keys = new Set(l.frameKeys ?? []);
+            // Auto-promote: if x or y is being set, the layer becomes
+            // absolutely positioned. If only w/h is being set, leave the
+            // current positioning mode alone (flow stays flow, absolute
+            // stays absolute).
+            if (patch.x !== undefined || patch.y !== undefined) {
+              keys.add("position");
+            }
             if (patch.x !== undefined) keys.add("left");
             if (patch.y !== undefined) keys.add("top");
             if (patch.w !== undefined) keys.add("width");

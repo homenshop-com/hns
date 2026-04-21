@@ -846,16 +846,34 @@ export default function DesignEditor({
     // Build drag data with all multi-selected elements' positions
     const computedStyle = window.getComputedStyle(dragable);
 
-    // Sprint 9a — FLOW-ELEMENT GUARD.
-    // A `.dragable` that isn't absolute/fixed-positioned is a section
-    // container laid out in normal flow (e.g. `index-hero`). Moving it
-    // via inline top/left rips it out of flow and collapses the page.
-    // We still allow selection (so LayerPanel can show it), but we do
-    // NOT arm dragRef → no drag, no frame commit, no reorder.
+    // Sprint 9a/9f — FLOW-ELEMENT HANDLING.
+    // A `.dragable` that isn't absolute/fixed-positioned is either:
+    //   (a) A page section containing other dragables — moving it would
+    //       rip the page layout. Abort drag.
+    //   (b) An atomic flow child (button / image / text wrapper inside a
+    //       section). Allow drag — we'll promote to absolute on mousemove
+    //       with the correct starting offset so it doesn't visually jump.
     const pos = computedStyle.position;
     const isFlow = pos !== "absolute" && pos !== "fixed";
-    if (isFlow) {
+    const hasDragableChildren = dragable.querySelector(".dragable") !== null;
+    if (isFlow && hasDragableChildren) {
+      // Page section — selection only, no drag.
       return;
+    }
+    // Flow atomic child — ensure the nearest section ancestor is
+    // `position: relative` so our absolute offset is interpreted within
+    // the section, not the outer page. (No-op if already positioned.)
+    if (isFlow) {
+      let ancestor = dragable.parentElement;
+      while (ancestor && !ancestor.classList.contains("dragable")) {
+        ancestor = ancestor.parentElement;
+      }
+      if (ancestor) {
+        const ancestorPos = window.getComputedStyle(ancestor).position;
+        if (ancestorPos === "static") {
+          ancestor.style.position = "relative";
+        }
+      }
     }
 
     const others: Array<{ el: HTMLElement; origLeft: number; origTop: number }> = [];
@@ -898,12 +916,34 @@ export default function DesignEditor({
       }
     }
 
+    // For flow atomic children, initial "origLeft/origTop" from computed
+    // left/top is 0 (no inline position), which would make the element
+    // jump to (0,0) relative to its positioned ancestor on first move.
+    // Use offsetLeft/offsetTop instead — the element's current rendered
+    // position within its offsetParent. On first mousemove, the store's
+    // setFrame will promote the layer to absolute at these coordinates.
+    let origLeft: number;
+    let origTop: number;
+    if (isFlow) {
+      origLeft = dragable.offsetLeft;
+      origTop = dragable.offsetTop;
+      // Also pre-apply inline width/height so the element keeps its
+      // current rendered size once it becomes absolute. Otherwise
+      // `position: absolute` with only left/top would shrink it to
+      // content size.
+      if (!dragable.style.width) dragable.style.width = `${dragable.offsetWidth}px`;
+      if (!dragable.style.height) dragable.style.height = `${dragable.offsetHeight}px`;
+    } else {
+      origLeft = parseInt(computedStyle.left) || parseInt(dragable.style.left) || 0;
+      origTop = parseInt(computedStyle.top) || parseInt(dragable.style.top) || 0;
+    }
+
     dragRef.current = {
       el: dragable,
       startX: clientX,
       startY: clientY,
-      origLeft: parseInt(computedStyle.left) || parseInt(dragable.style.left) || 0,
-      origTop: parseInt(computedStyle.top) || parseInt(dragable.style.top) || 0,
+      origLeft,
+      origTop,
       others,
       snapSiblings,
       snapContainer,
