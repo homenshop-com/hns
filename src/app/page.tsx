@@ -170,9 +170,9 @@ export default async function Home() {
             homeNshop
           </Link>
           <div className="lp-nav-links">
-            <a href="#solution">{t("solutionEyebrow")}</a>
             <a href="#features">{t("navFeatures")}</a>
             <a href="#geo">{t("geoEyebrow")}</a>
+            <a href="#solution">{t("solutionEyebrow")}</a>
             <a href="#how-it-works">{t("navHowItWorks")}</a>
             <a href="#pricing">{t("navPricing")}</a>
             <Link href="/about">{t("navAbout")}</Link>
@@ -234,37 +234,6 @@ export default async function Home() {
               <div className="hero-stat-label">{t("statMultilangLabel")}</div>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* SOLUTION */}
-      <section className="lp-solution" id="solution">
-        <div className="section-inner">
-          <div className="section-header">
-            <div className="section-eyebrow">{t("solutionEyebrow")}</div>
-            <h2 className="section-title" style={{ whiteSpace: "pre-line" }}>{t("solutionTitle")}</h2>
-            <p className="solution-desc">{t("solutionDesc")}</p>
-          </div>
-          <div className="solution-points">
-            {[
-              { icon: "\u{1F30D}", n: 1 },
-              { icon: "\u{1F6E0}\uFE0F", n: 2 },
-              { icon: "\u{1F3AF}", n: 3 },
-            ].map(({ icon, n }) => (
-              <div key={n} className="solution-point">
-                <div className="solution-point-icon">{icon}</div>
-                <div>
-                  <div className="solution-point-title">
-                    {t(`solutionPoint${n}Title` as never)}
-                  </div>
-                  <p className="solution-point-desc">
-                    {t(`solutionPoint${n}Desc` as never)}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-          <p className="solution-sub">{t("solutionSub")}</p>
         </div>
       </section>
 
@@ -339,6 +308,37 @@ export default async function Home() {
               <li>{t("geoBullet4")}</li>
             </ul>
           </div>
+        </div>
+      </section>
+
+      {/* SOLUTION */}
+      <section className="lp-solution" id="solution">
+        <div className="section-inner">
+          <div className="section-header">
+            <div className="section-eyebrow">{t("solutionEyebrow")}</div>
+            <h2 className="section-title" style={{ whiteSpace: "pre-line" }}>{t("solutionTitle")}</h2>
+            <p className="solution-desc">{t("solutionDesc")}</p>
+          </div>
+          <div className="solution-points">
+            {[
+              { icon: "\u{1F30D}", n: 1 },
+              { icon: "\u{1F6E0}\uFE0F", n: 2 },
+              { icon: "\u{1F3AF}", n: 3 },
+            ].map(({ icon, n }) => (
+              <div key={n} className="solution-point">
+                <div className="solution-point-icon">{icon}</div>
+                <div>
+                  <div className="solution-point-title">
+                    {t(`solutionPoint${n}Title` as never)}
+                  </div>
+                  <p className="solution-point-desc">
+                    {t(`solutionPoint${n}Desc` as never)}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="solution-sub">{t("solutionSub")}</p>
         </div>
       </section>
 
