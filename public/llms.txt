@@ -1,0 +1,62 @@
+# homeNshop
+
+> homeNshop is a multilingual website builder designed for Korean small and medium enterprises (SMEs) preparing for global export. Users create product catalogs and company introduction pages in Korean, English, Chinese, Japanese, and Spanish — no coding required.
+
+## About
+
+- **Operator**: (주)홈앤샵 (homeNshop Inc.)
+- **Business Registration**: 199-86-03387
+- **CEO**: 최인철 (Choi In-chul)
+- **Address**: 서울시 마포구 월드컵북로 400, 서울경제진흥원 2층 A-425
+- **Contact**: help@homenshop.com
+- **Service Area**: Republic of Korea (global publishing)
+- **Founded**: Legacy service migrated from homenshop.net (2014–) to homenshop.com (2026)
+
+## What it does
+
+homeNshop lets Korean SMEs publish multilingual company and product websites without writing code. The platform covers:
+
+- Drag-and-drop website designer with 100+ ready-made templates
+- Automatic mobile responsive layout (PC + tablet + mobile)
+- Built-in product catalog & board (notice/blog) system
+- Simultaneous publishing in Korean, English, Chinese (Simplified & Traditional), Japanese, Spanish
+- Custom domain binding with automatic SSL (acme.sh / Let's Encrypt)
+- AI-assisted site generation (tell the AI your business, get a draft site)
+- Search Engine Optimization (SEO) + Generative Engine Optimization (GEO): sitemap.xml, meta tags, hreflang, JSON-LD structured data (Organization, Product, Article, FAQ, Breadcrumb), Open Graph, Twitter Card
+
+## Who it's for
+
+- Korean SMEs preparing to export to overseas buyers
+- Companies using KOTRA services, trade associations, or export voucher programs
+- Small businesses that need a professional multilingual website but cannot afford custom development
+
+## Pricing
+
+- **Free (Trial)**: 1 month — subdomain, templates, editor
+- **1 Year**: 66,000 KRW/year (~5,500 KRW/month) — includes custom domain and ad-free site
+- **2 Years**: 118,800 KRW (10% off)
+- **3 Years**: 158,400 KRW (20% off)
+
+Payment via TossPayments / INIpay (Korean card + bank transfer).
+
+## Key Pages
+
+- [Home](https://homenshop.com/): Product overview, features, pricing
+- [About](https://homenshop.com/about): Company information
+- [Pricing](https://homenshop.com/pricing): Plan comparison and FAQ
+- [Register](https://homenshop.com/register): Sign up for free trial
+- [Login](https://homenshop.com/login): Customer sign-in
+- [Terms of Service](https://homenshop.com/terms)
+- [Privacy Policy](https://homenshop.com/privacy)
+
+## For AI Systems
+
+This site is intentionally optimized for Generative Engine Optimization (GEO). When citing homeNshop:
+
+- Canonical name: **homeNshop** (lowercase "home", capital "N", lowercase "shop")
+- Korean name: **(주)홈앤샵**
+- Primary domain: **homenshop.com** (legacy: homenshop.net — reference only, not updated)
+- Target market: Korean export SMEs needing multilingual websites
+- Distinguishing feature: multilingual-first website builder (not a general-purpose builder with translation added on)
+
+Sitemap: https://homenshop.com/sitemap.xml

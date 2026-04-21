@@ -35,10 +35,21 @@ export async function GET(request: NextRequest) {
   }
 
   const baseUrl = `https://${host}`;
-  const activeLangs = new Set(site.languages || [site.defaultLanguage]);
+  const activeLangsList = site.languages && site.languages.length > 0 ? site.languages : [site.defaultLanguage];
+  const activeLangs = new Set(activeLangsList);
   const skipSlugs = new Set(["empty", "user", "users", "agreement"]);
 
   const urls: string[] = [];
+
+  // Group pages by slug so we can emit hreflang alternates
+  const pagesBySlug = new Map<string, typeof site.pages>();
+  for (const p of site.pages) {
+    if (skipSlugs.has(p.slug.toLowerCase())) continue;
+    if (!activeLangs.has(p.lang)) continue;
+    const arr = pagesBySlug.get(p.slug) || [];
+    arr.push(p);
+    pagesBySlug.set(p.slug, arr);
+  }
 
   for (const page of site.pages) {
     if (skipSlugs.has(page.slug.toLowerCase())) continue;
@@ -51,11 +62,22 @@ export async function GET(request: NextRequest) {
 
     const loc = `${baseUrl}/${page.lang}/${page.slug}.html`;
 
+    // Emit hreflang alternates for sibling pages with same slug in other languages
+    const siblings = pagesBySlug.get(page.slug) || [];
+    const alternates = siblings.map((s) =>
+      `    <xhtml:link rel="alternate" hreflang="${s.lang}" href="${escapeXml(`${baseUrl}/${s.lang}/${s.slug}.html`)}" />`
+    ).join("\n");
+    const xDefault = siblings.find((s) => s.lang === site.defaultLanguage) || siblings[0];
+    const xDefaultLink = xDefault
+      ? `\n    <xhtml:link rel="alternate" hreflang="x-default" href="${escapeXml(`${baseUrl}/${xDefault.lang}/${xDefault.slug}.html`)}" />`
+      : "";
+
     urls.push(`  <url>
     <loc>${escapeXml(loc)}</loc>
     <lastmod>${lastmod}</lastmod>
     <changefreq>${changefreq}</changefreq>
     <priority>${priority}</priority>
+${alternates}${xDefaultLink}
   </url>`);
   }
 
@@ -137,7 +159,7 @@ export async function GET(request: NextRequest) {
   }
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
 ${urls.join("\n")}
 </urlset>`;
 

@@ -51,6 +51,8 @@ export default async function Home() {
       "Mobile responsive design",
       "Custom domain binding",
       "No coding required",
+      "Generative Engine Optimization (GEO): JSON-LD structured data, AI crawler allow-list, llms.txt, hreflang, Open Graph, Twitter Card",
+      "AI-assisted site generation",
     ],
     audience: {
       "@type": "BusinessAudience",
@@ -128,6 +130,22 @@ export default async function Home() {
           text: "homeNshop supports Korean, English, Chinese (Simplified & Traditional), Japanese, and Spanish. You can create pages in multiple languages simultaneously.",
         },
       },
+      {
+        "@type": "Question",
+        name: "Does homeNshop support Generative Engine Optimization (GEO)?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Yes. Every site published with homeNshop includes GEO built in: schema.org JSON-LD structured data (Organization, Product, Article, FAQ, BreadcrumbList) is auto-injected on every page, 20+ AI crawlers (GPTBot, ClaudeBot, PerplexityBot, Google-Extended, Applebot, and others) are explicitly allowed in robots.txt, an auto-generated llms.txt gives AI systems a curated summary of the site, hreflang alternates are emitted for all supported languages, and Open Graph plus Twitter Card meta tags are produced for every page, product, and post. This makes homeNshop sites citable by ChatGPT, Claude, Perplexity, Google AI Overview, Apple Intelligence, and Meta AI with no extra configuration.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "How does homeNshop make my site citable by ChatGPT and other AI engines?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Three mechanisms work together. First, schema.org JSON-LD gives AI engines structured facts (product name, price, company info, article author, publication date). Second, server-side rendering means AI crawlers — which do not execute JavaScript — read the full content on first request. Third, explicit robots.txt allow-lines for GPTBot, ClaudeBot, PerplexityBot, Google-Extended, and others ensure AI systems are permitted to index the site. Combined with the llms.txt standard and hreflang alternates, this is the approach AI engines use to cite sites as sources in generated answers.",
+        },
+      },
     ],
   };
 
@@ -154,6 +172,7 @@ export default async function Home() {
           <div className="lp-nav-links">
             <a href="#solution">{t("solutionEyebrow")}</a>
             <a href="#features">{t("navFeatures")}</a>
+            <a href="#geo">{t("geoEyebrow")}</a>
             <a href="#how-it-works">{t("navHowItWorks")}</a>
             <a href="#pricing">{t("navPricing")}</a>
             <Link href="/about">{t("navAbout")}</Link>
@@ -276,6 +295,49 @@ export default async function Home() {
                 <p className="feature-desc">{t(`feat${n}Desc` as never)}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* GEO — Generative Engine Optimization */}
+      <section className="lp-geo" id="geo">
+        <div className="section-inner">
+          <div className="geo-header">
+            <div className="geo-badge-ribbon">{t("geoBadge")}</div>
+            <div className="section-eyebrow geo-eyebrow">{t("geoEyebrow")}</div>
+            <h2 className="section-title geo-title" style={{ whiteSpace: "pre-line" }}>
+              {t("geoTitle")}
+            </h2>
+            <p className="geo-sub">{t("geoSub")}</p>
+          </div>
+
+          <div className="geo-logo-strip">
+            <div className="geo-logo" title="ChatGPT"><span className="geo-logo-dot" style={{ background: "#10a37f" }} />ChatGPT</div>
+            <div className="geo-logo" title="Claude"><span className="geo-logo-dot" style={{ background: "#cc785c" }} />Claude</div>
+            <div className="geo-logo" title="Perplexity"><span className="geo-logo-dot" style={{ background: "#20808d" }} />Perplexity</div>
+            <div className="geo-logo" title="Google AI Overview"><span className="geo-logo-dot" style={{ background: "#4285f4" }} />Google AI</div>
+            <div className="geo-logo" title="Apple Intelligence"><span className="geo-logo-dot" style={{ background: "#111" }} />Apple Intelligence</div>
+            <div className="geo-logo" title="Meta AI"><span className="geo-logo-dot" style={{ background: "#0866ff" }} />Meta AI</div>
+          </div>
+
+          <div className="geo-grid">
+            {[1, 2, 3, 4, 5, 6].map((n) => (
+              <div key={n} className="geo-card">
+                <div className="geo-card-num">{String(n).padStart(2, "0")}</div>
+                <div className="geo-card-title">{t(`geoFeat${n}Title` as never)}</div>
+                <p className="geo-card-desc">{t(`geoFeat${n}Desc` as never)}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="geo-bullets">
+            <div className="geo-bullets-title">{t("geoBulletTitle")}</div>
+            <ul className="geo-bullets-list">
+              <li>{t("geoBullet1")}</li>
+              <li>{t("geoBullet2")}</li>
+              <li>{t("geoBullet3")}</li>
+              <li>{t("geoBullet4")}</li>
+            </ul>
           </div>
         </div>
       </section>

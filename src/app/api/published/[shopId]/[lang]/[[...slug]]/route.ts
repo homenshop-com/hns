@@ -3,6 +3,15 @@ import { prisma } from "@/lib/db";
 import { readTemplateCss, rewriteAssetUrls } from "@/lib/template-parser";
 import { renderBoardPluginContent, renderProductPluginContent } from "@/lib/plugin-renderer";
 import { parsePageParam } from "@/lib/pagination";
+import {
+  buildWebSiteJsonLd,
+  buildOrganizationJsonLd,
+  buildProductJsonLd,
+  buildArticleJsonLd,
+  buildBreadcrumbJsonLd,
+  renderJsonLdBlock,
+  type JsonLdContext,
+} from "@/lib/seo-jsonld";
 
 /* ─── Board rendering helpers ─── */
 
@@ -680,6 +689,16 @@ export async function GET(
   let itemSeoDesc = "";
   let itemSeoKeywords = "";
   let itemOgImage = "";
+  // Captured detail rows for JSON-LD (populated in the same branches)
+  let productDetailForLd: {
+    name: string; description?: string | null; specification?: string | null;
+    price?: number | null; images: string[]; category?: string | null;
+    sku?: string | null;
+  } | null = null;
+  let articleDetailForLd: {
+    title: string; content?: string | null; author?: string | null;
+    datePublished?: string | null; images: string[]; section?: string | null;
+  } | null = null;
   if (isProductAction && effectiveAction === "read" && prismaProductId) {
     // SEO for Prisma product
     try {
@@ -692,13 +711,22 @@ export async function GET(
         itemSeoKeywords = pp.name.replace(/[,/|]/g, ", ");
         const imgs = (pp.images as string[] | null) || [];
         if (imgs[0]) itemOgImage = imgs[0];
+        productDetailForLd = {
+          name: pp.name,
+          description: pp.description || "",
+          specification: pp.specification || "",
+          price: pp.price || null,
+          images: imgs,
+          category: pp.category || null,
+          sku: pp.id,
+        };
       }
     } catch { /* fallback */ }
   } else if (isProductAction && effectiveAction === "read" && boardId > 0) {
     try {
       const pRow = await prisma.product.findFirst({
         where: { siteId: site.id, legacyId: boardId },
-        select: { name: true, description: true, photos: true, specification: true },
+        select: { id: true, name: true, description: true, photos: true, specification: true, price: true, category: true, images: true },
       });
       if (pRow) {
         itemSeoTitle = `${pRow.name} - ${site.name}`;
@@ -710,13 +738,28 @@ export async function GET(
         if (pPhotos[0]) {
           itemOgImage = `https://home.homenshop.com/${shopId}/uploaded/${encodeURIComponent(pPhotos[0])}`;
         }
+        const jsonImages = (pRow.images as string[] | null) || [];
+        const absImages = (jsonImages.length > 0 ? jsonImages : pPhotos).map((p) =>
+          p.startsWith("http") || p.startsWith("/")
+            ? p
+            : `https://home.homenshop.com/${shopId}/uploaded/${encodeURIComponent(p)}`
+        );
+        productDetailForLd = {
+          name: pRow.name,
+          description: pRow.description || "",
+          specification: pRow.specification || "",
+          price: pRow.price || null,
+          images: absImages,
+          category: pRow.category || null,
+          sku: pRow.id,
+        };
       }
     } catch { /* fallback */ }
   } else if (isBoardAction && effectiveAction === "read" && boardId > 0) {
     try {
       const bRow = await prisma.boardPost.findFirst({
         where: { siteId: site.id, legacyId: boardId },
-        select: { title: true, content: true, photos: true },
+        select: { title: true, content: true, photos: true, author: true, regdate: true, category: { select: { name: true } } },
       });
       if (bRow) {
         itemSeoTitle = `${bRow.title} - ${site.name}`;
@@ -726,10 +769,21 @@ export async function GET(
         itemSeoKeywords = bRow.title;
         const bPhotos = bRow.photos ? bRow.photos.split("|").filter(Boolean) : [];
         const imageExts = new Set(["jpg", "jpeg", "png", "gif", "bmp", "webp", "svg"]);
-        const firstImage = bPhotos.find(p => imageExts.has(p.split(".").pop()?.toLowerCase() || ""));
-        if (firstImage) {
-          itemOgImage = `https://home.homenshop.com/${shopId}/uploaded/${encodeURIComponent(firstImage)}`;
+        const photoImages = bPhotos.filter(p => imageExts.has(p.split(".").pop()?.toLowerCase() || ""));
+        if (photoImages[0]) {
+          itemOgImage = `https://home.homenshop.com/${shopId}/uploaded/${encodeURIComponent(photoImages[0])}`;
         }
+        const absImages = photoImages.map(
+          (p) => `https://home.homenshop.com/${shopId}/uploaded/${encodeURIComponent(p)}`
+        );
+        articleDetailForLd = {
+          title: bRow.title || "",
+          content: bRow.content || "",
+          author: bRow.author || null,
+          datePublished: bRow.regdate || null,
+          images: absImages,
+          section: bRow.category?.name || null,
+        };
       }
     } catch { /* fallback */ }
   }
@@ -757,6 +811,67 @@ export async function GET(
   const gaScript = (site as any).googleAnalyticsId ? `<script async src="https://www.googletagmanager.com/gtag/js?id=${(site as any).googleAnalyticsId}"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${(site as any).googleAnalyticsId}');</script>` : '';
   const viewportMeta = '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />';
 
+  /* ─── GEO: hreflang alternates ─── */
+  const siteLangsForHreflang = (site.languages && site.languages.length > 0) ? site.languages : [site.defaultLanguage];
+  const hreflangBase = isCustomDomain ? `https://${hostHeader}` : `https://home.homenshop.com/${shopId}`;
+  const currentQs = (effectiveAction === "read" && boardId > 0) ? `?action=read&id=${boardId}` : '';
+  const hreflangLinks = siteLangsForHreflang.map(l =>
+    `<link rel="alternate" hreflang="${l}" href="${hreflangBase}/${l}/${pageSlug}.html${currentQs}" />`
+  ).join("\n  ") + `\n  <link rel="alternate" hreflang="x-default" href="${hreflangBase}/${site.defaultLanguage}/${pageSlug}.html${currentQs}" />`;
+
+  /* ─── GEO: Twitter Card ─── */
+  const twitterMeta = [
+    '<meta name="twitter:card" content="' + (finalOgImage ? 'summary_large_image' : 'summary') + '" />',
+    `<meta name="twitter:title" content="${escapeHtml(finalSeoTitle)}" />`,
+    finalSeoDesc ? `<meta name="twitter:description" content="${finalSeoDesc.replace(/"/g, '&quot;')}" />` : '',
+    finalOgImage ? `<meta name="twitter:image" content="${finalOgImage.replace(/"/g, '&quot;')}" />` : '',
+  ].filter(Boolean).join("\n  ");
+
+  /* ─── GEO: JSON-LD structured data ─── */
+  const ldCtx: JsonLdContext = {
+    baseUrl: hreflangBase,
+    currentUrl: canonicalUrl,
+    lang,
+    site: {
+      name: site.name,
+      description: site.description || null,
+      defaultLanguage: site.defaultLanguage,
+      languages: site.languages,
+      logoUrl: null,
+    },
+  };
+  const jsonLdObjects: Array<Record<string, unknown> | null> = [
+    buildWebSiteJsonLd(ldCtx),
+    buildOrganizationJsonLd(ldCtx),
+  ];
+  if (isProductAction && effectiveAction === "read" && productDetailForLd) {
+    jsonLdObjects.push(buildProductJsonLd(ldCtx, {
+      name: productDetailForLd.name,
+      description: productDetailForLd.description,
+      specification: productDetailForLd.specification,
+      price: productDetailForLd.price,
+      priceCurrency: "USD",
+      images: productDetailForLd.images,
+      category: productDetailForLd.category,
+      sku: productDetailForLd.sku,
+    }));
+    const crumbs: Array<{ name: string; url: string }> = [
+      { name: site.name, url: `${hreflangBase}/${lang}/` },
+      { name: page.title || pageSlug, url: `${hreflangBase}/${lang}/${pageSlug}.html` },
+      { name: productDetailForLd.name, url: canonicalUrl },
+    ];
+    jsonLdObjects.push(buildBreadcrumbJsonLd(ldCtx, crumbs));
+  } else if (isBoardAction && effectiveAction === "read" && articleDetailForLd) {
+    jsonLdObjects.push(buildArticleJsonLd(ldCtx, articleDetailForLd));
+    const crumbs: Array<{ name: string; url: string }> = [
+      { name: site.name, url: `${hreflangBase}/${lang}/` },
+      { name: page.title || pageSlug, url: `${hreflangBase}/${lang}/${pageSlug}.html` },
+      { name: articleDetailForLd.title, url: canonicalUrl },
+    ];
+    jsonLdObjects.push(buildBreadcrumbJsonLd(ldCtx, crumbs));
+  }
+  const jsonLdBlock = renderJsonLdBlock(jsonLdObjects);
+
   const html = (isBoardAction || isProductAction)
   ? `<!DOCTYPE html>
 <html lang="${lang}">
@@ -774,6 +889,9 @@ export async function GET(
   ${seoMeta.ogSiteName}
   ${seoMeta.ogUrl}
   ${seoMeta.canonical}
+  ${hreflangLinks}
+  ${twitterMeta}
+  ${jsonLdBlock}
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet" />
   <style>
     ${templateCss}
@@ -837,6 +955,12 @@ export async function GET(
   <meta property="og:title" content="${escapeHtml(finalSeoTitle)}" />
   ${seoMeta.ogDesc}
   <meta property="og:type" content="website" />
+  ${seoMeta.ogSiteName}
+  ${seoMeta.ogUrl}
+  ${seoMeta.canonical}
+  ${hreflangLinks}
+  ${twitterMeta}
+  ${jsonLdBlock}
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet" />
   <style>
     /* Template CSS */

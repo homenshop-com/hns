@@ -21,16 +21,26 @@ export async function GET(request: NextRequest) {
     ? `https://${host}/sitemap.xml`
     : null;
 
+  const aiBots = [
+    "GPTBot", "ChatGPT-User", "OAI-SearchBot",
+    "ClaudeBot", "Claude-Web", "anthropic-ai",
+    "PerplexityBot", "Perplexity-User",
+    "Google-Extended", "Applebot", "Applebot-Extended",
+    "CCBot", "Meta-ExternalAgent", "Meta-ExternalFetcher",
+    "Bytespider", "cohere-ai", "DuckAssistBot", "MistralAI-User",
+  ];
+
   const body = [
+    "# SEO + GEO policy",
     "User-agent: *",
     "Allow: /",
-    "",
-    "# Static assets",
     "Disallow: /api/",
     "Disallow: /dashboard/",
     "Disallow: /admin/",
     "Disallow: /_next/",
     "",
+    "# AI / LLM crawlers — explicit allow for Generative Engine Optimization",
+    ...aiBots.flatMap((ua) => [`User-agent: ${ua}`, "Allow: /", ""]),
   ];
 
   if (sitemapUrl) {
