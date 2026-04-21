@@ -35,7 +35,7 @@ Selected element (VERY IMPORTANT):
 - If NO [Selected element] is provided but the user mentions "선택된/선택한", apply the change to the most likely target element based on context. Never refuse — always make your best attempt.
 
 Image handling:
-- For image replacement requests, use our semantic image endpoint: /api/img?q={english-keywords}&w={width}&h={height}
+- For image replacement requests, use our semantic image endpoint: https://homenshop.com/api/img?q={english-keywords}&w={width}&h={height}
 - The q parameter MUST be English keywords — translate Korean/other languages to English first. Examples:
     "하늘" → q=sky    "바다" → q=sea    "노을" → q=sunset    "산" → q=mountain
     "커피" → q=coffee    "카페" → q=cafe    "꽃" → q=flower    "사람" → q=people
@@ -43,11 +43,12 @@ Image handling:
 - Multiple keywords: join with "+" (URL-encoded space). Prefer 1–3 specific words.
 - Good: q=blue+sky+clouds   q=coffee+cup   q=mountain+sunrise
 - Bad:  q=nice+photo   q=안녕   (not English)   q=picture (too vague)
-- Example full URL: /api/img?q=sky&w=1920&h=1080
-- For background image: background-image: url(/api/img?q=sky&w=1920&h=1080)
+- Example full URL: https://homenshop.com/api/img?q=sky&w=1920&h=1080
+- For background image: background-image: url(https://homenshop.com/api/img?q=sky&w=1920&h=1080)
+- IMPORTANT: always use the absolute https://homenshop.com prefix — relative /api/img paths break on custom domains.
 - Preserve the original image dimensions (width/height attributes and inline styles)
 - IMPORTANT: Only replace the image in the selected element. Leave all other images untouched.
-- NEVER use picsum.photos or other random placeholder services — always use /api/img with a specific English keyword.
+- NEVER use picsum.photos or other random placeholder services — always use the absolute URL above with a specific English keyword.
 
 CRITICAL RULES:
 - Output ONLY a JSON object: {"body":"...","header":"...","menu":"...","footer":"...","pageCss":"..."}

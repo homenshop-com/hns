@@ -241,5 +241,26 @@ export function rewriteAssetUrls(html: string, templatePath: string): string {
     (_, filename) => `url(${baseUrl}/${filename})`
   );
 
+  // Rewrite AI image proxy paths to absolute URL. /api/img only exists on the
+  // Next.js app (homenshop.com); on home.homenshop.com and custom domains the
+  // relative path falls through to a static 404. Published content serves from
+  // any of those hosts, so we force the absolute URL here — both in src="…"
+  // / href="…" attributes AND inside inline style url(…) expressions.
+  // Handles both raw `&` and HTML-escaped `&amp;` (inside attribute values).
+  result = rewriteApiImgUrls(result);
+
   return result;
+}
+
+/**
+ * Rewrites relative `/api/img?…` references to `https://homenshop.com/api/img?…`.
+ * Exported so the published route can apply it to pageCss / siteCss too.
+ */
+export function rewriteApiImgUrls(input: string): string {
+  const base = "https://homenshop.com";
+  return input
+    // <img src="/api/img?…">, <a href="/api/img?…">, style="background: url(/api/img?…)"
+    .replace(/(["'(])\/api\/img(?=[?)"'\s])/g, (_m, open) => `${open}${base}/api/img`)
+    // CSS url(/api/img?…) without quotes
+    .replace(/url\(\/api\/img/g, `url(${base}/api/img`);
 }

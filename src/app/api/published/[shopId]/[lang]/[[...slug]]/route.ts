@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { readTemplateCss, rewriteAssetUrls } from "@/lib/template-parser";
+import { readTemplateCss, rewriteAssetUrls, rewriteApiImgUrls } from "@/lib/template-parser";
 import { renderBoardPluginContent, renderProductPluginContent } from "@/lib/plugin-renderer";
 import { parsePageParam } from "@/lib/pagination";
 import {
@@ -486,11 +486,13 @@ export async function GET(
   // Get page-specific CSS — boost position/size properties with !important
   // so they override site-upgrade.css !important rules (pageCss is page-specific)
   const rawPageCss = (page as any).css || "";
-  const pageCss = rawPageCss.replace(
+  let pageCss = rawPageCss.replace(
     /(\b(?:top|left|width|height|display|position|z-index)\s*:\s*)([^;!}]+)(;|})/gi,
     (_: string, prop: string, val: string, end: string) =>
       val.trim().includes('!important') ? `${prop}${val}${end}` : `${prop}${val.trim()} !important${end}`
   );
+  // Force /api/img URLs in pageCss to absolute (only exists on homenshop.com)
+  pageCss = rewriteApiImgUrls(pageCss);
 
   // Rewrite CSS url() for bare filenames
   const tplFilesBase = `/tpl/${templatePath}/files`;
@@ -503,6 +505,7 @@ export async function GET(
     /(body\s*\{[^}]*?)background\s*:\s*url\([^)]*\)[^;]*;?/gi,
     "$1"
   );
+  siteCss = rewriteApiImgUrls(siteCss);
 
   // Detect modern template: uses 100vw breakout patterns (check both template CSS and site CSS)
   const allCss = templateCss + siteCss;
