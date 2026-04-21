@@ -9,6 +9,10 @@ import {
   syncStoreToDom,
 } from "./store/editor-sync";
 import { snapRect, type Rect as SnapRect } from "./store/snap";
+import {
+  sceneToMobileCss,
+  stripMobileCssBlock,
+} from "@/lib/scene";
 
 const TiptapModal = lazy(() => import("./tiptap-modal"));
 const LayerPanel = lazy(() => import("./components/LayerPanel"));
@@ -96,14 +100,24 @@ export default function DesignEditor({
   // edits, undo, page switches, etc. Skip entirely when the flag is off.
   useEffect(() => {
     if (!editorV2Enabled) return;
-    useEditorStore.getState().importHtml(bodyHtml || "");
-  }, [editorV2Enabled, bodyHtml, pageId]);
+    useEditorStore.getState().importHtml(bodyHtml || "", pageCss);
+  }, [editorV2Enabled, bodyHtml, pageId, pageCss]);
 
   // State
   const [currentBodyHtml, setCurrentBodyHtml] = useState(bodyHtml);
   const [currentPageCss, setCurrentPageCss] = useState(pageCss);
   const [selectedElId, setSelectedElId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"page" | "object" | "settings" | "position" | "ai">("page");
+  // Subscribe to viewport mode (for toolbar button highlighting + canvas width).
+  const [viewportMode, setLocalViewportMode] = useState<"desktop" | "mobile">("desktop");
+  useEffect(() => {
+    if (!editorV2Enabled) return;
+    setLocalViewportMode(useEditorStore.getState().viewportMode);
+    const unsub = useEditorStore.subscribe((s) => {
+      setLocalViewportMode((prev) => (prev === s.viewportMode ? prev : s.viewportMode));
+    });
+    return unsub;
+  }, [editorV2Enabled]);
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"" | "saved" | "error">("");
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
@@ -241,7 +255,7 @@ export default function DesignEditor({
     // Run once on mount with the current state.
     {
       const s = useEditorStore.getState();
-      syncStoreToDom(s.scene, bodyEl);
+      syncStoreToDom(s.scene, bodyEl, s.viewportMode);
       syncApplySelection(s.selectedId, s.multiSelectedIds, bodyEl);
     }
     // Zustand v5 default subscribe fires on every state change. Cache
@@ -250,12 +264,14 @@ export default function DesignEditor({
     let lastScene = useEditorStore.getState().scene;
     let lastPrimary = useEditorStore.getState().selectedId;
     let lastMulti = useEditorStore.getState().multiSelectedIds;
+    let lastViewport = useEditorStore.getState().viewportMode;
     const unsub = useEditorStore.subscribe((s) => {
       const el = bodyRef.current;
       if (!el) return;
-      if (s.scene !== lastScene) {
+      if (s.scene !== lastScene || s.viewportMode !== lastViewport) {
         lastScene = s.scene;
-        syncStoreToDom(s.scene, el);
+        lastViewport = s.viewportMode;
+        syncStoreToDom(s.scene, el, s.viewportMode);
         // Re-apply selection after order/visibility changes.
         syncApplySelection(s.selectedId, s.multiSelectedIds, el);
       }
@@ -532,6 +548,19 @@ export default function DesignEditor({
         ? useEditorStore.getState().scene
         : null;
 
+      // Mobile viewport overrides → @media block inside pageCss.
+      // Strip any previous block before emitting a fresh one; if there
+      // are no overrides at all, the pageCss just gets trimmed.
+      let finalPageCss = currentPageCss;
+      if (v2Scene) {
+        const withoutOld = stripMobileCssBlock(finalPageCss);
+        const mobileBlock = sceneToMobileCss(v2Scene);
+        finalPageCss = mobileBlock
+          ? (withoutOld ? `${withoutOld}\n\n${mobileBlock}` : mobileBlock)
+          : withoutOld;
+      }
+      const cssChanged = finalPageCss !== pageCss;
+
       // Save page body + CSS
       const res = await fetch(`/api/sites/${siteId}/pages/${pageId}`, {
         method: "PUT",
@@ -541,7 +570,7 @@ export default function DesignEditor({
             html,
             ...(v2Scene && { layers: v2Scene, schemaVersion: 1 }),
           },
-          ...(currentPageCss !== pageCss && { css: currentPageCss }),
+          ...(cssChanged && { css: finalPageCss }),
         }),
       });
 
@@ -567,6 +596,7 @@ export default function DesignEditor({
 
       if (res.ok) {
         setCurrentBodyHtml(html);
+        if (editorV2Enabled) setCurrentPageCss(finalPageCss);
         setSaveStatus("saved");
         setTimeout(() => setSaveStatus(""), 2000);
       } else {
@@ -577,7 +607,7 @@ export default function DesignEditor({
     } finally {
       setSaving(false);
     }
-  }, [siteId, pageId, currentBodyHtml, currentPageCss, pageCss, currentLang, menuMode]);
+  }, [siteId, pageId, currentBodyHtml, currentPageCss, pageCss, currentLang, menuMode, editorV2Enabled]);
 
   /* ─── AI Edit ─── */
   const executeAiEdit = useCallback(async () => {
@@ -1775,6 +1805,37 @@ export default function DesignEditor({
           </nav>
         </div>
         <div className="de-header-right">
+          {editorV2Enabled && (
+            <div className="de-viewport-toggle" role="group" aria-label="뷰포트 전환">
+              <button
+                type="button"
+                className={`de-viewport-btn${viewportMode === "desktop" ? " active" : ""}`}
+                onClick={() => useEditorStore.getState().setViewportMode("desktop")}
+                title="데스크탑 편집 (≥ 768px)"
+                aria-pressed={viewportMode === "desktop"}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ display: "block" }}>
+                  <rect x="3" y="4" width="18" height="12" rx="1"></rect>
+                  <line x1="8" y1="20" x2="16" y2="20"></line>
+                  <line x1="12" y1="16" x2="12" y2="20"></line>
+                </svg>
+                <span>PC</span>
+              </button>
+              <button
+                type="button"
+                className={`de-viewport-btn${viewportMode === "mobile" ? " active" : ""}`}
+                onClick={() => useEditorStore.getState().setViewportMode("mobile")}
+                title="모바일 편집 (< 768px) — 데스크탑과 별도의 위치/크기 저장"
+                aria-pressed={viewportMode === "mobile"}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ display: "block" }}>
+                  <rect x="6" y="2" width="12" height="20" rx="2"></rect>
+                  <line x1="11" y1="18" x2="13" y2="18"></line>
+                </svg>
+                <span>Mobile</span>
+              </button>
+            </div>
+          )}
           <a className="de-url" href={`https://home.homenshop.com/${shopId}/${defaultLanguage}/${pageSlug === "index" ? "" : pageSlug}`} target="_blank" rel="noopener noreferrer">
             home.homenshop.com/{shopId}/{defaultLanguage}/{pageSlug === "index" ? "" : pageSlug}
           </a>
@@ -2305,7 +2366,7 @@ export default function DesignEditor({
       </div>
 
       {/* CANVAS */}
-      <div className="de-canvas-wrapper">
+      <div className={`de-canvas-wrapper${viewportMode === "mobile" ? " mobile-preview" : ""}`}>
         <div className="de-canvas" ref={canvasRef}>
           <div className="de-canvas-content c_v_home_dft" id="de-canvas-inner">
             {/* HEADER — ref-only, set via useEffect to preserve drag edits */}

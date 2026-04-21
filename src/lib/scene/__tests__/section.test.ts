@@ -13,14 +13,21 @@ import { sceneToLegacyHtml } from "../serialize";
 import { InlineLayer, isSection, SectionLayer } from "../types";
 
 describe("SectionLayer — parse", () => {
-  it("promotes flow-level .dragable (no inline position) to section", () => {
-    const html = `<div id="index-hero" class="dragable">HERO<div>inner</div></div>`;
+  it("promotes flow-level .dragable (no inline position) to section when it contains dragable children", () => {
+    // Sprint 9f — a flow dragable is only a section if it has dragable
+    // descendants (AI sites) or legacy `id="el_*"` inline children.
+    // A flat dragable with only text/plain-div children is an atomic
+    // leaf (box) that the editor can reposition freely.
+    const html =
+      `<div id="index-hero" class="dragable">`
+      + `HERO`
+      + `<div id="child-1" class="dragable" style="position:absolute;left:0;top:0;width:10px;height:10px">x</div>`
+      + `</div>`;
     const scene = legacyHtmlToScene(html);
     const child = scene.root.children[0]!;
     expect(isSection(child)).toBe(true);
     expect(child.type).toBe("section");
     expect((child as SectionLayer).innerHtml).toContain("HERO");
-    expect((child as SectionLayer).innerHtml).toContain("<div>inner</div>");
   });
 
   it("does NOT promote absolute-positioned .dragable to section", () => {
@@ -32,7 +39,10 @@ describe("SectionLayer — parse", () => {
   });
 
   it("section frameKeys never contains position/left/top", () => {
-    const html = `<div id="flow" class="dragable">X</div>`;
+    const html =
+      `<div id="flow" class="dragable">`
+      + `<div id="inner" class="dragable" style="position:absolute;left:0;top:0;width:10px;height:10px"></div>`
+      + `</div>`;
     const scene = legacyHtmlToScene(html);
     const s = scene.root.children[0] as SectionLayer;
     const keys = s.frameKeys ?? [];
@@ -44,16 +54,24 @@ describe("SectionLayer — parse", () => {
 
 describe("SectionLayer — serialize", () => {
   it("never emits position/left/top, even if frameKeys was tampered with", () => {
-    const html = `<div id="flow" class="dragable">INNER</div>`;
+    const html =
+      `<div id="flow" class="dragable">`
+      + `<div id="inner" class="dragable" style="position:absolute;left:0;top:0;width:10px;height:10px">INNER</div>`
+      + `</div>`;
     const scene = legacyHtmlToScene(html);
     const s = scene.root.children[0] as SectionLayer;
     // Simulate a bug: frameKeys mutated to include position.
     s.frameKeys = ["position", "left", "top", "width", "height"];
     s.frame = { x: 999, y: 999, w: 123, h: 456 };
     const out = sceneToLegacyHtml(scene);
-    expect(out).not.toMatch(/position:\s*absolute/);
-    expect(out).not.toMatch(/left:\s*999/);
-    expect(out).not.toMatch(/top:\s*999/);
+    // The wrapper div for the section must not get positional styles.
+    // (Grepping the full output would false-positive on the inner child,
+    // so match only on the section wrapper id.)
+    expect(out).toMatch(/id="flow"[^>]*/);
+    const wrapperAttr = out.match(/<div[^>]*id="flow"[^>]*>/)![0];
+    expect(wrapperAttr).not.toMatch(/position:\s*absolute/);
+    expect(wrapperAttr).not.toMatch(/left:\s*999/);
+    expect(wrapperAttr).not.toMatch(/top:\s*999/);
   });
 
   it("round-trip preserves inner HTML verbatim", () => {

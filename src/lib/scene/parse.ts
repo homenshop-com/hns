@@ -180,25 +180,30 @@ function extractStyle(style: StyleMap): {
 }
 
 /** Is this element laid out in normal flow AND a container for other
- *  dragables? A "section" is a page region that holds atomic children
- *  (title, text, image, button). A flow-positioned `.dragable` WITHOUT
- *  any dragable descendants is an atomic leaf (button/text/image
- *  wrapper) — classify it by content, not as a section.
+ *  typed children (dragables or legacy `el_*` inline elements)?
  *
  *  Sprint 9f — previously every flow dragable was a section, which
  *  blocked users from moving/resizing atomic children inside AI-
  *  generated sites. Now the section guard only fires for real
- *  containers; atomic children can be freely repositioned. */
+ *  containers — ones with dragable descendants (modern AI sites) or
+ *  legacy `id="el_*"` inline children (PHP-era templates). Atomic
+ *  flow dragables with neither kind of child (e.g. a single-button
+ *  wrapper) fall through to image/text/box detection and become
+ *  regular editable layers that the editor can freely reposition. */
 function isFlowSection(el: Element): boolean {
   const style = parseStyle(el.getAttribute("style"));
   const hasInlineAbs =
     style["position"] != null || style["left"] != null || style["top"] != null;
   if (hasInlineAbs) return false;
-  // A flow dragable is only a section if it contains other dragables.
-  // An atomic flow dragable (e.g. button wrapper) falls through to
-  // image/text/box detection and becomes a regular editable layer.
-  const hasDragableChild = el.querySelector(`.${DRAGABLE_CLASS}`) !== null;
-  return hasDragableChild;
+  // Modern AI sites: section = flow dragable containing other dragables.
+  if (el.querySelector(`.${DRAGABLE_CLASS}`) !== null) return true;
+  // Legacy PHP templates: section = flow dragable containing `id="el_*"`
+  // inline spans/anchors (which get promoted to InlineLayer downstream).
+  const inlineCandidates = el.querySelectorAll("[id^='el_']");
+  for (let i = 0; i < inlineCandidates.length; i++) {
+    if (EL_ID_RE.test(inlineCandidates[i]!.getAttribute("id") || "")) return true;
+  }
+  return false;
 }
 
 /** Detect the most specific LayerType for a `.dragable` element. */
@@ -618,4 +623,109 @@ export function legacyHtmlToScene(html: string): SceneGraph {
     virtual: true,
   };
   return { version: 1, root };
+}
+
+/**
+ * Walk the scene and populate `mobileFrame` / `mobileFrameKeys` /
+ * `mobileTransform` on each layer from the `@media (max-width: 768px)`
+ * block that `sceneToMobileCss` writes into pageCss on save.
+ *
+ * The block is emitted with a stable marker comment so we can extract it
+ * cheaply without a full CSS parser.
+ */
+export function applyMobileCssToScene(scene: SceneGraph, pageCss: string): void {
+  if (!pageCss || !pageCss.includes("SCENE-MOBILE-OVERRIDES")) return;
+  // Extract the content between the marker and its matching closing brace.
+  const blockMatch = pageCss.match(
+    /\/\*\s*SCENE-MOBILE-OVERRIDES\s*\*\/\s*@media[^{]*\{([\s\S]*?)\n\}/,
+  );
+  if (!blockMatch) return;
+  const body = blockMatch[1]!;
+
+  // Match each `#id { decl; decl; }` rule. Ids written by the serializer
+  // are CSS-escaped (backslashes before special chars). We allow both raw
+  // and escaped ids since real ids in this codebase are alphanumeric +
+  // underscore + dash.
+  const ruleRe = /#([a-zA-Z0-9_\\-]+)\s*\{\s*([^}]*?)\s*\}/g;
+  const byId = new Map<string, Record<string, string>>();
+  let m: RegExpExecArray | null;
+  while ((m = ruleRe.exec(body)) !== null) {
+    const id = m[1]!.replace(/\\/g, "");
+    const decls = m[2]!;
+    const map: Record<string, string> = {};
+    for (const decl of decls.split(";")) {
+      const colon = decl.indexOf(":");
+      if (colon < 0) continue;
+      const prop = decl.slice(0, colon).trim().toLowerCase();
+      let value = decl.slice(colon + 1).trim();
+      // Strip the !important we always emit.
+      value = value.replace(/\s*!important\s*$/i, "").trim();
+      if (prop) map[prop] = value;
+    }
+    byId.set(id, map);
+  }
+  if (byId.size === 0) return;
+
+  const pxInt = (v: string): number | undefined => {
+    const n = parseInt(v, 10);
+    return Number.isFinite(n) ? n : undefined;
+  };
+
+  const assignMobile = (layer: Layer, decls: Record<string, string>) => {
+    const mobileFrame: { x: number; y: number; w: number; h: number } = {
+      x: layer.frame.x,
+      y: layer.frame.y,
+      w: layer.frame.w,
+      h: layer.frame.h,
+    };
+    const keys = new Set<"position" | "left" | "top" | "width" | "height">();
+    if ("position" in decls) keys.add("position");
+    if ("left" in decls) {
+      const n = pxInt(decls.left!);
+      if (n !== undefined) mobileFrame.x = n;
+      keys.add("left");
+    }
+    if ("top" in decls) {
+      const n = pxInt(decls.top!);
+      if (n !== undefined) mobileFrame.y = n;
+      keys.add("top");
+    }
+    if ("width" in decls) {
+      const n = pxInt(decls.width!);
+      if (n !== undefined) mobileFrame.w = n;
+      keys.add("width");
+    }
+    if ("height" in decls) {
+      const n = pxInt(decls.height!);
+      if (n !== undefined) mobileFrame.h = n;
+      keys.add("height");
+    }
+    if (keys.size > 0) {
+      layer.mobileFrame = mobileFrame;
+      layer.mobileFrameKeys = Array.from(keys) as NonNullable<Layer["mobileFrameKeys"]>;
+    }
+    // Transform (rotate/origin) — parse the minimum we emit.
+    if ("transform" in decls) {
+      const val = decls.transform!;
+      const rot = val.match(/rotate\(\s*(-?\d+(?:\.\d+)?)deg\s*\)/);
+      const sx = val.match(/scaleX\(\s*(-?\d+(?:\.\d+)?)\s*\)/);
+      const sy = val.match(/scaleY\(\s*(-?\d+(?:\.\d+)?)\s*\)/);
+      const t: Record<string, number> = {};
+      if (rot) t.rotate = parseFloat(rot[1]!);
+      if (sx) t.scaleX = parseFloat(sx[1]!);
+      if (sy) t.scaleY = parseFloat(sy[1]!);
+      if (Object.keys(t).length > 0) layer.mobileTransform = t as NonNullable<Layer["mobileTransform"]>;
+    }
+  };
+
+  const walk = (node: GroupLayer | import("./types").SectionLayer) => {
+    for (const child of node.children) {
+      const decls = byId.get(child.id);
+      if (decls) assignMobile(child, decls);
+      if (child.type === "group" || child.type === "section") {
+        walk(child as GroupLayer);
+      }
+    }
+  };
+  walk(scene.root);
 }

@@ -146,6 +146,44 @@
   align-items: center;
   gap: 16px;
 }
+.de-viewport-toggle {
+  display: inline-flex;
+  background: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+}
+.de-viewport-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #9ca3af;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.12s;
+  font-variant: small-caps;
+  letter-spacing: 0.3px;
+}
+.de-viewport-btn:hover {
+  color: #e5e7eb;
+  background: rgba(255, 255, 255, 0.06);
+}
+.de-viewport-btn.active {
+  color: #1f2937;
+  background: #e5e7eb;
+}
+.de-viewport-btn.active:hover {
+  background: #fff;
+}
+.de-viewport-btn svg {
+  flex-shrink: 0;
+}
 .de-url {
   font-size: 11px;
   color: #888;
@@ -345,6 +383,26 @@
   position: relative;
   width: 1000px;
   min-height: 800px;
+}
+/* Mobile viewport preview — constrain the canvas to a phone-sized frame
+ *  so CSS `@media (max-width: 768px)` rules kick in and the user sees
+ *  exactly what phone visitors will see. The 375 matches iPhone 13/14
+ *  logical width. Desktop canvas (1000px) is taken care of above. */
+.de-canvas-wrapper.mobile-preview {
+  padding: 32px 20px 60px;
+  background: #1f2937;
+}
+.de-canvas-wrapper.mobile-preview .de-canvas,
+.de-canvas-wrapper.mobile-preview .de-canvas-content,
+.de-canvas-wrapper.mobile-preview #de-canvas-inner {
+  width: 375px !important;
+}
+.de-canvas-wrapper.mobile-preview .de-canvas {
+  border: 8px solid #111827;
+  border-radius: 28px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+  background: #fff;
 }
 
 /* ── Template canvas overrides ── */

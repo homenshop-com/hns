@@ -28,10 +28,13 @@ import {
   InlineLayer,
   Layer,
   LayerStyle,
+  LayerTransform,
+  MOBILE_BREAKPOINT,
   PluginLayer,
   SceneGraph,
   SectionLayer,
   TextLayer,
+  hasTypedChildren,
   isGroup,
   isInline,
   isSection,
@@ -307,4 +310,106 @@ export function sceneToLegacyHtml(scene: SceneGraph): string {
 /** Convenience: serialize a single layer (used by clipboard / AI). */
 export function serializeLayerHtml(layer: Layer): string {
   return serializeLayer(layer);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+ *  Mobile viewport override → @media CSS block
+ * ═══════════════════════════════════════════════════════════════════
+ *
+ * Desktop positioning lives in each layer's inline `style=""` attribute
+ * (emitted by buildStyleMap above). Mobile positioning is emitted here
+ * as a single `@media (max-width: 768px) { #id { … !important } }`
+ * block that the caller appends to the page CSS. !important is required
+ * because the inline desktop styles have higher specificity than a
+ * normal media query rule.
+ *
+ * Sections get width/height overrides only (flow-guard invariant —
+ * never position/left/top on a section). Everything else can get all
+ * five positional keys plus transform.
+ */
+
+const MOBILE_FRAME_COMMENT_MARK = "/* SCENE-MOBILE-OVERRIDES */";
+
+function serializeMobileRule(layer: Layer): string | null {
+  const frameKeys = new Set(layer.mobileFrameKeys ?? []);
+  const frame = layer.mobileFrame;
+  const transform: LayerTransform | undefined = layer.mobileTransform;
+
+  const declarations: string[] = [];
+  if (frame) {
+    // Sections: strip position-like keys (flow guard).
+    const allowed = isSection(layer)
+      ? (["width", "height"] as const)
+      : (["position", "left", "top", "width", "height"] as const);
+    for (const k of allowed) {
+      if (!frameKeys.has(k)) continue;
+      if (k === "position") declarations.push("position: absolute !important;");
+      else if (k === "left") declarations.push(`left: ${frame.x}px !important;`);
+      else if (k === "top") declarations.push(`top: ${frame.y}px !important;`);
+      else if (k === "width") declarations.push(`width: ${frame.w}px !important;`);
+      else if (k === "height") declarations.push(`height: ${frame.h}px !important;`);
+    }
+  }
+  if (transform) {
+    const tfm = printTransform(transform);
+    if (tfm) declarations.push(`transform: ${tfm} !important;`);
+    const tfo = printTransformOrigin(transform);
+    if (tfo) declarations.push(`transform-origin: ${tfo} !important;`);
+  }
+  if (declarations.length === 0) return null;
+  return `  #${cssIdentifier(layer.id)} { ${declarations.join(" ")} }`;
+}
+
+/** CSS.escape for ids (Node / SSR doesn't have CSS.escape everywhere). */
+function cssIdentifier(id: string): string {
+  return id.replace(/([^a-zA-Z0-9_-])/g, "\\$1");
+}
+
+function collectAllLayers(root: GroupLayer, out: Layer[]): void {
+  for (const child of root.children) {
+    out.push(child);
+    if (hasTypedChildren(child)) collectAllLayers(child as GroupLayer, out);
+  }
+}
+
+/**
+ * Serialize every layer's mobile override into a single `@media` CSS
+ * block, or return an empty string if no overrides exist.
+ *
+ * Called by the editor on save alongside `sceneToLegacyHtml`. The block
+ * should be appended to the page's CSS so the published route includes
+ * it unchanged.
+ */
+export function sceneToMobileCss(scene: SceneGraph): string {
+  const layers: Layer[] = [];
+  collectAllLayers(scene.root as GroupLayer, layers);
+  const rules: string[] = [];
+  for (const l of layers) {
+    const rule = serializeMobileRule(l);
+    if (rule) rules.push(rule);
+  }
+  if (rules.length === 0) return "";
+  return [
+    MOBILE_FRAME_COMMENT_MARK,
+    `@media (max-width: ${MOBILE_BREAKPOINT}px) {`,
+    ...rules,
+    `}`,
+  ].join("\n");
+}
+
+/** Strip an existing mobile-overrides block from pageCss so a fresh one
+ *  can replace it. Used by the editor's save path to keep the CSS clean
+ *  across re-saves. */
+export function stripMobileCssBlock(css: string): string {
+  // Remove everything from the marker through the matching closing brace.
+  // Conservative regex — keys on the exact marker we write on every save.
+  const pattern = new RegExp(
+    `\\s*${escapeRegex(MOBILE_FRAME_COMMENT_MARK)}[\\s\\S]*?\\n\\}\\s*`,
+    "g",
+  );
+  return css.replace(pattern, "\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
 }

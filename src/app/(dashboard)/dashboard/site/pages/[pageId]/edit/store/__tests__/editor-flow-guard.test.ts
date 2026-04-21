@@ -16,10 +16,17 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { useEditorStore } from "../editor-store";
 import type { GroupLayer } from "@/lib/scene";
 
-// "flow" layer: no inline position/top/left → frameKeys stays undefined.
+// "flow" layer: flow-positioned section (contains a nested dragable child
+// so the parser classifies it as SectionLayer, not a promotable box).
 // "abs" layer: has absolute positioning → frameKeys includes left/top.
+// Note: Sprint 9f — atomic flow dragables WITHOUT nested children now
+// auto-promote to absolute on x/y patch. This test still verifies the
+// invariant for true sections (flow containers), which are the original
+// target of the Sprint 9a guard.
 const MIXED = [
-  `<div id="flow-hero" class="dragable">HERO</div>`,
+  `<div id="flow-hero" class="dragable">`,
+  `  <div id="flow-hero-child" class="dragable" style="position:absolute;left:0;top:0;width:50px;height:20px"></div>`,
+  `</div>`,
   `<div id="abs-text" class="dragable" style="position:absolute;left:10px;top:20px;width:100px;height:30px">TEXT</div>`,
 ].join("");
 

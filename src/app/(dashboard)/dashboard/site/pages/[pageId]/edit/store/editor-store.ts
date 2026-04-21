@@ -24,7 +24,7 @@
 import { create } from "zustand";
 import { temporal } from "zundo";
 import { produce } from "immer";
-import { hasTypedChildren, isSection, legacyHtmlToScene, sceneToLegacyHtml } from "@/lib/scene";
+import { applyMobileCssToScene, hasTypedChildren, isSection, legacyHtmlToScene, sceneToLegacyHtml } from "@/lib/scene";
 import type {
   GroupLayer,
   Layer,
@@ -40,6 +40,11 @@ type Container = GroupLayer | SectionLayer;
 
 /* ─── State shape ─── */
 
+/** Which breakpoint bucket the editor is currently editing. All drag/
+ *  resize/transform mutations are routed to the active viewport's fields,
+ *  so users can position/size each layer independently per breakpoint. */
+export type ViewportMode = "desktop" | "mobile";
+
 export interface EditorState {
   scene: SceneGraph;
   /** Primary selection. Null when nothing selected. */
@@ -48,13 +53,18 @@ export interface EditorState {
   multiSelectedIds: Set<LayerId>;
   /** Dirty flag — set by any mutation, cleared after successful save. */
   dirty: boolean;
+  /** Active editing viewport. Starts at "desktop". */
+  viewportMode: ViewportMode;
 }
 
 export interface EditorActions {
   /** Replace the entire scene (used by initial load, AI edit, undo-all). */
   setScene(scene: SceneGraph): void;
   /** Import HTML into the scene in one shot. */
-  importHtml(html: string): void;
+  /** Import legacy body HTML. If `pageCss` is provided, any
+   *  `@media (max-width: 768px)` override block inside it is merged into
+   *  each layer's mobileFrame/mobileTransform for round-trip editing. */
+  importHtml(html: string, pageCss?: string): void;
   /** Export the current scene as legacy body HTML. */
   exportHtml(): string;
 
@@ -106,6 +116,12 @@ export interface EditorActions {
 
   /** Clear dirty flag — call after a successful save. */
   markClean(): void;
+
+  /** Switch the active editing viewport. Subsequent drag/resize/transform
+   *  mutations target this viewport's override fields. Does NOT re-render
+   *  the canvas by itself — callers should propagate to the canvas width
+   *  and to applyFrameToEl/applyTransformToEl on every layer. */
+  setViewportMode(mode: ViewportMode): void;
 }
 
 export type EditorStore = EditorState & EditorActions;
@@ -180,12 +196,19 @@ export const useEditorStore = create<EditorStore>()(
       selectedId: null,
       multiSelectedIds: new Set(),
       dirty: false,
+      viewportMode: "desktop",
+
+      setViewportMode: (mode) => set(() => ({ viewportMode: mode })),
 
       setScene: (scene) =>
         set(() => ({ scene, dirty: true, selectedId: null, multiSelectedIds: new Set() })),
 
-      importHtml: (html) => {
+      importHtml: (html, pageCss) => {
         const scene = legacyHtmlToScene(html);
+        // Sprint 9g — overlay mobile viewport overrides from pageCss so
+        // the editor sees the same per-viewport values that published
+        // visitors see. Idempotent; no-op if no @media block exists.
+        if (pageCss) applyMobileCssToScene(scene, pageCss);
         // Importing existing content shouldn't mark the doc dirty.
         set(() => ({ scene, dirty: false, selectedId: null, multiSelectedIds: new Set() }));
       },
@@ -355,17 +378,25 @@ export const useEditorStore = create<EditorStore>()(
           scene: produce(s.scene, (draft) => {
             const l = findLayer(draft.root, id);
             if (!l) return;
+            const mobileMode = s.viewportMode === "mobile";
             if (patch === null) {
-              l.transform = undefined;
+              if (mobileMode) l.mobileTransform = undefined;
+              else l.transform = undefined;
               return;
             }
-            const next: LayerTransform = { ...(l.transform || {}), ...patch };
+            // Seed mobile override from desktop when first editing in
+            // mobile mode, so the user picks up where desktop left off.
+            const base = mobileMode
+              ? (l.mobileTransform ?? l.transform ?? {})
+              : (l.transform ?? {});
+            const next: LayerTransform = { ...base, ...patch };
             // Normalize: drop identity so serialize stays clean.
             if (next.rotate === 0) delete next.rotate;
             if (next.scaleX === 1) delete next.scaleX;
             if (next.scaleY === 1) delete next.scaleY;
             const hasAny = Object.keys(next).length > 0;
-            l.transform = hasAny ? next : undefined;
+            if (mobileMode) l.mobileTransform = hasAny ? next : undefined;
+            else l.transform = hasAny ? next : undefined;
           }),
           dirty: true,
         })),
@@ -440,45 +471,59 @@ export const useEditorStore = create<EditorStore>()(
             const l = findLayer(draft.root, id);
             if (!l || l.id === draft.root.id) return;
 
-            // Sprint 9a — FLOW-ELEMENT INVARIANT.
-            // If the layer was parsed without `position`/`left`/`top` in
-            // its inline style, it's a flow-laid-out section (e.g.
-            // `index-hero`). ANY frame mutation is dangerous:
-            //  - x/y writes would emit `position:absolute; left; top;`
-            //    on export, ripping the section out of flow.
-            //  - w/h writes would override the template's CSS-driven
-            //    responsive width (typically 100%) with a fixed pixel
-            //    value, collapsing the section and letting following
-            //    sections overlap it.
-            // Reject the whole patch — this is the bug we shipped 9a to
-            // kill. Upstream UI (drag handler, resize handles) should
-            // have already been gated, this is defense-in-depth.
-            // Sprint 9b — sections are flow regions by type-level contract.
-            // Sprint 9e — allow width/height resize on sections, but never
-            // position/left/top. Height commonly tweaked on hero regions.
+            const mobileMode = s.viewportMode === "mobile";
+
+            // Sections: same flow-guard rules regardless of viewport —
+            // page regions must never gain position/left/top. We allow
+            // width/height resize, per-viewport.
             if (isSection(l)) {
+              if (mobileMode) {
+                // Seed mobileFrame from desktop frame on first mobile edit.
+                const base = l.mobileFrame ?? { ...l.frame };
+                if (typeof patch.w === "number") base.w = Math.max(1, Math.round(patch.w));
+                if (typeof patch.h === "number") base.h = Math.max(1, Math.round(patch.h));
+                l.mobileFrame = base;
+                const keys = new Set(l.mobileFrameKeys ?? []);
+                if (patch.w !== undefined) keys.add("width");
+                if (patch.h !== undefined) keys.add("height");
+                keys.delete("position"); keys.delete("left"); keys.delete("top");
+                l.mobileFrameKeys = Array.from(keys) as NonNullable<Layer["mobileFrameKeys"]>;
+                return;
+              }
               if (typeof patch.w === "number") l.frame.w = Math.max(1, Math.round(patch.w));
               if (typeof patch.h === "number") l.frame.h = Math.max(1, Math.round(patch.h));
               const keys = new Set(l.frameKeys ?? []);
               if (patch.w !== undefined) keys.add("width");
               if (patch.h !== undefined) keys.add("height");
-              // Ensure position/left/top never land on sections — see
-              // buildSectionLayer's safeKeys filter for the same rule.
               keys.delete("position"); keys.delete("left"); keys.delete("top");
               l.frameKeys = Array.from(keys) as NonNullable<Layer["frameKeys"]>;
               return;
             }
-            // Non-section layer (box, text, image, group, or atomic flow
-            // child that used to be misclassified as "section").
-            //
-            // Sprint 9f — promote to absolute positioning on any x/y patch.
-            // Atomic children inside sections start out without inline
-            // position (flow layout). The first time the user drags or
-            // resizes one, we promote it: add position/left/top/width/height
-            // to frameKeys and accept the patch as-is. The drag handler is
-            // responsible for capturing the correct starting x/y (from
-            // offsetLeft/offsetTop relative to the nearest positioned
-            // ancestor) so the element doesn't visually jump.
+            // Non-section layer: atomic child, box, image, text, group.
+            // Sprint 9f — auto-promote to absolute on any x/y patch.
+            // Sprint 9g — when in mobile viewport mode, route the write
+            // to mobileFrame/mobileFrameKeys so desktop positioning is
+            // preserved. On first mobile-mode touch, mobileFrame is
+            // seeded from the desktop frame so the element doesn't jump.
+            if (mobileMode) {
+              const base = l.mobileFrame ?? { ...l.frame };
+              if (typeof patch.x === "number") base.x = Math.round(patch.x);
+              if (typeof patch.y === "number") base.y = Math.round(patch.y);
+              if (typeof patch.w === "number") base.w = Math.max(1, Math.round(patch.w));
+              if (typeof patch.h === "number") base.h = Math.max(1, Math.round(patch.h));
+              l.mobileFrame = base;
+              // Seed mobileFrameKeys from desktop frameKeys on first edit
+              // so width/height inherited from desktop stay declared.
+              const keys = new Set(l.mobileFrameKeys ?? l.frameKeys ?? []);
+              if (patch.x !== undefined || patch.y !== undefined) keys.add("position");
+              if (patch.x !== undefined) keys.add("left");
+              if (patch.y !== undefined) keys.add("top");
+              if (patch.w !== undefined) keys.add("width");
+              if (patch.h !== undefined) keys.add("height");
+              l.mobileFrameKeys = Array.from(keys) as NonNullable<Layer["mobileFrameKeys"]>;
+              return;
+            }
+
             if (typeof patch.x === "number") l.frame.x = Math.round(patch.x);
             if (typeof patch.y === "number") l.frame.y = Math.round(patch.y);
             if (typeof patch.w === "number") l.frame.w = Math.max(1, Math.round(patch.w));
@@ -650,6 +695,7 @@ export const selectRoot = (s: EditorStore) => s.scene.root;
 export const selectSelectedId = (s: EditorStore) => s.selectedId;
 export const selectMultiIds = (s: EditorStore) => s.multiSelectedIds;
 export const selectDirty = (s: EditorStore) => s.dirty;
+export const selectViewportMode = (s: EditorStore) => s.viewportMode;
 
 /** Access the temporal (undo/redo) API. */
 export const useEditorHistory = () => useEditorStore.temporal;

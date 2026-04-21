@@ -148,34 +148,68 @@ function ensureGroupWrapper(
 /** Push the layer's frame (x/y/w/h) into the DOM element's inline style
  *  based on `frameKeys`. Ensures V2 store mutations (resize, align,
  *  nudge, duplicate) are immediately visible on the canvas. Skipped for
- *  virtual groups (root). */
-function applyFrameToEl(el: HTMLElement, layer: Layer) {
+ *  virtual groups (root).
+ *
+ *  Sprint 9g — when `viewportMode === "mobile"`, we paint the mobileFrame
+ *  (if defined; otherwise fall back to the desktop frame) so the canvas
+ *  reflects what visitors on phones will see. The inline styles written
+ *  here are TRANSIENT preview — final persistence uses serialize.ts
+ *  which emits desktop as inline + mobile as `@media` pageCss.
+ */
+function applyFrameToEl(
+  el: HTMLElement,
+  layer: Layer,
+  viewportMode: "desktop" | "mobile" = "desktop",
+) {
   if (layer.type === "group" && (layer as GroupLayer).virtual) return;
   // Inline text layers (span/a) — width/height via inline style would
   // override responsive CSS and fight text flow. Skip entirely.
   if (layer.type === "inline") return;
-  const keys = new Set(layer.frameKeys ?? []);
+
+  const mobile = viewportMode === "mobile";
+  // Prefer mobile override; fall back to desktop if the user hasn't
+  // customized mobile yet.
+  const keys = new Set(
+    (mobile ? (layer.mobileFrameKeys ?? layer.frameKeys) : layer.frameKeys) ?? [],
+  );
+  const frame = mobile ? (layer.mobileFrame ?? layer.frame) : layer.frame;
+
   // Sections are flow regions — never emit position/left/top (would
   // rip them out of document flow), but width/height are allowed
   // (users may want to resize a hero section's height).
   if (layer.type === "section") {
-    if (keys.has("width")) el.style.width = `${layer.frame.w}px`;
-    if (keys.has("height")) el.style.height = `${layer.frame.h}px`;
+    if (keys.has("width")) el.style.width = `${frame.w}px`;
+    else el.style.removeProperty("width");
+    if (keys.has("height")) el.style.height = `${frame.h}px`;
+    else el.style.removeProperty("height");
     return;
   }
   if (keys.has("position")) el.style.position = "absolute";
-  if (keys.has("left")) el.style.left = `${layer.frame.x}px`;
-  if (keys.has("top")) el.style.top = `${layer.frame.y}px`;
-  if (keys.has("width")) el.style.width = `${layer.frame.w}px`;
-  if (keys.has("height")) el.style.height = `${layer.frame.h}px`;
+  else el.style.removeProperty("position");
+  if (keys.has("left")) el.style.left = `${frame.x}px`;
+  else el.style.removeProperty("left");
+  if (keys.has("top")) el.style.top = `${frame.y}px`;
+  else el.style.removeProperty("top");
+  if (keys.has("width")) el.style.width = `${frame.w}px`;
+  else el.style.removeProperty("width");
+  if (keys.has("height")) el.style.height = `${frame.h}px`;
+  else el.style.removeProperty("height");
 }
 
-/** Apply the scene's transform (rotate/scale/origin) to a DOM node. */
-function applyTransformToEl(el: HTMLElement, layer: Layer) {
-  const tfm = printTransform(layer.transform);
+/** Apply the scene's transform (rotate/scale/origin) to a DOM node.
+ *  Mirrors applyFrameToEl — prefers mobileTransform when in mobile mode. */
+function applyTransformToEl(
+  el: HTMLElement,
+  layer: Layer,
+  viewportMode: "desktop" | "mobile" = "desktop",
+) {
+  const source = viewportMode === "mobile"
+    ? (layer.mobileTransform ?? layer.transform)
+    : layer.transform;
+  const tfm = printTransform(source);
   if (tfm) el.style.transform = tfm;
   else el.style.removeProperty("transform");
-  const tfo = printTransformOrigin(layer.transform);
+  const tfo = printTransformOrigin(source);
   if (tfo) el.style.transformOrigin = tfo;
   else el.style.removeProperty("transform-origin");
 }
@@ -191,12 +225,12 @@ function applyTransformToEl(el: HTMLElement, layer: Layer) {
  *
  * This is what turns a "group" store action into actual DOM nesting.
  */
-export function applyStructure(scene: SceneGraph, container: HTMLElement) {
+export function applyStructure(
+  scene: SceneGraph,
+  container: HTMLElement,
+  viewportMode: "desktop" | "mobile" = "desktop",
+) {
   const reconcile = (node: GroupLayer | import("@/lib/scene").SectionLayer, domParent: HTMLElement) => {
-    // Track the previous scene-ordered dragable that is already in
-    // `domParent`. Used to detect out-of-order nodes without blindly
-    // appending (which would push every dragable past any non-dragable
-    // siblings that happen to live between them).
     let prevInOrder: HTMLElement | null = null;
     for (const child of node.children) {
       let childEl: HTMLElement | null;
@@ -207,41 +241,26 @@ export function applyStructure(scene: SceneGraph, container: HTMLElement) {
       }
       if (!childEl) continue;
 
-      // Inline/section layers are flow-positioned and may live nested
-      // inside decorative wrappers (e.g. <span id="el_*"> inside an <h1>
-      // title, or a section inside outer structural markup). Moving them
-      // between DOM parents would rip them out of their decorative
-      // context and break layout. Skip structural reconciliation for
-      // these types — visibility/lock/selection sync still applies.
       if (child.type === "inline" || child.type === "section") {
-        // Skip structural reconciliation (would rip flow elements out of
-        // their decorative wrappers), but apply transform + frame — the
-        // user may rotate or resize section height from the overlay.
-        applyFrameToEl(childEl, child);
-        applyTransformToEl(childEl, child);
+        applyFrameToEl(childEl, child, viewportMode);
+        applyTransformToEl(childEl, child, viewportMode);
         if (hasTypedChildren(child)) reconcile(child, childEl);
         continue;
       }
 
       if (childEl.parentElement !== domParent) {
-        // Cross-parent move (group/ungroup, paste into different parent).
-        // Append at end — the outer loop will handle subsequent order.
         domParent.appendChild(childEl);
       } else if (prevInOrder) {
-        // Same parent — only move if the current DOM order doesn't
-        // already place childEl after prevInOrder. This preserves any
-        // non-dragable siblings interleaved with layers.
         const pos = childEl.compareDocumentPosition(prevInOrder);
         const childIsBeforePrev = (pos & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
         if (childIsBeforePrev) {
-          // childEl comes before prev — swap by inserting after prev.
           prevInOrder.after(childEl);
         }
       }
       prevInOrder = childEl;
 
-      applyFrameToEl(childEl, child);
-      applyTransformToEl(childEl, child);
+      applyFrameToEl(childEl, child, viewportMode);
+      applyTransformToEl(childEl, child, viewportMode);
       if (hasTypedChildren(child)) {
         reconcile(child, childEl);
       }
@@ -305,11 +324,12 @@ export function applySelection(
  * scene change; each step is cheap (O(N) DOM walk, no layout thrash
  * beyond what the mutations actually require).
  */
-export function syncStoreToDom(scene: SceneGraph, container: HTMLElement) {
-  // Order matters: structure first (moves children into the correct
-  // parents, creating group wrappers as needed). Prune second so we
-  // only remove wrappers that are genuinely orphan after the move.
-  applyStructure(scene, container);
+export function syncStoreToDom(
+  scene: SceneGraph,
+  container: HTMLElement,
+  viewportMode: "desktop" | "mobile" = "desktop",
+) {
+  applyStructure(scene, container, viewportMode);
   pruneOrphans(scene, container);
   applyVisibilityAndLock(scene, container);
 }

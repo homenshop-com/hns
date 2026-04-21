@@ -121,7 +121,33 @@ export interface BaseLayer {
   /** Subset of `frameKeys` that carried a `!important` flag in the source.
    *  Re-emitted verbatim so overrides vs. template CSS aren't neutered. */
   frameImportant?: Array<"position" | "left" | "top" | "width" | "height">;
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════
+   * Mobile viewport override (≤ MOBILE_BREAKPOINT px).
+   * ═══════════════════════════════════════════════════════════════════
+   *
+   * When set, the serializer emits a `@media (max-width: 768px)` rule
+   * that applies these values, overriding the desktop inline frame.
+   * When unset, mobile inherits the desktop positioning — which
+   * for atomic children means `position:absolute` carries over to
+   * small screens, often collapsing or overlapping on phones.
+   *
+   * The editor writes to this field (instead of `frame`/`frameKeys`/
+   * `transform`) when the user drags/resizes in mobile viewport mode.
+   * On first mobile-mode mutation, mobileFrame is initialized from
+   * `frame` so the user picks up where desktop left off.
+   */
+  mobileFrame?: LayerFrame;
+  mobileFrameKeys?: Array<"position" | "left" | "top" | "width" | "height">;
+  mobileTransform?: LayerTransform;
 }
+
+/** Single source of truth for the desktop/mobile breakpoint. Must match
+ *  the value used by the published route's `<meta name="viewport">` and
+ *  the editor's viewport toggle. 768px is Bootstrap's md breakpoint and
+ *  aligns with iPad portrait; anything below renders as mobile. */
+export const MOBILE_BREAKPOINT = 768;
 
 export interface GroupLayer extends BaseLayer {
   type: "group";
