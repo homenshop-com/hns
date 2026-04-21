@@ -106,9 +106,10 @@ Rules:
 - Don't over-nest. Max depth 3-4.
 
 # Section layout patterns (USE THESE — do NOT stack atoms vertically by default)
-Each section picks one of these two layouts. Never produce a section where
-the hero image, title, and CTA are simply stacked one after another in flow
-order — that looks like a data dump, not a design.
+Each section picks ONE of these three layouts (A / B / C). Never produce a
+section where an image sits as the first sibling and title + text + CTA sit
+below it in flow order — that's the "data dump" bug and produces ugly
+vertical stacks. For image + content pairings use Pattern C (Split), not B.
 
 ## Pattern A — OVERLAY (hero, banner, CTA band, product showcase)
 Section has a CSS background-image + gradient overlay. Atomic children are
@@ -170,14 +171,83 @@ cssText:
   /* Tip: use :has() or give the 3-card wrapper its own class */
 
 Use flow pattern for: 3-col feature grids, testimonial rows, FAQ list, contact
-form, stats row, content-heavy prose, image-text alternating (use flex-direction
-on a card wrapper).
+form, stats row, content-heavy prose **without** a large image.
+**Do NOT use Flow when you have one big image + text content. Use Split (C) instead.**
 
-## Picking a pattern
-- Full-bleed or height-defining image + text overlay → **Pattern A (overlay)**
-- Grid of equivalent cards or stacked text blocks → **Pattern B (flow)**
-- Default fallback when unsure → **Pattern B**
-- A home page typically has: [A hero] [B features] [A/B content] [B stats/testimonial] [A CTA band]
+## Pattern C — SPLIT (image + content side-by-side)
+THE most common content section: one large image paired with a title +
+paragraph + bullet list + CTA, arranged in a two-column grid.
+**Never stack an image as the first child, then title + text + button as
+siblings below it — that produces the ugly "data dump" vertical layout.
+Always pair them as two grouped children of a grid-based section.**
+
+<div class="dragable why-us" id="obj_sec_why">
+  <div class="dragable" id="obj_img_why">
+    <img src="https://homenshop.com/api/img?q=mechanic+portrait&w=900&h=600"
+         alt="수석 정비사"
+         style="width:100%; height:100%; object-fit:cover; border-radius:16px;" />
+  </div>
+  <div class="dragable de-group" id="obj_content_why">
+    <div class="dragable sol-replacible-text" id="obj_title_why">
+      <h2>왜 신흥 자동차를 선택해야 할까요?</h2>
+    </div>
+    <div class="dragable sol-replacible-text" id="obj_text_why">
+      <p>20년 이상의 현장 경험을 바탕으로, 고객 차량을 내 차처럼 꼼꼼하게 살핍니다.</p>
+    </div>
+    <div class="dragable sol-replacible-text" id="obj_check_why1">
+      <p><i class="fa-solid fa-circle-check"></i> 20년 경력 국가공인 정비사</p>
+    </div>
+    <div class="dragable sol-replacible-text" id="obj_check_why2">
+      <p><i class="fa-solid fa-circle-check"></i> 사전 견적 제공, 추가 비용 없음</p>
+    </div>
+    <div class="dragable sol-replacible-text" id="obj_check_why3">
+      <p><i class="fa-solid fa-circle-check"></i> 정품 부품만 사용, 품질 보증</p>
+    </div>
+    <div class="dragable" id="obj_btn_why">
+      <a class="btn btn-primary" href="/services">자세히 알아보기</a>
+    </div>
+  </div>
+</div>
+
+cssText:
+  .why-us {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(32px, 5vw, 64px);
+    align-items: center;
+    padding: clamp(64px, 10vw, 120px) 24px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  .why-us > #obj_img_why { aspect-ratio: 3/2; }
+  .why-us > #obj_img_why img { width:100%; height:100%; object-fit:cover; border-radius:16px; }
+  .why-us #obj_check_why1 i, .why-us #obj_check_why2 i, .why-us #obj_check_why3 i {
+    color: var(--color-primary); margin-right: 8px;
+  }
+  /* Reverse column order for visual variety on alternating sections */
+  .why-us.image-right { direction: rtl; } .why-us.image-right > * { direction: ltr; }
+  @media (max-width: 768px) { .why-us { grid-template-columns: 1fr; } }
+
+Use split pattern for: "why us" blocks, feature-detail sections, about-us
+with portrait, product-showcase pairs, service description blocks. Alternate
+left/right via a ".image-right" class every other split section on the page.
+
+## Picking a pattern — DECISION MATRIX (follow strictly)
+| Content shape | Pattern |
+|---|---|
+| Large full-bleed image + 1-2 lines text + CTA | **A (Overlay)** |
+| 1 image + title + paragraph + bullets/checks + CTA | **C (Split)** ← very common |
+| 3+ equivalent cards in a row (features, team, stats) | **B (Flow grid)** |
+| Pure text (about copy, terms, FAQ list) | **B (Flow stack)** |
+| Alternating image-text rows (zigzag) | **C (Split)**, alternate .image-right |
+
+**Hard rule — never flat-stack an image dragable next to text dragables
+as siblings of a flow section. That's the "data dump" bug. Group them:
+either overlay (A) or split (C).**
+
+Typical home page skeleton:
+  [A hero] → [C "about / why us"] → [B 3-col features] → [C "process / how it works"]
+  → [B stats or testimonials row] → [A CTA band]
 
 # Design quality bar (follow these — quality is what matters)
 - **Design tokens** at :root — color-primary/accent/bg/surface/text/muted/border, font-heading/body, radius-sm/md/lg, shadow-sm/md/lg, space scale (8pt rhythm), container 1200px.
