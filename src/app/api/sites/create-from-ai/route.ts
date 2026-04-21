@@ -22,7 +22,9 @@ const SYSTEM_PROMPT = `You are a senior web designer. Return the finished site b
 - Wrap every section in <div class="dragable" id="obj_{unique}">…</div>, unique ids.
 - Flow layout only inside dragables (no position:absolute).
 - headerHtml/menuHtml/footerHtml include their outer <div id="hns_header|hns_menu|hns_footer"> wrapper.
-- menuHtml is <ul><li><a href="/{slug}">Title</a></li></ul> — home uses href="/".
+- **Navigation goes INSIDE headerHtml only, wrapped in a <nav>…</nav> block** (modern single-row design: brand + <nav> + CTA).
+- **menuHtml MUST be a bare wrapper: "<div id=\"hns_menu\"></div>" with NO <ul>, NO <li>, NO nav links inside.** The server renders the nav links from the header's <nav>; if you also put links in menuHtml you get a duplicate menu bar.
+- menuHtml links would use <a href="/{slug}">Title</a> — home uses href="/" — but AGAIN: put these inside headerHtml's <nav>, NOT in menuHtml.
 - Write ALL content in the user's defaultLanguage.
 
 # Design quality bar (follow these — quality is what matters)

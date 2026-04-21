@@ -562,7 +562,7 @@ export async function GET(
   }
 
   // Rewrite asset URLs in HTML sections
-  const headerHtml = templatePath
+  let headerHtml = templatePath
     ? rewriteAssetUrls(siteHeaderHtml, templatePath)
     : siteHeaderHtml;
   const rawMenuHtml = templatePath
@@ -571,7 +571,31 @@ export async function GET(
   let menuHtml: string;
   // Wrap generated menu in the nav container div that template CSS targets
   const wrappedMenu = `<div id="v-wdg-nav" class="v-home-ap-hd-nav menu dragable">${generatedMenu}</div>`;
-  if (!rawMenuHtml) {
+
+  // AI-generated sites put the navigation inline inside headerHtml (logo + nav +
+  // CTA in one row). When we also render menuHtml below, the page shows a
+  // duplicate menu bar. Detect "header already has a <nav> block with links"
+  // and, when true, replace the nav's links with fresh ones from the pages
+  // list (keeping the header's visual design + showInMenu auto-sync) and
+  // suppress the legacy second menu bar entirely.
+  const headerHasNavWithLinks =
+    /<nav[\s>][\s\S]*?<a\s[\s\S]*?<\/nav>/i.test(headerHtml);
+  if (headerHasNavWithLinks) {
+    const navLinks = topLevelPages
+      .map((p) => {
+        const label = p.menuTitle || p.title;
+        const href = p.isHome ? `${urlPrefix}/${lang}/` : `${urlPrefix}/${lang}/${p.slug}.html`;
+        const actualHref = p.externalUrl || href;
+        const target = p.externalUrl && /^https?:\/\//.test(p.externalUrl) ? ` target="_blank"` : "";
+        return `<a href="${actualHref}"${target}>${label}</a>`;
+      })
+      .join("\n");
+    headerHtml = headerHtml.replace(
+      /(<nav\b[^>]*>)([\s\S]*?)(<\/nav>)/i,
+      (_m, open, _old, close) => `${open}\n${navLinks}\n${close}`
+    );
+    menuHtml = "";
+  } else if (!rawMenuHtml) {
     menuHtml = wrappedMenu;
   } else {
     // Try to inject menu into v-wdg-jmenu-opts div first
