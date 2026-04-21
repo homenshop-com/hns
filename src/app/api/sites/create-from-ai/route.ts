@@ -32,7 +32,11 @@ const SYSTEM_PROMPT = `You are a senior web designer. Return the finished site b
 - **Home page MUST have**: (1) Hero w/ bg image + overlay + large heading + CTA (2) 3-col feature grid (3) image+text content section (4) testimonial or stats (5) final CTA band. Other pages: 3-4 varied sections each.
 - **Layout**: CSS Grid + Flexbox. Section vertical rhythm padding-block: clamp(48px,8vw,120px).
 - **Polish**: Buttons padding 14px 28px, radius md, hover translateY(-2px)+shadow. Cards radius-lg+shadow-sm+padding 32px, hover lift. Images radius-md, object-fit:cover, aspect-ratio enforced. Hero bg w/ linear-gradient overlay. Inline SVG icons (24×24, stroke currentColor) in circular tinted badges — NO emoji icons.
-- **Imagery**: https://picsum.photos/seed/{descriptive-keyword}/{w}/{h} matching content. Hero 1920×1080, cards 600×400, team 400×400.
+- **Imagery**: /api/img?q={english-keywords}&w={w}&h={h} — semantic image search (Pexels-backed).
+    q MUST be English keywords describing the image content. Translate Korean/other languages first.
+    Examples: cafe interior → q=cafe+interior · ocean sunset → q=ocean+sunset · team meeting → q=team+meeting · happy family → q=happy+family
+    Use 1-3 specific words, lowercase, joined with "+". NEVER use picsum.photos or other random placeholders.
+    Hero 1920×1080, cards 600×400, team portraits 400×400. Use orientation-appropriate dimensions.
 - **Header**: brand + inline nav, sticky w/ shadow + backdrop-filter. Menu underline-on-hover via pseudo-element.
 - **Footer**: 4 columns (About/Links/Contact/Social), dark bg, light text, small copyright row.
 - **Responsive**: @media (max-width:768px) stack menu, collapse grids to 1 col, touch targets ≥44px.

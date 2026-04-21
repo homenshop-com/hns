@@ -327,6 +327,35 @@ enum CreditTransactionKind {
   ADMIN_DEBIT
 }
 
+// ============================================
+// AI Image Search Cache
+// ============================================
+
+/// Maps a (keyword, orientation) tuple to a resolved image URL from Pexels
+/// (or the fallback provider). Populated by /api/img on first lookup; reused
+/// for ~30 days. Admin may purge rows to force re-fetch.
+model ImageCache {
+  id          String   @id @default(cuid())
+  /// Normalized keyword: lowercased, trimmed, spaces collapsed.
+  keyword     String
+  /// "landscape" | "portrait" | "square" — matches Pexels orientation param.
+  orientation String
+  /// Resolved absolute URL the /api/img endpoint redirects to.
+  url         String   @db.Text
+  /// Attribution: photographer name & Pexels photo URL, for optional crediting.
+  photographer String?
+  sourceUrl   String?
+  /// Image provider ("pexels" | "picsum" | "manual").
+  provider    String   @default("pexels")
+  /// Hit count — useful for tuning.
+  hits        Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([keyword, orientation])
+  @@index([keyword])
+}
+
 model OrderItem {
   id        String @id @default(cuid())
   orderId   String
