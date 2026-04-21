@@ -20,7 +20,9 @@ const SYSTEM_PROMPT = `You are a senior web designer. Return the finished site b
 - Exactly one page has slug "index". Other slugs: lowercase alphanumeric only.
 - bodyHtml is INNER HTML of <div id="hns_body"> — no wrapper.
 - Wrap every section in <div class="dragable" id="obj_{unique}">…</div>, unique ids.
-- Flow layout only inside dragables (no position:absolute).
+- **Sections** (obj_sec_*) are ALWAYS flow-positioned (no inline position, top, left). They stack vertically down the page like document blocks. Each section sets its own height via CSS (min-height or fixed height on hero).
+- **Atomic children inside a section** CAN be either flow OR absolute-positioned (see § Section layout patterns below). Pick whichever produces the visually correct design — stacked prose uses flow, overlaid hero content uses absolute.
+- When using absolute positioning on atomic children, put "position:absolute; left:Xpx; top:Ypx; width:Wpx; height:Hpx;" in an inline style attribute. The section MUST have "position:relative" (set via CSS class) so children position relative to the section, not the page.
 - headerHtml/menuHtml/footerHtml include their outer <div id="hns_header|hns_menu|hns_footer"> wrapper.
 - **Navigation goes INSIDE headerHtml only, wrapped in a <nav>…</nav> block** (modern single-row design: brand + <nav> + CTA).
 - **menuHtml MUST be a bare wrapper: "<div id=\"hns_menu\"></div>" with NO <ul>, NO <li>, NO nav links inside.** The server renders the nav links from the header's <nav>; if you also put links in menuHtml you get a duplicate menu bar.
@@ -95,15 +97,81 @@ Rules:
 - Every dragable id starts with "obj_" followed by a role hint + running
   number ("obj_title_1", "obj_img_3", "obj_card_2"). Ids must be unique
   across the entire site (use page-slug prefixes if needed).
-- Flow layout ONLY. No inline position:absolute, no top/left. Use normal
-  block/flex/grid layout in CSS classes.
-- Don't over-nest. A hero section is fine as: section > 4 leaves (bg img,
-  title, subtitle, CTA). A 3-col feature grid is: section > 3 card groups >
-  3 leaves each. Avoid 5-level deep wrappers.
-- Section background image: apply via CSS on the section's class (e.g.
-  ".hero { background: url(https://homenshop.com/api/img?q=…) center/cover; }")
-  — do NOT create a separate absolutely-positioned <img> child. Backgrounds
-  are stylistic (CSS), content images are atomic (dragable children).
+- Don't over-nest. Max depth 3-4.
+
+# Section layout patterns (USE THESE — do NOT stack atoms vertically by default)
+Each section picks one of these two layouts. Never produce a section where
+the hero image, title, and CTA are simply stacked one after another in flow
+order — that looks like a data dump, not a design.
+
+## Pattern A — OVERLAY (hero, banner, CTA band, product showcase)
+Section has a CSS background-image + gradient overlay. Atomic children are
+ABSOLUTELY positioned over the background, creating a layered design.
+
+<div class="dragable hero" id="obj_sec_hero" style="position:relative;">
+  <!-- Decorative img dragable pinned to fill the section (editor can swap it) -->
+  <div class="dragable" id="obj_img_herobg"
+       style="position:absolute; left:0; top:0; width:100%; height:100%; z-index:0;">
+    <img src="https://homenshop.com/api/img?q=cafe+interior+warm&w=1920&h=800"
+         alt="매장 분위기"
+         style="width:100%; height:100%; object-fit:cover;" />
+  </div>
+  <div class="dragable sol-replacible-text" id="obj_title_hero"
+       style="position:absolute; left:80px; top:260px; width:620px; z-index:2;">
+    <h1>책으로 가득 찬 따뜻한 공간</h1>
+  </div>
+  <div class="dragable sol-replacible-text" id="obj_text_hero"
+       style="position:absolute; left:80px; top:380px; width:520px; z-index:2;">
+    <p>놀숲 세종 보람점은 자연 채광이 풍부한 넓은 공간에 …</p>
+  </div>
+  <div class="dragable" id="obj_btn_hero"
+       style="position:absolute; left:80px; top:500px; width:200px; height:52px; z-index:2;">
+    <a class="btn btn-primary" href="/about">공간 더 알아보기</a>
+  </div>
+</div>
+
+cssText for the section:
+  .hero { position: relative; height: 680px; overflow: hidden; }
+  .hero::after { content:""; position:absolute; inset:0; z-index:1;
+    background: linear-gradient(180deg, rgba(0,0,0,.1), rgba(0,0,0,.55)); }
+  .hero h1 { color: #fff; font-size: clamp(2.25rem,4vw,3.5rem); ... }
+  .hero p { color: rgba(255,255,255,.9); ... }
+
+Use overlay pattern for: hero, CTA band, testimonial w/ portrait, image+quote,
+full-bleed banner. The section height is fixed (usually 500-800px on desktop).
+
+## Pattern B — FLOW (prose sections, 3-col grids, FAQ lists, forms)
+Atomic children flow top-to-bottom with padding, no absolute positioning on
+children. Use CSS flex/grid on the section class to arrange.
+
+<div class="dragable features" id="obj_sec_features">
+  <div class="dragable sol-replacible-text" id="obj_title_feat">
+    <h2>우리의 서비스</h2>
+  </div>
+  <div class="dragable de-group" id="obj_card_feat1">
+    <div class="dragable" id="obj_cardimg_feat1"><img src="..." alt="..."/></div>
+    <div class="dragable sol-replacible-text" id="obj_cardtitle_feat1"><h3>…</h3></div>
+    <div class="dragable sol-replacible-text" id="obj_cardtext_feat1"><p>…</p></div>
+  </div>
+  <div class="dragable de-group" id="obj_card_feat2">…</div>
+  <div class="dragable de-group" id="obj_card_feat3">…</div>
+</div>
+
+cssText:
+  .features { padding: clamp(48px,8vw,120px) 24px; max-width: 1200px; margin: 0 auto; }
+  .features > #obj_title_feat { text-align: center; margin-bottom: 48px; }
+  .features > .de-group { display: grid; grid-template-columns: repeat(3,1fr); gap: 24px; }
+  /* Tip: use :has() or give the 3-card wrapper its own class */
+
+Use flow pattern for: 3-col feature grids, testimonial rows, FAQ list, contact
+form, stats row, content-heavy prose, image-text alternating (use flex-direction
+on a card wrapper).
+
+## Picking a pattern
+- Full-bleed or height-defining image + text overlay → **Pattern A (overlay)**
+- Grid of equivalent cards or stacked text blocks → **Pattern B (flow)**
+- Default fallback when unsure → **Pattern B**
+- A home page typically has: [A hero] [B features] [A/B content] [B stats/testimonial] [A CTA band]
 
 # Design quality bar (follow these — quality is what matters)
 - **Design tokens** at :root — color-primary/accent/bg/surface/text/muted/border, font-heading/body, radius-sm/md/lg, shadow-sm/md/lg, space scale (8pt rhythm), container 1200px.
