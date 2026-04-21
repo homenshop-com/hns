@@ -10,7 +10,13 @@ import {
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const CLAUDE_MODEL = process.env.AI_GENERATE_MODEL || "claude-sonnet-4-6";
-const MAX_TOKENS = Number(process.env.AI_GENERATE_MAX_TOKENS) || 20000;
+// Claude Sonnet 4.6 supports up to 64k output tokens. 20k was OK for the
+// old flat-HTML design but the new Overlay/Flow section patterns emit many
+// more inline position styles per atomic — tight sites (3 short pages)
+// now land around 18-25k, richer sites (5 pages w/ feature grids + cards)
+// can exceed 30k. Default 40k covers a comfortable majority; set
+// AI_GENERATE_MAX_TOKENS higher if the site needs exceptional complexity.
+const MAX_TOKENS = Number(process.env.AI_GENERATE_MAX_TOKENS) || 40000;
 
 export const maxDuration = 180;
 
@@ -409,8 +415,8 @@ export async function POST(request: Request) {
         });
         lastError =
           stopReason === "max_tokens"
-            ? "AI 응답이 너무 길어 잘렸습니다. 더 간결한 설명으로 재시도해주세요."
-            : "AI가 올바른 형식으로 응답하지 않았습니다.";
+            ? "AI가 디자인을 생성하는 중에 길이 제한에 도달했습니다. 다시 시도해주세요. (계속 실패하면 '더 단순한 디자인으로' 등 짧은 지시를 추가해보세요)"
+            : "AI가 올바른 형식으로 응답하지 않았습니다. 다시 시도해주세요.";
         continue;
       }
       aiResult = (toolBlock as { input: AIResponse }).input;
@@ -440,7 +446,7 @@ export async function POST(request: Request) {
     });
     const msg =
       lastStopReason === "max_tokens"
-        ? "AI 응답이 길이 제한에 도달해 페이지 생성이 중단됐습니다. 설명을 더 간결히 다시 시도해주세요."
+        ? "AI가 디자인을 생성하는 중에 길이 제한에 도달했습니다. 다시 시도해주세요. (계속 실패하면 '더 단순한 디자인으로' 등 짧은 지시를 추가해보세요)"
         : "AI가 페이지를 생성하지 못했습니다. 다시 시도해주세요.";
     refundOnError("AI returned empty pages");
     return NextResponse.json({ error: msg }, { status: 502 });
