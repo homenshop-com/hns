@@ -19,7 +19,12 @@ import {
 } from "@/lib/scene";
 
 const TiptapModal = lazy(() => import("./tiptap-modal"));
-const LayerPanel = lazy(() => import("./components/LayerPanel"));
+// LayerPanel is rendered by InspectorPanel's "레이어" tab; no direct
+// reference here (lazy-imported inside InspectorPanel).
+// Sprint 9j — Figma-style side rails and canvas rulers.
+const LeftPalette = lazy(() => import("./components/LeftPalette"));
+const InspectorPanel = lazy(() => import("./components/InspectorPanel"));
+const CanvasRulers = lazy(() => import("./components/CanvasRulers"));
 const CanvasOverlay = lazy(() => import("./components/CanvasOverlay"));
 
 /** Module-scoped clipboard for V2 copy/paste. Lives for the page
@@ -251,6 +256,9 @@ export default function DesignEditor({
   } | null>(null);
 
   const canvasRef = useRef<HTMLDivElement>(null);
+  // Outer scroll container — referenced by CanvasRulers to track scrollLeft /
+  // scrollTop so the ruler origin stays glued to the artboard.
+  const canvasWrapperRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -2391,6 +2399,7 @@ export default function DesignEditor({
 
       {/* CANVAS */}
       <div
+        ref={canvasWrapperRef}
         className={`de-canvas-wrapper${viewportMode === "mobile" ? " mobile-preview" : ""}`}
         onMouseMove={(e) => {
           const host = bodyRef.current;
@@ -2444,6 +2453,17 @@ export default function DesignEditor({
           </div>
         </div>
 
+        {/* Sprint 9j — Figma-style rulers (H/V) synced with zoom + scroll */}
+        {editorV2Enabled && (
+          <Suspense fallback={null}>
+            <CanvasRulers
+              wrapperRef={canvasWrapperRef}
+              originRef={canvasRef}
+              zoom={zoom}
+            />
+          </Suspense>
+        )}
+
         {/* Floating zoom controls — bottom-right pill (Figma-style) */}
         <div className="de-canvas-float-br">
           <div className="de-float-group">
@@ -2492,14 +2512,23 @@ export default function DesignEditor({
         <div className="de-tooltip">더블 클릭 하시면 해당객체를 수정하실 수 있습니다.</div>
       )}
 
-      {/* V2 LAYER PANEL (feature-flagged, fixed right rail) */}
+      {/* Sprint 9j — Figma-style left component palette (fixed left rail) */}
       {editorV2Enabled && (
         <Suspense fallback={null}>
-          <div className="layerpanel-rail">
-            <LayerPanel />
-          </div>
+          <LeftPalette onInsert={(type) => addElement(type)} />
         </Suspense>
       )}
+
+      {/* Sprint 9j — Inspector (design / layers / interaction) replaces the
+          bare LayerPanel on the right rail. */}
+      {editorV2Enabled && (
+        <Suspense fallback={null}>
+          <InspectorPanel enabled={editorV2Enabled} />
+        </Suspense>
+      )}
+
+      {/* (editorV2 disabled — no legacy rail render; InspectorPanel is the
+          single source of truth for editor-v2 users.) */}
 
       {/* V2 CANVAS OVERLAY — rotation handle + align toolbar */}
       {editorV2Enabled && (

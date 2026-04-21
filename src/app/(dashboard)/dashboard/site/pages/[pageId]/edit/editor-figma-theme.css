@@ -567,3 +567,665 @@
 .de-root .de-obj-btn span:first-child { opacity: 0.8; }
 .de-root .de-tab { font-family: inherit; }
 .de-root { font-feature-settings: "tnum" 1; }
+
+/* ═══════════════════════════════════════════════════════════════════
+ *  Sprint 9j — LeftPalette, InspectorPanel, CanvasRulers
+ * ═══════════════════════════════════════════════════════════════════ */
+
+/* ───── Left palette rail ──────────────────────────────────────────── */
+.leftpalette-rail {
+  position: fixed;
+  top: 92px;
+  left: 0;
+  bottom: 26px; /* above status bar */
+  width: 240px;
+  z-index: 1000;
+  background: var(--fig-bg-1);
+  border-right: 1px solid var(--fig-line-2);
+  color: var(--fig-text-1);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  font-family: inherit;
+}
+
+.lp-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  padding: 8px 8px 0;
+  gap: 2px;
+  border-bottom: 1px solid var(--fig-line);
+  flex-shrink: 0;
+}
+.lp-tab {
+  height: 28px;
+  border: 0;
+  background: transparent;
+  border-radius: 4px;
+  color: var(--fig-text-2);
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.12s, color 0.12s;
+}
+.lp-tab:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--fig-text-1);
+}
+.lp-tab.active {
+  background: var(--fig-bg-3);
+  color: var(--fig-text-0);
+}
+
+.lp-search {
+  margin: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 6px;
+  background: var(--fig-bg-0);
+  border: 1px solid var(--fig-line-2);
+  color: var(--fig-text-2);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.lp-search input {
+  all: unset;
+  flex: 1;
+  color: var(--fig-text-0);
+  font-size: 12px;
+  min-width: 0;
+}
+.lp-search input::placeholder { color: var(--fig-text-3); }
+.lp-kbd {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 10px;
+  color: var(--fig-text-3);
+  padding: 1px 5px;
+  border: 1px solid var(--fig-line-2);
+  border-radius: 4px;
+}
+
+.lp-scroll {
+  overflow-y: auto;
+  flex: 1;
+  padding-bottom: 16px;
+  min-height: 0;
+}
+
+.lp-section { padding: 4px 10px 12px; }
+.lp-section h4 {
+  margin: 6px 2px 8px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--fig-text-3);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.lp-chev { color: var(--fig-text-3); font-size: 10px; cursor: pointer; }
+
+.lp-block-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.lp-block {
+  all: unset;
+  aspect-ratio: 1.1 / 1;
+  border-radius: 6px;
+  background: var(--fig-bg-2);
+  border: 1px solid var(--fig-line);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--fig-text-1);
+  font-size: 11px;
+  cursor: grab;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.15s, transform 0.15s, background 0.12s;
+  text-align: center;
+}
+.lp-block:hover {
+  border-color: var(--fig-accent);
+  color: var(--fig-text-0);
+  transform: translateY(-1px);
+  background: var(--fig-bg-3);
+}
+.lp-block:active { cursor: grabbing; }
+.lp-thumb {
+  width: 58%;
+  aspect-ratio: 1;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #2a2e40, #1e2030);
+  border: 1px solid var(--fig-line-2);
+  display: grid;
+  place-items: center;
+  color: var(--fig-text-1);
+  font-size: 16px;
+}
+.lp-thumb.swatch-text {
+  background: #23273a;
+  font-family: "Pretendard Variable", Pretendard, sans-serif;
+  font-weight: 700;
+}
+.lp-thumb.swatch-button {
+  background: linear-gradient(135deg, #e89a78, #d87757);
+  border-color: transparent;
+  color: #fff;
+}
+.lp-thumb.swatch-image {
+  background: linear-gradient(135deg, #2c3445, #1c2230);
+  color: var(--fig-text-2);
+}
+.lp-thumb.swatch-shape {
+  background: transparent;
+  border: 1.5px dashed var(--fig-text-3);
+  border-radius: 50%;
+  color: var(--fig-text-3);
+}
+.lp-label { font-weight: 500; font-size: 11px; }
+
+.lp-row-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.lp-row {
+  all: unset;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  color: var(--fig-text-1);
+  font-size: 12.5px;
+  cursor: grab;
+  font-family: inherit;
+}
+.lp-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--fig-text-0);
+}
+.lp-row:active { cursor: grabbing; }
+.lp-row-icon {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  color: var(--fig-text-2);
+  flex-shrink: 0;
+}
+.lp-row:hover .lp-row-icon { color: var(--fig-accent); }
+.lp-row-label { flex: 1; }
+.lp-row-count {
+  color: var(--fig-text-3);
+  font-size: 11px;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+}
+.lp-row-mine {
+  cursor: default;
+}
+.lp-row-mine:hover { background: rgba(255, 255, 255, 0.03); }
+.lp-accent { color: var(--fig-accent) !important; }
+
+.lp-empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--fig-text-2);
+}
+.lp-empty-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--fig-bg-2);
+  display: inline-grid;
+  place-items: center;
+  color: var(--fig-text-3);
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+.lp-empty-title {
+  color: var(--fig-text-1);
+  font-weight: 500;
+  font-size: 12.5px;
+  margin-bottom: 4px;
+}
+.lp-empty-sub {
+  font-size: 11.5px;
+  color: var(--fig-text-3);
+}
+
+/* Reserve space in the canvas wrapper for the left rail */
+@media (min-width: 1024px) {
+  body:has(.leftpalette-rail) .de-canvas-wrapper {
+    padding-left: 240px;
+  }
+}
+@media (max-width: 1023px) {
+  .leftpalette-rail { display: none; }
+}
+
+/* ───── Inspector rail (right) ─────────────────────────────────────── */
+.inspector-rail {
+  position: fixed;
+  top: 92px;
+  right: 0;
+  bottom: 26px;
+  width: 280px;
+  z-index: 1000;
+  background: var(--fig-bg-1);
+  border-left: 1px solid var(--fig-line-2);
+  color: var(--fig-text-1);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  font-family: inherit;
+}
+.ins-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  padding: 8px 8px 0;
+  gap: 2px;
+  border-bottom: 1px solid var(--fig-line);
+  flex-shrink: 0;
+}
+.ins-tab {
+  height: 28px;
+  border: 0;
+  background: transparent;
+  border-radius: 4px;
+  color: var(--fig-text-2);
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.12s, color 0.12s;
+}
+.ins-tab:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--fig-text-1);
+}
+.ins-tab.active {
+  background: var(--fig-bg-3);
+  color: var(--fig-text-0);
+}
+
+.ins-scroll {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Replace the old padding-reserve rule for LayerPanel with one that uses
+   the inspector rail width. */
+body:has(.inspector-rail) .de-canvas-wrapper {
+  padding-right: 280px;
+}
+@media (max-width: 1023px) {
+  .inspector-rail { display: none; }
+  body:has(.inspector-rail) .de-canvas-wrapper { padding-right: 0; }
+}
+
+/* Selection header */
+.ins-sel-header {
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--fig-line);
+}
+.ins-sel-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ins-sel-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  background: var(--fig-bg-3);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.ins-sel-name {
+  all: unset;
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--fig-text-0);
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+.ins-sel-name:focus {
+  background: var(--fig-bg-2);
+  outline: 1px solid var(--fig-accent);
+}
+.ins-sel-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: rgba(110, 168, 255, 0.15);
+  color: var(--fig-blue);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+}
+.ins-sel-path {
+  margin-top: 6px;
+  font-size: 10.5px;
+  color: var(--fig-text-3);
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.ins-sel-seg {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--fig-text-2);
+}
+.ins-sel-seg .cur { color: var(--fig-text-0); }
+.ins-sel-chev { color: var(--fig-text-3); opacity: 0.6; font-size: 9px; }
+
+/* Sections (design tab) */
+.ins-section {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--fig-line);
+}
+.ins-section h5 {
+  margin: 0 0 10px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--fig-text-3);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.ins-add-btn {
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 3px;
+  color: var(--fig-text-2);
+  cursor: pointer;
+}
+.ins-add-btn:hover { background: var(--fig-bg-3); color: var(--fig-text-0); }
+
+.ins-prop-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.ins-prop-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 6px;
+}
+.ins-prop {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 6px 0 8px;
+  border-radius: 4px;
+  background: var(--fig-bg-2);
+  color: var(--fig-text-1);
+  font-size: 11.5px;
+  transition: background 0.12s;
+}
+.ins-prop:hover { background: var(--fig-bg-3); }
+.ins-prop.disabled { opacity: 0.5; cursor: not-allowed; }
+.ins-prop label {
+  color: var(--fig-text-3);
+  font-weight: 500;
+  min-width: 12px;
+  text-align: left;
+  font-size: 10.5px;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+}
+.ins-prop input {
+  all: unset;
+  flex: 1;
+  min-width: 0;
+  text-align: right;
+  color: var(--fig-text-0);
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+.ins-prop input:disabled { color: var(--fig-text-3); }
+.ins-prop .unit {
+  color: var(--fig-text-3);
+  font-size: 10.5px;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+}
+
+/* Typography read-only row */
+.ins-type-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 4px;
+  background: var(--fig-bg-2);
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+.ins-type-icon { color: var(--fig-text-3); font-size: 12px; }
+.ins-type-label { flex: 1; color: var(--fig-text-0); }
+.ins-type-meta { color: var(--fig-text-3); font-size: 11px; }
+
+/* Swatch row (fill / border) */
+.ins-swatch-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 8px 0 4px;
+  border-radius: 4px;
+  background: var(--fig-bg-2);
+  margin-bottom: 6px;
+}
+.ins-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+}
+.ins-swatch-val {
+  flex: 1;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  color: var(--fig-text-0);
+}
+.ins-swatch-alpha {
+  width: 34px;
+  text-align: right;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--fig-text-2);
+}
+.ins-swatch-eye { color: var(--fig-text-3); cursor: pointer; font-size: 12px; }
+.ins-swatch-eye:hover { color: var(--fig-text-0); }
+
+/* Effect row */
+.ins-effect-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 4px;
+  background: var(--fig-bg-2);
+  margin-bottom: 6px;
+}
+.ins-effect-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(#fff2, transparent);
+  box-shadow: 0 4px 10px -2px #5be5b340;
+}
+.ins-effect-label { flex: 1; font-size: 12px; color: var(--fig-text-0); }
+.ins-effect-meta {
+  font-size: 10.5px;
+  color: var(--fig-text-3);
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+}
+
+/* Interaction row */
+.ins-interaction-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 4px;
+  background: var(--fig-bg-2);
+  font-size: 11.5px;
+}
+.ins-interaction-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  background: rgba(110, 168, 255, 0.15);
+  color: var(--fig-blue);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.ins-interaction-main { flex: 1; min-width: 0; }
+.ins-interaction-top { color: var(--fig-text-0); }
+.ins-interaction-sub {
+  color: var(--fig-text-3);
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 10.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ins-interaction-more { color: var(--fig-text-3); font-size: 12px; cursor: pointer; }
+
+/* Empty states (proto / layers tab empty) */
+.ins-empty {
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--fig-text-2);
+}
+.ins-empty-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--fig-bg-2);
+  display: inline-grid;
+  place-items: center;
+  color: var(--fig-text-3);
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+.ins-empty-title {
+  color: var(--fig-text-1);
+  font-weight: 500;
+  font-size: 12.5px;
+  margin-bottom: 4px;
+}
+.ins-empty-sub {
+  font-size: 11.5px;
+  color: var(--fig-text-3);
+  line-height: 1.6;
+}
+.ins-empty-btn {
+  margin-top: 14px;
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: 0;
+  background: var(--fig-accent);
+  color: var(--fig-accent-ink);
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.ins-empty-btn:hover:not(:disabled) { background: var(--fig-accent-2); }
+.ins-empty-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.ins-empty-small {
+  padding: 20px;
+  text-align: center;
+  color: var(--fig-text-3);
+  font-size: 11.5px;
+}
+
+/* LayerPanel nested inside inspector — dark-themed */
+.inspector-rail .layerpanel-rail,
+.inspector-rail [class*="layerpanel"] {
+  position: static !important;
+  width: 100% !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: var(--fig-text-1) !important;
+}
+
+/* ───── Canvas Rulers ──────────────────────────────────────────────── */
+.de-canvas-wrapper { padding-top: 20px !important; }
+
+.de-ruler {
+  position: absolute;
+  pointer-events: none;
+  z-index: 3;
+  background: var(--fig-bg-1);
+}
+.de-ruler-h {
+  top: 0;
+  left: 20px;
+  right: 0;
+  height: 20px;
+  border-bottom: 1px solid var(--fig-line);
+}
+.de-ruler-v {
+  top: 20px;
+  left: 0;
+  bottom: 0;
+  width: 20px;
+  border-right: 1px solid var(--fig-line);
+}
+.de-ruler-corner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 20px;
+  height: 20px;
+  z-index: 4;
+  background: var(--fig-bg-1);
+  border-right: 1px solid var(--fig-line);
+  border-bottom: 1px solid var(--fig-line);
+  pointer-events: none;
+}
+/* Mobile preview shrinks rulers (phone frame doesn't need ruler overlap) */
+.de-canvas-wrapper.mobile-preview .de-ruler,
+.de-canvas-wrapper.mobile-preview .de-ruler-corner { display: none; }
+
+/* ───── Canvas padding adjustment — compensate for ruler gutters ───── */
+.de-canvas-wrapper .de-canvas {
+  /* Give extra top space so rulers don't overlap the canvas */
+  margin-top: 24px;
+}
