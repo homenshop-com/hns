@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import {
+  consumeCredits,
+  refundCredits,
+  CREDIT_COSTS,
+  InsufficientCreditsError,
+} from "@/lib/credits";
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const CLAUDE_MODEL = process.env.AI_EDIT_MODEL || "claude-haiku-4-5-20251001";
@@ -48,9 +54,10 @@ CRITICAL RULES:
 
 export async function POST(request: Request) {
   const session = await auth();
-  if (!session) {
+  if (!session?.user?.id) {
     return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
   }
+  const userId = session.user.id;
 
   if (!ANTHROPIC_API_KEY) {
     return NextResponse.json(
@@ -67,6 +74,55 @@ export async function POST(request: Request) {
       { status: 400 }
     );
   }
+
+  // ─── Credit check & consumption ───────────────────────────────────────────
+  // Consume credits up-front so concurrent requests can't double-spend. If the
+  // AI call fails for a reason that isn't the user's fault (API error, parse
+  // failure, timeout), we refund at the end via `creditsConsumed` + the
+  // single `return` choke-point below.
+  try {
+    await consumeCredits(userId, {
+      kind: "AI_EDIT",
+      amount: CREDIT_COSTS.AI_EDIT,
+      aiModel: CLAUDE_MODEL,
+      description: "디자인 에디터 AI 편집",
+    });
+  } catch (err) {
+    if (err instanceof InsufficientCreditsError) {
+      return NextResponse.json(
+        {
+          error: `크레딧이 부족합니다. (필요: ${err.required} C, 잔액: ${err.balance} C)`,
+          code: "INSUFFICIENT_CREDITS",
+          balance: err.balance,
+          required: err.required,
+        },
+        { status: 402 }
+      );
+    }
+    console.error("[credits] consume failed:", err);
+    return NextResponse.json({ error: "크레딧 처리 중 오류가 발생했습니다." }, { status: 500 });
+  }
+
+  // From here on, if we return a non-200 response we should refund.
+  const response = await runAiEdit({
+    html, headerHtml, menuHtml, footerHtml, css, pageCss, templateCss, prompt, selectedElement,
+  });
+  if (response.status !== 200) {
+    refundCredits(userId, CREDIT_COSTS.AI_EDIT, {
+      reason: `AI edit failed (${response.status})`,
+    }).catch((e) => console.error("[credits] refund failed:", e));
+  }
+  return response;
+}
+
+interface AiEditInput {
+  html?: string; headerHtml?: string; menuHtml?: string; footerHtml?: string;
+  css?: string; pageCss?: string; templateCss?: string;
+  prompt: string; selectedElement?: string;
+}
+
+async function runAiEdit(input: AiEditInput): Promise<NextResponse> {
+  const { html, headerHtml, menuHtml, footerHtml, css, pageCss, templateCss, prompt, selectedElement } = input;
 
   let userMessage = `Body HTML:\n\`\`\`html\n${html || ""}\n\`\`\`\n\n`;
   if (headerHtml) {
@@ -108,9 +164,10 @@ export async function POST(request: Request) {
     ],
   });
 
-  const apiHeaders = {
+  // ANTHROPIC_API_KEY is validated in the POST handler before this is called.
+  const apiHeaders: Record<string, string> = {
     "Content-Type": "application/json",
-    "x-api-key": ANTHROPIC_API_KEY,
+    "x-api-key": ANTHROPIC_API_KEY!,
     "anthropic-version": "2023-06-01",
   };
 

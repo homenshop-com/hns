@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import {
+  consumeCredits,
+  refundCredits,
+  CREDIT_COSTS,
+  InsufficientCreditsError,
+} from "@/lib/credits";
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const CLAUDE_MODEL = process.env.AI_GENERATE_MODEL || "claude-sonnet-4-6";
@@ -109,6 +115,35 @@ export async function POST(request: Request) {
       { status: 409 }
     );
   }
+
+  // ─── Credit check & consumption ───────────────────────────────────────────
+  // Consume up-front. Refund on any failure path that isn't the user's fault.
+  try {
+    await consumeCredits(session.user.id, {
+      kind: "AI_SITE_CREATE",
+      amount: CREDIT_COSTS.AI_SITE_CREATE,
+      aiModel: CLAUDE_MODEL,
+      description: `AI 사이트 생성 (${shopId})`,
+    });
+  } catch (err) {
+    if (err instanceof InsufficientCreditsError) {
+      return NextResponse.json(
+        {
+          error: `크레딧이 부족합니다. (필요: ${err.required} C, 잔액: ${err.balance} C)`,
+          code: "INSUFFICIENT_CREDITS",
+          balance: err.balance,
+          required: err.required,
+        },
+        { status: 402 }
+      );
+    }
+    console.error("[credits] consume failed:", err);
+    return NextResponse.json({ error: "크레딧 처리 중 오류가 발생했습니다." }, { status: 500 });
+  }
+  const refundOnError = (reason: string) => {
+    refundCredits(session.user.id, CREDIT_COSTS.AI_SITE_CREATE, { reason })
+      .catch((e) => console.error("[credits] refund failed:", e));
+  };
 
   const userMessage = [
     `defaultLanguage: ${defaultLanguage}`,
@@ -235,6 +270,7 @@ export async function POST(request: Request) {
   }
 
   if (!aiResult) {
+    refundOnError("AI generation failed");
     return NextResponse.json(
       { error: lastError || "AI 처리 실패" },
       { status: 502 }
@@ -254,6 +290,7 @@ export async function POST(request: Request) {
       lastStopReason === "max_tokens"
         ? "AI 응답이 길이 제한에 도달해 페이지 생성이 중단됐습니다. 설명을 더 간결히 다시 시도해주세요."
         : "AI가 페이지를 생성하지 못했습니다. 다시 시도해주세요.";
+    refundOnError("AI returned empty pages");
     return NextResponse.json({ error: msg }, { status: 502 });
   }
 
@@ -306,25 +343,35 @@ export async function POST(request: Request) {
     cssKB: Math.round((aiResult.cssText || "").length / 1024),
   });
 
-  const site = await prisma.site.create({
-    data: {
-      userId: session.user.id,
-      shopId,
-      name: (aiResult.siteName || siteTitle).toString().slice(0, 200),
-      defaultLanguage,
-      languages: [defaultLanguage],
-      templateId: null,
-      templatePath: null,
-      headerHtml: aiResult.headerHtml || null,
-      menuHtml: aiResult.menuHtml || null,
-      footerHtml: aiResult.footerHtml || null,
-      cssText: aiResult.cssText || null,
-      pages: { create: pageData },
-    },
-    include: {
-      pages: { orderBy: { sortOrder: "asc" } },
-    },
-  });
+  try {
+    const site = await prisma.site.create({
+      data: {
+        userId: session.user.id,
+        shopId,
+        name: (aiResult.siteName || siteTitle).toString().slice(0, 200),
+        defaultLanguage,
+        languages: [defaultLanguage],
+        templateId: null,
+        templatePath: null,
+        headerHtml: aiResult.headerHtml || null,
+        menuHtml: aiResult.menuHtml || null,
+        footerHtml: aiResult.footerHtml || null,
+        cssText: aiResult.cssText || null,
+        pages: { create: pageData },
+      },
+      include: {
+        pages: { orderBy: { sortOrder: "asc" } },
+      },
+    });
 
-  return NextResponse.json({ site });
+    return NextResponse.json({ site });
+  } catch (err) {
+    // DB write failed after AI succeeded — refund so user isn't charged for a site they didn't get.
+    console.error("[create-from-ai] site.create failed:", err);
+    refundOnError("Site DB write failed");
+    return NextResponse.json(
+      { error: "사이트 저장 중 오류가 발생했습니다." },
+      { status: 500 }
+    );
+  }
 }

@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { sendWelcomeEmail, sendVerificationEmail } from "@/lib/email";
 import crypto from "crypto";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { grantCredits, SIGNUP_BONUS } from "@/lib/credits";
 
 export async function POST(req: NextRequest) {
   try {
@@ -106,6 +107,14 @@ export async function POST(req: NextRequest) {
         phone: phone || null,
       },
     });
+
+    // Grant signup bonus credits (fire-and-forget with error swallow — signup
+    // must never fail because of a credit bookkeeping issue).
+    grantCredits(user.id, {
+      kind: "SIGNUP_BONUS",
+      amount: SIGNUP_BONUS,
+      description: "가입 축하 크레딧",
+    }).catch((e) => console.error("[credits] signup bonus failed for", user.id, e));
 
     // Send welcome email (fire-and-forget)
     sendWelcomeEmail(user.email, user.name || "회원");
