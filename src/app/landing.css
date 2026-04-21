@@ -1137,6 +1137,41 @@
   border-color: var(--blue);
   color: var(--blue);
 }
+.dash-credit-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px 6px 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #6d28d9;
+  background: linear-gradient(135deg, #f3e8ff 0%, #ede9fe 100%);
+  border: 1px solid #ddd6fe;
+  border-radius: 999px;
+  text-decoration: none;
+  transition: all 0.15s;
+  cursor: pointer;
+}
+.dash-credit-badge:hover {
+  background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%);
+  border-color: #c4b5fd;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.15);
+}
+.dash-credit-icon {
+  font-size: 13px;
+  line-height: 1;
+}
+.dash-credit-num {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.2px;
+}
+.dash-credit-unit {
+  font-size: 11px;
+  font-weight: 600;
+  color: #7c3aed;
+  opacity: 0.7;
+}
 .dash-main {
   max-width: 1200px;
   margin: 0 15%;
@@ -1353,6 +1388,305 @@
 .dash-footer-inner a {
   color: rgba(255,255,255,0.55);
   text-decoration: underline;
+}
+
+/* ── AI CREDITS PAGE ── */
+.credits-page {
+  min-height: 100vh;
+  background: #f0f2f5;
+  padding: 24px 24px 64px;
+  font-family: -apple-system, BlinkMacSystemFont, "Malgun Gothic", "맑은 고딕",
+    "Apple SD Gothic Neo", sans-serif;
+  color: #1a1a2e;
+}
+.credits-topbar {
+  max-width: 1100px;
+  margin: 0 auto 20px;
+}
+.credits-back {
+  display: inline-block;
+  font-size: 13px;
+  color: #4a90d9;
+  text-decoration: none;
+  padding: 6px 0;
+}
+.credits-back:hover { text-decoration: underline; }
+
+.credits-hero {
+  max-width: 1100px;
+  margin: 0 auto 32px;
+  padding: 40px 32px;
+  border-radius: 20px;
+  background:
+    radial-gradient(600px 200px at 90% -20%, rgba(167, 139, 250, 0.35), transparent 60%),
+    linear-gradient(135deg, #1e1b4b 0%, #4338ca 50%, #7c3aed 100%);
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(76, 29, 149, 0.22);
+}
+.credits-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: radial-gradient(ellipse at center, #000 40%, transparent 80%);
+  -webkit-mask-image: radial-gradient(ellipse at center, #000 40%, transparent 80%);
+  pointer-events: none;
+}
+.credits-hero-inner {
+  position: relative;
+  text-align: center;
+}
+.credits-hero-label {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.75);
+  margin-bottom: 10px;
+}
+.credits-hero-amount {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.credits-hero-num {
+  font-size: 64px;
+  font-weight: 800;
+  letter-spacing: -2px;
+  font-variant-numeric: tabular-nums;
+}
+.credits-hero-unit {
+  font-size: 22px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.75);
+}
+.credits-hero-hint {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.8);
+}
+.credits-hero-hint b {
+  color: #fff;
+  font-weight: 700;
+}
+
+.credits-section {
+  max-width: 1100px;
+  margin: 0 auto 40px;
+}
+.credits-section-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0 0 16px 0;
+  color: #1a1a2e;
+}
+
+.credits-packs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+.credits-pack {
+  position: relative;
+  padding: 28px 22px 24px;
+  background: #fff;
+  border: 2px solid #e2e8f0;
+  border-radius: 14px;
+  text-align: center;
+  transition: all 0.18s ease;
+}
+.credits-pack:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.08);
+}
+.credits-pack.recommended {
+  border-color: #7c3aed;
+  background: linear-gradient(180deg, #faf5ff 0%, #fff 70%);
+  box-shadow: 0 6px 24px rgba(124, 58, 237, 0.12);
+}
+.credits-pack-ribbon {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  background: #7c3aed;
+  border-radius: 999px;
+  white-space: nowrap;
+  letter-spacing: 0.3px;
+}
+.credits-pack-discount {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #dc2626;
+  background: #fee2e2;
+  border-radius: 6px;
+}
+.credits-pack-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #6b7280;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+.credits-pack-amount {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.credits-pack-num {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  color: #1a1a2e;
+  font-variant-numeric: tabular-nums;
+}
+.credits-pack-unit {
+  font-size: 15px;
+  font-weight: 600;
+  color: #7c3aed;
+}
+.credits-pack-price {
+  font-size: 14px;
+  color: #4b5563;
+  margin-bottom: 18px;
+  font-variant-numeric: tabular-nums;
+}
+.credits-pack-btn {
+  width: 100%;
+  padding: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  background: #7c3aed;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.credits-pack-btn:hover:not(:disabled) {
+  background: #6d28d9;
+}
+.credits-pack-btn:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
+}
+
+.credits-empty {
+  padding: 60px 20px;
+  text-align: center;
+  color: #868e96;
+  font-size: 14px;
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.credits-history {
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+}
+.credits-history-header,
+.credits-history-row {
+  display: grid;
+  grid-template-columns: 170px 130px 1fr 100px 100px;
+  align-items: center;
+  padding: 12px 20px;
+  font-size: 13px;
+  gap: 12px;
+}
+.credits-history-header {
+  background: #f8f9fa;
+  border-bottom: 2px solid #e2e8f0;
+  font-weight: 700;
+  color: #4b5563;
+}
+.credits-history-row {
+  border-bottom: 1px solid #f1f3f5;
+}
+.credits-history-row:last-child {
+  border-bottom: none;
+}
+.credits-history-row:hover {
+  background: #fafbff;
+}
+.credits-history-row .col-amount {
+  text-align: right;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.credits-history-row .col-amount.positive { color: #16a34a; }
+.credits-history-row .col-amount.negative { color: #dc2626; }
+.credits-history-row .col-balance {
+  text-align: right;
+  color: #6b7280;
+  font-variant-numeric: tabular-nums;
+}
+.credits-history-row .col-desc {
+  color: #4b5563;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.credit-kind-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 4px;
+  background: #f1f3f5;
+  color: #4b5563;
+}
+.credit-kind-badge.kind-signup_bonus,
+.credit-kind-badge.kind-monthly_grant,
+.credit-kind-badge.kind-purchase,
+.credit-kind-badge.kind-refund,
+.credit-kind-badge.kind-admin_grant {
+  background: #dcfce7;
+  color: #15803d;
+}
+.credit-kind-badge.kind-ai_site_create,
+.credit-kind-badge.kind-ai_edit,
+.credit-kind-badge.kind-ai_other,
+.credit-kind-badge.kind-admin_debit {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+@media (max-width: 900px) {
+  .credits-packs { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 720px) {
+  .credits-hero-num { font-size: 48px; }
+  .credits-history-header,
+  .credits-history-row {
+    grid-template-columns: 1fr 1fr;
+    font-size: 12px;
+  }
+  .credits-history-header .col-desc,
+  .credits-history-row .col-desc,
+  .credits-history-header .col-balance,
+  .credits-history-row .col-balance { display: none; }
+}
+@media (max-width: 500px) {
+  .credits-packs { grid-template-columns: 1fr; }
 }
 
 /* ── SITE SETTINGS ── */

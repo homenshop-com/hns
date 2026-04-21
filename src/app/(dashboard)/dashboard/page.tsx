@@ -19,8 +19,9 @@ export default async function DashboardPage() {
 
   const currentUser = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { emailVerified: true, email: true },
+    select: { emailVerified: true, email: true, credits: true },
   });
+  const credits = currentUser?.credits ?? 0;
 
   const emailVerificationEnabled = await getSettingBool("emailVerificationEnabled");
 
@@ -88,6 +89,15 @@ export default async function DashboardPage() {
             <span className="dash-logo-sub">{t("title")}</span>
           </div>
           <div className="dash-header-right">
+            <Link
+              href="/dashboard/credits"
+              className="dash-credit-badge"
+              title={t("creditBalance")}
+            >
+              <span className="dash-credit-icon" aria-hidden>✨</span>
+              <span className="dash-credit-num">{credits.toLocaleString()}</span>
+              <span className="dash-credit-unit">C</span>
+            </Link>
             <Link href="/dashboard/profile" className="dash-header-btn">
               {t("memberInfo")}
             </Link>
