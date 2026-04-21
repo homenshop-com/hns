@@ -184,6 +184,9 @@ export default function DesignEditor({
   const [aiLoading, setAiLoading] = useState(false);
   const [aiStatus, setAiStatus] = useState<"" | "success" | "error">("");
   const [aiError, setAiError] = useState("");
+  const [creditBalance, setCreditBalance] = useState<number | null>(null);
+  const [creditCost, setCreditCost] = useState<number>(5);
+  const [insufficientCredits, setInsufficientCredits] = useState<{ required: number; balance: number } | null>(null);
   const aiPrevHtmlRef = useRef<string | null>(null);
 
   // Drag state
@@ -443,6 +446,22 @@ export default function DesignEditor({
     }
   }, [footerHtml]);
 
+  /* ─── Load AI credit balance + cost ─── */
+  const reloadBalance = useCallback(async () => {
+    try {
+      const r = await fetch("/api/credits/balance");
+      if (!r.ok) return;
+      const data = await r.json();
+      if (typeof data.balance === "number") setCreditBalance(data.balance);
+      if (typeof data.costs?.AI_EDIT === "number") setCreditCost(data.costs.AI_EDIT);
+    } catch {
+      // silent — badge simply won't render until we have a number
+    }
+  }, []);
+  useEffect(() => {
+    reloadBalance();
+  }, [reloadBalance]);
+
   /* ─── Calculate hns_body min-height from absolute children + header height ─── */
   useEffect(() => {
     const bodyEl = bodyRef.current;
@@ -609,6 +628,15 @@ export default function DesignEditor({
       });
       const data = await res.json();
       if (!res.ok) {
+        if (res.status === 402 && data.code === "INSUFFICIENT_CREDITS") {
+          setInsufficientCredits({
+            required: typeof data.required === "number" ? data.required : creditCost,
+            balance: typeof data.balance === "number" ? data.balance : 0,
+          });
+          setAiStatus("");
+          setAiError("");
+          return;
+        }
         setAiStatus("error");
         setAiError(data.error || "오류가 발생했습니다.");
         return;
@@ -632,13 +660,14 @@ export default function DesignEditor({
         setCurrentPageCss(data.pageCss);
       }
       setAiStatus("success");
+      reloadBalance();
     } catch {
       setAiStatus("error");
       setAiError("네트워크 오류가 발생했습니다.");
     } finally {
       setAiLoading(false);
     }
-  }, [aiPrompt, aiLoading, currentPageCss, cssText, templateCss, selectedElId]);
+  }, [aiPrompt, aiLoading, currentPageCss, cssText, templateCss, selectedElId, creditCost, reloadBalance]);
 
   const undoAiEdit = useCallback(() => {
     if (aiPrevHtmlRef.current !== null) {
@@ -2138,6 +2167,31 @@ export default function DesignEditor({
         {/* AI Tab */}
         {activeTab === "ai" && (
           <div style={{ display: "flex", gap: 8, alignItems: "center", padding: "8px 16px", width: "100%" }}>
+            {creditBalance !== null && (
+              <a
+                href="/dashboard/credits"
+                title={`AI 편집 1회 = ${creditCost} C`}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  padding: "4px 10px",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: creditBalance < creditCost ? "#f87171" : "#c4b5fd",
+                  background: creditBalance < creditCost ? "rgba(239, 68, 68, 0.12)" : "rgba(124, 58, 237, 0.18)",
+                  border: `1px solid ${creditBalance < creditCost ? "#ef4444" : "#7c3aed"}`,
+                  borderRadius: 999,
+                  textDecoration: "none",
+                  whiteSpace: "nowrap",
+                  flexShrink: 0,
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
+                <span aria-hidden>✨</span>
+                {creditBalance.toLocaleString()} C
+              </a>
+            )}
             <textarea
               value={aiPrompt}
               onChange={(e) => setAiPrompt(e.target.value)}
@@ -2180,7 +2234,7 @@ export default function DesignEditor({
                 opacity: !aiPrompt.trim() ? 0.5 : 1,
               }}
             >
-              {aiLoading ? "처리중..." : "실행 (⌘↵)"}
+              {aiLoading ? "처리중..." : `실행 (⌘↵) · ${creditCost}C`}
             </button>
             {aiStatus === "success" && aiPrevHtmlRef.current !== null && (
               <button
@@ -2291,6 +2345,106 @@ export default function DesignEditor({
                 onClick={() => setShowPublishModal(false)}
               >
                 계속 편집
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* INSUFFICIENT CREDITS MODAL */}
+      {insufficientCredits && (
+        <div
+          onClick={() => setInsufficientCredits(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0, 0, 0, 0.5)",
+            zIndex: 10000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "#fff",
+              borderRadius: 14,
+              maxWidth: 420,
+              width: "100%",
+              padding: "32px 28px 24px",
+              textAlign: "center",
+              boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
+            }}
+          >
+            <div
+              style={{
+                width: 60,
+                height: 60,
+                margin: "0 auto 16px",
+                borderRadius: "50%",
+                background: "#fef3c7",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 28,
+              }}
+            >
+              ✨
+            </div>
+            <h3
+              style={{
+                fontSize: 18,
+                fontWeight: 800,
+                color: "#1a1a2e",
+                margin: "0 0 10px",
+              }}
+            >
+              크레딧이 부족합니다
+            </h3>
+            <p
+              style={{
+                fontSize: 14,
+                color: "#4b5563",
+                lineHeight: 1.6,
+                margin: "0 0 24px",
+              }}
+            >
+              이 작업에는 <b>{insufficientCredits.required} 크레딧</b>이 필요합니다.<br />
+              현재 잔액: <b>{insufficientCredits.balance.toLocaleString()} C</b>
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <a
+                href="/dashboard/credits"
+                style={{
+                  display: "block",
+                  padding: "12px 20px",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  color: "#fff",
+                  background: "#7c3aed",
+                  borderRadius: 8,
+                  textDecoration: "none",
+                  textAlign: "center",
+                }}
+              >
+                크레딧 충전하러 가기
+              </a>
+              <button
+                onClick={() => setInsufficientCredits(null)}
+                style={{
+                  padding: "10px 20px",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "#4b5563",
+                  background: "#fff",
+                  border: "1.5px solid #e2e8f0",
+                  borderRadius: 8,
+                  cursor: "pointer",
+                }}
+              >
+                닫기
               </button>
             </div>
           </div>

@@ -27,6 +27,15 @@ interface MemberDetail {
   };
 }
 
+interface CreditTxn {
+  id: string;
+  amount: number;
+  balanceAfter: number;
+  kind: string;
+  description: string | null;
+  createdAt: string;
+}
+
 export default function AdminMemberDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -44,6 +53,55 @@ export default function AdminMemberDetailPage() {
   const [phone, setPhone] = useState("");
   const [role, setRole] = useState("");
   const [status, setStatus] = useState("");
+
+  // Credits
+  const [creditBalance, setCreditBalance] = useState<number | null>(null);
+  const [creditHistory, setCreditHistory] = useState<CreditTxn[]>([]);
+  const [adjustAmount, setAdjustAmount] = useState("");
+  const [adjustDesc, setAdjustDesc] = useState("");
+  const [adjustSaving, setAdjustSaving] = useState(false);
+  const [adjustError, setAdjustError] = useState("");
+
+  async function loadCredits(targetId: string) {
+    try {
+      const res = await fetch(`/api/admin/members/${targetId}/credits`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setCreditBalance(data.balance);
+      setCreditHistory(data.history || []);
+    } catch {
+      // soft-fail — credits UI hides if unavailable
+    }
+  }
+
+  async function handleAdjust() {
+    setAdjustError("");
+    const n = parseInt(adjustAmount, 10);
+    if (!Number.isInteger(n) || n === 0) {
+      setAdjustError("금액은 0이 아닌 정수여야 합니다.");
+      return;
+    }
+    setAdjustSaving(true);
+    try {
+      const res = await fetch(`/api/admin/members/${id}/credits`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: n, description: adjustDesc || undefined }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAdjustError(data.error || "조정에 실패했습니다.");
+      } else {
+        setAdjustAmount("");
+        setAdjustDesc("");
+        await loadCredits(id);
+      }
+    } catch {
+      setAdjustError("네트워크 오류");
+    } finally {
+      setAdjustSaving(false);
+    }
+  }
 
   useEffect(() => {
     async function fetchMember() {
@@ -67,6 +125,7 @@ export default function AdminMemberDetailPage() {
       }
     }
     fetchMember();
+    loadCredits(id);
   }, [id, router]);
 
   async function handleSave() {
@@ -227,6 +286,95 @@ export default function AdminMemberDetailPage() {
               {saving ? "저장 중..." : "변경사항 저장"}
             </button>
           </div>
+        </div>
+
+        {/* Credits */}
+        <div className="rounded-xl border border-slate-200 bg-white p-6 lg:col-span-2">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-semibold text-slate-800">AI 크레딧</h2>
+            {creditBalance !== null && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-50 px-3 py-1 text-sm font-bold text-violet-700 ring-1 ring-violet-200">
+                <span>✨</span>
+                <span className="tabular-nums">{creditBalance.toLocaleString()}</span>
+                <span className="text-violet-400 text-xs">C</span>
+              </span>
+            )}
+          </div>
+
+          {/* Adjust form */}
+          <div className="rounded-lg bg-slate-50 border border-slate-200 p-4 mb-4">
+            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">크레딧 조정</div>
+            <div className="grid grid-cols-1 md:grid-cols-[160px_1fr_auto] gap-3">
+              <input
+                type="number"
+                value={adjustAmount}
+                onChange={(e) => setAdjustAmount(e.target.value)}
+                placeholder="금액 (예: +100, -50)"
+                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-[#405189] focus:outline-none"
+              />
+              <input
+                type="text"
+                value={adjustDesc}
+                onChange={(e) => setAdjustDesc(e.target.value)}
+                placeholder="사유 (내역에 기록됨)"
+                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-[#405189] focus:outline-none"
+              />
+              <button
+                onClick={handleAdjust}
+                disabled={adjustSaving || !adjustAmount}
+                className="rounded-lg bg-[#405189] px-4 py-2 text-sm font-medium text-white hover:bg-[#364574] disabled:opacity-50 transition-colors"
+              >
+                {adjustSaving ? "처리 중..." : "적용"}
+              </button>
+            </div>
+            {adjustError && (
+              <div className="mt-2 text-xs text-red-600">{adjustError}</div>
+            )}
+            <div className="mt-2 text-[11px] text-slate-500">
+              양수 = 지급 (ADMIN_GRANT), 음수 = 차감 (ADMIN_DEBIT). ±1,000,000 C 이내.
+            </div>
+          </div>
+
+          {/* History */}
+          {creditHistory.length === 0 ? (
+            <p className="text-sm text-slate-500">아직 거래 내역이 없습니다.</p>
+          ) : (
+            <div className="overflow-x-auto max-h-[420px] overflow-y-auto">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-white">
+                  <tr className="border-b border-slate-200">
+                    <th className="px-3 py-2 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider">시각</th>
+                    <th className="px-3 py-2 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider">유형</th>
+                    <th className="px-3 py-2 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider">설명</th>
+                    <th className="px-3 py-2 text-right text-[11px] font-semibold text-slate-500 uppercase tracking-wider">변동</th>
+                    <th className="px-3 py-2 text-right text-[11px] font-semibold text-slate-500 uppercase tracking-wider">잔액</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {creditHistory.map((row) => {
+                    const positive = row.amount > 0;
+                    return (
+                      <tr key={row.id} className="hover:bg-slate-50">
+                        <td className="px-3 py-2 text-xs text-slate-600 whitespace-nowrap">
+                          {new Date(row.createdAt).toLocaleString("ko-KR")}
+                        </td>
+                        <td className="px-3 py-2">
+                          <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold bg-slate-100 text-slate-700">
+                            {row.kind}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-xs text-slate-600 max-w-[300px] truncate">{row.description || "—"}</td>
+                        <td className={`px-3 py-2 text-right font-semibold tabular-nums ${positive ? "text-emerald-700" : "text-red-700"}`}>
+                          {positive ? "+" : ""}{row.amount.toLocaleString()}
+                        </td>
+                        <td className="px-3 py-2 text-right text-slate-600 tabular-nums">{row.balanceAfter.toLocaleString()}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         {/* Sites */}

@@ -70,6 +70,7 @@ export default function AICreateButton({ emailVerified, labels }: AICreateButton
   const [error, setError] = useState("");
   const [resending, setResending] = useState(false);
   const [resendMsg, setResendMsg] = useState("");
+  const [insufficientCredits, setInsufficientCredits] = useState<{ required: number; balance: number } | null>(null);
   const tickerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Tick elapsed seconds while creating
@@ -182,7 +183,12 @@ export default function AICreateButton({ emailVerified, labels }: AICreateButton
       });
       const data = await res.json();
       if (!res.ok) {
-        if (res.status === 409 && data.error?.includes("shopId")) {
+        if (res.status === 402 && data.code === "INSUFFICIENT_CREDITS") {
+          setInsufficientCredits({
+            required: typeof data.required === "number" ? data.required : 50,
+            balance: typeof data.balance === "number" ? data.balance : 0,
+          });
+        } else if (res.status === 409 && data.error?.includes("shopId")) {
           setError(labels.errorShopIdTaken);
         } else {
           setError(data.error || "Failed to create site");
@@ -579,6 +585,92 @@ export default function AICreateButton({ emailVerified, labels }: AICreateButton
                 )}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {insufficientCredits && (
+        <div
+          onClick={() => setInsufficientCredits(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0, 0, 0, 0.5)",
+            zIndex: 10001,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "#fff",
+              borderRadius: 14,
+              maxWidth: 420,
+              width: "100%",
+              padding: "32px 28px 24px",
+              textAlign: "center",
+              boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
+            }}
+          >
+            <div
+              style={{
+                width: 60,
+                height: 60,
+                margin: "0 auto 16px",
+                borderRadius: "50%",
+                background: "#fef3c7",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 28,
+              }}
+            >
+              ✨
+            </div>
+            <h3 style={{ fontSize: 18, fontWeight: 800, color: "#1a1a2e", margin: "0 0 10px" }}>
+              크레딧이 부족합니다
+            </h3>
+            <p style={{ fontSize: 14, color: "#4b5563", lineHeight: 1.6, margin: "0 0 24px" }}>
+              AI 홈페이지 생성에는 <b>{insufficientCredits.required} 크레딧</b>이 필요합니다.
+              <br />
+              현재 잔액: <b>{insufficientCredits.balance.toLocaleString()} C</b>
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <a
+                href="/dashboard/credits"
+                style={{
+                  display: "block",
+                  padding: "12px 20px",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  color: "#fff",
+                  background: "#7c3aed",
+                  borderRadius: 8,
+                  textDecoration: "none",
+                  textAlign: "center",
+                }}
+              >
+                크레딧 충전하러 가기
+              </a>
+              <button
+                onClick={() => setInsufficientCredits(null)}
+                style={{
+                  padding: "10px 20px",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "#4b5563",
+                  background: "#fff",
+                  border: "1.5px solid #e2e8f0",
+                  borderRadius: 8,
+                  cursor: "pointer",
+                }}
+              >
+                닫기
+              </button>
+            </div>
           </div>
         </div>
       )}

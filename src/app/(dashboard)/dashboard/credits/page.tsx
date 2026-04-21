@@ -8,6 +8,7 @@ import {
   CREDIT_COSTS,
   CREDIT_PACKS,
 } from "@/lib/credits";
+import BuyPackButton from "./buy-pack-button";
 
 export const metadata = {
   title: "AI 크레딧 — homeNshop",
@@ -83,10 +84,7 @@ export default async function CreditsPage() {
                 <div className="credits-pack-price">
                   ₩{p.priceKrw.toLocaleString()}
                 </div>
-                {/* Purchase button is wired in Step 3. */}
-                <button className="credits-pack-btn" disabled title="준비중">
-                  {t("creditPackBuyBtn")}
-                </button>
+                <BuyPackButton packId={p.id} label={t("creditPackBuyBtn")} />
               </div>
             );
           })}
