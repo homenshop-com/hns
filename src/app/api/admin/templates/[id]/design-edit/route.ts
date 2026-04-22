@@ -51,21 +51,47 @@ export async function POST(
   const template = await prisma.template.findUnique({ where: { id } });
   if (!template) return NextResponse.json({ error: "not found" }, { status: 404 });
 
-  // If a storage site already exists, reuse it.
-  if (template.demoSiteId) {
-    const page = await prisma.page.findFirst({
-      where: { siteId: template.demoSiteId },
-      orderBy: { sortOrder: "asc" },
-      select: { id: true },
+  const url = new URL(_req.url);
+  const forceReset = url.searchParams.get("reset") === "1";
+
+  // If a storage site already exists, reuse it — unless:
+  //   (a) caller asked for ?reset=1, OR
+  //   (b) the Template has been re-seeded / re-synced since the storage
+  //       site was populated AND the admin hasn't touched any page since
+  //       creation (i.e. nothing to lose by rebuilding).
+  //
+  // Staleness detection: a page's `updatedAt - createdAt > 5s` means
+  // someone saved edits through the editor. If every page is still at
+  // creation state, and the Template was updated after the site was
+  // created, the storage site is stale and we rebuild silently.
+  if (template.demoSiteId && !forceReset) {
+    const site = await prisma.site.findUnique({
+      where: { id: template.demoSiteId },
+      select: { id: true, createdAt: true },
     });
-    if (page) {
-      return NextResponse.json({
-        editUrl: `/dashboard/site/pages/${page.id}/edit`,
-        siteId: template.demoSiteId,
-        reused: true,
+    if (site) {
+      const pages = await prisma.page.findMany({
+        where: { siteId: site.id },
+        select: { id: true, createdAt: true, updatedAt: true, sortOrder: true },
+        orderBy: { sortOrder: "asc" },
       });
+      const adminEdited = pages.some(
+        (p) => p.updatedAt.getTime() - p.createdAt.getTime() > 5000,
+      );
+      const templateNewer = template.updatedAt.getTime() > site.createdAt.getTime();
+      const stale = templateNewer && !adminEdited;
+
+      if (!stale && pages.length > 0) {
+        return NextResponse.json({
+          editUrl: `/dashboard/site/pages/${pages[0]!.id}/edit`,
+          siteId: site.id,
+          reused: true,
+          stale: false,
+        });
+      }
+      // Otherwise fall through to the rebuild branch below, which
+      // deletes pages + reseeds from the current Template.pagesSnapshot.
     }
-    // Storage site existed but has no pages — fall through to recreate.
   }
 
   // Build page snapshot — prefer DB pagesSnapshot, else minimal skeleton.

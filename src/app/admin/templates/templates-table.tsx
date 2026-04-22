@@ -34,13 +34,20 @@ export default function TemplatesTable({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [syncedAt, setSyncedAt] = useState<Record<string, number>>({});
 
-  async function openDesignEditor(id: string) {
+  async function openDesignEditor(id: string, reset = false) {
     if (busyId) return;
+    if (reset && !confirm(
+      "템플릿에서 최신 디자인을 다시 불러옵니다.\n\n" +
+      "연결된 디자인 사이트의 현재 내용은 모두 삭제되고, 원본 템플릿의 " +
+      "헤더·메뉴·푸터·CSS·페이지 스냅샷으로 새로 채워집니다.\n\n" +
+      "저장되지 않은 편집 사항이 있다면 손실됩니다. 계속할까요?"
+    )) return;
     setBusyId(id);
     try {
-      const res = await fetch(`/api/admin/templates/${id}/design-edit`, {
-        method: "POST",
-      });
+      const res = await fetch(
+        `/api/admin/templates/${id}/design-edit${reset ? "?reset=1" : ""}`,
+        { method: "POST" },
+      );
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         alert(`디자인 수정 준비 실패: ${err.error ?? res.status}`);
@@ -239,15 +246,26 @@ export default function TemplatesTable({
                       {t.hasDemoSite ? "디자인 수정" : "디자인 수정 ▸ 생성"}
                     </button>
                     {t.hasDemoSite && (
-                      <button
-                        type="button"
-                        onClick={() => syncFromSite(t.id, t.name)}
-                        disabled={busyId !== null}
-                        className="px-2.5 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded hover:bg-emerald-100 disabled:opacity-50"
-                        title="편집한 디자인을 원본 템플릿에 적용"
-                      >
-                        적용
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => openDesignEditor(t.id, true)}
+                          disabled={busyId !== null}
+                          className="px-2.5 py-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded hover:bg-amber-100 disabled:opacity-50"
+                          title="원본 템플릿의 최신 스냅샷으로 디자인 사이트를 다시 채웁니다 (편집 내용 손실)"
+                        >
+                          리셋
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => syncFromSite(t.id, t.name)}
+                          disabled={busyId !== null}
+                          className="px-2.5 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded hover:bg-emerald-100 disabled:opacity-50"
+                          title="편집한 디자인을 원본 템플릿에 적용"
+                        >
+                          적용
+                        </button>
+                      </>
                     )}
                     <button
                       type="button"
