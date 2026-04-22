@@ -1,13 +1,20 @@
 import { prisma } from "@/lib/db";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import TemplateEditForm from "./template-edit-form";
+import { auth } from "@/lib/auth";
+import { canEditTemplates } from "@/lib/permissions";
 
 export default async function AdminTemplateEditPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const session = await auth();
+  if (!canEditTemplates(session?.user?.email)) {
+    redirect("/admin");
+  }
+
   const { id } = await params;
   const template = await prisma.template.findUnique({
     where: { id },

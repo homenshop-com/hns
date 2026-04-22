@@ -22,8 +22,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
+import { canEditTemplates } from "@/lib/permissions";
 
-async function requireAdmin(): Promise<
+async function requireTemplateEditor(): Promise<
   | { ok: true; userId: string }
   | { ok: false; res: NextResponse }
 > {
@@ -31,9 +32,9 @@ async function requireAdmin(): Promise<
   if (!session) return { ok: false, res: NextResponse.json({ error: "unauthorized" }, { status: 401 }) };
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { role: true, id: true },
+    select: { role: true, id: true, email: true },
   });
-  if (user?.role !== "ADMIN") {
+  if (user?.role !== "ADMIN" || !canEditTemplates(user.email)) {
     return { ok: false, res: NextResponse.json({ error: "forbidden" }, { status: 403 }) };
   }
   return { ok: true, userId: user.id };
@@ -43,7 +44,7 @@ export async function POST(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const guard = await requireAdmin();
+  const guard = await requireTemplateEditor();
   if (!guard.ok) return guard.res;
   const { id } = await params;
 

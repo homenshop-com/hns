@@ -16,6 +16,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { syncTemplateFromSite } from "@/lib/template-sync";
+import { canEditTemplates } from "@/lib/permissions";
 
 export async function POST(
   _req: NextRequest,
@@ -25,9 +26,9 @@ export async function POST(
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { role: true },
+    select: { role: true, email: true },
   });
-  if (user?.role !== "ADMIN") {
+  if (user?.role !== "ADMIN" || !canEditTemplates(user.email)) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 

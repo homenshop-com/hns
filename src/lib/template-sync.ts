@@ -26,6 +26,7 @@
  */
 
 import { prisma } from "@/lib/db";
+import { canEditTemplates } from "@/lib/permissions";
 
 export interface TemplateSyncResult {
   templateId: string;
@@ -38,16 +39,26 @@ export interface TemplateSyncResult {
 
 /**
  * Sync the Template row tied to `siteId` via `Template.demoSiteId`.
- * Returns `null` if the site isn't a template storage, or no Template
- * is linked — makes this safe to call unconditionally from save handlers.
+ *
+ * Returns `null` if:
+ *   - the site isn't a template storage
+ *   - no Template is linked
+ *   - the caller isn't allowed to update this particular template
+ *     (system templates require `canEditTemplates(email)`; user templates
+ *     require ownership)
+ *
+ * Safe to call unconditionally from save handlers — the no-op path is
+ * cheap and the permission check protects the golden-copy invariant.
  */
 export async function syncTemplateFromSiteIfLinked(
   siteId: string,
+  sessionEmail?: string | null,
 ): Promise<TemplateSyncResult | null> {
   const site = await prisma.site.findUnique({
     where: { id: siteId },
     select: {
       id: true,
+      userId: true,
       isTemplateStorage: true,
       defaultLanguage: true,
       headerHtml: true,
@@ -61,9 +72,22 @@ export async function syncTemplateFromSiteIfLinked(
   // Find the Template that points at this site.
   const template = await prisma.template.findFirst({
     where: { demoSiteId: siteId },
-    select: { id: true },
+    select: { id: true, userId: true },
   });
   if (!template) return null;
+
+  // Permission check:
+  //   - System template (Template.userId === null): only allowlisted
+  //     operators may sync — protects the golden copy from drift.
+  //   - User template (Template.userId === <owner>): only the owner
+  //     may sync (the storage site's userId is already the owner, so
+  //     the existing Site save guard enforces this — double-check here
+  //     for defense in depth).
+  if (template.userId === null) {
+    if (!canEditTemplates(sessionEmail)) return null;
+  } else {
+    if (site.userId !== template.userId) return null;
+  }
 
   return syncTemplateFromSite(template.id);
 }

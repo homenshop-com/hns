@@ -15,15 +15,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { canEditTemplates } from "@/lib/permissions";
 
-async function requireAdmin() {
+/**
+ * Two-tier guard: ADMIN role (everything under /admin) + template-editor
+ * allowlist (canEditTemplates). Returns 401 for anonymous, 403 for every
+ * non-allowlisted caller including regular admins.
+ */
+async function requireTemplateEditor() {
   const session = await auth();
   if (!session) return { ok: false, res: NextResponse.json({ error: "unauthorized" }, { status: 401 }) };
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { role: true },
+    select: { role: true, email: true },
   });
-  if (user?.role !== "ADMIN") {
+  if (user?.role !== "ADMIN" || !canEditTemplates(user.email)) {
     return { ok: false, res: NextResponse.json({ error: "forbidden" }, { status: 403 }) };
   }
   return { ok: true as const };
@@ -33,7 +39,7 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const guard = await requireAdmin();
+  const guard = await requireTemplateEditor();
   if (!guard.ok) return guard.res;
   const { id } = await params;
   const template = await prisma.template.findUnique({
@@ -56,7 +62,7 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const guard = await requireAdmin();
+  const guard = await requireTemplateEditor();
   if (!guard.ok) return guard.res;
   const { id } = await params;
 
@@ -96,7 +102,7 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const guard = await requireAdmin();
+  const guard = await requireTemplateEditor();
   if (!guard.ok) return guard.res;
   const { id } = await params;
 

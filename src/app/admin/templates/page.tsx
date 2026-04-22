@@ -1,7 +1,10 @@
 import { prisma } from "@/lib/db";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import TemplatesTable from "./templates-table";
 import { parsePageParam } from "@/lib/pagination";
+import { auth } from "@/lib/auth";
+import { canEditTemplates } from "@/lib/permissions";
 
 const TABS: Array<{ key: string; label: string; where?: Record<string, unknown> }> = [
   { key: "all",      label: "전체" },
@@ -17,6 +20,14 @@ export default async function AdminTemplatesPage({
 }: {
   searchParams: Promise<{ [key: string]: string | undefined }>;
 }) {
+  // Allowlist gate — only master@homenshop.com and design@homenshop.com
+  // can manage templates. The admin layout already confirmed ADMIN role;
+  // this narrows further. Non-allowlisted admins bounce back to /admin.
+  const session = await auth();
+  if (!canEditTemplates(session?.user?.email)) {
+    redirect("/admin");
+  }
+
   const params = await searchParams;
   const tab = params.tab || "all";
   const search = params.search || "";

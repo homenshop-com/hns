@@ -143,10 +143,12 @@ export async function PUT(
 
   // Auto-sync: if this page belongs to a template-storage site, push the
   // latest state back to the owning Template row so new sites created
-  // from the template pick up the edit. No-op for regular user sites.
+  // from the template pick up the edit. No-op for regular user sites
+  // and for callers not allowed to edit the linked template (enforced
+  // inside the helper).
   let templateSync: Awaited<ReturnType<typeof syncTemplateFromSiteIfLinked>> = null;
   try {
-    templateSync = await syncTemplateFromSiteIfLinked(id);
+    templateSync = await syncTemplateFromSiteIfLinked(id, session.user.email);
   } catch (e) {
     // Don't block the page save on a sync failure — just log and move on.
     console.error("[template-sync] page save auto-sync failed:", e);

@@ -130,10 +130,11 @@ export async function PUT(
 
   // Auto-sync: if this site is a template-storage clone, push the fresh
   // HMF + page snapshot back to the owning Template row so new sites
-  // created from the template pick up the edit. No-op for regular sites.
+  // created from the template pick up the edit. No-op for regular sites
+  // and for callers not allowed to edit the linked template.
   let templateSync: Awaited<ReturnType<typeof syncTemplateFromSiteIfLinked>> = null;
   try {
-    templateSync = await syncTemplateFromSiteIfLinked(id);
+    templateSync = await syncTemplateFromSiteIfLinked(id, session.user.email);
   } catch (e) {
     console.error("[template-sync] site save auto-sync failed:", e);
   }
