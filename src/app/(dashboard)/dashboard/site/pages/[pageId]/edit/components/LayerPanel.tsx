@@ -27,22 +27,25 @@ import {
 } from "../store/editor-store";
 import type { GroupLayer, Layer, LayerId, LayerType } from "@/lib/scene";
 
-/* ─── Type → display glyph ─── */
-
-const TYPE_ICON: Record<LayerType, string> = {
-  group: "📁",
-  section: "▦",
-  inline: "¶",
-  text: "T",
-  image: "🖼",
-  box: "▢",
-  shape: "◇",
-  board: "📋",
-  product: "🛒",
-  exhibition: "🎨",
-  menu: "☰",
-  login: "🔑",
-  mail: "✉",
+/* ─── Type → Font Awesome icon + accent color ──────────────────────
+ * Each layer type gets a distinct mint/blue/amber tint so the user can
+ * scan the tree at a glance. Mirrors the palette in InspectorPanel's
+ * selection header (layerMeta) so the right-side tabs stay visually
+ * consistent. */
+const TYPE_ICON: Record<LayerType, { icon: string; color: string }> = {
+  group:      { icon: "fa-folder",            color: "#a897ff" },
+  section:    { icon: "fa-table-cells-large", color: "#5be5b3" },
+  inline:     { icon: "fa-i-cursor",          color: "#c6c9d6" },
+  text:       { icon: "fa-font",              color: "#6ea8ff" },
+  image:      { icon: "fa-image",             color: "#f4b66a" },
+  box:        { icon: "fa-square",            color: "#8a8fa3" },
+  shape:      { icon: "fa-shapes",            color: "#a897ff" },
+  board:      { icon: "fa-clipboard-list",    color: "#ff8bb1" },
+  product:    { icon: "fa-bag-shopping",      color: "#f4b66a" },
+  exhibition: { icon: "fa-images",            color: "#5be5b3" },
+  menu:       { icon: "fa-bars",              color: "#c6c9d6" },
+  login:      { icon: "fa-user-lock",         color: "#6ea8ff" },
+  mail:       { icon: "fa-envelope",          color: "#c4b5fd" },
 };
 
 /* ─── Row ─── */
@@ -140,8 +143,14 @@ function Row({
           <span className="layerpanel-chev-spacer" />
         )}
 
-        <span className="layerpanel-icon" aria-hidden>
-          {TYPE_ICON[layer.type] || "•"}
+        <span
+          className="layerpanel-icon"
+          aria-hidden
+          style={{ color: (TYPE_ICON[layer.type]?.color) ?? "currentColor" }}
+        >
+          <i
+            className={`fa-solid ${(TYPE_ICON[layer.type]?.icon) ?? "fa-square"}`}
+          />
         </span>
 
         {editing ? (
@@ -177,25 +186,33 @@ function Row({
 
         <button
           type="button"
-          className="layerpanel-action"
+          className={`layerpanel-action${!layer.visible ? " is-off" : ""}`}
           title={layer.visible ? "숨기기" : "표시"}
           onClick={(e) => {
             e.stopPropagation();
             toggleVisibility(layer.id);
           }}
+          aria-pressed={!layer.visible}
         >
-          {layer.visible ? "👁" : "⦸"}
+          <i
+            className={`fa-solid ${layer.visible ? "fa-eye" : "fa-eye-slash"}`}
+            aria-hidden
+          />
         </button>
         <button
           type="button"
-          className="layerpanel-action"
+          className={`layerpanel-action${layer.locked ? " is-on" : ""}`}
           title={layer.locked ? "잠금 해제" : "잠금"}
           onClick={(e) => {
             e.stopPropagation();
             toggleLock(layer.id);
           }}
+          aria-pressed={layer.locked}
         >
-          {layer.locked ? "🔒" : "🔓"}
+          <i
+            className={`fa-solid ${layer.locked ? "fa-lock" : "fa-lock-open"}`}
+            aria-hidden
+          />
         </button>
       </div>
 
