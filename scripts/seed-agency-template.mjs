@@ -138,7 +138,7 @@ a { color: inherit; text-decoration: none; }
 
 /* ─── Header ─── */
 .agency-header { position: sticky; top: 0; z-index: 50; background: rgba(255,255,255,0.88); backdrop-filter: saturate(160%) blur(10px); border-bottom: 1px solid var(--brand-border); }
-.agency-header-inner { max-width: 1200px; margin: 0 auto; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; gap: 32px; }
+.agency-header-inner { max-width: 100%; margin: 0; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; gap: 32px; }
 .agency-brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.05rem; letter-spacing: -0.02em; color: var(--brand-ink); }
 .agency-brand-mark { width: 32px; height: 32px; border-radius: 9px; background: var(--brand-ink); color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 14px; letter-spacing: -0.02em; }
 .agency-brand-mark--dark { background: var(--brand-accent); }
@@ -153,7 +153,7 @@ a { color: inherit; text-decoration: none; }
 .agency-sec { padding: 96px 24px; }
 .agency-sec--dark { background: var(--brand-ink); color: #fff; }
 .agency-sec--soft { background: var(--brand-soft); }
-.agency-wrap { max-width: 1200px; margin: 0 auto; }
+.agency-wrap { max-width: 100%; margin: 0; }
 .agency-eyebrow { display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px; background: rgba(249,115,22,0.12); color: var(--brand-accent); border-radius: 999px; font-size: 12px; font-weight: 600; letter-spacing: 0.02em; }
 
 /* ─── Buttons ─── */
@@ -165,7 +165,7 @@ a { color: inherit; text-decoration: none; }
 
 /* ─── Hero ─── */
 .agency-hero { padding: 120px 24px 80px; position: relative; overflow: hidden; background: radial-gradient(120% 80% at 10% -10%, rgba(249,115,22,0.08), transparent 55%), radial-gradient(100% 60% at 100% 0%, rgba(15,23,42,0.05), transparent 55%), #fff; }
-.agency-hero-grid { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1.1fr 1fr; gap: 64px; align-items: center; }
+.agency-hero-grid { max-width: 100%; margin: 0; display: grid; grid-template-columns: 1.1fr 1fr; gap: 64px; align-items: center; }
 .agency-hero h1 { font-size: 3.6rem; line-height: 1.08; margin: 20px 0 22px; letter-spacing: -0.03em; font-weight: 800; }
 .agency-hero h1 em { font-style: normal; color: var(--brand-accent); }
 .agency-hero p.lead { font-size: 1.1rem; line-height: 1.7; color: var(--brand-muted); margin: 0 0 32px; max-width: 520px; }
@@ -178,7 +178,7 @@ a { color: inherit; text-decoration: none; }
 
 /* ─── Marquee (client logos) ─── */
 .agency-marquee { padding: 36px 24px; border-top: 1px solid var(--brand-border); border-bottom: 1px solid var(--brand-border); background: #fff; }
-.agency-marquee-inner { max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 40px; flex-wrap: wrap; }
+.agency-marquee-inner { max-width: 100%; margin: 0; display: flex; align-items: center; justify-content: space-between; gap: 40px; flex-wrap: wrap; }
 .agency-marquee span { font-weight: 700; font-size: 1.1rem; color: var(--brand-muted); letter-spacing: -0.01em; opacity: 0.6; transition: opacity 0.2s; }
 .agency-marquee span:hover { opacity: 1; color: var(--brand-ink); }
 
@@ -264,7 +264,7 @@ a { color: inherit; text-decoration: none; }
 
 /* ─── Footer ─── */
 .agency-footer { background: #0a0f1c; color: #cbd5e1; }
-.agency-footer-inner { max-width: 1200px; margin: 0 auto; padding: 64px 24px 24px; }
+.agency-footer-inner { max-width: 100%; margin: 0; padding: 64px 24px 24px; }
 .agency-footer-grid { display: grid; grid-template-columns: 1.4fr repeat(3, 1fr); gap: 40px; padding-bottom: 40px; border-bottom: 1px solid rgba(255,255,255,0.08); }
 .agency-footer-about { margin: 16px 0 0; font-size: 13.5px; line-height: 1.7; color: rgba(255,255,255,0.55); }
 .agency-footer-heading { margin: 0 0 14px; color: #fff; font-size: 14px; font-weight: 700; }
