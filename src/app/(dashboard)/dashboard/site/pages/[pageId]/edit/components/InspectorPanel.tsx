@@ -322,10 +322,11 @@ function TypographySection({ layer }: { layer: Layer }) {
         />
       </div>
       <div className="ins-prop-row">
-        <TextField
+        <DimensionField
           label="크기"
           value={s.fontSize ?? ""}
-          placeholder="16px"
+          placeholder="16"
+          defaultUnit="px"
           onCommit={(v) => setStyle(layer.id, { fontSize: v })}
         />
         <TextField
@@ -342,10 +343,11 @@ function TypographySection({ layer }: { layer: Layer }) {
           placeholder="1.6"
           onCommit={(v) => setStyle(layer.id, { lineHeight: v })}
         />
-        <TextField
+        <DimensionField
           label="자간"
           value={s.letterSpacing ?? ""}
           placeholder="0"
+          defaultUnit="em"
           onCommit={(v) => setStyle(layer.id, { letterSpacing: v })}
         />
       </div>
@@ -406,16 +408,18 @@ function BorderSection({ layer }: { layer: Layer }) {
         onChange={(v) => setStyle(layer.id, { borderColor: v })}
       />
       <div className="ins-prop-row">
-        <TextField
+        <DimensionField
           label="두께"
           value={s.borderWidth ?? ""}
-          placeholder="1px"
+          placeholder="1"
+          defaultUnit="px"
           onCommit={(v) => setStyle(layer.id, { borderWidth: v })}
         />
-        <TextField
+        <DimensionField
           label="라운드"
           value={s.borderRadius ?? ""}
-          placeholder="8px"
+          placeholder="8"
+          defaultUnit="px"
           onCommit={(v) => setStyle(layer.id, { borderRadius: v })}
         />
       </div>
@@ -724,6 +728,92 @@ function TextField({
           }
         }}
       />
+    </div>
+  );
+}
+
+/**
+ * DimensionField — a TextField variant for CSS length values that splits
+ * the numeric part from the unit. The input only shows the number; the
+ * unit (px/em/rem/%) sits outside as a read-only suffix, matching the
+ * 위치·크기 row so users don't have to type "px" themselves.
+ *
+ * On commit:
+ *   - Bare number (e.g. "8")          → append `${defaultUnit}` (e.g. "8px")
+ *   - Number + unit (e.g. "1.5rem")   → use verbatim
+ *   - Empty / invalid                 → emit as-is (lets user clear the token)
+ *
+ * On display: parses `value` into { num, unit }; the typed unit is
+ * preserved so re-edit doesn't clobber em/rem/%. Falls back to
+ * `defaultUnit` when `value` has no explicit unit.
+ */
+function DimensionField({
+  label,
+  value,
+  placeholder,
+  defaultUnit = "px",
+  onCommit,
+}: {
+  label: string;
+  value: string;
+  placeholder?: string;
+  defaultUnit?: string;
+  onCommit(value: string): void;
+}) {
+  const parse = (v: string): { num: string; unit: string } => {
+    const s = (v ?? "").trim();
+    if (!s) return { num: "", unit: defaultUnit };
+    const m = s.match(/^(-?\d+(?:\.\d+)?)\s*([a-z%]*)$/i);
+    if (m) return { num: m[1]!, unit: m[2] || defaultUnit };
+    // Unparseable (e.g. calc(), var()) — show raw, no unit suffix.
+    return { num: s, unit: "" };
+  };
+  const initial = parse(value);
+  const [draft, setDraft] = useState(initial.num);
+  const [unitDraft, setUnitDraft] = useState(initial.unit);
+  useEffect(() => {
+    const p = parse(value);
+    setDraft(p.num);
+    setUnitDraft(p.unit);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+  const commit = () => {
+    const typed = draft.trim();
+    if (!typed) {
+      if (value !== "") onCommit("");
+      return;
+    }
+    // Bare number → append the current unit (or defaultUnit if none).
+    if (/^-?\d+(?:\.\d+)?$/.test(typed)) {
+      const next = `${typed}${unitDraft || defaultUnit}`;
+      if (next !== value) onCommit(next);
+      return;
+    }
+    // Number + unit (e.g. 1.5rem) — use the whole thing, re-parse on next tick.
+    if (/^-?\d+(?:\.\d+)?\s*[a-z%]+$/i.test(typed)) {
+      if (typed !== value) onCommit(typed);
+      return;
+    }
+    // Unparseable — trust user input.
+    if (typed !== value) onCommit(typed);
+  };
+  return (
+    <div className="ins-prop">
+      <label>{label}</label>
+      <input
+        value={draft}
+        placeholder={placeholder}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+          if (e.key === "Escape") {
+            setDraft(parse(value).num);
+            (e.target as HTMLInputElement).blur();
+          }
+        }}
+      />
+      {unitDraft && <span className="unit">{unitDraft}</span>}
     </div>
   );
 }
