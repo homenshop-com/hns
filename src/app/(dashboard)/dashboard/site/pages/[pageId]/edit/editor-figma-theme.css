@@ -1176,15 +1176,22 @@ body:has(.inspector-rail) .de-canvas-wrapper {
   font-size: 11.5px;
 }
 
-/* LayerPanel nested inside inspector — dark-themed */
+/* LayerPanel nested inside inspector — dark-themed.
+   BUG (2026-04-22) — `[class*="layerpanel"]` was a wildcard match that
+   also hit .layerpanel-icon (16px), .layerpanel-chev (14px), .layerpanel-
+   chev-spacer, etc. Setting `width: 100% !important` on those broke the
+   row flex layout so rows overflowed out of the panel and appeared
+   empty. Restrict the width/position reset to just the OUTER containers. */
 .inspector-rail .layerpanel-rail,
-.inspector-rail [class*="layerpanel"] {
+.inspector-rail .layerpanel {
   position: static !important;
   width: 100% !important;
   background: transparent !important;
   border: 0 !important;
   box-shadow: none !important;
-  color: var(--fig-text-1) !important;
+}
+.inspector-rail [class*="layerpanel"] {
+  color: var(--fig-text-1);
 }
 
 /* ───── Canvas Rulers ──────────────────────────────────────────────── */
