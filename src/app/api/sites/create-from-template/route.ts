@@ -72,10 +72,15 @@ export async function POST(request: Request) {
     );
   }
 
-  // Custom template (userId present) — CSS/HMF already in DB
-  // Public template — read from disk
-  const isCustom = !!template.userId;
-  const templateCss = isCustom ? (template.cssText || "") : readTemplateCss(template.path);
+  // DB-backed content takes precedence over disk. This covers:
+  //   - Custom (user-made) templates — cssText populated by save-from-site
+  //   - System templates authored directly in the DB (no disk files)
+  // Fall back to reading the legacy tpl/*/files/default.css when the
+  // template has no DB cssText (factory templates from the PHP era).
+  const hasDbCss = !!(template.cssText && template.cssText.length > 0);
+  const templateCss = hasDbCss
+    ? (template.cssText as string)
+    : readTemplateCss(template.path);
 
   // Prefer pagesSnapshot (DB snapshot of another site) when present; fall
   // back to disk-based template parsing for legacy / system templates.
