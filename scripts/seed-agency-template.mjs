@@ -41,18 +41,18 @@ const IMG = (q, w, h) =>
 const headerHtml = `
 <div class="agency-header">
   <div class="agency-header-inner">
-    <a href="/" class="agency-brand">
+    <a href="index.html" class="agency-brand">
       <span class="agency-brand-mark">A</span>
       <span class="agency-brand-name">Agency</span>
     </a>
     <nav class="agency-nav">
-      <a href="/">홈</a>
-      <a href="/about.html">소개</a>
-      <a href="/services.html">서비스</a>
-      <a href="/portfolio.html">포트폴리오</a>
-      <a href="/contact.html">문의</a>
+      <a href="index.html">홈</a>
+      <a href="about.html">소개</a>
+      <a href="services.html">서비스</a>
+      <a href="portfolio.html">포트폴리오</a>
+      <a href="contact.html">문의</a>
     </nav>
-    <a href="/contact.html" class="agency-header-cta">
+    <a href="contact.html" class="agency-header-cta">
       <i class="fa-solid fa-arrow-right-long"></i>
       프로젝트 문의
     </a>
@@ -79,18 +79,18 @@ const footerHtml = `
       <div>
         <h4 class="agency-footer-heading">서비스</h4>
         <ul class="agency-footer-list">
-          <li><a href="/services.html">브랜딩</a></li>
-          <li><a href="/services.html">웹 디자인</a></li>
-          <li><a href="/services.html">모바일 앱</a></li>
-          <li><a href="/services.html">마케팅</a></li>
+          <li><a href="services.html">브랜딩</a></li>
+          <li><a href="services.html">웹 디자인</a></li>
+          <li><a href="services.html">모바일 앱</a></li>
+          <li><a href="services.html">마케팅</a></li>
         </ul>
       </div>
       <div>
         <h4 class="agency-footer-heading">회사</h4>
         <ul class="agency-footer-list">
-          <li><a href="/about.html">소개</a></li>
-          <li><a href="/portfolio.html">포트폴리오</a></li>
-          <li><a href="/contact.html">문의하기</a></li>
+          <li><a href="about.html">소개</a></li>
+          <li><a href="portfolio.html">포트폴리오</a></li>
+          <li><a href="contact.html">문의하기</a></li>
           <li><a href="#">채용 정보</a></li>
         </ul>
       </div>
@@ -339,8 +339,8 @@ function pageHome() {
         <div class="dragable sol-replacible-text" id="${t1}"><h1>브랜드를 <em>다시 태어나게</em><br/>하는 디자인 파트너</h1></div>
         <div class="dragable sol-replacible-text" id="${p1}"><p class="lead">리브랜딩·웹·앱·영상까지, 고객의 비즈니스가 시장에서 한 단계 도약할 수 있도록 설계부터 실행까지 함께합니다.</p></div>
         <div class="agency-hero-ctas">
-          <div class="dragable" id="${b1}"><a href="/contact.html" class="agency-btn agency-btn--primary">프로젝트 시작하기 <i class="fa-solid fa-arrow-right-long"></i></a></div>
-          <div class="dragable" id="${b2}"><a href="/portfolio.html" class="agency-btn agency-btn--outline">작업 살펴보기</a></div>
+          <div class="dragable" id="${b1}"><a href="contact.html" class="agency-btn agency-btn--primary">프로젝트 시작하기 <i class="fa-solid fa-arrow-right-long"></i></a></div>
+          <div class="dragable" id="${b2}"><a href="portfolio.html" class="agency-btn agency-btn--outline">작업 살펴보기</a></div>
         </div>
       </div>
       <div class="dragable" id="${img1}">
@@ -433,7 +433,7 @@ function pageHome() {
       </div>
       <div class="agency-work-grid">
         <div class="dragable de-group" id="${w1}">
-          <a href="/portfolio.html" class="agency-work-card">
+          <a href="portfolio.html" class="agency-work-card">
             <div class="dragable" id="${w1img}"><img src="${IMG("minimal product packaging design", 1200, 800)}" alt="Neon Rebrand" /></div>
             <div class="agency-work-meta">
               <div>
@@ -445,7 +445,7 @@ function pageHome() {
           </a>
         </div>
         <div class="dragable de-group" id="${w2}">
-          <a href="/portfolio.html" class="agency-work-card">
+          <a href="portfolio.html" class="agency-work-card">
             <div class="dragable" id="${w2img}"><img src="${IMG("modern mobile app interface design", 900, 1200)}" alt="Pulse App" /></div>
             <div class="agency-work-meta">
               <div>
@@ -457,7 +457,7 @@ function pageHome() {
           </a>
         </div>
         <div class="dragable de-group" id="${w3}">
-          <a href="/portfolio.html" class="agency-work-card">
+          <a href="portfolio.html" class="agency-work-card">
             <div class="dragable" id="${w3img}"><img src="${IMG("atlas travel magazine editorial layout", 1800, 900)}" alt="Atlas Editorial" /></div>
             <div class="agency-work-meta">
               <div>
@@ -498,7 +498,7 @@ function pageHome() {
       <div class="agency-cta">
         <div class="dragable sol-replacible-text" id="${ctat}"><h2>다음 프로젝트, 함께 시작할까요?</h2></div>
         <div class="dragable sol-replacible-text" id="${ctap}"><p>간단한 양식을 채워주시면 24시간 내에 제안 프로세스를 안내드립니다.</p></div>
-        <div class="dragable" id="${ctab}"><a href="/contact.html" class="agency-btn agency-btn--primary">지금 문의하기 <i class="fa-solid fa-arrow-right-long"></i></a></div>
+        <div class="dragable" id="${ctab}"><a href="contact.html" class="agency-btn agency-btn--primary">지금 문의하기 <i class="fa-solid fa-arrow-right-long"></i></a></div>
       </div>
     </div>
   </section>

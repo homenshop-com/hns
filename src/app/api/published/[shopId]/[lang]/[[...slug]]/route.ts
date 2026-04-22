@@ -642,13 +642,44 @@ export async function GET(
     ? rewriteAssetUrls(bodyHtml, templatePath)
     : bodyHtml;
 
+  // Rewrite root-relative internal links (`href="/about.html"`, `action="/contact.html"`)
+  // to include the site's /{shopId}/{lang} prefix. Without this, a template that
+  // uses absolute paths for navigation breaks on home.homenshop.com because the
+  // browser treats /about.html as the domain root. Custom domains get an empty
+  // `urlPrefix`, so they fall back to /{lang}/about.html which is correct for them.
+  //
+  // Scope: only path-style values (begin with a single /). Skips:
+  //   - protocol-relative URLs (//cdn.example/…)
+  //   - external URLs (http://, https://)
+  //   - hash/query-only (#foo, ?tab=x)
+  //   - already-prefixed paths (starting with /${shopId}/ or /${lang}/ on custom domains)
+  //   - tpl / uploaded / api asset paths that must stay rooted at domain root
+  //
+  // Safe to no-op for paths that are already well-formed.
+  const siteBasePath = `${urlPrefix}/${lang}`; // e.g. "/test313322/ko" or "/ko" (custom)
+  const RESERVED_ROOTS = /^\/(tpl|uploaded|api|_next|static|favicon|ko|en|ja|zh|vi)(\/|$)/i;
+  const rewriteInternalLinks = (h: string): string =>
+    h.replace(
+      /(href|action|src)=(["'])(\/[^"'#?][^"']*)(["'])/gi,
+      (match, attr, q1, urlPath, q2) => {
+        // Skip asset roots already served from the domain root.
+        if (RESERVED_ROOTS.test(urlPath)) return match;
+        // Skip if already prefixed with the shopId.
+        if (urlPrefix && urlPath.startsWith(`${urlPrefix}/`)) return match;
+        // On custom domain (empty urlPrefix), skip if already prefixed with /{lang}/.
+        if (!urlPrefix && /^\/(ko|en|ja|zh|vi)\//i.test(urlPath)) return match;
+        // Prepend the site base path.
+        return `${attr}=${q1}${siteBasePath}${urlPath}${q2}`;
+      },
+    );
+
   // Clean editor artifacts from published HTML
   const cleanHtml = (h: string) => h
     .replace(/<div class="de-resize-handle[^"]*"[^>]*><\/div>/g, "")
     .replace(/\bde-selected\b/g, "");
-  const cleanedBodyHtml = cleanHtml(processedBodyHtml);
-  const cleanedHeaderHtml = cleanHtml(headerHtml);
-  const cleanedFooterHtml = cleanHtml(footerHtml);
+  const cleanedBodyHtml = rewriteInternalLinks(cleanHtml(processedBodyHtml));
+  const cleanedHeaderHtml = rewriteInternalLinks(cleanHtml(headerHtml));
+  const cleanedFooterHtml = rewriteInternalLinks(cleanHtml(footerHtml));
 
   // Build CSS based on template type
   const publishedCss = isModernTemplate
