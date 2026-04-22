@@ -7,6 +7,7 @@ const navItems = [
   { href: "/admin", label: "대시보드", icon: "dashboard" },
   { href: "/admin/members", label: "회원 관리", icon: "members" },
   { href: "/admin/sites", label: "계정 관리", icon: "sites" },
+  { href: "/admin/templates", label: "템플릿 관리", icon: "templates" },
   { href: "/admin/orders", label: "주문 관리", icon: "orders" },
   { href: "/admin/domains", label: "도메인 관리", icon: "domains" },
   { href: "/admin/boards", label: "게시판 관리", icon: "boards" },
