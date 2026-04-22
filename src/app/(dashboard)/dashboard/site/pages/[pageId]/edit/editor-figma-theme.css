@@ -575,7 +575,9 @@
 /* ───── Left palette rail ──────────────────────────────────────────── */
 .leftpalette-rail {
   position: fixed;
-  top: 92px;
+  /* 2026-04-22 — single-row App bar (44px) + 1px border. Sub-toolbar
+     was removed, so the rail hugs the header directly. */
+  top: 45px;
   left: 0;
   bottom: 26px; /* above status bar */
   width: 240px;
@@ -817,7 +819,7 @@
 /* ───── Inspector rail (right) ─────────────────────────────────────── */
 .inspector-rail {
   position: fixed;
-  top: 92px;
+  top: 45px;
   right: 0;
   bottom: 26px;
   width: 280px;
@@ -1493,5 +1495,266 @@ body:has(.inspector-rail) .de-canvas-wrapper {
 .ins-interaction-tab .ins-empty-btn:hover:not(:disabled) {
   background: var(--fig-bg-3);
   color: var(--fig-text-0);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+ *  2026-04-22 — UI consolidation (App bar page tabs, ⋯ menu, theme tab)
+ * ═══════════════════════════════════════════════════════════════════ */
+
+/* ─── App bar page tabs (moved from the old sub-toolbar) ──────────── */
+.de-root .de-header-pagetabs {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  margin-left: 6px;
+  overflow-x: auto;
+  max-width: 48vw;
+  scrollbar-width: none;
+}
+.de-root .de-header-pagetabs::-webkit-scrollbar { display: none; }
+.de-root .de-header-pagetab {
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 5px 5px 0 0;
+  border: 0;
+  background: transparent;
+  color: var(--fig-text-2);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  border-bottom: 2px solid transparent;
+}
+.de-root .de-header-pagetab:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--fig-text-0);
+}
+.de-root .de-header-pagetab.active {
+  color: var(--fig-text-0);
+  border-bottom-color: var(--fig-accent);
+  background: rgba(91, 229, 179, 0.06);
+}
+.de-root .de-header-pageadd {
+  width: 28px;
+  height: 28px;
+  display: inline-grid;
+  place-items: center;
+  margin-left: 2px;
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  color: var(--fig-text-3);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.de-root .de-header-pageadd:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--fig-text-0);
+}
+
+/* Language switcher pill */
+.de-root .de-lang-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 8px;
+  padding: 2px;
+  background: var(--fig-bg-2);
+  border: 1px solid var(--fig-line-2);
+  border-radius: 6px;
+}
+.de-root .de-lang-btn {
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  color: var(--fig-text-2);
+  cursor: pointer;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  letter-spacing: 0.04em;
+}
+.de-root .de-lang-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--fig-text-0);
+}
+.de-root .de-lang-btn.active {
+  background: var(--fig-accent);
+  color: var(--fig-accent-ink);
+}
+.de-root .de-lang-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ⋯ overflow menu items (shared with page context menu) */
+.de-more-menuitem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 14px;
+  font-size: 13px;
+  color: #1f2937;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.1s;
+}
+.de-more-menuitem:hover { background: #f3f4f6; }
+.de-more-divider {
+  height: 1px;
+  background: #e5e7eb;
+  margin: 4px 0;
+}
+
+/* Page tab right-click context menu */
+.de-page-ctxmenu {
+  position: fixed;
+  z-index: 9001;
+  min-width: 180px;
+  background: #fff;
+  color: #1f2937;
+  border-radius: 8px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
+  border: 1px solid #e5e7eb;
+  padding: 6px 0;
+}
+
+/* ─── LeftPalette — 테마 tab ───────────────────────────────────────── */
+.lp-theme-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  padding: 0 14px 10px;
+}
+.lp-theme-swatch {
+  all: unset;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+  padding: 8px;
+  border-radius: 6px;
+  background: var(--fig-bg-2);
+  border: 1px solid var(--fig-line-2);
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+.lp-theme-swatch:hover {
+  border-color: var(--fig-accent);
+  background: var(--fig-bg-3);
+}
+.lp-theme-swatch.active {
+  border-color: var(--fig-accent);
+  box-shadow: 0 0 0 2px rgba(91, 229, 179, 0.2);
+}
+.lp-theme-bar {
+  display: block;
+  height: 14px;
+  border-radius: 3px;
+}
+.lp-theme-label {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--fig-text-2);
+  text-align: center;
+}
+.lp-row.active {
+  background: rgba(91, 229, 179, 0.08);
+}
+
+/* ─── LeftPalette — AI tab ────────────────────────────────────────── */
+.lp-ai {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 14px;
+}
+.lp-ai-credits {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #c4b5fd;
+  background: rgba(124, 58, 237, 0.18);
+  border: 1px solid #7c3aed;
+  border-radius: 999px;
+  text-decoration: none;
+  width: fit-content;
+  font-variant-numeric: tabular-nums;
+}
+.lp-ai-credits.low {
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.12);
+  border-color: #ef4444;
+}
+.lp-ai-textarea {
+  all: unset;
+  padding: 8px 10px;
+  background: var(--fig-bg-2);
+  color: var(--fig-text-0);
+  border: 1px solid var(--fig-line-2);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 12.5px;
+  line-height: 1.5;
+  resize: vertical;
+  min-height: 90px;
+  max-height: 240px;
+  white-space: pre-wrap;
+}
+.lp-ai-textarea:focus { border-color: var(--fig-accent); }
+.lp-ai-textarea:disabled { opacity: 0.6; cursor: wait; }
+.lp-ai-run {
+  all: unset;
+  padding: 9px 14px;
+  background: #7c3aed;
+  color: #fff;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 12.5px;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.12s, opacity 0.12s;
+}
+.lp-ai-run:hover:not(:disabled) { background: #6d28d9; }
+.lp-ai-run:disabled { opacity: 0.5; cursor: not-allowed; }
+.lp-ai-undo {
+  all: unset;
+  padding: 7px 12px;
+  border: 1px solid #f59e0b;
+  color: #f59e0b;
+  border-radius: 6px;
+  font-size: 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.lp-ai-undo:hover { background: rgba(245, 158, 11, 0.12); }
+.lp-ai-status {
+  font-size: 12px;
+  text-align: center;
+  padding: 4px 0;
+}
+.lp-ai-status.ok { color: #22c55e; }
+.lp-ai-status.err { color: #ef4444; }
+
+/* AI tab trigger — subtle purple glow */
+.lp-tab.lp-tab-ai {
+  color: #c4b5fd;
+}
+.lp-tab.lp-tab-ai:hover {
+  color: #ddd6fe;
+}
+.lp-tab.lp-tab-ai.active {
+  background: rgba(124, 58, 237, 0.18);
+  color: #ddd6fe;
 }
 

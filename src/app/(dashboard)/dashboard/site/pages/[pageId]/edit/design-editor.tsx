@@ -119,8 +119,24 @@ export default function DesignEditor({
   // State
   const [currentBodyHtml, setCurrentBodyHtml] = useState(bodyHtml);
   const [currentPageCss, setCurrentPageCss] = useState(pageCss);
+
+  // 테마 tab selection (LeftPalette). Persisted into cssText via a
+  // managed `:root{}` block (comment-delimited so we can update it in-
+  // place without stepping on other site CSS).
+  const [currentThemeId, setCurrentThemeId] = useState<string | null>(null);
+  const [currentFontId, setCurrentFontId] = useState<string | null>(null);
   const [selectedElId, setSelectedElId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"page" | "object" | "settings" | "position" | "ai">("page");
+  // Legacy top-toolbar tabs (page/object/settings/position/AI) were merged
+  // into the single-row App bar + left rail + right inspector in the
+  // 2026-04-22 UI consolidation. The state variable is retained only for
+  // the sub-toolbar guard logic (always "page" now) so existing code
+  // paths don't need to be audited for every touch.
+  const activeTab: "page" = "page";
+  // Site settings modal — opens from ⋯ overflow menu (holds what used to
+  // be in the old "설정" tab: header/logo, menu mode, footer reset).
+  const [showSiteSettings, setShowSiteSettings] = useState(false);
+  // Page tab context menu (right-click on a page tab in the App bar).
+  const [pageCtxMenu, setPageCtxMenu] = useState<{ pageId: string; x: number; y: number } | null>(null);
   // Subscribe to viewport mode (for toolbar button highlighting + canvas width).
   const [viewportMode, setLocalViewportMode] = useState<"desktop" | "mobile">("desktop");
   useEffect(() => {
@@ -316,12 +332,11 @@ export default function DesignEditor({
         lastMulti = s.multiSelectedIds;
         syncApplySelection(s.selectedId, s.multiSelectedIds, el);
         // Mirror LayerPanel selection → legacy canvas state so the
-        // position tab, drag/resize handles, and keyboard shortcuts
-        // pick up the target. Also auto-switch to the 위치 tab so the
-        // user immediately sees the selected layer's props.
+        // drag/resize handles and keyboard shortcuts pick up the target.
+        // (The old auto-switch to 위치 tab is gone — the right Inspector
+        // panel's 디자인 tab now always shows selection details.)
         if (s.selectedId) {
           setSelectedElId(s.selectedId);
-          setActiveTab((t) => (t === "page" || t === "object" ? "position" : t));
         } else {
           setSelectedElId(null);
         }
@@ -1758,6 +1773,51 @@ export default function DesignEditor({
     }
   }
 
+  /* ─── Theme tokens (LeftPalette 테마 tab) ─────────────────────────
+   * Inject/replace a `:root{...}` rule managed via a comment-delimited
+   * block so it can be updated in place without disturbing other page
+   * CSS. Downstream: any CSS that references `var(--brand-color)` /
+   * `var(--brand-accent)` / `var(--brand-font)` picks up the values.
+   */
+  function applyTheme(tokens: { brand: string; accent: string; fontStack?: string }) {
+    const MARK_START = "/* HNS-THEME-TOKENS:START */";
+    const MARK_END = "/* HNS-THEME-TOKENS:END */";
+    const fontDecl = tokens.fontStack ? `  --brand-font: ${tokens.fontStack};\n` : "";
+    const block = `${MARK_START}\n:root {\n  --brand-color: ${tokens.brand};\n  --brand-accent: ${tokens.accent};\n${fontDecl}}\n${MARK_END}`;
+    const css = currentPageCss ?? "";
+    const re = new RegExp(
+      MARK_START.replace(/[/*]/g, "\\$&") + "[\\s\\S]*?" + MARK_END.replace(/[/*]/g, "\\$&"),
+    );
+    const next = re.test(css) ? css.replace(re, block) : css + (css.trim() ? "\n\n" : "") + block + "\n";
+    setCurrentPageCss(next);
+
+    // Track which preset the user picked for the UI active-state.
+    const matched = ["mint", "ocean", "sunset", "berry", "forest", "graphite"].find((id) => {
+      const presets: Record<string, { brand: string; accent: string }> = {
+        mint:     { brand: "#3ccf97", accent: "#5be5b3" },
+        ocean:    { brand: "#2563eb", accent: "#4a90d9" },
+        sunset:   { brand: "#e89a78", accent: "#f4b66a" },
+        berry:    { brand: "#b6267e", accent: "#ff8bb1" },
+        forest:   { brand: "#1f6f5c", accent: "#3ccf97" },
+        graphite: { brand: "#111827", accent: "#6b7280" },
+      };
+      const p = presets[id];
+      return p && p.brand === tokens.brand && p.accent === tokens.accent;
+    });
+    if (matched) setCurrentThemeId(matched);
+
+    if (tokens.fontStack) {
+      const matchedFont = [
+        ["pretendard", "Pretendard"],
+        ["inter", "Inter"],
+        ["noto", "Noto Sans KR"],
+        ["serif", "Noto Serif KR"],
+        ["mono", "JetBrains Mono"],
+      ].find(([, marker]) => tokens.fontStack!.includes(marker));
+      if (matchedFont) setCurrentFontId(matchedFont[0]!);
+    }
+  }
+
   /* ─── Build 2-depth menu HTML from pages ─── */
   function buildMenuHtml(): string {
     const visible = pages.filter(
@@ -1823,49 +1883,69 @@ export default function DesignEditor({
       {/* Inject template CSS */}
       <style dangerouslySetInnerHTML={{ __html: canvasCss }} />
 
-      {/* TOP HEADER BAR */}
+      {/* TOP HEADER BAR — page tabs live inline here since the UI
+          consolidation (2026-04-22). The old 객체/설정/위치/AI buttons
+          moved to the left rail and the right Inspector panel. */}
       <header className="de-header">
         <div className="de-header-left">
           <a href="/dashboard" className="de-logo">homeNshop</a>
-          <nav className="de-tabs">
-            <button
-              className={`de-tab ${activeTab === "page" ? "active" : ""}`}
-              onClick={() => setActiveTab("page")}
-            >
-              페이지
-            </button>
-            <button
-              className={`de-tab ${activeTab === "object" ? "active" : ""}`}
-              onClick={() => setActiveTab("object")}
-            >
-              객체
-            </button>
-            <button
-              className={`de-tab ${activeTab === "settings" ? "active" : ""}`}
-              onClick={() => setActiveTab("settings")}
-            >
-              설정
-            </button>
-            <button
-              className={`de-tab ${activeTab === "position" ? "active" : ""}`}
-              onClick={() => setActiveTab("position")}
-            >
-              위치
-            </button>
-            <button
-              className={`de-tab de-tab-ai ${activeTab === "ai" ? "active" : ""}`}
-              onClick={() => setActiveTab("ai")}
-              title="AI 어시스턴트로 페이지 편집"
-            >
-              <svg
-                className="sparkle"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                aria-hidden="true"
+          {/* Language switcher (only when the site has more than one language). */}
+          {siteLanguages.length > 1 && (
+            <div className="de-lang-switch" role="group" aria-label="언어 전환">
+              {siteLanguages.map((l) => {
+                const targetPageId = langPageMap[l];
+                const isActive = l === currentLang;
+                const hasPage = !!targetPageId;
+                return (
+                  <button
+                    key={l}
+                    type="button"
+                    onClick={() => {
+                      if (!isActive && hasPage) {
+                        router.push(`/dashboard/site/pages/${targetPageId}/edit`);
+                      }
+                    }}
+                    disabled={!hasPage}
+                    className={`de-lang-btn${isActive ? " active" : ""}`}
+                    title={hasPage ? `${l.toUpperCase()} 버전 편집` : `${l.toUpperCase()} 페이지 없음`}
+                  >
+                    {l.toUpperCase()}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {/* Page tabs — Figma-style, inline in the App bar. */}
+          <nav className="de-header-pagetabs" aria-label="페이지 탭">
+            {pages.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                className={`de-header-pagetab${p.id === pageId ? " active" : ""}`}
+                onClick={() => {
+                  if (p.id !== pageId) {
+                    router.push(`/dashboard/site/pages/${p.id}/edit`);
+                  }
+                }}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setPageCtxMenu({ pageId: p.id, x: e.clientX, y: e.clientY });
+                }}
+                title={p.title}
               >
-                <path d="M12 0l2.4 9.1L24 12l-9.6 2.9L12 24l-2.4-9.1L0 12l9.6-2.9L12 0z" />
+                {p.title}
+              </button>
+            ))}
+            <button
+              type="button"
+              className="de-header-pageadd"
+              onClick={() => router.push(`/dashboard/site/pages/new`)}
+              title="페이지 추가"
+              aria-label="페이지 추가"
+            >
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                <path d="M8 3v10M3 8h10" />
               </svg>
-              <span className="ai-label">AI</span>
             </button>
           </nav>
         </div>
@@ -1972,25 +2052,27 @@ export default function DesignEditor({
                   role="menuitem"
                   onClick={() => {
                     setMoreMenuOpen(false);
+                    setShowSiteSettings(true);
+                  }}
+                  className="de-more-menuitem"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                  </svg>
+                  <span>사이트 설정 · 헤더·메뉴·푸터</span>
+                </button>
+                <div className="de-more-divider" />
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMoreMenuOpen(false);
                     setSaveTplName(siteName || "");
                     setSaveTplError("");
                     setShowSaveTplModal(true);
                   }}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    width: "100%",
-                    padding: "8px 14px",
-                    fontSize: 13,
-                    color: "#1f2937",
-                    background: "transparent",
-                    border: "none",
-                    textAlign: "left",
-                    cursor: "pointer",
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "#f3f4f6")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  className="de-more-menuitem"
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
@@ -2002,6 +2084,57 @@ export default function DesignEditor({
           </div>
         </div>
       </header>
+
+      {/* Page tab context menu (right-click on a page tab). */}
+      {pageCtxMenu && (
+        <>
+          <div
+            onClick={() => setPageCtxMenu(null)}
+            onContextMenu={(e) => { e.preventDefault(); setPageCtxMenu(null); }}
+            style={{ position: "fixed", inset: 0, zIndex: 9000 }}
+          />
+          <div
+            role="menu"
+            className="de-page-ctxmenu"
+            style={{ left: pageCtxMenu.x, top: pageCtxMenu.y }}
+          >
+            <button
+              type="button"
+              role="menuitem"
+              className="de-more-menuitem"
+              onClick={() => {
+                const id = pageCtxMenu.pageId;
+                setPageCtxMenu(null);
+                router.push(`/dashboard/site/pages/${id}/edit`);
+              }}
+            >
+              <span>열기</span>
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="de-more-menuitem"
+              onClick={() => {
+                setPageCtxMenu(null);
+                router.push(`/dashboard/site/pages`);
+              }}
+            >
+              <span>페이지 관리 열기</span>
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="de-more-menuitem"
+              onClick={() => {
+                setPageCtxMenu(null);
+                router.push(`/dashboard/site/pages/new`);
+              }}
+            >
+              <span>새 페이지 추가</span>
+            </button>
+          </div>
+        </>
+      )}
 
       {/* Save-as-template modal */}
       {showSaveTplModal && (
@@ -2103,332 +2236,153 @@ export default function DesignEditor({
         </div>
       )}
 
-      {/* SUB TOOLBAR */}
-      <div className="de-subtoolbar">
-        {activeTab === "page" && (
-          <>
-          {siteLanguages.length > 1 && (
-            <div style={{ display: "flex", gap: 4, marginRight: 12, flexShrink: 0 }}>
-              {siteLanguages.map((l) => {
-                const targetPageId = langPageMap[l];
-                const isActive = l === currentLang;
-                const hasPage = !!targetPageId;
-                return (
+      {/* Site Settings modal — opens from the ⋯ overflow menu.
+          Holds what used to live in the old "설정" top-toolbar tab:
+          header/logo, menu auto/custom mode, footer reset. The actual
+          HMF markup is still edited inline on the canvas. */}
+      {showSiteSettings && (
+        <div
+          onClick={() => setShowSiteSettings(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.55)",
+            zIndex: 9999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "#fff",
+              borderRadius: 12,
+              width: "100%",
+              maxWidth: 560,
+              padding: 24,
+              boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
+              color: "#1f2937",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>사이트 설정</h3>
+              <button
+                type="button"
+                onClick={() => setShowSiteSettings(false)}
+                aria-label="닫기"
+                style={{ background: "transparent", border: 0, cursor: "pointer", fontSize: 22, color: "#6b7280", lineHeight: 1 }}
+              >
+                ×
+              </button>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+              {/* Site info */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <span style={{ fontSize: 11, color: "#6b7280", textTransform: "uppercase", letterSpacing: 1, fontWeight: 600 }}>사이트</span>
+                <span style={{ fontSize: 14, color: "#111" }}>{siteName} · {currentLang.toUpperCase()}</span>
+              </div>
+
+              {/* Header / Logo */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <span style={{ fontSize: 11, color: "#6b7280", textTransform: "uppercase", letterSpacing: 1, fontWeight: 600 }}>헤더 · 로고</span>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  {logoUrl && (
+                    <img
+                      src={logoUrl}
+                      alt="logo"
+                      style={{ height: 28, maxWidth: 100, objectFit: "contain", borderRadius: 4, background: "#f3f4f6", border: "1px solid #e5e7eb" }}
+                    />
+                  )}
                   <button
-                    key={l}
-                    onClick={() => {
-                      if (!isActive && hasPage) {
-                        router.push(`/dashboard/site/pages/${targetPageId}/edit`);
-                      }
-                    }}
-                    disabled={!hasPage}
-                    style={{
-                      padding: "4px 10px",
-                      fontSize: 12,
-                      borderRadius: 4,
-                      border: isActive ? "2px solid #fff" : "1px solid transparent",
-                      background: isActive ? "#4a90d9" : hasPage ? "#555" : "#333",
-                      color: hasPage ? "#fff" : "#666",
-                      fontWeight: isActive ? 700 : 400,
-                      cursor: isActive ? "default" : hasPage ? "pointer" : "not-allowed",
-                      transition: "all 0.15s",
-                    }}
-                    title={hasPage ? `${l.toUpperCase()} 버전 편집` : `${l.toUpperCase()} 페이지 없음`}
+                    type="button"
+                    onClick={handleLogoChange}
+                    style={{ padding: "6px 12px", fontSize: 13, background: "#111827", color: "#fff", border: 0, borderRadius: 6, cursor: "pointer", fontWeight: 500 }}
                   >
-                    {l.toUpperCase()}
+                    로고 변경
                   </button>
-                );
-              })}
+                  <button
+                    type="button"
+                    onClick={handleResetHeader}
+                    style={{ padding: "6px 12px", fontSize: 13, background: "#fff", color: "#374151", border: "1px solid #d1d5db", borderRadius: 6, cursor: "pointer" }}
+                  >
+                    헤더 초기화
+                  </button>
+                </div>
+              </div>
+
+              {/* Menu Mode */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <span style={{ fontSize: 11, color: "#6b7280", textTransform: "uppercase", letterSpacing: 1, fontWeight: 600 }}>메뉴</span>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button
+                    type="button"
+                    onClick={() => handleMenuModeChange("auto")}
+                    style={{
+                      padding: "6px 14px",
+                      fontSize: 13,
+                      borderRadius: 6,
+                      border: menuMode === "auto" ? "2px solid #2563eb" : "1px solid #d1d5db",
+                      background: menuMode === "auto" ? "#dbeafe" : "#fff",
+                      color: menuMode === "auto" ? "#1e40af" : "#374151",
+                      cursor: "pointer",
+                      fontWeight: menuMode === "auto" ? 600 : 500,
+                    }}
+                  >
+                    메뉴관리 자동
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleMenuModeChange("custom")}
+                    style={{
+                      padding: "6px 14px",
+                      fontSize: 13,
+                      borderRadius: 6,
+                      border: menuMode === "custom" ? "2px solid #2563eb" : "1px solid #d1d5db",
+                      background: menuMode === "custom" ? "#dbeafe" : "#fff",
+                      color: menuMode === "custom" ? "#1e40af" : "#374151",
+                      cursor: "pointer",
+                      fontWeight: menuMode === "custom" ? 600 : 500,
+                    }}
+                  >
+                    커스텀 수정
+                  </button>
+                </div>
+                <span style={{ fontSize: 12, color: "#6b7280" }}>
+                  {menuMode === "auto" ? "메뉴관리 페이지에서 설정한 메뉴가 적용됩니다." : "캔버스 메뉴를 더블클릭해 직접 편집합니다."}
+                </span>
+              </div>
+
+              {/* Footer */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <span style={{ fontSize: 11, color: "#6b7280", textTransform: "uppercase", letterSpacing: 1, fontWeight: 600 }}>푸터</span>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <button
+                    type="button"
+                    onClick={handleResetFooter}
+                    style={{ padding: "6px 12px", fontSize: 13, background: "#fff", color: "#374151", border: "1px solid #d1d5db", borderRadius: 6, cursor: "pointer" }}
+                  >
+                    푸터 초기화
+                  </button>
+                  <span style={{ fontSize: 12, color: "#6b7280" }}>캔버스의 푸터를 더블클릭해 편집합니다.</span>
+                </div>
+              </div>
             </div>
-          )}
-          <div className="de-page-tabs">
-            {pages.map((p) => (
+
+            <div style={{ marginTop: 22, display: "flex", justifyContent: "flex-end" }}>
               <button
-                key={p.id}
-                className={`de-page-tab ${p.id === pageId ? "active" : ""}`}
-                onClick={() => {
-                  if (p.id !== pageId) {
-                    router.push(`/dashboard/site/pages/${p.id}/edit`);
-                  }
-                }}
+                type="button"
+                onClick={() => setShowSiteSettings(false)}
+                style={{ padding: "8px 16px", fontSize: 13, background: "#111827", color: "#fff", border: 0, borderRadius: 6, cursor: "pointer", fontWeight: 600 }}
               >
-                {p.title}
+                닫기
               </button>
-            ))}
-          </div>
-          </>
-        )}
-
-        {activeTab === "object" && (
-          <div className="de-object-panel">
-            <button className="de-obj-btn" onClick={() => addElement("text")}>
-              <span className="de-obj-icon">T</span>텍스트
-            </button>
-            <button className="de-obj-btn" onClick={() => addElement("image")}>
-              <span className="de-obj-icon">&#x1F5BC;</span>이미지
-            </button>
-            <button className="de-obj-btn" onClick={() => addElement("box")}>
-              <span className="de-obj-icon">&#x25A2;</span>박스
-            </button>
-            <button className="de-obj-btn" onClick={() => addElement("exhibition")}>
-              <span className="de-obj-icon">&#x1F39E;</span>갤러리
-            </button>
-            <button className="de-obj-btn" onClick={() => addElement("board")}>
-              <span className="de-obj-icon">&#x1F4CB;</span>게시판
-            </button>
-            <button className="de-obj-btn" onClick={() => addElement("product")}>
-              <span className="de-obj-icon">&#x1F6D2;</span>상품
-            </button>
-            <button className="de-obj-btn" onClick={() => addElement("login")}>
-              <span className="de-obj-icon">&#x1F464;</span>로그인
-            </button>
-            <button className="de-obj-btn" onClick={() => addElement("mail")}>
-              <span className="de-obj-icon">&#x2709;</span>문의폼
-            </button>
-          </div>
-        )}
-
-        {activeTab === "settings" && (
-          <div className="de-settings-panel" style={{ display: "flex", gap: 24, alignItems: "flex-start", flexWrap: "wrap", padding: "8px 16px" }}>
-            {/* Site info */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <span style={{ fontSize: 11, color: "#888", textTransform: "uppercase", letterSpacing: 1 }}>사이트</span>
-              <span style={{ fontSize: 13, color: "#ddd" }}>{siteName} | {currentLang.toUpperCase()}</span>
-            </div>
-
-            {/* Divider */}
-            <span style={{ width: 1, height: 40, background: "#555", flexShrink: 0 }} />
-
-            {/* Header / Logo */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <span style={{ fontSize: 11, color: "#888", textTransform: "uppercase", letterSpacing: 1 }}>헤더 / 로고</span>
-              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                {logoUrl && (
-                  <img
-                    src={logoUrl}
-                    alt="logo"
-                    style={{ height: 24, maxWidth: 80, objectFit: "contain", borderRadius: 3, background: "#555" }}
-                  />
-                )}
-                <button
-                  onClick={handleLogoChange}
-                  style={{ padding: "4px 10px", fontSize: 12, background: "#555", color: "#ddd", border: "1px solid #666", borderRadius: 4, cursor: "pointer" }}
-                >
-                  로고 변경
-                </button>
-                <button
-                  onClick={handleResetHeader}
-                  style={{ padding: "4px 10px", fontSize: 12, background: "transparent", color: "#999", border: "1px solid #555", borderRadius: 4, cursor: "pointer" }}
-                >
-                  헤더 초기화
-                </button>
-              </div>
-            </div>
-
-            {/* Divider */}
-            <span style={{ width: 1, height: 40, background: "#555", flexShrink: 0 }} />
-
-            {/* Menu Mode */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <span style={{ fontSize: 11, color: "#888", textTransform: "uppercase", letterSpacing: 1 }}>메뉴 설정</span>
-              <div style={{ display: "flex", gap: 4 }}>
-                <button
-                  onClick={() => handleMenuModeChange("auto")}
-                  style={{
-                    padding: "4px 12px",
-                    fontSize: 12,
-                    borderRadius: 4,
-                    border: menuMode === "auto" ? "2px solid #4a90d9" : "1px solid #666",
-                    background: menuMode === "auto" ? "#4a90d9" : "#444",
-                    color: "#fff",
-                    cursor: "pointer",
-                    fontWeight: menuMode === "auto" ? 600 : 400,
-                  }}
-                >
-                  메뉴관리 자동
-                </button>
-                <button
-                  onClick={() => handleMenuModeChange("custom")}
-                  style={{
-                    padding: "4px 12px",
-                    fontSize: 12,
-                    borderRadius: 4,
-                    border: menuMode === "custom" ? "2px solid #4a90d9" : "1px solid #666",
-                    background: menuMode === "custom" ? "#4a90d9" : "#444",
-                    color: "#fff",
-                    cursor: "pointer",
-                    fontWeight: menuMode === "custom" ? 600 : 400,
-                  }}
-                >
-                  커스텀 수정
-                </button>
-              </div>
-              <span style={{ fontSize: 11, color: "#777" }}>
-                {menuMode === "auto" ? "메뉴관리 페이지에서 설정한 메뉴가 적용됩니다" : "더블클릭으로 메뉴를 직접 수정합니다"}
-              </span>
-            </div>
-
-            {/* Divider */}
-            <span style={{ width: 1, height: 40, background: "#555", flexShrink: 0 }} />
-
-            {/* Footer */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <span style={{ fontSize: 11, color: "#888", textTransform: "uppercase", letterSpacing: 1 }}>푸터</span>
-              <div style={{ display: "flex", gap: 6 }}>
-                <button
-                  onClick={handleResetFooter}
-                  style={{ padding: "4px 10px", fontSize: 12, background: "transparent", color: "#999", border: "1px solid #555", borderRadius: 4, cursor: "pointer" }}
-                >
-                  푸터 초기화
-                </button>
-                <span style={{ fontSize: 11, color: "#777", alignSelf: "center" }}>더블클릭으로 푸터 내용을 수정하세요</span>
-              </div>
             </div>
           </div>
-        )}
-
-        {activeTab === "position" && selectedProps && (
-          <div className="de-position-panel">
-            <label>
-              X: <input type="number" value={selectedProps.x}
-                onChange={(e) => handlePropertyChange("x", e.target.value)} />
-            </label>
-            <label>
-              Y: <input type="number" value={selectedProps.y}
-                onChange={(e) => handlePropertyChange("y", e.target.value)} />
-            </label>
-            <label>
-              W: <input type="number" value={selectedProps.w}
-                onChange={(e) => handlePropertyChange("w", e.target.value)} />
-            </label>
-            <label>
-              H: <input type="number" value={selectedProps.h}
-                onChange={(e) => handlePropertyChange("h", e.target.value)} />
-            </label>
-            <label>
-              Z: <input type="number" value={selectedProps.z}
-                onChange={(e) => handlePropertyChange("z", e.target.value)} />
-            </label>
-            <div className="de-layer-btns">
-              <button onClick={() => alignSelected("left")} title="왼쪽 정렬">&#x25C0;</button>
-              <button onClick={() => alignSelected("center-h")} title="수평 중앙 정렬">&#x25C6;</button>
-              <button onClick={() => alignSelected("right")} title="오른쪽 정렬">&#x25B6;</button>
-              <span style={{ width: 1, background: "#555", margin: "0 2px", alignSelf: "stretch" }} />
-              <button onClick={() => changeZIndex("top")} title="맨 앞으로">&#x2B06;&#x2B06;</button>
-              <button onClick={() => changeZIndex("up")} title="앞으로">&#x2B06;</button>
-              <button onClick={() => changeZIndex("down")} title="뒤로">&#x2B07;</button>
-              <button onClick={() => changeZIndex("bottom")} title="맨 뒤로">&#x2B07;&#x2B07;</button>
-              <span style={{ width: 1, background: "#555", margin: "0 2px", alignSelf: "stretch" }} />
-              <button onClick={cloneSelected} title="복제">&#x1F4CB;</button>
-              <button onClick={deleteSelected} title="삭제" className="de-del-btn">&#x1F5D1;</button>
-            </div>
-          </div>
-        )}
-        {activeTab === "position" && !selectedProps && (
-          <div className="de-position-panel">
-            <span className="de-settings-info">객체를 선택하세요</span>
-          </div>
-        )}
-
-        {/* AI Tab */}
-        {activeTab === "ai" && (
-          <div style={{ display: "flex", gap: 8, alignItems: "center", padding: "8px 16px", width: "100%" }}>
-            {creditBalance !== null && (
-              <a
-                href="/dashboard/credits"
-                title={`AI 편집 1회 = ${creditCost} C`}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
-                  padding: "4px 10px",
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: creditBalance < creditCost ? "#f87171" : "#c4b5fd",
-                  background: creditBalance < creditCost ? "rgba(239, 68, 68, 0.12)" : "rgba(124, 58, 237, 0.18)",
-                  border: `1px solid ${creditBalance < creditCost ? "#ef4444" : "#7c3aed"}`,
-                  borderRadius: 999,
-                  textDecoration: "none",
-                  whiteSpace: "nowrap",
-                  flexShrink: 0,
-                  fontVariantNumeric: "tabular-nums",
-                }}
-              >
-                <span aria-hidden>✨</span>
-                {creditBalance.toLocaleString()} C
-              </a>
-            )}
-            <textarea
-              value={aiPrompt}
-              onChange={(e) => setAiPrompt(e.target.value)}
-              placeholder='예: 배경색을 검정색으로 변경해줘 / 배너 텍스트를 "봄 세일 50%"로 바꿔줘'
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
-                  e.preventDefault();
-                  executeAiEdit();
-                }
-              }}
-              style={{
-                flex: 1,
-                minHeight: 32,
-                maxHeight: 80,
-                padding: "6px 10px",
-                fontSize: 13,
-                background: "#333",
-                color: "#eee",
-                border: "1px solid #555",
-                borderRadius: 6,
-                resize: "vertical",
-                fontFamily: "inherit",
-                lineHeight: 1.5,
-              }}
-              disabled={aiLoading}
-            />
-            <button
-              onClick={executeAiEdit}
-              disabled={aiLoading || !aiPrompt.trim()}
-              style={{
-                padding: "6px 16px",
-                fontSize: 13,
-                background: aiLoading ? "#555" : "#7c3aed",
-                color: "#fff",
-                border: "none",
-                borderRadius: 6,
-                cursor: aiLoading ? "wait" : "pointer",
-                whiteSpace: "nowrap",
-                flexShrink: 0,
-                opacity: !aiPrompt.trim() ? 0.5 : 1,
-              }}
-            >
-              {aiLoading ? "처리중..." : `실행 (⌘↵) · ${creditCost}C`}
-            </button>
-            {aiStatus === "success" && aiPrevHtmlRef.current !== null && (
-              <button
-                onClick={undoAiEdit}
-                style={{
-                  padding: "6px 12px",
-                  fontSize: 12,
-                  background: "transparent",
-                  color: "#f59e0b",
-                  border: "1px solid #f59e0b",
-                  borderRadius: 6,
-                  cursor: "pointer",
-                  whiteSpace: "nowrap",
-                  flexShrink: 0,
-                }}
-              >
-                되돌리기
-              </button>
-            )}
-            {aiStatus === "error" && (
-              <span style={{ fontSize: 12, color: "#ef4444", flexShrink: 0 }}>{aiError}</span>
-            )}
-            {aiStatus === "success" && (
-              <span style={{ fontSize: 12, color: "#22c55e", flexShrink: 0 }}>적용완료</span>
-            )}
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* CANVAS */}
       <div
@@ -2551,6 +2505,19 @@ export default function DesignEditor({
           <LeftPalette
             onInsert={(type) => addElement(type)}
             onInsertSection={(presetId) => insertSectionPreset(presetId)}
+            onApplyTheme={applyTheme}
+            currentThemeId={currentThemeId}
+            currentFontId={currentFontId}
+            aiPrompt={aiPrompt}
+            setAiPrompt={setAiPrompt}
+            aiLoading={aiLoading}
+            aiStatus={aiStatus}
+            aiError={aiError}
+            canUndoAi={aiPrevHtmlRef.current !== null}
+            creditBalance={creditBalance}
+            creditCost={creditCost}
+            onRunAi={executeAiEdit}
+            onUndoAi={undoAiEdit}
           />
         </Suspense>
       )}
