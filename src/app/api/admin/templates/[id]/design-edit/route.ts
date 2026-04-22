@@ -123,8 +123,13 @@ export async function POST(
   const existing = await prisma.site.findUnique({ where: { shopId: storageShopId } });
   let siteId: string;
   if (existing) {
-    // Replace pages wholesale so edit always starts from the latest snapshot.
+    // Replace pages AND SiteHmf rows wholesale so edit always starts
+    // from the latest Template snapshot. Without clearing SiteHmf, a
+    // previous editor session's per-language HMF overrides (including
+    // emptied menuHtml) would persist and override the freshly copied
+    // site-level HMF — showing a broken menu on re-edit.
     await prisma.page.deleteMany({ where: { siteId: existing.id } });
+    await prisma.siteHmf.deleteMany({ where: { siteId: existing.id } });
     await prisma.site.update({
       where: { id: existing.id },
       data: {
