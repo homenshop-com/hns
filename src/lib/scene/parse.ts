@@ -251,9 +251,20 @@ function extractStyle(style: StyleMap): {
  *  regular editable layers that the editor can freely reposition. */
 function isFlowSection(el: Element): boolean {
   const style = parseStyle(el.getAttribute("style"));
-  const hasInlineAbs =
-    style["position"] != null || style["left"] != null || style["top"] != null;
-  if (hasInlineAbs) return false;
+  // Reject only ABSOLUTE/FIXED positioning — `position: relative` is a
+  // legit pattern for section wrappers that establish a positioning
+  // context for absolute-positioned chips/badges inside them (hero
+  // sections, banner sections, etc.). Before this fix, ANY inline
+  // `position` disqualified the element from section-hood, which made
+  // the parser treat the hero wrapper as an atomic box; editor-sync
+  // then forced `position: absolute` on it (see applyFrameToEl), taking
+  // the hero out of flow and collapsing its min-height — the exact
+  // symptom reproduced in Plus Academy after a save round-trip.
+  const pos = style["position"];
+  const posVal = pos ? pos.replace(/\s*!\s*important\s*$/i, "").trim() : "";
+  const hasAbsolute = posVal === "absolute" || posVal === "fixed";
+  const hasInlineCoords = style["left"] != null || style["top"] != null;
+  if (hasAbsolute || hasInlineCoords) return false;
   // Modern AI sites: section = flow dragable containing other dragables.
   if (el.querySelector(`.${DRAGABLE_CLASS}`) !== null) return true;
   // Legacy PHP templates: section = flow dragable containing `id="el_*"`
