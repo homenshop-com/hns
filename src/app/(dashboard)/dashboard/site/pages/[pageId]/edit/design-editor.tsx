@@ -1730,6 +1730,16 @@ export default function DesignEditor({
     currentPageCss ? scopeAndRewrite(boostImportant(currentPageCss)) : "",
   ].filter(Boolean).join("\n");
 
+  // Detect modern full-width templates so the canvas can stretch beyond
+  // the legacy 1000px design viewport. Without this, a template like
+  // Plus Academy or Agency that uses `max-width: 100%` would still look
+  // identical to a fixed-1360px one because the canvas itself is capped.
+  // Mirrors the publisher's isModernTemplate heuristic (route.ts ~L515).
+  const isModernCanvas =
+    (cssText?.includes("/* HNS-MODERN-TEMPLATE */") ?? false) ||
+    (cssText?.includes("calc(-50vw + 50%)") ?? false) ||
+    (templateCss?.includes("/* HNS-MODERN-TEMPLATE */") ?? false);
+
   const selectedProps = getSelectedElProps();
 
   /* ─── Header/Footer settings helpers ─── */
@@ -2413,19 +2423,26 @@ export default function DesignEditor({
             {viewportMode === "mobile" ? "📱 모바일" : "🖥 데스크탑"}
           </span>
           <span className="dev">
-            {viewportMode === "mobile" ? "375 × auto" : "1000 × auto"}
+            {viewportMode === "mobile"
+              ? "375 × auto"
+              : isModernCanvas
+                ? "100% × auto"
+                : "1000 × auto"}
           </span>
         </div>
 
         <div
-          className="de-canvas"
+          className={`de-canvas${isModernCanvas ? " is-modern" : ""}`}
           ref={canvasRef}
           style={{
             transform: zoom !== 100 ? `scale(${zoom / 100})` : undefined,
             transformOrigin: "top center",
           }}
         >
-          <div className="de-canvas-content c_v_home_dft" id="de-canvas-inner">
+          <div
+            className={`de-canvas-content c_v_home_dft${isModernCanvas ? " is-modern" : ""}`}
+            id="de-canvas-inner"
+          >
             {/* HEADER — ref-only, set via useEffect to preserve drag edits */}
             <div id="hns_header" ref={headerRef} />
 

@@ -38,6 +38,7 @@ const IMG = (q, w, h) =>
  * ═══════════════════════════════════════════════════════════════════ */
 
 const cssText = `
+/* HNS-MODERN-TEMPLATE */
 /* HNS-THEME-TOKENS:START */
 :root {
   --bg: #fafaf7;

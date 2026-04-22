@@ -413,6 +413,26 @@
   margin: 0 auto;
 }
 
+/* Modern full-width templates (flagged via the HNS-MODERN-TEMPLATE marker
+   or calc(-50vw + 50%) breakout patterns). These use max-width: 100%
+   throughout, so the editor canvas grows to fill the available horizontal
+   space instead of being capped at 1000px. Legacy templates (absolute-
+   positioned dragables authored for a 1000px parent) keep the fixed frame
+   so their left: 500px coordinates still land where expected. */
+.de-canvas.is-modern,
+.de-canvas-content.is-modern,
+#de-canvas-inner.is-modern {
+  width: 100% !important;
+  min-width: 1000px;
+  max-width: none;
+}
+.de-canvas-wrapper:has(.de-canvas.is-modern) {
+  justify-content: stretch;
+}
+.de-canvas-wrapper:has(.de-canvas.is-modern) .de-canvas.is-modern {
+  flex: 1;
+}
+
 /* HMF structure: header/menu are relative, body contains absolute elements, footer uses normal flow */
 #de-canvas-inner #hns_header {
   position: relative;

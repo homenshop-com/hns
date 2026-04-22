@@ -507,9 +507,19 @@ export async function GET(
   );
   siteCss = rewriteApiImgUrls(siteCss);
 
-  // Detect modern template: uses 100vw breakout patterns (check both template CSS and site CSS)
+  // Detect modern template. Signals:
+  //   - Legacy heuristic: 100vw breakout uses `calc(-50vw + 50%)`
+  //   - Explicit marker: `/* HNS-MODERN-TEMPLATE */` in template or site CSS
+  //     (added to system templates like Agency, Plus Academy that author
+  //      full-width layouts with `max-width: 100%` containers rather than
+  //      fixed 1000/1200/1360px centered blocks). Without this flag the
+  //      scale-to-fit script would force the body to 1000px and defeat
+  //      the template's full-width intent.
   const allCss = templateCss + siteCss;
-  const isModernTemplate = allCss.includes("calc(-50vw + 50%)") || allCss.includes("calc(-50vw+50%)");
+  const isModernTemplate =
+    allCss.includes("calc(-50vw + 50%)") ||
+    allCss.includes("calc(-50vw+50%)") ||
+    allCss.includes("/* HNS-MODERN-TEMPLATE */");
 
   // Generate dynamic menu from pages list (respects showInMenu, parentId, hidden pages)
   const skipSlugs = new Set(["user", "users", "agreement", "empty"]);

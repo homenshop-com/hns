@@ -120,6 +120,7 @@ const footerHtml = `
  * ═══════════════════════════════════════════════════════════════════ */
 
 const cssText = `
+/* HNS-MODERN-TEMPLATE */
 /* HNS-THEME-TOKENS:START */
 :root {
   --brand-color: #0f172a;
