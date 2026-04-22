@@ -498,10 +498,34 @@ export default function DesignEditor({
 
   useEffect(() => {
     if (menuRef.current && !menuInitedRef.current) {
-      // If menuHtml already has complete menu items (ul>li), use it directly.
-      // buildMenuHtml() generates legacy-class menus that don't match custom template CSS.
+      // Decide what goes into #hns_menu:
+      //
+      // 1. If menuHtml already carries a real <ul><li> list → use it verbatim
+      //    (user has a custom menu or a legacy template pre-seeded one).
+      //
+      // 2. If the site is a modern template (HNS-MODERN-TEMPLATE marker) OR
+      //    headerHtml already contains a <nav>, the template provides its own
+      //    navigation inside the header — injecting buildMenuHtml() here
+      //    creates a DUPLICATE Korean `<ul class="mainmenu">` list that the
+      //    template CSS doesn't style, so it renders as a vertical bulleted
+      //    list and pushes hero content into a tiny remaining column.
+      //    Mirrors the publisher dedup rule: "menuHtml 은 빈 래퍼, nav 는
+      //    headerHtml 에만". Keep #hns_menu as an empty wrapper.
+      //
+      // 3. Legacy template without a pre-built menu → auto-generate from pages.
       const hasCompleteMenu = menuHtml && /<ul[^>]*>\s*<li/i.test(menuHtml);
-      menuRef.current.innerHTML = hasCompleteMenu ? menuHtml : buildMenuHtml();
+      const headerHasNav = headerHtml && /<nav[\s>]/i.test(headerHtml);
+      const modernTemplate =
+        (cssText && cssText.includes("/* HNS-MODERN-TEMPLATE */")) ||
+        (templateCss && templateCss.includes("/* HNS-MODERN-TEMPLATE */"));
+
+      if (hasCompleteMenu) {
+        menuRef.current.innerHTML = menuHtml;
+      } else if (headerHasNav || modernTemplate) {
+        menuRef.current.innerHTML = menuHtml || "";
+      } else {
+        menuRef.current.innerHTML = buildMenuHtml();
+      }
       menuInitedRef.current = true;
     }
   }, []);
