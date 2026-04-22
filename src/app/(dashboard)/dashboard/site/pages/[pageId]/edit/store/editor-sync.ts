@@ -197,6 +197,115 @@ function applyFrameToEl(
   else el.style.removeProperty("height");
 }
 
+/** Strip a CSS declaration from an inline `style=""` string while leaving
+ *  other declarations verbatim. Matches `prop:value;` tolerant of
+ *  whitespace; case-insensitive on the property name. */
+function stripInlineDecl(styleAttr: string | null, prop: string): string {
+  if (!styleAttr) return "";
+  const re = new RegExp(`(?:^|;)\\s*${prop}\\s*:[^;]*(?:!important)?\\s*;?`, "gi");
+  return styleAttr.replace(re, "").replace(/^\s*;\s*/, "").replace(/;\s*;/g, ";").trim();
+}
+
+/** Inheritable typography properties that descendants commonly re-declare
+ *  (e.g. `<p style="color:#555">` inside a `.dragable` wrapper). When the
+ *  Inspector writes one on the outer layer, we scrub descendants so the
+ *  outer declaration actually wins the cascade. Non-inheritable
+ *  properties (background, border, box-shadow) don't need scrubbing. */
+const INHERITABLE_PROPS: Array<[keyof import("@/lib/scene").LayerStyle, string]> = [
+  ["color",          "color"],
+  ["fontFamily",     "font-family"],
+  ["fontSize",       "font-size"],
+  ["fontWeight",     "font-weight"],
+  ["lineHeight",     "line-height"],
+  ["letterSpacing",  "letter-spacing"],
+  ["textAlign",      "text-align"],
+];
+
+function scrubDescendantTypography(el: HTMLElement, layer: Layer) {
+  const s = layer.style ?? {};
+  // Only scrub props the user actually set on this layer.
+  const toScrub = INHERITABLE_PROPS.filter(([key]) => {
+    const v = s[key];
+    return v != null && v !== "";
+  });
+  if (toScrub.length === 0) return;
+  // querySelectorAll includes all descendants (not the element itself).
+  const descendants = el.querySelectorAll<HTMLElement>("[style]");
+  for (const d of descendants) {
+    let style = d.getAttribute("style");
+    if (!style) continue;
+    let changed = false;
+    for (const [, css] of toScrub) {
+      const next = stripInlineDecl(style, css);
+      if (next !== style) { style = next; changed = true; }
+    }
+    if (changed) {
+      if (style) d.setAttribute("style", style);
+      else d.removeAttribute("style");
+    }
+  }
+}
+
+/** Apply the scene's typography / fill / border / effect tokens to a
+ *  DOM node so Inspector edits show immediately on the canvas. Mirrors
+ *  the keys emitted by serialize.ts `buildStyleMap`.
+ *
+ *  Sprint 9k-fix (2026-04-22) — without this sync, `setStyle` updated
+ *  the scene graph but the canvas kept rendering the old inline style
+ *  from the original parsed HTML. Every LayerStyle field that
+ *  serialize.ts writes must also be written here, and every field that
+ *  the user cleared must be actively removed from the element's
+ *  inline style.
+ *
+ *  Inheritable typography (color, font-*, line-height, letter-spacing,
+ *  text-align) is also scrubbed off descendants — the dragable wrapper
+ *  is the intent target, but presets and AI-generated markup commonly
+ *  duplicate the same declarations on inner `<p>` / `<h1>` tags which
+ *  would win the cascade and swallow the Inspector edit. */
+function applyStyleToEl(el: HTMLElement, layer: Layer) {
+  // Virtual / inline layers don't own their visual box in the same way
+  // — skip to avoid clobbering flow-inline CSS.
+  if (layer.type === "group" && (layer as GroupLayer).virtual) return;
+
+  const s = layer.style ?? {};
+  const set = (k: string, v: string | undefined) => {
+    if (v == null || v === "") el.style.removeProperty(k);
+    else el.style.setProperty(k, v);
+  };
+  // Typography
+  set("color", s.color);
+  set("font-family", s.fontFamily);
+  set("font-size", s.fontSize);
+  set("font-weight", s.fontWeight != null ? String(s.fontWeight) : undefined);
+  set("line-height", s.lineHeight);
+  set("letter-spacing", s.letterSpacing);
+  set("text-align", s.textAlign);
+  // Fill
+  set("background", s.background);
+  set("opacity", s.opacity != null ? String(s.opacity) : undefined);
+  // Border — serializer preserves both shorthand and split; apply in
+  // the same order so split wins if both are set.
+  set("border", s.border);
+  set("border-color", s.borderColor);
+  set("border-width", s.borderWidth);
+  set("border-style", s.borderStyle);
+  set("border-radius", s.borderRadius);
+  // Effect
+  set("box-shadow", s.boxShadow);
+  set("filter", s.filter);
+  set("clip-path", s.clipPath);
+  // Misc
+  set("z-index", s.zIndex != null ? String(s.zIndex) : undefined);
+  if (s.blendMode && s.blendMode !== "normal") {
+    el.style.setProperty("mix-blend-mode", s.blendMode);
+  } else {
+    el.style.removeProperty("mix-blend-mode");
+  }
+
+  // Strip conflicting typography declarations from descendants.
+  scrubDescendantTypography(el, layer);
+}
+
 /** Apply the scene's transform (rotate/scale/origin) to a DOM node.
  *  Mirrors applyFrameToEl — prefers mobileTransform when in mobile mode. */
 function applyTransformToEl(
@@ -258,6 +367,7 @@ export function applyStructure(
       if (child.type === "inline" || child.type === "section") {
         applyFrameToEl(childEl, child, viewportMode);
         applyTransformToEl(childEl, child, viewportMode);
+        applyStyleToEl(childEl, child);
         if (hasTypedChildren(child)) reconcile(child, childEl);
         continue;
       }
@@ -286,6 +396,7 @@ export function applyStructure(
 
       applyFrameToEl(childEl, child, viewportMode);
       applyTransformToEl(childEl, child, viewportMode);
+      applyStyleToEl(childEl, child);
       if (hasTypedChildren(child)) {
         reconcile(child, childEl);
       }
