@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { syncTemplateFromSiteIfLinked } from "@/lib/template-sync";
 
 // GET /api/sites/[id]/pages/[pageId] — 페이지 상세 조회
 export async function GET(
@@ -140,7 +141,18 @@ export async function PUT(
     },
   });
 
-  return NextResponse.json(updated);
+  // Auto-sync: if this page belongs to a template-storage site, push the
+  // latest state back to the owning Template row so new sites created
+  // from the template pick up the edit. No-op for regular user sites.
+  let templateSync: Awaited<ReturnType<typeof syncTemplateFromSiteIfLinked>> = null;
+  try {
+    templateSync = await syncTemplateFromSiteIfLinked(id);
+  } catch (e) {
+    // Don't block the page save on a sync failure — just log and move on.
+    console.error("[template-sync] page save auto-sync failed:", e);
+  }
+
+  return NextResponse.json({ ...updated, templateSync });
 }
 
 // DELETE /api/sites/[id]/pages/[pageId] — 페이지 삭제

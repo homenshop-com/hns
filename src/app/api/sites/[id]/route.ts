@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { syncTemplateFromSiteIfLinked } from "@/lib/template-sync";
 
 // GET /api/sites/[id] — 사이트 상세 조회
 export async function GET(
@@ -127,7 +128,17 @@ export async function PUT(
     });
   }
 
-  return NextResponse.json(updated);
+  // Auto-sync: if this site is a template-storage clone, push the fresh
+  // HMF + page snapshot back to the owning Template row so new sites
+  // created from the template pick up the edit. No-op for regular sites.
+  let templateSync: Awaited<ReturnType<typeof syncTemplateFromSiteIfLinked>> = null;
+  try {
+    templateSync = await syncTemplateFromSiteIfLinked(id);
+  } catch (e) {
+    console.error("[template-sync] site save auto-sync failed:", e);
+  }
+
+  return NextResponse.json({ ...updated, templateSync });
 }
 
 // DELETE /api/sites/[id] — 사이트 삭제
