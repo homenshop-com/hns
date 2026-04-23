@@ -8,169 +8,150 @@ interface EditSiteFormProps {
     id: string;
     name: string;
     description: string | null;
-    languages: string[];
     defaultLanguage: string;
+    availableLanguages?: string[];
   };
 }
 
+const LANG_LABELS: Record<string, string> = {
+  ko: "한국어",
+  en: "English",
+  ja: "日本語",
+  "zh-cn": "中文 (简体)",
+  "zh-tw": "中文 (繁體)",
+  es: "Español",
+};
+
+const DESC_TARGET = 160;
+
 export default function EditSiteForm({ site }: EditSiteFormProps) {
   const router = useRouter();
+  const [name, setName] = useState(site.name);
+  const [description, setDescription] = useState(site.description || "");
+  const [defaultLang, setDefaultLang] = useState(site.defaultLanguage);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [editing, setEditing] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  const dirty =
+    name !== site.name ||
+    description !== (site.description || "") ||
+    defaultLang !== site.defaultLanguage;
+
+  const descLen = [...description].length;
+  const descOver = descLen > DESC_TARGET;
+
+  const availableLangs = site.availableLanguages && site.availableLanguages.length > 0
+    ? site.availableLanguages
+    : [site.defaultLanguage];
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setLoading(true);
+    if (!dirty) return;
+    setSaving(true);
     setError("");
-    setSuccess("");
+    setSuccess(false);
 
-    const formData = new FormData(e.currentTarget);
-
-    const res = await fetch(`/api/sites/${site.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: formData.get("name"),
-        description: formData.get("description"),
-      }),
-    });
-
-    const data = await res.json();
-    setLoading(false);
-
-    if (!res.ok) {
-      setError(data.error || "수정에 실패했습니다.");
-    } else {
-      setSuccess("사이트 정보가 수정되었습니다.");
-      setEditing(false);
+    try {
+      const res = await fetch(`/api/sites/${site.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          description,
+          defaultLanguage: defaultLang,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "수정에 실패했습니다.");
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 2500);
       router.refresh();
+    } catch (e) {
+      setError((e as Error).message || "오류가 발생했습니다.");
+    } finally {
+      setSaving(false);
     }
   }
 
-  if (!editing) {
-    return (
-      <div>
-        <div style={{ marginBottom: 12 }}>
-          <div style={{ fontSize: 12, color: "#868e96", marginBottom: 2 }}>사이트 이름</div>
-          <div style={{ fontSize: 15, fontWeight: 600 }}>{site.name}</div>
-        </div>
-        {site.description && (
-          <div style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: 12, color: "#868e96", marginBottom: 2 }}>설명</div>
-            <div style={{ fontSize: 13 }}>{site.description}</div>
-          </div>
-        )}
-        <div style={{ marginBottom: 12 }}>
-          <div style={{ fontSize: 12, color: "#868e96", marginBottom: 2 }}>기본 언어</div>
-          <div style={{ fontSize: 13 }}>{site.defaultLanguage}</div>
-        </div>
-
-        {success && (
-          <div style={{
-            background: "#f0fdf4",
-            color: "#22c55e",
-            padding: "8px 12px",
-            borderRadius: 6,
-            fontSize: 13,
-            marginBottom: 12,
-          }}>
-            {success}
-          </div>
-        )}
-
-        <button
-          onClick={() => { setEditing(true); setSuccess(""); }}
-          style={{
-            padding: "6px 14px",
-            fontSize: 13,
-            fontWeight: 600,
-            border: "1.5px solid #4a90d9",
-            borderRadius: 6,
-            color: "#4a90d9",
-            background: "#fff",
-            cursor: "pointer",
-          }}
-        >
-          수정
-        </button>
-      </div>
-    );
+  function handleReset() {
+    setName(site.name);
+    setDescription(site.description || "");
+    setDefaultLang(site.defaultLanguage);
+    setError("");
+    setSuccess(false);
   }
 
   return (
-    <form onSubmit={handleSubmit}>
-      {error && (
-        <div style={{
-          background: "#fef2f2",
-          color: "#ef4444",
-          padding: "8px 12px",
-          borderRadius: 6,
-          fontSize: 13,
-          marginBottom: 12,
-        }}>
-          {error}
+    <form onSubmit={handleSubmit} style={{ display: "contents" }}>
+      <div className="sv2-card-body">
+        <div className="sv2-field">
+          <span className="lbl">
+            사이트 이름 <span className="req">*</span>
+          </span>
+          <input
+            className="sv2-input"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            maxLength={80}
+          />
+          <span className="hint">브라우저 탭, 검색 결과, 공유 카드에 노출됩니다.</span>
         </div>
-      )}
 
-      <div style={{ marginBottom: 12 }}>
-        <label style={{ display: "block", fontSize: 12, color: "#868e96", marginBottom: 4 }}>
-          사이트 이름 <span style={{ color: "#ef4444" }}>*</span>
-        </label>
-        <input
-          name="name"
-          type="text"
-          required
-          defaultValue={site.name}
-        />
+        <div className="sv2-field">
+          <span className="lbl">설명 (메타 description)</span>
+          <textarea
+            className="sv2-input"
+            rows={3}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            maxLength={320}
+          />
+          <span className={`hint ${descOver ? "danger" : descLen > DESC_TARGET * 0.9 ? "warn" : ""}`}>
+            <b>{descLen}</b> / {DESC_TARGET}자 · 검색 결과 노출 길이에 최적
+          </span>
+        </div>
+
+        <div className="sv2-field">
+          <span className="lbl">기본 언어</span>
+          <select
+            className="sv2-select"
+            value={defaultLang}
+            onChange={(e) => setDefaultLang(e.target.value)}
+          >
+            {availableLangs.map((code) => (
+              <option key={code} value={code}>
+                {LANG_LABELS[code] || code} ({code})
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      <div style={{ marginBottom: 16 }}>
-        <label style={{ display: "block", fontSize: 12, color: "#868e96", marginBottom: 4 }}>
-          사이트 설명 <span style={{ color: "#868e96" }}>(선택)</span>
-        </label>
-        <textarea
-          name="description"
-          rows={3}
-          defaultValue={site.description || ""}
-          style={{ resize: "vertical" }}
-        />
-      </div>
-
-      <div style={{ display: "flex", gap: 8 }}>
-        <button
-          type="submit"
-          disabled={loading}
-          style={{
-            padding: "6px 16px",
-            fontSize: 13,
-            fontWeight: 600,
-            background: "#4a90d9",
-            color: "#fff",
-            border: "none",
-            borderRadius: 6,
-            cursor: loading ? "default" : "pointer",
-            opacity: loading ? 0.5 : 1,
-          }}
-        >
-          {loading ? "저장 중..." : "저장"}
-        </button>
+      <div className="sv2-card-foot">
+        {error ? (
+          <span className="msg err">⚠️ {error}</span>
+        ) : success ? (
+          <span className="msg ok">✓ 저장되었습니다</span>
+        ) : dirty ? (
+          <span className="msg" style={{ color: "var(--ink-3)" }}>변경사항 있음</span>
+        ) : null}
         <button
           type="button"
-          onClick={() => { setEditing(false); setError(""); }}
-          style={{
-            padding: "6px 16px",
-            fontSize: 13,
-            fontWeight: 600,
-            background: "#fff",
-            color: "#495057",
-            border: "1px solid #e2e8f0",
-            borderRadius: 6,
-            cursor: "pointer",
-          }}
+          onClick={handleReset}
+          disabled={saving || !dirty}
+          className="sv2-foot-btn"
         >
-          취소
+          초기화
+        </button>
+        <button
+          type="submit"
+          disabled={saving || !dirty}
+          className="sv2-foot-btn primary"
+        >
+          <svg width={13} height={13}><use href="#i-check" /></svg>
+          {saving ? "저장 중…" : "수정 저장"}
         </button>
       </div>
     </form>

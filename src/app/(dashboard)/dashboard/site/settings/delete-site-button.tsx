@@ -13,7 +13,6 @@ export default function DeleteSiteButton({ siteId, shopId }: { siteId: string; s
   async function handleDelete() {
     setLoading(true);
     setError("");
-
     try {
       const res = await fetch(`/api/sites/${siteId}`, { method: "DELETE" });
       if (!res.ok) {
@@ -30,78 +29,53 @@ export default function DeleteSiteButton({ siteId, shopId }: { siteId: string; s
   if (!showConfirm) {
     return (
       <button
+        type="button"
         onClick={() => setShowConfirm(true)}
-        style={{
-          padding: "6px 14px",
-          fontSize: 13,
-          fontWeight: 600,
-          color: "#e03131",
-          background: "#fff",
-          border: "1.5px solid #e03131",
-          borderRadius: 6,
-          cursor: "pointer",
-        }}
+        className="sv2-btn-danger"
       >
+        <svg width={14} height={14}><use href="#i-trash" /></svg>
         계정 삭제
       </button>
     );
   }
 
   return (
-    <div>
-      <p style={{ fontSize: 13, color: "#495057", marginBottom: 12 }}>
-        삭제를 확인하려면 계정 ID <strong>{shopId}</strong>를 입력하세요.
-        이 작업은 되돌릴 수 없습니다.
+    <div className="sv2-danger-confirm">
+      <p style={{ margin: 0, fontSize: 12.5, color: "var(--ink-2)" }}>
+        삭제를 확인하려면 계정 ID{" "}
+        <b style={{ color: "var(--danger)", fontFamily: "'JetBrains Mono', monospace" }}>{shopId}</b>{" "}
+        를 입력하세요. 이 작업은 되돌릴 수 없습니다.
       </p>
 
       {error && (
-        <div style={{ background: "#fef2f2", color: "#ef4444", padding: "8px 12px", borderRadius: 6, fontSize: 13, marginBottom: 12 }}>
-          {error}
-        </div>
+        <div style={{ fontSize: 12, color: "var(--danger)" }}>⚠️ {error}</div>
       )}
 
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+      <div className="confirm-row">
         <input
           type="text"
           value={confirmText}
           onChange={(e) => setConfirmText(e.target.value)}
           placeholder={shopId}
-          style={{
-            padding: "8px 12px",
-            fontSize: 13,
-            border: "1px solid #e2e8f0",
-            borderRadius: 6,
-            width: 200,
-          }}
+          autoFocus
         />
         <button
+          type="button"
           onClick={handleDelete}
           disabled={loading || confirmText !== shopId}
-          style={{
-            padding: "8px 16px",
-            fontSize: 13,
-            fontWeight: 600,
-            color: "#fff",
-            background: loading || confirmText !== shopId ? "#ccc" : "#e03131",
-            border: "none",
-            borderRadius: 6,
-            cursor: loading || confirmText !== shopId ? "default" : "pointer",
-          }}
+          className="sv2-btn-danger solid"
         >
-          {loading ? "삭제 중..." : "삭제 확인"}
+          <svg width={14} height={14}><use href="#i-trash" /></svg>
+          {loading ? "삭제 중…" : "삭제 확인"}
         </button>
         <button
-          onClick={() => { setShowConfirm(false); setConfirmText(""); setError(""); }}
-          style={{
-            padding: "8px 16px",
-            fontSize: 13,
-            fontWeight: 600,
-            color: "#495057",
-            background: "#fff",
-            border: "1px solid #e2e8f0",
-            borderRadius: 6,
-            cursor: "pointer",
+          type="button"
+          onClick={() => {
+            setShowConfirm(false);
+            setConfirmText("");
+            setError("");
           }}
+          className="sv2-foot-btn"
         >
           취소
         </button>

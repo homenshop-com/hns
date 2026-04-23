@@ -49,6 +49,15 @@ export function DashboardIconSprite() {
         <symbol id="i-eye" viewBox="0 0 20 20"><path className="i" d="M2 10s3-6 8-6 8 6 8 6-3 6-8 6-8-6-8-6z" /><circle className="i" cx="10" cy="10" r="2.5" /></symbol>
         <symbol id="i-save" viewBox="0 0 20 20"><path className="i" d="M4 3h10l3 3v10a1 1 0 01-1 1H4a1 1 0 01-1-1V4a1 1 0 011-1z" /><path className="i" d="M6 3v5h8V3M6 17v-5h8v5" /></symbol>
         <symbol id="i-user" viewBox="0 0 20 20"><circle className="i" cx="10" cy="7" r="3.5" /><path className="i" d="M3.5 17a6.5 6.5 0 0113 0" /></symbol>
+        <symbol id="i-copy" viewBox="0 0 20 20"><rect className="i" x="7" y="7" width="10" height="10" rx="1.5" /><path className="i" d="M4 13V5a1 1 0 011-1h8" /></symbol>
+        <symbol id="i-check" viewBox="0 0 20 20"><path className="i" d="M4 10l4 4 8-8" /></symbol>
+        <symbol id="i-refresh" viewBox="0 0 20 20"><path className="i" d="M4 10a6 6 0 0110-4.5M16 10a6 6 0 01-10 4.5M14 3v3h-3M6 17v-3h3" /></symbol>
+        <symbol id="i-sitemap" viewBox="0 0 20 20"><rect className="i" x="7" y="2" width="6" height="4" rx="1" /><rect className="i" x="2" y="14" width="5" height="4" rx="1" /><rect className="i" x="13" y="14" width="5" height="4" rx="1" /><path className="i" d="M10 6v4M5 14v-1a1 1 0 011-1h8a1 1 0 011 1v1" /></symbol>
+        <symbol id="i-warn" viewBox="0 0 20 20"><path className="i" d="M10 2l8 15H2L10 2z" /><path className="i" d="M10 8v4" /><circle className="if" cx="10" cy="14.5" r="1" /></symbol>
+        <symbol id="i-trash" viewBox="0 0 20 20"><path className="i" d="M4 6h12M7 6V4h6v2M6 6l1 11h6l1-11" /></symbol>
+        <symbol id="i-external" viewBox="0 0 20 20"><path className="i" d="M8 4H5a1 1 0 00-1 1v10a1 1 0 001 1h10a1 1 0 001-1v-3M12 4h4v4M10 10l6-6" /></symbol>
+        <symbol id="i-google" viewBox="0 0 20 20"><path fill="#4285F4" d="M18 10.2c0-.6 0-1.1-.1-1.7H10v3.2h4.5c-.2 1-.8 1.9-1.7 2.5v2.1h2.7c1.6-1.5 2.5-3.6 2.5-6.1z" /><path fill="#34A853" d="M10 18c2.3 0 4.2-.8 5.6-2.1l-2.7-2.1c-.8.5-1.7.8-2.9.8-2.2 0-4.1-1.5-4.8-3.5H2.4v2.2A8 8 0 0010 18z" /><path fill="#FBBC04" d="M5.2 11.1a4.8 4.8 0 010-3.1V5.8H2.4a8 8 0 000 7.2l2.8-2z" /><path fill="#EA4335" d="M10 5c1.2 0 2.3.4 3.2 1.3l2.4-2.4A8 8 0 002.4 5.8l2.8 2.2C5.9 6 7.8 5 10 5z" /></symbol>
+        <symbol id="i-lang" viewBox="0 0 20 20"><path className="i" d="M3 5h8M7 3v2M5 5c0 4 3 7 6 8M11 5c0 3-2 6-5 7M10 17l3-7 3 7M11 14.5h4" /></symbol>
       </defs>
     </svg>
   );
