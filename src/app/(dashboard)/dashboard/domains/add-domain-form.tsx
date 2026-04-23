@@ -18,7 +18,19 @@ type DnsCheck = {
   www: DnsCheckHost;
 };
 
-export default function AddDomainForm() {
+type SiteOption = { id: string; name: string; shopId: string };
+
+interface AddDomainFormProps {
+  /** When present, the form binds every new domain to this site. */
+  siteId?: string | null;
+  /** Human-readable name of the pinned site, shown in the banner. */
+  siteName?: string | null;
+  /** If no siteId is pinned, these are the user's sites to choose from.
+   *  When empty, the API falls back to "first site" (legacy behavior). */
+  availableSites?: SiteOption[];
+}
+
+export default function AddDomainForm({ siteId, siteName, availableSites = [] }: AddDomainFormProps) {
   const router = useRouter();
   const [domain, setDomain] = useState("");
   const [loading, setLoading] = useState(false);
@@ -26,6 +38,10 @@ export default function AddDomainForm() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [dnsCheck, setDnsCheck] = useState<DnsCheck | null>(null);
+  // If no pinned siteId AND the user has multiple sites, they must pick one.
+  const [selectedSiteId, setSelectedSiteId] = useState<string>(
+    availableSites.length === 1 ? availableSites[0].id : ""
+  );
 
   function normalizeDomain(v: string) {
     return v
@@ -81,12 +97,22 @@ export default function AddDomainForm() {
       return;
     }
 
+    // Validate site selection when we have a picker
+    const effectiveSiteId = siteId || selectedSiteId || null;
+    if (!siteId && availableSites.length > 1 && !selectedSiteId) {
+      setError("도메인을 연결할 사이트를 선택해주세요.");
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await fetch("/api/domains", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ domain: domain.trim() }),
+        body: JSON.stringify({
+          domain: domain.trim(),
+          ...(effectiveSiteId ? { siteId: effectiveSiteId } : {}),
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "도메인 추가에 실패했습니다.");
@@ -112,6 +138,44 @@ export default function AddDomainForm() {
   return (
     <div style={{ background: "#fff", borderRadius: 8, boxShadow: "0 1px 8px rgba(0,0,0,0.06)", padding: 24 }}>
       <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, color: "#1a1a2e" }}>도메인 추가</h3>
+
+      {/* Site context indicator / selector */}
+      {siteId && siteName && (
+        <div style={{ background: "#f0f9ff", border: "1px solid #c6daf7", borderRadius: 6, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: "#2c5fa0" }}>
+          🔗 <strong>{siteName}</strong> 사이트에 연결될 도메인입니다.
+        </div>
+      )}
+      {!siteId && availableSites.length > 1 && (
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#495057", marginBottom: 6 }}>
+            연결할 사이트 선택 <span style={{ color: "#ef4444" }}>*</span>
+          </label>
+          <select
+            value={selectedSiteId}
+            onChange={(e) => setSelectedSiteId(e.target.value)}
+            required
+            style={{
+              width: "100%",
+              padding: "8px 12px",
+              fontSize: 13,
+              border: "1px solid #e2e8f0",
+              borderRadius: 6,
+              background: "#fff",
+              outline: "none",
+            }}
+          >
+            <option value="">-- 사이트 선택 --</option>
+            {availableSites.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name} ({s.shopId})
+              </option>
+            ))}
+          </select>
+          <p style={{ fontSize: 11, color: "#888", marginTop: 4 }}>
+            계정에 여러 사이트가 있는 경우, 어느 사이트로 도메인을 연결할지 선택해주세요.
+          </p>
+        </div>
+      )}
 
       <div style={{ background: "#eef4fc", border: "1px solid #c6daf7", borderRadius: 6, padding: 16, marginBottom: 16 }}>
         <p style={{ fontSize: 14, fontWeight: 700, color: "#2c5fa0", marginBottom: 10 }}>

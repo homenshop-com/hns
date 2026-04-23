@@ -8,7 +8,11 @@ import LanguageSwitcher from "@/components/LanguageSwitcher";
 import AddDomainForm from "./add-domain-form";
 import ProvisionSslButton from "./provision-ssl-button";
 
-export default async function DashboardDomainsPage() {
+interface DomainsPageProps {
+  searchParams: Promise<{ siteId?: string }>;
+}
+
+export default async function DashboardDomainsPage({ searchParams }: DomainsPageProps) {
   const session = await auth();
   if (!session) {
     redirect("/login");
@@ -17,12 +21,37 @@ export default async function DashboardDomainsPage() {
   const t = await getTranslations("domainsPage");
   const td = await getTranslations("dashboard");
 
+  const params = await searchParams;
+  const siteIdFilter = params.siteId;
+
+  // When the user arrives from a specific site's settings page (?siteId=...),
+  // scope both the listing and the add-form to that one site. Otherwise
+  // show every domain the user owns (account-wide view).
+  const filteredSite = siteIdFilter
+    ? await prisma.site.findFirst({
+        where: { id: siteIdFilter, userId: session.user.id },
+        select: { id: true, name: true, shopId: true },
+      })
+    : null;
+  const effectiveSiteId = filteredSite?.id ?? null;
+
   const domains = await prisma.domain.findMany({
-    where: { userId: session.user.id },
+    where: {
+      userId: session.user.id,
+      ...(effectiveSiteId ? { siteId: effectiveSiteId } : {}),
+    },
     orderBy: { createdAt: "desc" },
     include: {
       site: { select: { id: true, name: true } },
     },
+  });
+
+  // Need the set of user's sites so if no siteId is given we can show a
+  // site selector in the form (multi-site accounts should always pick).
+  const userSites = await prisma.site.findMany({
+    where: { userId: session.user.id, isTemplateStorage: false },
+    select: { id: true, name: true, shopId: true },
+    orderBy: { createdAt: "asc" },
   });
 
   return (
@@ -52,7 +81,19 @@ export default async function DashboardDomainsPage() {
       {/* MAIN */}
       <main className="dash-main">
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
-          <h1 className="dash-title">{t("title")}</h1>
+          <div>
+            <h1 className="dash-title" style={{ marginBottom: 0 }}>{t("title")}</h1>
+            {filteredSite && (
+              <div style={{ marginTop: 6, fontSize: 13, color: "#4a90d9" }}>
+                <span style={{ color: "#868e96" }}>사이트 필터:</span>{" "}
+                <strong style={{ color: "#2c5fa0" }}>{filteredSite.name}</strong>
+                <span style={{ color: "#888", marginLeft: 6, fontFamily: "monospace", fontSize: 11 }}>/{filteredSite.shopId}/</span>
+                <Link href="/dashboard/domains" style={{ marginLeft: 10, fontSize: 12, color: "#888", textDecoration: "underline" }}>
+                  전체 보기 →
+                </Link>
+              </div>
+            )}
+          </div>
           <span style={{ fontSize: 13, color: "#868e96" }}>
             {domains.length}{t("domainCount")}
           </span>
@@ -118,8 +159,12 @@ export default async function DashboardDomainsPage() {
           </div>
         )}
 
-        {/* Add Domain Form */}
-        <AddDomainForm />
+        {/* Add Domain Form — scoped to filteredSite when present */}
+        <AddDomainForm
+          siteId={filteredSite?.id ?? null}
+          siteName={filteredSite?.name ?? null}
+          availableSites={effectiveSiteId ? [] : userSites}
+        />
       </main>
 
       {/* FOOTER */}

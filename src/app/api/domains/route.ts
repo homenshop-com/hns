@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { domain } = body;
+  const { domain, siteId: bodySiteId } = body;
 
   if (!domain || typeof domain !== "string") {
     return NextResponse.json(
@@ -71,10 +71,33 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Get user's site
-  const site = await prisma.site.findFirst({
-    where: { userId: session.user.id, isTemplateStorage: false },
-  });
+  // Resolve target site:
+  //   · If caller provided a siteId (from the site-settings page), bind
+  //     to THAT site after verifying ownership
+  //   · Otherwise, fall back to the user's first real site (legacy
+  //     single-site behavior). Users with multiple sites should always
+  //     come in with an explicit siteId — the generic domains page now
+  //     requires it too.
+  let site;
+  if (bodySiteId && typeof bodySiteId === "string") {
+    site = await prisma.site.findFirst({
+      where: {
+        id: bodySiteId,
+        userId: session.user.id,
+        isTemplateStorage: false,
+      },
+    });
+    if (!site) {
+      return NextResponse.json(
+        { error: "선택한 사이트를 찾을 수 없거나 권한이 없습니다." },
+        { status: 403 }
+      );
+    }
+  } else {
+    site = await prisma.site.findFirst({
+      where: { userId: session.user.id, isTemplateStorage: false },
+    });
+  }
 
   if (!site) {
     return NextResponse.json(

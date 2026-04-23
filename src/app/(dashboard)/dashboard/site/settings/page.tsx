@@ -157,7 +157,7 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                 <p className="settings-empty-text">{t("noDomains")}</p>
               )}
               <div style={{ marginTop: 12 }}>
-                <Link href="/dashboard/domains" className="settings-link">
+                <Link href={`/dashboard/domains?siteId=${site.id}`} className="settings-link">
                   {t("domainManage")} &rarr;
                 </Link>
               </div>
