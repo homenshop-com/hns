@@ -31,10 +31,13 @@ const INDEXNOW_TARGETS: Array<{ name: string; url: string }> = [
 async function pingIndexNow(host: string, key: string, urls: string[]) {
   const results: Array<{ target: string; ok: boolean; status: number; error?: string }> = [];
   if (!key || urls.length === 0) return results;
+  // keyLocation points at a fixed /indexnow-key.txt route served by
+  // Next.js (or homenshop.com's public fallback) — search engines fetch
+  // it to verify the key before accepting our URL submission.
   const body = JSON.stringify({
     host,
     key,
-    keyLocation: `https://${host}/${key}.txt`,
+    keyLocation: `https://${host}/indexnow-key.txt`,
     urlList: urls.slice(0, 10000), // IndexNow caps at 10k per request
   });
   await Promise.all(
