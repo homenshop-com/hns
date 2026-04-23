@@ -1128,6 +1128,17 @@ export async function GET(
   ].filter(Boolean).join("\n  ");
 
   /* ─── GEO: JSON-LD structured data ─── */
+  //    Pull the full public-business identity from Site columns so the
+  //    Organization schema has telephone / address / email / logo — these
+  //    are what AI engines (ChatGPT, Perplexity, Google AI Overviews) cite.
+  //    publicEmail/Phone/Address are distinct from contactEmail (which is
+  //    the form submission target, often a private admin inbox).
+  const resolvedLogoUrl = site.logoUrl
+    ? (site.logoUrl.startsWith("http") ? site.logoUrl : `${hreflangBase}${site.logoUrl}`)
+    : null;
+  const siteSeoMeta = (site.seoMeta && typeof site.seoMeta === "object" && !Array.isArray(site.seoMeta))
+    ? (site.seoMeta as Record<string, unknown>)
+    : {};
   const ldCtx: JsonLdContext = {
     baseUrl: hreflangBase,
     currentUrl: canonicalUrl,
@@ -1137,7 +1148,19 @@ export async function GET(
       description: site.description || null,
       defaultLanguage: site.defaultLanguage,
       languages: site.languages,
-      logoUrl: null,
+      contactEmail: site.publicEmail || null,
+      contactPhone: site.publicPhone || null,
+      address: site.publicAddress || null,
+      logoUrl: resolvedLogoUrl,
+      alternateName: typeof siteSeoMeta.alternateName === "string" ? siteSeoMeta.alternateName : null,
+      slogan: typeof siteSeoMeta.slogan === "string" ? siteSeoMeta.slogan : null,
+      foundingDate: typeof siteSeoMeta.foundingDate === "string" ? siteSeoMeta.foundingDate : null,
+      areaServed: Array.isArray(siteSeoMeta.areaServed)
+        ? (siteSeoMeta.areaServed as string[])
+        : typeof siteSeoMeta.areaServed === "string"
+          ? siteSeoMeta.areaServed
+          : null,
+      sameAs: Array.isArray(siteSeoMeta.sameAs) ? (siteSeoMeta.sameAs as string[]) : null,
     },
   };
   const jsonLdObjects: Array<Record<string, unknown> | null> = [

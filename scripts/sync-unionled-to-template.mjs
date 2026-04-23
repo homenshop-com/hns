@@ -55,9 +55,11 @@ async function main() {
   const menuHtml   = h.menuHtml   ?? s.menuHtml   ?? null;
   const footerHtml = h.footerHtml ?? s.footerHtml ?? null;
 
-  /* Fetch all ko pages */
+  /* Fetch all ko pages (including SEO fields so new sites inherit
+   * the SEO copy as starting defaults). */
   const pages = await client.query(
-    `SELECT slug, title, lang, "isHome", "showInMenu", "sortOrder", content, css
+    `SELECT slug, title, lang, "isHome", "showInMenu", "sortOrder", content, css,
+            "seoTitle", "seoDescription", "seoKeywords", "ogImage"
        FROM "Page"
       WHERE "siteId" = $1
       ORDER BY "sortOrder" ASC NULLS LAST, slug ASC`,
@@ -73,6 +75,10 @@ async function main() {
     sortOrder: p.sortOrder,
     content: p.content,
     css: p.css ?? null,
+    seoTitle: p.seoTitle ?? null,
+    seoDescription: p.seoDescription ?? null,
+    seoKeywords: p.seoKeywords ?? null,
+    ogImage: p.ogImage ?? null,
   }));
 
   console.log(`=== unionled Site snapshot ===`);

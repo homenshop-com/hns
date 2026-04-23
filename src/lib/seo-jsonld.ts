@@ -30,6 +30,14 @@ export interface SiteInfo {
   contactPhone?: string | null;
   address?: string | null;
   logoUrl?: string | null;
+  /** Optional extended Organization fields for richer AI-citation data. */
+  alternateName?: string | null;
+  foundingDate?: string | null;
+  areaServed?: string | string[] | null;
+  /** External identity URLs (blog, LinkedIn, Facebook etc.) */
+  sameAs?: string[] | null;
+  /** Short pitch shown verbatim when AI engines quote the brand. */
+  slogan?: string | null;
 }
 
 export interface JsonLdContext {
@@ -57,16 +65,28 @@ export function buildOrganizationJsonLd(ctx: JsonLdContext) {
     name: ctx.site.name,
     url: ctx.baseUrl,
   };
+  if (ctx.site.alternateName) org.alternateName = ctx.site.alternateName;
   if (ctx.site.logoUrl) org.logo = ctx.site.logoUrl;
   if (ctx.site.description) org.description = ctx.site.description;
+  if (ctx.site.slogan) org.slogan = ctx.site.slogan;
+  if (ctx.site.foundingDate) org.foundingDate = ctx.site.foundingDate;
+  if (ctx.site.areaServed) org.areaServed = ctx.site.areaServed;
+  if (ctx.site.sameAs && ctx.site.sameAs.length > 0) org.sameAs = ctx.site.sameAs;
   const contact: Record<string, unknown> = {};
   if (ctx.site.contactEmail) contact.email = ctx.site.contactEmail;
   if (ctx.site.contactPhone) contact.telephone = ctx.site.contactPhone;
   if (Object.keys(contact).length > 0) {
-    org.contactPoint = { "@type": "ContactPoint", contactType: "customer service", ...contact };
+    org.contactPoint = {
+      "@type": "ContactPoint",
+      contactType: "customer service",
+      availableLanguage: (ctx.site.languages && ctx.site.languages.length > 0)
+        ? ctx.site.languages.map((l) => (l === "ko" ? "Korean" : l === "en" ? "English" : l === "ja" ? "Japanese" : l))
+        : ["Korean"],
+      ...contact,
+    };
   }
   if (ctx.site.address) {
-    org.address = { "@type": "PostalAddress", streetAddress: ctx.site.address };
+    org.address = { "@type": "PostalAddress", streetAddress: ctx.site.address, addressCountry: "KR" };
   }
   return org;
 }

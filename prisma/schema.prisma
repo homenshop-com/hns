@@ -131,6 +131,27 @@ model Site {
   /// User.email when not set. Stored per-site so one user can operate
   /// multiple sites with different inbox destinations.
   contactEmail       String?
+  /// Public business contact data used for SEO/JSON-LD (Organization
+  /// schema), NOT for form submission routing. Separate from contactEmail
+  /// because the public-facing business email (hanmail.net) often differs
+  /// from the admin's internal login email.
+  publicEmail        String?
+  publicPhone        String?
+  publicAddress      String?   @db.Text
+  /// Absolute URL to a brand logo, used for JSON-LD Organization.logo
+  /// and as an og:image fallback.
+  logoUrl            String?
+  /// Extended SEO/JSON-LD metadata bag. Currently supports keys:
+  ///   · alternateName     — organization's alternate name
+  ///   · slogan            — short business slogan
+  ///   · foundingDate      — ISO date (e.g. "2001-01-01")
+  ///   · areaServed        — string or string[]
+  ///   · sameAs            — string[] of external identity URLs
+  ///   · keywords          — comma-separated site-wide keywords
+  ///   · businessType      — schema.org Organization subtype
+  ///                         ("LocalBusiness" / "Store" / etc.)
+  /// Free-form JSON lets new GEO/SEO fields land without migrations.
+  seoMeta            Json?
   /// true = a hidden "template storage" site created by save-from-site.
   /// Filtered out of all user/admin site listings, site count limits, etc.
   /// Only reachable via Template.demoSiteId → 디자인 수정.
