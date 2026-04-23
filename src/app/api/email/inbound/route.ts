@@ -135,8 +135,39 @@ export async function POST(req: NextRequest) {
     }
     return undefined;
   };
-  const text = pickStr("text", "body_text", "bodyText", "textBody", "plain");
-  const html = pickStr("html", "body_html", "bodyHtml", "htmlBody");
+  let text = pickStr("text", "body_text", "bodyText", "textBody", "plain");
+  let html = pickStr("html", "body_html", "bodyHtml", "htmlBody");
+
+  // Resend webhook only sends metadata — fetch full body via API if needed.
+  const emailId =
+    (typeof d.email_id === "string" ? d.email_id : undefined) ||
+    (typeof d.id === "string" ? d.id : undefined);
+  const fetchKey = process.env.RESEND_INBOUND_API_KEY || process.env.RESEND_API_KEY;
+  if (!text && !html && emailId && fetchKey) {
+    try {
+      const r = await fetch(`https://api.resend.com/emails/${emailId}`, {
+        headers: { Authorization: `Bearer ${fetchKey}` },
+      });
+      if (r.ok) {
+        const full = (await r.json()) as Record<string, unknown>;
+        if (typeof full.text === "string") text = full.text;
+        if (typeof full.html === "string") html = full.html;
+        console.log(
+          "[inbound] fetched body:",
+          `text=${text?.length ?? 0}`,
+          `html=${html?.length ?? 0}`
+        );
+      } else {
+        console.error(
+          "[inbound] fetch body failed:",
+          r.status,
+          (await r.text()).slice(0, 200)
+        );
+      }
+    } catch (e) {
+      console.error("[inbound] fetch body threw:", e);
+    }
+  }
 
   // from/to may be string, object, or array
   const pickFirstAddr = (keys: string[]): InboundAddress | undefined => {
