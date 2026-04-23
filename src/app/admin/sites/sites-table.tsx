@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import ExpiryEditor from "./expiry-editor";
 
 interface SiteRow {
   id: string;
@@ -175,7 +176,15 @@ export default function SitesTable({
                     </a>
                   </td>
                   <td className={`px-4 py-3 text-center font-medium ${isExpired ? "text-red-700" : "text-emerald-700"}`}>
-                    {site.expiresAt ? new Date(site.expiresAt).toLocaleDateString("ko-KR") : "-"}
+                    <span>
+                      {site.expiresAt ? new Date(site.expiresAt).toLocaleDateString("ko-KR") : "-"}
+                    </span>
+                    <ExpiryEditor
+                      siteId={site.id}
+                      shopId={site.shopId}
+                      accountType={site.accountType}
+                      expiresAt={site.expiresAt}
+                    />
                   </td>
                   <td className="px-4 py-3 text-slate-500 text-xs">
                     {new Date(site.updatedAt).toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" })}
