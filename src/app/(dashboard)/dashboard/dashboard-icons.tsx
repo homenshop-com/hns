@@ -73,6 +73,8 @@ export function DashboardIconSprite() {
         <symbol id="i-hash" viewBox="0 0 20 20"><path className="i" d="M7 3l-2 14M15 3l-2 14M3 7h14M3 13h14" /></symbol>
         <symbol id="i-chev-left" viewBox="0 0 20 20"><path className="i" d="M12 5l-5 5 5 5" /></symbol>
         <symbol id="i-card" viewBox="0 0 20 20"><rect className="i" x="2" y="5" width="16" height="11" rx="1.5" /><path className="i" d="M2 9h16M5 13h3" /></symbol>
+        <symbol id="i-key" viewBox="0 0 20 20"><circle className="i" cx="7" cy="10" r="4" /><path className="i" d="M11 10h7M15 10v3M18 10v2" /></symbol>
+        <symbol id="i-phone" viewBox="0 0 20 20"><rect className="i" x="6" y="2" width="8" height="16" rx="1.5" /><path className="i" d="M9 15.5h2" /></symbol>
       </defs>
     </svg>
   );

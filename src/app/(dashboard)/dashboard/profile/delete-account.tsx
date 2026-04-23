@@ -48,88 +48,50 @@ export default function DeleteAccount({ labels }: DeleteAccountProps) {
 
   if (!open) {
     return (
-      <button
-        onClick={() => setOpen(true)}
-        style={{
-          background: "none",
-          border: "none",
-          color: "#9ca3af",
-          fontSize: 13,
-          cursor: "pointer",
-          padding: "8px 0",
-          textDecoration: "underline",
-        }}
-      >
-        {labels.title}
-      </button>
+      <div className="pv2-leave">
+        <button type="button" onClick={() => setOpen(true)} className="trigger">
+          {labels.title}
+        </button>
+      </div>
     );
   }
 
   return (
-    <div style={{
-      background: "#fef2f2",
-      border: "1px solid #fecaca",
-      borderRadius: 10,
-      padding: 20,
-    }}>
-      <div style={{ fontSize: 14, fontWeight: 700, color: "#dc2626", marginBottom: 8 }}>
+    <div className="pv2-danger-box">
+      <div className="tt">
+        <svg width={14} height={14}><use href="#i-warn" /></svg>
         {labels.title}
       </div>
-      <p style={{ fontSize: 13, color: "#7f1d1d", lineHeight: 1.6, marginBottom: 12 }}>
-        {labels.warning}
-      </p>
-      <p style={{ fontSize: 13, color: "#374151", marginBottom: 8 }}>
-        {labels.confirmText}
-      </p>
+      <p className="warn">{labels.warning}</p>
+      <div className="confirm-label">{labels.confirmText}</div>
       <input
         type="password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
         placeholder={labels.confirmPlaceholder}
-        style={{
-          width: "100%",
-          padding: "8px 12px",
-          fontSize: 14,
-          border: "1px solid #d1d5db",
-          borderRadius: 6,
-          marginBottom: 12,
-          boxSizing: "border-box",
-        }}
+        autoFocus
       />
-      {error && (
-        <div style={{ fontSize: 12, color: "#dc2626", marginBottom: 8 }}>{error}</div>
-      )}
-      <div style={{ display: "flex", gap: 8 }}>
+      {error && <p className="err">⚠️ {error}</p>}
+      <div className="actions">
         <button
-          onClick={handleDelete}
-          disabled={!password || loading}
-          style={{
-            padding: "8px 20px",
-            fontSize: 13,
-            fontWeight: 700,
-            background: password && !loading ? "#dc2626" : "#e5e7eb",
-            color: password && !loading ? "#fff" : "#9ca3af",
-            border: "none",
-            borderRadius: 6,
-            cursor: password && !loading ? "pointer" : "default",
+          type="button"
+          onClick={() => {
+            setOpen(false);
+            setPassword("");
+            setError("");
           }}
-        >
-          {loading ? labels.deleting : labels.deleteBtn}
-        </button>
-        <button
-          onClick={() => { setOpen(false); setPassword(""); setError(""); }}
-          style={{
-            padding: "8px 20px",
-            fontSize: 13,
-            fontWeight: 500,
-            background: "#fff",
-            color: "#374151",
-            border: "1px solid #d1d5db",
-            borderRadius: 6,
-            cursor: "pointer",
-          }}
+          className="pv2-btn-cancel"
         >
           {labels.cancel}
+        </button>
+        <button
+          type="button"
+          onClick={handleDelete}
+          disabled={!password || loading}
+          className="pv2-btn-danger"
+        >
+          <svg width={14} height={14}><use href="#i-trash" /></svg>
+          {loading ? labels.deleting : labels.deleteBtn}
         </button>
       </div>
     </div>

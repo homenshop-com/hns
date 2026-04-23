@@ -17,23 +17,47 @@ interface PasswordFormProps {
   };
 }
 
+/**
+ * Password strength scoring — 0 (none) to 4 (strong).
+ * Criteria: length >= 8, has lowercase+uppercase, has digit, has symbol.
+ * Displayed as 4 colored segments.
+ */
+function scorePassword(pw: string): number {
+  if (!pw) return 0;
+  let s = 0;
+  if (pw.length >= 8) s += 1;
+  if (/[a-z]/.test(pw) && /[A-Z]/.test(pw)) s += 1;
+  if (/\d/.test(pw)) s += 1;
+  if (/[^A-Za-z0-9]/.test(pw)) s += 1;
+  return s;
+}
+
+function segmentClass(score: number, idx: number): string {
+  if (idx >= score) return "";
+  if (score <= 1) return "d";
+  if (score <= 2) return "b";
+  return "a";
+}
+
 export default function PasswordForm({ labels }: PasswordFormProps) {
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [confirmPw, setConfirmPw] = useState("");
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("");
+  const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+
+  const score = scorePassword(newPw);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setMessage("");
+    setMsg(null);
 
     if (newPw.length < 6) {
-      setMessage(labels.passwordTooShort);
+      setMsg({ type: "err", text: labels.passwordTooShort });
       return;
     }
     if (newPw !== confirmPw) {
-      setMessage(labels.passwordMismatch);
+      setMsg({ type: "err", text: labels.passwordMismatch });
       return;
     }
 
@@ -45,101 +69,85 @@ export default function PasswordForm({ labels }: PasswordFormProps) {
         body: JSON.stringify({ currentPassword: currentPw, newPassword: newPw }),
       });
       if (res.ok) {
-        setMessage(labels.passwordChanged);
+        setMsg({ type: "ok", text: labels.passwordChanged });
         setCurrentPw("");
         setNewPw("");
         setConfirmPw("");
       } else {
         const data = await res.json();
-        setMessage(data.error || labels.error);
+        setMsg({ type: "err", text: data.error || labels.error });
       }
     } catch {
-      setMessage(labels.error);
+      setMsg({ type: "err", text: labels.error });
     } finally {
       setSaving(false);
-      setTimeout(() => setMessage(""), 3000);
+      setTimeout(() => setMsg(null), 3000);
     }
   }
 
-  const inputStyle: React.CSSProperties = {
-    width: "100%",
-    height: 42,
-    padding: "0 14px",
-    border: "1.5px solid #dee2e6",
-    borderRadius: 8,
-    fontSize: 14,
-    color: "#343a40",
-    background: "#fff",
-    outline: "none",
-  };
-
-  const labelStyle: React.CSSProperties = {
-    display: "block",
-    fontSize: 13,
-    fontWeight: 600,
-    color: "#495057",
-    marginBottom: 6,
-  };
-
   return (
-    <form onSubmit={handleSubmit}>
-      <div style={{ marginBottom: 16 }}>
-        <label style={labelStyle}>{labels.currentPassword}</label>
+    <form onSubmit={handleSubmit} className="pv2-form-body">
+      <div className="pv2-field">
+        <label>{labels.currentPassword}</label>
         <input
           type="password"
           value={currentPw}
           onChange={(e) => setCurrentPw(e.target.value)}
           required
-          style={inputStyle}
+          autoComplete="current-password"
         />
       </div>
-      <div style={{ marginBottom: 16 }}>
-        <label style={labelStyle}>{labels.newPassword}</label>
+      <div className="pv2-field">
+        <label>{labels.newPassword}</label>
         <input
           type="password"
           value={newPw}
           onChange={(e) => setNewPw(e.target.value)}
           required
           placeholder={labels.passwordMinLength}
-          style={inputStyle}
+          autoComplete="new-password"
         />
+        <div className="pv2-pw-strength" aria-hidden="true">
+          <span className={segmentClass(score, 0)} />
+          <span className={segmentClass(score, 1)} />
+          <span className={segmentClass(score, 2)} />
+          <span className={segmentClass(score, 3)} />
+        </div>
+        <div className="help">안전한 비밀번호일수록 강도가 높아집니다</div>
       </div>
-      <div style={{ marginBottom: 20 }}>
-        <label style={labelStyle}>{labels.confirmPassword}</label>
+      <div className="pv2-field">
+        <label>{labels.confirmPassword}</label>
         <input
           type="password"
           value={confirmPw}
           onChange={(e) => setConfirmPw(e.target.value)}
           required
-          style={inputStyle}
+          autoComplete="new-password"
         />
+        {confirmPw && confirmPw !== newPw && (
+          <div className="help err">비밀번호가 일치하지 않습니다</div>
+        )}
+        {confirmPw && confirmPw === newPw && newPw.length >= 6 && (
+          <div className="help ok">일치합니다</div>
+        )}
       </div>
-      <button
-        type="submit"
-        disabled={saving}
-        style={{
-          width: "100%",
-          height: 44,
-          background: saving ? "#adb5bd" : "#495057",
-          color: "#fff",
-          border: "none",
-          borderRadius: 8,
-          fontSize: 14,
-          fontWeight: 700,
-          cursor: saving ? "default" : "pointer",
-        }}
-      >
+      <button type="submit" disabled={saving} className="pv2-submit dark">
+        <svg width={14} height={14}><use href="#i-shield" /></svg>
         {saving ? labels.changing : labels.changePasswordBtn}
       </button>
-      {message && (
-        <p style={{
-          fontSize: 13,
-          color: message === labels.passwordChanged ? "#2f9e44" : "#e03131",
-          textAlign: "center",
-          marginTop: 10,
-        }}>
-          {message}
-        </p>
+
+      <div className="pv2-security-tips">
+        <svg width={13} height={13}><use href="#i-shield" /></svg>
+        <div>비밀번호는 주기적으로 변경하세요. 다른 사이트와 다른 비밀번호를 사용하면 더 안전합니다.</div>
+      </div>
+
+      {msg && (
+        <div className={`pv2-form-msg ${msg.type}`}>
+          <svg width={12} height={12}>
+            <use href={`#${msg.type === "ok" ? "i-check" : "i-warn"}`} />
+          </svg>
+          {msg.text}
+        </div>
       )}
     </form>
   );
