@@ -40,6 +40,9 @@ interface Props {
   userName: string;
   languages: string[];
   defaultLanguage: string;
+  /** When true, the client skips its own top breadcrumb/action header
+   *  (the outer page.tsx renders the new sidebar + topbar shell). */
+  embedded?: boolean;
 }
 
 interface DisplayItem extends PageItem {
@@ -53,6 +56,7 @@ export default function MenuManagerClient({
   userName,
   languages: initialLanguages,
   defaultLanguage: initialDefault,
+  embedded = false,
 }: Props) {
   const [pages, setPages] = useState<PageItem[]>(initialPages);
   const [languages, setLanguages] = useState<string[]>(initialLanguages);
@@ -566,38 +570,45 @@ export default function MenuManagerClient({
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f4f6f8", fontFamily: "Noto Sans KR, -apple-system, BlinkMacSystemFont, sans-serif" }}>
-      {/* Header */}
-      <header style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "0 24px" }}>
-        <div style={{ maxWidth: 1200, margin: "0 15%", display: "flex", alignItems: "center", justifyContent: "space-between", height: 56 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: "#6b7280" }}>
-            <Link href="/dashboard" style={{ fontSize: 20, fontWeight: 700, color: "#2563eb", textDecoration: "none" }}>
-              homeNshop
-            </Link>
-            <span style={{ margin: "0 4px" }}>&gt;&gt;</span>
-            <Link href={`/dashboard/site/${siteId}/manage`} style={{ color: "#2563eb", textDecoration: "none" }}>
-              관리자모드
-            </Link>
-            <span style={{ margin: "0 4px" }}>&gt;&gt;</span>
-            <span style={{ color: "#111827", fontWeight: 500 }}>메뉴관리</span>
+    <div
+      className={embedded ? "mnv2-root" : ""}
+      style={embedded
+        ? { fontFamily: "Pretendard, -apple-system, BlinkMacSystemFont, sans-serif" }
+        : { minHeight: "100vh", background: "#f4f6f8", fontFamily: "Noto Sans KR, -apple-system, BlinkMacSystemFont, sans-serif" }}
+    >
+      {/* Legacy top header — suppressed when embedded under the new shell */}
+      {!embedded && (
+        <header style={{ background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "0 24px" }}>
+          <div style={{ maxWidth: 1200, margin: "0 15%", display: "flex", alignItems: "center", justifyContent: "space-between", height: 56 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: "#6b7280" }}>
+              <Link href="/dashboard" style={{ fontSize: 20, fontWeight: 700, color: "#2563eb", textDecoration: "none" }}>
+                homeNshop
+              </Link>
+              <span style={{ margin: "0 4px" }}>&gt;&gt;</span>
+              <Link href={`/dashboard/site/${siteId}/manage`} style={{ color: "#2563eb", textDecoration: "none" }}>
+                관리자모드
+              </Link>
+              <span style={{ margin: "0 4px" }}>&gt;&gt;</span>
+              <span style={{ color: "#111827", fontWeight: 500 }}>메뉴관리</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 13, color: "#374151" }}>{userName}</span>
+              <Link
+                href={`/dashboard/site/settings`}
+                style={{ fontSize: 13, color: "#6b7280", textDecoration: "none", padding: "6px 12px", border: "1px solid #d1d5db", borderRadius: 4 }}
+              >
+                사이트 설정
+              </Link>
+              <Link
+                href="/dashboard"
+                style={{ fontSize: 13, color: "#6b7280", textDecoration: "none", padding: "6px 12px", border: "1px solid #d1d5db", borderRadius: 4 }}
+              >
+                대시보드
+              </Link>
+            </div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 13, color: "#374151" }}>{userName}</span>
-            <Link
-              href={`/dashboard/site/settings`}
-              style={{ fontSize: 13, color: "#6b7280", textDecoration: "none", padding: "6px 12px", border: "1px solid #d1d5db", borderRadius: 4 }}
-            >
-              사이트 설정
-            </Link>
-            <Link
-              href="/dashboard"
-              style={{ fontSize: 13, color: "#6b7280", textDecoration: "none", padding: "6px 12px", border: "1px solid #d1d5db", borderRadius: 4 }}
-            >
-              대시보드
-            </Link>
-          </div>
-        </div>
-      </header>
+        </header>
+      )}
 
       {/* Toast */}
       {message && (
@@ -620,7 +631,11 @@ export default function MenuManagerClient({
         </div>
       )}
 
-      <main style={{ maxWidth: 1200, margin: "0 15%", padding: "24px 24px 60px" }}>
+      <main
+        style={embedded
+          ? { maxWidth: 1200, margin: "0 auto", padding: "0", width: "100%" }
+          : { maxWidth: 1200, margin: "0 15%", padding: "24px 24px 60px" }}
+      >
         {/* Language Settings */}
         {languages.length > 0 && (
           <div
