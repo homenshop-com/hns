@@ -6,15 +6,44 @@ import ProductSettings from "./product-settings";
 import { getTranslations } from "next-intl/server";
 import SignOutButton from "../../../sign-out-button";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import ImpersonationBanner from "@/components/ImpersonationBanner";
+import "../../../dashboard-v2.css";
+import "./manage-v2.css";
+import { DashboardIconSprite, Icon } from "../../../dashboard-icons";
 
-interface BoardCategoryWithCount {
-  id: number;
-  lang: string;
-  category: string;
-  cnt: number;
+/* ────────────────────────────────────────────────────────────────
+ * Helpers
+ * ──────────────────────────────────────────────────────────────── */
+
+const SITE_THUMB_GRADS: Record<string, [string, string, string, string]> = {
+  // shopId → [bg-from, bg-to, text-color, label]
+  unionled:      ["#0a1630", "#1a3370", "#6fa0ff", "LED"],
+  xunion5:       ["#1f2940", "#3a4b7a", "#ffffff", "X5"],
+  bomnaldriving: ["#ffe8d4", "#ff9a5a", "#7c3a00", "🌸"],
+};
+
+function pickThumb(shopId: string): [string, string, string, string] {
+  if (SITE_THUMB_GRADS[shopId]) return SITE_THUMB_GRADS[shopId];
+  // Fallback — hash shopId to a slate palette
+  let h = 0;
+  for (let i = 0; i < shopId.length; i++) h = ((h << 5) - h + shopId.charCodeAt(i)) | 0;
+  const hue = Math.abs(h) % 360;
+  return [
+    `hsl(${hue}, 40%, 22%)`,
+    `hsl(${hue}, 45%, 40%)`,
+    "#fff",
+    shopId.slice(0, 2).toUpperCase(),
+  ];
 }
 
-async function getBoardCategories(siteId: string): Promise<BoardCategoryWithCount[]> {
+function initialsFrom(s: string): string {
+  const clean = (s || "").trim().replace(/[^\p{L}\p{N}]+/gu, "");
+  if (!clean) return "?";
+  if (/^[A-Za-z0-9]+$/.test(clean)) return clean.slice(0, 2).toUpperCase();
+  return clean.slice(0, 2);
+}
+
+async function getBoardCategories(siteId: string) {
   const categories = await prisma.boardCategory.findMany({
     where: { siteId },
     orderBy: { legacyId: "asc" },
@@ -23,10 +52,14 @@ async function getBoardCategories(siteId: string): Promise<BoardCategoryWithCoun
   return categories.map((c) => ({
     id: c.legacyId ?? 0,
     lang: c.lang,
-    category: c.name,
+    name: c.name,
     cnt: c._count.posts,
   }));
 }
+
+/* ────────────────────────────────────────────────────────────────
+ * Page
+ * ──────────────────────────────────────────────────────────────── */
 
 export default async function SiteManagePage({
   params,
@@ -36,27 +69,31 @@ export default async function SiteManagePage({
   const session = await auth();
   if (!session) redirect("/login");
 
-  const td = await getTranslations("dashboard");
-  const tm = await getTranslations("manage");
+  const [td, tm] = await Promise.all([
+    getTranslations("dashboard"),
+    getTranslations("manage"),
+  ]);
 
   const { siteId } = await params;
 
-  const site = await prisma.site.findUnique({
-    where: { id: siteId },
-    include: {
-      pages: { select: { id: true, isHome: true, lang: true }, orderBy: { sortOrder: "asc" } },
-      products: { select: { id: true } },
-      domains: true,
-    },
-  });
+  const [site, currentUser] = await Promise.all([
+    prisma.site.findUnique({
+      where: { id: siteId },
+      include: {
+        pages: { select: { id: true, isHome: true, lang: true }, orderBy: { sortOrder: "asc" } },
+        products: { select: { id: true } },
+        domains: { where: { status: "ACTIVE" }, orderBy: { createdAt: "desc" } },
+      },
+    }),
+    prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { name: true, email: true, credits: true },
+    }),
+  ]);
 
-  if (!site || site.userId !== session.user.id) {
-    redirect("/dashboard");
-  }
+  if (!site || site.userId !== session.user.id) redirect("/dashboard");
 
   const productCount = site.products.length;
-
-  // Product display settings
   const ps = site.productSettings as Record<string, number> | null;
   const productSettings = {
     itemsPerRow: ps?.itemsPerRow ?? 4,
@@ -67,172 +104,453 @@ export default async function SiteManagePage({
   };
   const boardCategories = await getBoardCategories(site.id);
   const boardPostCount = boardCategories.reduce((sum, b) => sum + b.cnt, 0);
-  const homePage = site.pages.find(p => p.isHome && p.lang === site.defaultLanguage) || site.pages.find(p => p.isHome) || site.pages[0];
-  const firstPageId = homePage?.id || null;
-  const siteUrl = `home.homenshop.com/${site.shopId}`;
+  const homePage =
+    site.pages.find((p) => p.isHome && p.lang === site.defaultLanguage) ||
+    site.pages.find((p) => p.isHome) ||
+    site.pages[0];
+
+  const activeDomain = site.domains[0];
+  const publicUrl = activeDomain ? `https://${activeDomain.domain}` : `https://home.homenshop.com/${site.shopId}/`;
+  const publicUrlLabel = activeDomain ? activeDomain.domain : `home.homenshop.com/${site.shopId}`;
+  const defaultUrl = `home.homenshop.com/${site.shopId}`;
+
+  const displayName = currentUser?.name || currentUser?.email?.split("@")[0] || "게스트";
+  const credits = currentUser?.credits ?? 0;
+  const [thumbFrom, thumbTo, thumbColor, thumbLabel] = pickThumb(site.shopId);
+
+  const siteName = site.name || site.shopId;
+  const unreadInquiries = boardCategories.find((b) => b.id === 13)?.cnt ?? 0;
 
   return (
-    <div className="dash-page">
-      <header className="dash-header">
-        <div className="dash-header-inner">
-          <div style={{ display: "flex", alignItems: "center" }}>
-            <Link href="/dashboard" className="dash-logo">homeNshop</Link>
-            <span className="dash-logo-sub">{td("btnData")}</span>
+    <>
+      <ImpersonationBanner />
+      <DashboardIconSprite />
+      <div className="dv2-app">
+        {/* ───── SIDEBAR ───── */}
+        <aside className="dv2-side">
+          <div className="dv2-brand">
+            <div className="dv2-brand-mark">h</div>
+            <div className="dv2-brand-name">
+              home<span className="ns">Nshop</span>
+            </div>
           </div>
-          <div className="dash-header-right">
-            <Link href="/dashboard" className="dash-header-btn">{td("dashboard")}</Link>
-            <Link href="/dashboard/profile" className="dash-header-btn">{td("memberInfo")}</Link>
-            <SignOutButton />
-            <LanguageSwitcher />
-          </div>
-        </div>
-      </header>
 
-      <main className="dash-main">
-        {/* Site URL & Action Buttons */}
-        <div style={{ background: "#fff", borderRadius: 8, padding: "20px 24px", marginBottom: 24, boxShadow: "0 1px 3px rgba(0,0,0,0.08)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div>
-            <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 4 }}>{tm("siteUrl")}</div>
-            <a href={`https://${siteUrl}`} target="_blank" rel="noopener" style={{ fontSize: 16, fontWeight: 600, color: "#2563eb", textDecoration: "none" }}>
-              {siteUrl}
-            </a>
-            {site.domains.length > 0 && (
-              <span style={{ marginLeft: 12, fontSize: 13, color: "#059669" }}>
-                {site.domains[0].domain}
-              </span>
-            )}
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            {firstPageId ? (
-              <Link
-                href={`/dashboard/site/pages/${firstPageId}/edit`}
-                style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 20px", background: "#2563eb", color: "#fff", borderRadius: 6, textDecoration: "none", fontSize: 14, fontWeight: 500 }}
-              >
-                {tm("openEditor")}
-              </Link>
-            ) : (
-              <span style={{ display: "inline-flex", alignItems: "center", padding: "8px 20px", background: "#9ca3af", color: "#fff", borderRadius: 6, fontSize: 14 }}>
-                {tm("openEditor")}
-              </span>
-            )}
-            <a
-              href={`https://${siteUrl}`}
-              target="_blank"
-              rel="noopener"
-              style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 20px", background: "#fff", color: "#374151", border: "1px solid #d1d5db", borderRadius: 6, textDecoration: "none", fontSize: 14, fontWeight: 500 }}
+          <Link href="/dashboard" className="mv2-site-switcher" title="홈페이지 전환">
+            <div
+              className="thumb"
+              style={{
+                background: `linear-gradient(135deg, ${thumbFrom}, ${thumbTo})`,
+                color: thumbColor,
+              }}
             >
-              {tm("viewSite")}
+              <span className="live" />
+              {thumbLabel}
+            </div>
+            <div className="ss-info">
+              <div className="ss-name">{siteName}</div>
+              <div className="ss-url">{publicUrlLabel}</div>
+            </div>
+            <div className="ss-chev"><Icon id="i-chev-down" size={14} /></div>
+          </Link>
+
+          <nav className="dv2-nav">
+            <Link href="/dashboard">
+              <span className="ic"><Icon id="i-home" /></span>
+              <span className="label">대시보드</span>
+            </Link>
+            <Link href={homePage ? `/dashboard/site/pages/${homePage.id}/edit` : "/dashboard/site/pages"}>
+              <span className="ic"><Icon id="i-palette" /></span>
+              <span className="label">디자인 관리</span>
+            </Link>
+            <Link className="active" href={`/dashboard/site/${siteId}/manage`}>
+              <span className="ic"><Icon id="i-database" /></span>
+              <span className="label">데이터 관리</span>
+              {boardPostCount > 0 && <span className="badge">{boardPostCount}</span>}
+            </Link>
+            <Link href={`/dashboard/site/settings?id=${siteId}`}>
+              <span className="ic"><Icon id="i-info" /></span>
+              <span className="label">기본정보 관리</span>
+            </Link>
+            <a className="soon" aria-disabled="true">
+              <span className="ic"><Icon id="i-analytics" /></span>
+              <span className="label">통계 · 분석</span>
+              <span className="soon-tag">SOON</span>
             </a>
+            <Link href="/dashboard/orders">
+              <span className="ic"><Icon id="i-bag" /></span>
+              <span className="label">주문 관리</span>
+            </Link>
+            <Link href="/dashboard/boards">
+              <span className="ic"><Icon id="i-mail" /></span>
+              <span className="label">문의 · 예약</span>
+              {unreadInquiries > 0 && <span className="badge">{unreadInquiries}</span>}
+            </Link>
+          </nav>
+
+          <div className="dv2-side-section">
+            <div className="dv2-side-label">계정</div>
+            <nav className="dv2-nav">
+              <Link href="/dashboard/credits">
+                <span className="ic"><Icon id="i-credit" /></span>
+                <span className="label">결제 · 크레딧</span>
+              </Link>
+              <Link href="/dashboard/profile">
+                <span className="ic"><Icon id="i-user" /></span>
+                <span className="label">관리자 정보</span>
+              </Link>
+              <a href="mailto:help@homenshop.com">
+                <span className="ic"><Icon id="i-life" /></span>
+                <span className="label">도움말 · 지원</span>
+              </a>
+            </nav>
+          </div>
+
+          <div className="dv2-side-footer">
+            <div className="dv2-coin-card">
+              <div className="row">
+                <div className="ball">C</div>
+                <div>
+                  <div className="num">
+                    {credits.toLocaleString()} <span style={{ fontSize: 11, fontWeight: 600 }}>coin</span>
+                  </div>
+                  <div className="cap">AI 제작 · 편집에 사용</div>
+                </div>
+              </div>
+              <Link className="go" href="/dashboard/credits">
+                충전하기 <Icon id="i-chev-right" size={12} />
+              </Link>
+            </div>
+          </div>
+        </aside>
+
+        {/* ───── MAIN ───── */}
+        <div className="dv2-main">
+          {/* Topbar */}
+          <div className="dv2-topbar">
+            <div className="dv2-crumbs">
+              <Link href="/dashboard">대시보드</Link>
+              <span className="sep">/</span>
+              <Link href={`/dashboard/site/settings?id=${siteId}`}>{siteName}</Link>
+              <span className="sep">/</span>
+              <span className="cur">데이터 관리</span>
+            </div>
+            <div className="dv2-spacer" />
+            <div className="dv2-topbar-actions">
+              <Link className="dv2-coin-pill" href="/dashboard/credits" title="크레딧 잔액">
+                <span className="ball">C</span>
+                <span>{credits.toLocaleString()}</span>
+                <span className="c">coin</span>
+              </Link>
+              <div className="dv2-lang">
+                <LanguageSwitcher />
+              </div>
+              <Link href="/dashboard/profile" className="dv2-user" style={{ textDecoration: "none" }}>
+                <div>
+                  <div className="name">{displayName}</div>
+                  <div className="role">Owner</div>
+                </div>
+                <div className="dv2-avatar">{initialsFrom(displayName)}</div>
+              </Link>
+              <SignOutButton />
+            </div>
+          </div>
+
+          {/* Screen tabs */}
+          <div className="mv2-screen-tabs">
+            <Link className="mv2-st on" href={`/dashboard/site/${siteId}/manage`}>
+              <Icon id="i-database" size={15} /> 데이터 관리
+            </Link>
+            <Link className="mv2-st" href={`/dashboard/site/settings?id=${siteId}`}>
+              <Icon id="i-info" size={15} /> 기본정보 관리
+            </Link>
+            <Link className="mv2-st" href="/dashboard/profile">
+              <Icon id="i-user" size={15} /> 관리자 정보
+            </Link>
+          </div>
+
+          <div className="dv2-content">
+            {/* URL banner */}
+            <div className="mv2-url-banner">
+              <div className="mv2-url-left">
+                <div className="lbl">
+                  <Icon id="i-globe" size={12} /> {tm("siteUrl")}
+                </div>
+                <div className="u">
+                  <a className="main-url" href={`https://${defaultUrl}`} target="_blank" rel="noopener noreferrer">
+                    {defaultUrl}
+                  </a>
+                  {activeDomain && (
+                    <a
+                      className="custom"
+                      href={`https://${activeDomain.domain}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {activeDomain.domain}{" "}
+                      {activeDomain.sslEnabled && <span className="ssl">SSL</span>}
+                    </a>
+                  )}
+                  {site.published && <span className="publish-chip">게시중</span>}
+                </div>
+              </div>
+              <div className="mv2-url-actions">
+                <a className="mv2-btn-secondary" href={publicUrl} target="_blank" rel="noopener noreferrer">
+                  <Icon id="i-eye" size={14} /> {tm("viewSite")}
+                </a>
+                {homePage ? (
+                  <Link href={`/dashboard/site/pages/${homePage.id}/edit`} className="mv2-btn-primary">
+                    <Icon id="i-edit" size={14} /> {tm("openEditor")}
+                  </Link>
+                ) : (
+                  <button className="mv2-btn-primary" disabled>
+                    <Icon id="i-edit" size={14} /> {tm("openEditor")}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* KPIs */}
+            <div className="mv2-kpi-row">
+              <div className={`mv2-kpi${productCount === 0 ? " empty" : ""}`}>
+                <div className="kpi-top">
+                  {tm("statProducts")}
+                  <div className="ic" style={{ background: "var(--brand-soft)", color: "var(--brand)" }}>
+                    <Icon id="i-package" size={13} />
+                  </div>
+                </div>
+                <div className="v">
+                  {productCount}
+                  {productCount > 0 && <span className="unit">개</span>}
+                </div>
+                {productCount === 0 ? (
+                  <>
+                    <div className="sub">아직 등록된 상품이 없어요</div>
+                    <Link href="/dashboard/products" className="kpi-action">
+                      상품 등록하기 →
+                    </Link>
+                  </>
+                ) : (
+                  <div className="sub">
+                    <Link
+                      href="/dashboard/products"
+                      style={{ color: "var(--brand)", fontWeight: 600, textDecoration: "none" }}
+                    >
+                      상품 관리 →
+                    </Link>
+                  </div>
+                )}
+              </div>
+              <div className={`mv2-kpi${boardPostCount === 0 ? " empty" : ""}`}>
+                <div className="kpi-top">
+                  {tm("statBoards")}
+                  <div className="ic" style={{ background: "var(--green-soft)", color: "#0d7d45" }}>
+                    <Icon id="i-board" size={13} />
+                  </div>
+                </div>
+                <div className="v">
+                  {boardPostCount}
+                  {boardPostCount > 0 && <span className="unit">건</span>}
+                </div>
+                <div className="sub">
+                  {boardCategories.filter((b) => b.cnt > 0).length}개 카테고리 사용 중
+                </div>
+              </div>
+              <div className="mv2-kpi empty">
+                <div className="kpi-top">
+                  {tm("statMembers")}
+                  <div className="ic" style={{ background: "var(--slate-soft, #eceef6)", color: "#2d3148" }}>
+                    <Icon id="i-users" size={13} />
+                  </div>
+                </div>
+                <div className="v">0</div>
+                <div className="sub">회원제 미사용</div>
+                <span className="kpi-action" style={{ color: "var(--ink-4)", cursor: "default" }}>
+                  SOON
+                </span>
+              </div>
+              <div className="mv2-kpi">
+                <div className="kpi-top">
+                  {tm("statStorage")}
+                  <div className="ic" style={{ background: "#f2f4fa", color: "var(--ink-2)" }}>
+                    <Icon id="i-save" size={13} />
+                  </div>
+                </div>
+                <div className="v" style={{ color: "var(--ink-3)", fontWeight: 700 }}>—</div>
+                <div className="sub">{tm("storageCalc")}</div>
+              </div>
+            </div>
+
+            {/* Data 4-column grid */}
+            <div className="mv2-data-grid">
+              {/* Menu management */}
+              <div className="dv2-panel mv2-data-col">
+                <div className="mv2-hd-ribbon hd-orange">
+                  <div className="ic"><Icon id="i-menu" size={15} /></div>
+                  <h3>{tm("menuManage")}</h3>
+                  <div className="meta">{site.pages.length}개 페이지</div>
+                </div>
+                <div className="mv2-list">
+                  <Link href={`/dashboard/site/${siteId}/manage/menus`} className="mv2-list-item">
+                    <div className="li-title"><span className="n">{tm("menuManageLink")}</span></div>
+                    <div className="li-right">
+                      <span>구성 바로가기</span>
+                      <span className="chev"><Icon id="i-chev-right" size={12} /></span>
+                    </div>
+                  </Link>
+                </div>
+                <div className="mv2-empty-col">
+                  <div className="ic"><Icon id="i-menu" size={18} /></div>
+                  <div className="t">메뉴 구조 시각화</div>
+                  <div className="s">드래그로 순서를 바꾸고<br />하위 메뉴를 구성하세요</div>
+                  <Link href={`/dashboard/site/${siteId}/manage/menus`} className="tool-btn-primary">
+                    <Icon id="i-plus" size={12} /> 메뉴 편집
+                  </Link>
+                </div>
+              </div>
+
+              {/* Board management */}
+              <div className="dv2-panel mv2-data-col">
+                <div className="mv2-hd-ribbon hd-green">
+                  <div className="ic"><Icon id="i-board" size={15} /></div>
+                  <h3>{tm("boardManage")}</h3>
+                  <div className="meta">
+                    {boardCategories.length}개 · 총 {boardPostCount}건
+                  </div>
+                </div>
+                <div className="mv2-list">
+                  <Link href="/dashboard/boards/posts" className="mv2-list-item">
+                    <div className="li-title">
+                      <span className="n">{tm("postManage")}</span>
+                      <span className="lang-chip">전체</span>
+                    </div>
+                    <div className="li-right">
+                      <span className="count">{boardPostCount}</span>
+                      <span>건</span>
+                      <span className="chev"><Icon id="i-chev-right" size={12} /></span>
+                    </div>
+                  </Link>
+                  {boardCategories
+                    .filter((b) => b.name && b.name !== "Default")
+                    .map((b) => {
+                      const isInquiry = b.id === 13; // 견적문의 및 주문
+                      const isEmpty = b.cnt === 0;
+                      const cls = [
+                        "mv2-list-item",
+                        isInquiry && b.cnt > 0 ? "highlight" : "",
+                        isEmpty ? "empty" : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ");
+                      return (
+                        <Link
+                          key={`${b.id}-${b.lang}`}
+                          href={`/dashboard/boards/posts?category=${b.id}`}
+                          className={cls}
+                        >
+                          <div className="li-title">
+                            <span className="n">{b.name}</span>
+                            {b.lang && <span className="lang-chip">{b.lang}</span>}
+                          </div>
+                          <div className="li-right">
+                            <span className="count">{b.cnt}</span>
+                            <span>건</span>
+                            <span className="chev"><Icon id="i-chev-right" size={12} /></span>
+                          </div>
+                        </Link>
+                      );
+                    })}
+                </div>
+              </div>
+
+              {/* Product management */}
+              <div className="dv2-panel mv2-data-col">
+                <div className="mv2-hd-ribbon hd-blue">
+                  <div className="ic"><Icon id="i-package" size={15} /></div>
+                  <h3>{tm("productManage")}</h3>
+                  <div className="meta">{productCount}개</div>
+                </div>
+                <div className="mv2-list">
+                  <Link href="/dashboard/products" className="mv2-list-item">
+                    <div className="li-title"><span className="n">{tm("productList")}</span></div>
+                    <div className="li-right">
+                      <span className="count">{productCount}</span>
+                      <span className="chev"><Icon id="i-chev-right" size={12} /></span>
+                    </div>
+                  </Link>
+                  <Link href="/dashboard/products/categories" className="mv2-list-item">
+                    <div className="li-title"><span className="n">{tm("categoryManage")}</span></div>
+                    <div className="li-right">
+                      <span className="chev"><Icon id="i-chev-right" size={12} /></span>
+                    </div>
+                  </Link>
+                  <Link href="/dashboard/orders" className="mv2-list-item">
+                    <div className="li-title"><span className="n">{tm("orderList")}</span></div>
+                    <div className="li-right">
+                      <span className="chev"><Icon id="i-chev-right" size={12} /></span>
+                    </div>
+                  </Link>
+                </div>
+                <ProductSettings
+                  siteId={siteId}
+                  initialSettings={productSettings}
+                  variant="v2"
+                  labels={{
+                    productDisplaySettings: tm("productDisplaySettings"),
+                    itemsPerRow: tm("itemsPerRow"),
+                    totalRows: tm("totalRows"),
+                    perPage: tm("perPage"),
+                    thumbWidth: tm("thumbWidth"),
+                    thumbHeight: tm("thumbHeight"),
+                    detailImageWidth: tm("detailImageWidth"),
+                    saveSettings: tm("saveSettings"),
+                    saving: tm("saving"),
+                    saved: tm("saved"),
+                    saveError: tm("saveError"),
+                    error: tm("error"),
+                  }}
+                />
+              </div>
+
+              {/* Member management */}
+              <div className="dv2-panel mv2-data-col">
+                <div className="mv2-hd-ribbon hd-slate">
+                  <div className="ic"><Icon id="i-users" size={15} /></div>
+                  <h3>{tm("memberManage")}</h3>
+                  <div className="meta">0명</div>
+                </div>
+                <div className="mv2-list">
+                  <div className="mv2-list-item" style={{ cursor: "default" }}>
+                    <div className="li-title"><span className="n">{tm("memberList")}</span></div>
+                    <div className="li-right">
+                      <span className="count">0</span>
+                      <span>명</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="mv2-empty-col">
+                  <div className="ic"><Icon id="i-users" size={18} /></div>
+                  <div className="t">회원 기능 꺼짐</div>
+                  <div className="s">
+                    회원가입 · 마이페이지 · 회원전용<br />
+                    게시판을 사용하려면 활성화하세요
+                  </div>
+                  <button type="button" className="tool-btn-primary" disabled title="준비 중인 기능">
+                    <Icon id="i-plus" size={12} /> 회원 기능 활성화
+                  </button>
+                </div>
+                <div className="mv2-activity-summary">
+                  <h4>최근 활동 요약</h4>
+                  <div className="lines">
+                    • 신규 가입 · <b>0</b><br />
+                    • 최근 로그인 · <b>—</b><br />
+                    • 탈퇴 요청 · <b>0</b>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-
-        {/* Stats Cards */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 32 }}>
-          <div style={{ background: "#fff", borderRadius: 8, padding: "20px 24px", boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>
-            <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 8 }}>{tm("statProducts")}</div>
-            <div style={{ fontSize: 28, fontWeight: 700, color: "#111827" }}>{productCount}</div>
-          </div>
-          <div style={{ background: "#fff", borderRadius: 8, padding: "20px 24px", boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>
-            <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 8 }}>{tm("statBoards")}</div>
-            <div style={{ fontSize: 28, fontWeight: 700, color: "#111827" }}>{boardPostCount}</div>
-          </div>
-          <div style={{ background: "#fff", borderRadius: 8, padding: "20px 24px", boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>
-            <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 8 }}>{tm("statMembers")}</div>
-            <div style={{ fontSize: 28, fontWeight: 700, color: "#111827" }}>0</div>
-          </div>
-          <div style={{ background: "#fff", borderRadius: 8, padding: "20px 24px", boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>
-            <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 8 }}>{tm("statStorage")}</div>
-            <div style={{ fontSize: 28, fontWeight: 700, color: "#111827" }}>-</div>
-            <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>{tm("storageCalc")}</div>
-          </div>
-        </div>
-
-        {/* Management Sections — 4열 그리드 */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 20 }}>
-          {/* 메뉴관리 */}
-          <div style={{ background: "#fff", borderRadius: 8, overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>
-            <div style={{ background: "#ea580c", padding: "14px 20px", color: "#fff", fontWeight: 600, fontSize: 15 }}>
-              {tm("menuManage")}
-            </div>
-            <div style={{ padding: "16px 20px" }}>
-              <Link href={`/dashboard/site/${siteId}/manage/menus`} style={{ display: "block", padding: "10px 0", color: "#374151", textDecoration: "none", fontSize: 14 }}>
-                {tm("menuManageLink")}
-              </Link>
-            </div>
-          </div>
-
-          {/* 게시판관리 */}
-          <div style={{ background: "#fff", borderRadius: 8, overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>
-            <div style={{ background: "#16a34a", padding: "14px 20px", color: "#fff", fontWeight: 600, fontSize: 15 }}>
-              {tm("boardManage")}
-            </div>
-            <div style={{ padding: "16px 20px" }}>
-              <Link href="/dashboard/boards/posts" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", color: "#374151", textDecoration: "none", fontSize: 14, borderBottom: "1px solid #f3f4f6" }}>
-                <span>{tm("postManage")}</span>
-                <span style={{ fontSize: 12, color: "#6b7280" }}>{boardPostCount}{tm("postCount")}</span>
-              </Link>
-              {boardCategories.filter(b => b.category && b.category !== "Default").map(b => (
-                <Link key={b.id} href={`/dashboard/boards/posts?category=${b.id}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #f3f4f6", fontSize: 14, color: "#374151", textDecoration: "none" }}>
-                  <span>
-                    {b.category}
-                    {b.lang && <span style={{ fontSize: 11, color: "#9ca3af", marginLeft: 6 }}>{b.lang.toUpperCase()}</span>}
-                  </span>
-                  <span style={{ fontSize: 12, color: "#6b7280" }}>{b.cnt}{tm("postCount")}</span>
-                </Link>
-              ))}
-            </div>
-          </div>
-
-          {/* 상품관리 */}
-          <div style={{ background: "#fff", borderRadius: 8, overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>
-            <div style={{ background: "#2563eb", padding: "14px 20px", color: "#fff", fontWeight: 600, fontSize: 15 }}>
-              {tm("productManage")}
-            </div>
-            <div style={{ padding: "16px 20px" }}>
-              <Link href="/dashboard/products" style={{ display: "block", padding: "10px 0", color: "#374151", textDecoration: "none", fontSize: 14, borderBottom: "1px solid #f3f4f6" }}>
-                {tm("productList")}
-              </Link>
-              <Link href="/dashboard/products/categories" style={{ display: "block", padding: "10px 0", color: "#374151", textDecoration: "none", fontSize: 14, borderBottom: "1px solid #f3f4f6" }}>
-                {tm("categoryManage")}
-              </Link>
-              <Link href="/dashboard/orders" style={{ display: "block", padding: "10px 0", color: "#374151", textDecoration: "none", fontSize: 14, borderBottom: "1px solid #f3f4f6" }}>
-                {tm("orderList")}
-              </Link>
-              <ProductSettings siteId={siteId} initialSettings={productSettings} labels={{
-                productDisplaySettings: tm("productDisplaySettings"),
-                itemsPerRow: tm("itemsPerRow"),
-                totalRows: tm("totalRows"),
-                perPage: tm("perPage"),
-                thumbWidth: tm("thumbWidth"),
-                thumbHeight: tm("thumbHeight"),
-                detailImageWidth: tm("detailImageWidth"),
-                saveSettings: tm("saveSettings"),
-                saving: tm("saving"),
-                saved: tm("saved"),
-                saveError: tm("saveError"),
-                error: tm("error"),
-              }} />
-            </div>
-          </div>
-
-          {/* 회원관리 */}
-          <div style={{ background: "#fff", borderRadius: 8, overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>
-            <div style={{ background: "#374151", padding: "14px 20px", color: "#fff", fontWeight: 600, fontSize: 15 }}>
-              {tm("memberManage")}
-            </div>
-            <div style={{ padding: "16px 20px" }}>
-              <Link href="/admin/members" style={{ display: "block", padding: "10px 0", color: "#374151", textDecoration: "none", fontSize: 14 }}>
-                {tm("memberList")}
-              </Link>
-            </div>
-          </div>
-        </div>
-      </main>
-      <footer className="dash-footer">
-        <div className="dash-footer-inner">
-          <p>&copy; {new Date().getFullYear()} homenshop.com. All rights reserved.</p>
-        </div>
-      </footer>
-    </div>
+      </div>
+    </>
   );
 }

@@ -43,6 +43,12 @@ export function DashboardIconSprite() {
         <symbol id="i-globe" viewBox="0 0 20 20"><circle className="i" cx="10" cy="10" r="7.5" /><path className="i" d="M2.5 10h15M10 2.5c2 2.5 3 5 3 7.5s-1 5-3 7.5c-2-2.5-3-5-3-7.5s1-5 3-7.5z" /></symbol>
         <symbol id="i-publish" viewBox="0 0 20 20"><path className="i" d="M10 14V4M6 8l4-4 4 4M4 15v1a1 1 0 001 1h10a1 1 0 001-1v-1" /></symbol>
         <symbol id="i-edit" viewBox="0 0 20 20"><path className="i" d="M3 17l3-.5 9-9-2.5-2.5-9 9L3 17zM12 5l2.5 2.5" /></symbol>
+        <symbol id="i-menu" viewBox="0 0 20 20"><path className="i" d="M3 5h14M3 10h14M3 15h14" /></symbol>
+        <symbol id="i-board" viewBox="0 0 20 20"><rect className="i" x="3" y="4" width="14" height="12" rx="1" /><path className="i" d="M3 8h14M7 12h7M7 14h5" /></symbol>
+        <symbol id="i-package" viewBox="0 0 20 20"><path className="i" d="M3 6l7-3 7 3v8l-7 3-7-3V6z" /><path className="i" d="M3 6l7 3 7-3M10 9v9" /></symbol>
+        <symbol id="i-eye" viewBox="0 0 20 20"><path className="i" d="M2 10s3-6 8-6 8 6 8 6-3 6-8 6-8-6-8-6z" /><circle className="i" cx="10" cy="10" r="2.5" /></symbol>
+        <symbol id="i-save" viewBox="0 0 20 20"><path className="i" d="M4 3h10l3 3v10a1 1 0 01-1 1H4a1 1 0 01-1-1V4a1 1 0 011-1z" /><path className="i" d="M6 3v5h8V3M6 17v-5h8v5" /></symbol>
+        <symbol id="i-user" viewBox="0 0 20 20"><circle className="i" cx="10" cy="7" r="3.5" /><path className="i" d="M3.5 17a6.5 6.5 0 0113 0" /></symbol>
       </defs>
     </svg>
   );
