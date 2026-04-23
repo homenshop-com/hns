@@ -315,8 +315,10 @@ ${marker}
   z-index: 3;
   cursor: pointer;
 }
-.ul-case-card .grad,
-.ul-case-card .info { position: relative; z-index: 2; }
+/* NB: do NOT override .info positioning — the template's original rule
+   (position:absolute; bottom:20px; left:20px; right:20px;) places info
+   at the bottom of the card over the image. Overriding to relative
+   breaks that and pushes info to the top of the card. */
 .ul-case-card .grad {
   position: absolute;
   inset: 0;
