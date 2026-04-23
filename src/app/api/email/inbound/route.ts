@@ -145,7 +145,7 @@ export async function POST(req: NextRequest) {
   const fetchKey = process.env.RESEND_INBOUND_API_KEY || process.env.RESEND_API_KEY;
   if (!text && !html && emailId && fetchKey) {
     try {
-      const r = await fetch(`https://api.resend.com/emails/${emailId}`, {
+      const r = await fetch(`https://api.resend.com/emails/receiving/${emailId}`, {
         headers: { Authorization: `Bearer ${fetchKey}` },
       });
       if (r.ok) {
