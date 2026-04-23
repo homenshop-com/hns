@@ -669,9 +669,20 @@ export async function GET(
   // and, when true, replace the nav's links with fresh ones from the pages
   // list (keeping the header's visual design + showInMenu auto-sync) and
   // suppress the legacy second menu bar entirely.
+  //
+  // However: some hand-crafted headers use structured nav markup with
+  // dropdowns (`<div class="has-sub">`, `<div class="ul-subnav">`, etc).
+  // Overwriting those with a flat `<a>`-only link list destroys the
+  // dropdown UI. We consider the nav "custom" when it contains child
+  // `<div>`/`<ul>`/`<button>` elements OR has an explicit opt-out class
+  // / data attribute — in those cases we preserve the nav as-authored and
+  // only suppress the legacy second menu bar.
   const headerHasNavWithLinks =
     /<nav[\s>][\s\S]*?<a\s[\s\S]*?<\/nav>/i.test(headerHtml);
-  if (headerHasNavWithLinks) {
+  const headerNavIsCustom =
+    /<nav[^>]*(?:data-preserve|class="[^"]*(?:ul-nav-custom|has-dropdown)[^"]*")/i.test(headerHtml) ||
+    /<nav[\s>][\s\S]*?<(?:div|ul|button|details)\b[\s\S]*?<\/nav>/i.test(headerHtml);
+  if (headerHasNavWithLinks && !headerNavIsCustom) {
     const navLinks = topLevelPages
       .map((p) => {
         const label = p.menuTitle || p.title;
@@ -685,6 +696,9 @@ export async function GET(
       /(<nav\b[^>]*>)([\s\S]*?)(<\/nav>)/i,
       (_m, open, _old, close) => `${open}\n${navLinks}\n${close}`
     );
+    menuHtml = "";
+  } else if (headerHasNavWithLinks && headerNavIsCustom) {
+    // Custom nav preserved as-authored; still suppress the legacy second menu bar
     menuHtml = "";
   } else if (!rawMenuHtml) {
     menuHtml = wrappedMenu;
