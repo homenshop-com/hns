@@ -9,6 +9,7 @@ import EditSiteForm from "../edit-site-form";
 import LanguageSettings from "@/components/LanguageSettings";
 import DeleteSiteButton from "./delete-site-button";
 import SitemapRefreshButton from "./sitemap-refresh-button";
+import CopyButton from "./copy-button";
 
 interface SettingsPageProps {
   searchParams: Promise<{ id?: string }>;
@@ -272,6 +273,7 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                         >
                           {sitemapApiUrl}
                         </a>
+                        <CopyButton value={sitemapApiUrl} />
                       </div>
                       {sitemapCustomUrl && (
                         <div style={{ marginBottom: 6 }}>
@@ -284,6 +286,7 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                           >
                             {sitemapCustomUrl}
                           </a>
+                          <CopyButton value={sitemapCustomUrl} />
                         </div>
                       )}
                       <p style={{ color: "#868e96", marginTop: 8, lineHeight: 1.5 }}>
