@@ -7,6 +7,7 @@ import {
   CREDIT_COSTS,
   InsufficientCreditsError,
 } from "@/lib/credits";
+import { freeSiteDefaults } from "@/lib/site-expiration";
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const CLAUDE_MODEL = process.env.AI_GENERATE_MODEL || "claude-sonnet-4-6";
@@ -601,6 +602,7 @@ export async function POST(request: Request) {
         menuHtml: aiResult.menuHtml || null,
         footerHtml: aiResult.footerHtml || null,
         cssText: aiResult.cssText || null,
+        ...freeSiteDefaults(),
         pages: { create: pageData },
       },
       include: {

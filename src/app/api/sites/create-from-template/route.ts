@@ -7,6 +7,7 @@ import {
   readTemplateCss,
   rewriteAssetUrls,
 } from "@/lib/template-parser";
+import { freeSiteDefaults } from "@/lib/site-expiration";
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -139,6 +140,7 @@ export async function POST(request: Request) {
       menuHtml: template.menuHtml || null,
       footerHtml: template.footerHtml || null,
       cssText: templateCss || null,
+      ...freeSiteDefaults(),
       pages: {
         create: pageData,
       },

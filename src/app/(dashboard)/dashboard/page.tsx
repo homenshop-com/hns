@@ -11,6 +11,11 @@ import AICreateButton from "./ai-create-button";
 import { getSettingBool } from "@/lib/settings";
 import "./dashboard-v2.css";
 import { DashboardIconSprite, Icon } from "./dashboard-icons";
+import {
+  daysUntilExpiry,
+  isSiteExpired,
+  shouldShowExpirationWarning,
+} from "@/lib/site-expiration";
 
 /* ────────────────────────────────────────────────────────────────
  * Helpers
@@ -210,11 +215,14 @@ export default async function DashboardPage() {
     all: sites.length,
     free: sites.filter((s) => s.accountType === "0").length,
     pro: sites.filter((s) => s.accountType === "1").length,
-    expired: sites.filter((s) => {
-      if (s.accountType === "9") return true;
-      return s.expiresAt && new Date(s.expiresAt) < new Date();
-    }).length,
+    expired: sites.filter((s) => isSiteExpired(s)).length,
   };
+
+  // Any free site whose trial is ending within the warning window?
+  const expiringSoonSites = sites.filter((s) =>
+    shouldShowExpirationWarning(s)
+  );
+  const expiredSites = sites.filter((s) => isSiteExpired(s));
 
   /* ── Derive activity feed: merge orders + board posts by date desc ── */
   type Activity = { kind: "order" | "board" | "edit"; when: Date; node: React.ReactNode };
@@ -299,6 +307,50 @@ export default async function DashboardPage() {
             sent: t("emailVerifySent"),
           }}
         />
+      )}
+      {(expiredSites.length > 0 || expiringSoonSites.length > 0) && (
+        <div
+          style={{
+            background: expiredSites.length > 0 ? "#fef2f2" : "#fffbeb",
+            borderBottom: `1px solid ${expiredSites.length > 0 ? "#fecaca" : "#fde68a"}`,
+            padding: "12px 20px",
+            fontSize: 14,
+            color: expiredSites.length > 0 ? "#991b1b" : "#92400e",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 16,
+            flexWrap: "wrap",
+          }}
+        >
+          <div>
+            <b>
+              {expiredSites.length > 0
+                ? `체험 기간이 만료된 사이트가 ${expiredSites.length}개 있습니다.`
+                : `체험 기간이 곧 종료됩니다 (${expiringSoonSites.length}개 사이트).`}
+            </b>
+            <span style={{ marginLeft: 8, opacity: 0.85 }}>
+              {expiredSites.length > 0
+                ? "공개가 중지되었습니다. 플랜 업그레이드로 다시 공개하세요."
+                : "지금 업그레이드하여 서비스를 중단 없이 계속 이용하세요."}
+            </span>
+          </div>
+          <Link
+            href="/pricing"
+            style={{
+              padding: "8px 16px",
+              background: expiredSites.length > 0 ? "#dc2626" : "#d97706",
+              color: "#fff",
+              borderRadius: 6,
+              fontWeight: 600,
+              textDecoration: "none",
+              fontSize: 13,
+              whiteSpace: "nowrap",
+            }}
+          >
+            요금제 보기 →
+          </Link>
+        </div>
       )}
       <DashboardIconSprite />
       <div className="dv2-app">
@@ -553,7 +605,9 @@ export default async function DashboardPage() {
                   <div className="dv2-site-list">
                     {sites.map((s) => {
                       const plan = PLAN_TAG[s.accountType] || PLAN_TAG["0"];
-                      const isExpired = s.accountType === "9" || (s.expiresAt && new Date(s.expiresAt) < new Date());
+                      const isExpired = isSiteExpired(s);
+                      const remainingDays = daysUntilExpiry(s);
+                      const warnExpiry = shouldShowExpirationWarning(s);
                       const [gradA, gradB] = pickGradient(s.shopId);
                       const initials = initialsFrom(s.name || s.shopId);
                       const homePage =
@@ -605,6 +659,36 @@ export default async function DashboardPage() {
                           </div>
                           <div>
                             <span className={`dv2-plan-tag ${plan.cls}`}>{plan.label}</span>
+                            {s.accountType === "0" && remainingDays !== null && (
+                              <span
+                                className="dv2-expiry-chip"
+                                style={{
+                                  display: "inline-block",
+                                  marginLeft: 6,
+                                  padding: "2px 8px",
+                                  borderRadius: 10,
+                                  fontSize: 11,
+                                  fontWeight: 600,
+                                  background: isExpired
+                                    ? "#fee2e2"
+                                    : warnExpiry
+                                      ? "#fef3c7"
+                                      : "#f1f5f9",
+                                  color: isExpired
+                                    ? "#b91c1c"
+                                    : warnExpiry
+                                      ? "#92400e"
+                                      : "#64748b",
+                                }}
+                                title={`만료일: ${s.expiresAt ? new Date(s.expiresAt).toLocaleDateString("ko-KR") : "-"}`}
+                              >
+                                {isExpired
+                                  ? "만료됨"
+                                  : remainingDays === 0
+                                    ? "오늘 만료"
+                                    : `${remainingDays}일 남음`}
+                              </span>
+                            )}
                           </div>
                           <div className="dv2-stat-mini">
                             <span className="n">{s.pages.length}</span>

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { freeSiteDefaults } from "@/lib/site-expiration";
 
 // GET /api/sites — 현재 사용자의 사이트 조회
 export async function GET() {
@@ -72,6 +73,7 @@ export async function POST(request: Request) {
       name: name.trim(),
       description: description?.trim() || null,
       defaultLanguage: defaultLanguage || "ko",
+      ...freeSiteDefaults(),
     },
   });
 

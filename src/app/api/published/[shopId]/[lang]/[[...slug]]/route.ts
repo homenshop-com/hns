@@ -12,6 +12,33 @@ import {
   renderJsonLdBlock,
   type JsonLdContext,
 } from "@/lib/seo-jsonld";
+import { isSiteExpired } from "@/lib/site-expiration";
+
+function renderExpiredPage(shopId: string, name: string): string {
+  const safeName = name.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return `<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${safeName} - 체험 기간이 종료되었습니다</title>
+<meta name="robots" content="noindex">
+<style>
+  body{margin:0;font-family:'Pretendard','Apple SD Gothic Neo',sans-serif;background:#f8fafc;color:#334155;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+  .card{background:#fff;max-width:520px;width:100%;padding:48px 40px;border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,.06);text-align:center}
+  .icon{font-size:48px;margin-bottom:16px}
+  h1{margin:0 0 12px 0;font-size:22px;font-weight:700;color:#0f172a}
+  p{margin:0 0 24px 0;font-size:15px;line-height:1.7;color:#64748b}
+  .btn{display:inline-block;padding:12px 28px;border-radius:8px;background:#2563eb;color:#fff;text-decoration:none;font-weight:600;font-size:14px}
+  .btn.secondary{background:transparent;color:#2563eb;border:1px solid #dbeafe;margin-left:8px}
+  .shop{display:inline-block;margin-top:20px;padding:6px 12px;background:#f1f5f9;border-radius:6px;font-size:12px;color:#64748b;font-family:monospace}
+</style></head>
+<body><div class="card">
+  <div class="icon">⏳</div>
+  <h1>체험 기간이 종료되었습니다</h1>
+  <p>이 홈페이지의 무료 체험 기간이 만료되어 더 이상 공개되지 않습니다.<br>사이트 소유자님은 로그인 후 플랜을 업그레이드하여 계속 사용하실 수 있습니다.</p>
+  <a href="https://homenshop.com/pricing" class="btn">요금제 보기</a>
+  <a href="https://homenshop.com/login" class="btn secondary">로그인</a>
+  <div class="shop">shopId: ${shopId}</div>
+</div></body></html>`;
+}
 
 /* ─── Board rendering helpers ─── */
 
@@ -559,7 +586,16 @@ export async function GET(
     },
   });
 
-  if (!site || !site.published) {
+  if (!site) {
+    return new NextResponse("Not Found", { status: 404 });
+  }
+  if (isSiteExpired(site)) {
+    return new NextResponse(renderExpiredPage(shopId, site.name), {
+      status: 410,
+      headers: { "content-type": "text/html; charset=utf-8" },
+    });
+  }
+  if (!site.published) {
     return new NextResponse("Not Found", { status: 404 });
   }
 
