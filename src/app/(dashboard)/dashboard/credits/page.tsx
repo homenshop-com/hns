@@ -14,7 +14,7 @@ import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ImpersonationBanner from "@/components/ImpersonationBanner";
 import BuyPackButton from "./buy-pack-button";
 import FaqList from "./faq-list";
-import TransactionFilter from "./transaction-filter";
+import TransactionFilter, { type CreditTxRow } from "./transaction-filter";
 import { DashboardIconSprite, Icon } from "../dashboard-icons";
 import "../dashboard-v2.css";
 import "./credits-v2.css";
@@ -136,13 +136,6 @@ export default async function CreditsPage() {
 
   // 30-day history for the table (credit rules + visual consistency)
   const last30 = history.filter((r) => daysAgo(r.createdAt) < 30);
-  const plusRows = last30.filter((r) => r.amount >= 0);
-  const minusRows = last30.filter((r) => r.amount < 0);
-
-  const filterRows = last30.map((r) => ({
-    id: r.id,
-    sign: (r.amount >= 0 ? "plus" : "minus") as "plus" | "minus",
-  }));
 
   const spark = buildSpark(history);
 
@@ -459,86 +452,41 @@ export default async function CreditsPage() {
             </div>
 
             <div className="cr2-use-card">
-              <TransactionFilter
-                rows={filterRows}
-                counts={{ all: last30.length, plus: plusRows.length, minus: minusRows.length }}
-              >
-                {(hidden, matched) => (
-                  <>
-                    <div className="cr2-use-head" style={{ order: -1 }}>
-                      <h3>
-                        <Icon id="i-hash" size={14} style={{ color: "var(--ai)" }} />
-                        거래 내역
-                      </h3>
-                    </div>
-                    {last30.length === 0 ? (
-                      <div className="cr2-use-empty">
-                        <div className="ic"><Icon id="i-hash" size={28} /></div>
-                        <div className="t">{t("creditsEmpty")}</div>
-                        <div className="s">AI 기능을 사용하거나 크레딧을 충전하면 이곳에 표시됩니다.</div>
-                      </div>
-                    ) : matched === 0 ? (
-                      <div className="cr2-use-empty">
-                        <div className="ic"><Icon id="i-hash" size={28} /></div>
-                        <div className="t">해당 유형의 내역이 없습니다</div>
-                        <div className="s">필터를 바꿔 전체 내역을 확인해보세요.</div>
-                      </div>
-                    ) : (
-                      <table className="cr2-tbl">
-                        <thead>
-                          <tr>
-                            <th style={{ width: 170 }}>{t("creditColDate")}</th>
-                            <th style={{ width: 120 }}>{t("creditColKind")}</th>
-                            <th>{t("creditColDesc")}</th>
-                            <th className="right" style={{ width: 120 }}>
-                              {t("creditColAmount")}
-                            </th>
-                            <th className="right" style={{ width: 100 }}>
-                              {t("creditColBalance")}
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {last30.map((row) => {
-                            if (hidden.has(row.id)) return null;
-                            const kindKey = `creditKind${row.kind}`;
-                            const cat = kindCategory(row.kind);
-                            const isPlus = row.amount >= 0;
-                            return (
-                              <tr key={row.id}>
-                                <td>
-                                  <span className="date">{dateFmt(row.createdAt)}</span>
-                                </td>
-                                <td>
-                                  <span className={kindChipClass(row.kind)}>
-                                    {t(kindKey as never)}
-                                  </span>
-                                </td>
-                                <td>
-                                  <div className="desc-main">
-                                    {row.description || t(kindKey as never)}
-                                  </div>
-                                  {row.refOrderId && (
-                                    <div className="desc-sub">주문 · {row.refOrderId.slice(-12)}</div>
-                                  )}
-                                  {!row.refOrderId && cat === "minus" && row.refSiteId && (
-                                    <div className="desc-sub">사이트 · {row.refSiteId.slice(-12)}</div>
-                                  )}
-                                </td>
-                                <td className={`delta ${isPlus ? "plus" : "minus"}`}>
-                                  {isPlus ? "+" : "−"}
-                                  {Math.abs(row.amount).toLocaleString()}
-                                </td>
-                                <td className="bal-cell">{row.balanceAfter.toLocaleString()}</td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    )}
-                  </>
-                )}
-              </TransactionFilter>
+              {(() => {
+                const txRows: CreditTxRow[] = last30.map((row) => {
+                  const kindKey = `creditKind${row.kind}`;
+                  const cat = kindCategory(row.kind);
+                  const submeta =
+                    row.refOrderId
+                      ? `주문 · ${row.refOrderId.slice(-12)}`
+                      : cat === "minus" && row.refSiteId
+                        ? `사이트 · ${row.refSiteId.slice(-12)}`
+                        : null;
+                  return {
+                    id: row.id,
+                    createdAt: dateFmt(row.createdAt),
+                    kindLabel: t(kindKey as never),
+                    kindChipClass: kindChipClass(row.kind),
+                    amount: row.amount,
+                    balanceAfter: row.balanceAfter,
+                    description: row.description || t(kindKey as never),
+                    submeta,
+                  };
+                });
+                return (
+                  <TransactionFilter
+                    rows={txRows}
+                    labels={{
+                      colDate: t("creditColDate"),
+                      colKind: t("creditColKind"),
+                      colDesc: t("creditColDesc"),
+                      colAmount: t("creditColAmount"),
+                      colBalance: t("creditColBalance"),
+                      empty: t("creditsEmpty"),
+                    }}
+                  />
+                );
+              })()}
               <div className="cr2-use-foot">
                 <span>
                   최근 30일 · <b>{last30.length}</b>건 표시 중
