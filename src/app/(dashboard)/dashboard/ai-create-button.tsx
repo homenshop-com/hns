@@ -5,6 +5,9 @@ import { useEffect, useRef, useState } from "react";
 
 interface AICreateButtonProps {
   emailVerified: boolean;
+  /** When true, render as the large dashboard-v2 gradient card (homepage
+   *  quick-action) instead of the plain old toolbar button. */
+  renderAsCard?: boolean;
   labels: {
     btnNewSiteAI: string;
     aiModalTitle: string;
@@ -57,7 +60,7 @@ function formatElapsed(sec: number): string {
   return `${m.toString().padStart(1, "0")}:${s.toString().padStart(2, "0")}`;
 }
 
-export default function AICreateButton({ emailVerified, labels }: AICreateButtonProps) {
+export default function AICreateButton({ emailVerified, labels, renderAsCard }: AICreateButtonProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<"form" | "verify">("form");
@@ -337,18 +340,43 @@ export default function AICreateButton({ emailVerified, labels }: AICreateButton
           .ai-progress-steps { grid-template-columns: 1fr; }
         }
       `}</style>
-      <button
-        type="button"
-        onClick={handleOpen}
-        className="dash-action-btn ai-create-btn"
-        style={{
-          background: "linear-gradient(135deg, #7c3aed 0%, #4338ca 100%)",
-          color: "#fff",
-          border: "none",
-        }}
-      >
-        ✨ {labels.btnNewSiteAI}
-      </button>
+      {renderAsCard ? (
+        <button
+          type="button"
+          onClick={handleOpen}
+          className="dv2-action"
+          style={{ textAlign: "left", width: "100%" }}
+        >
+          <div className="ai-bg" /><div className="glow" />
+          <div className="inner">
+            <div className="ic" style={{ display: "grid", placeItems: "center", fontSize: 22 }}>✨</div>
+            <div className="text">
+              <div className="ttl">
+                AI 홈페이지 제작 <span className="tag">NEW</span>
+              </div>
+              <div className="desc">몇 문장만으로 5분 만에 완성</div>
+            </div>
+            <div className="arr" aria-hidden>
+              <svg width={20} height={20} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 10h12M11 5l5 5-5 5" />
+              </svg>
+            </div>
+          </div>
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={handleOpen}
+          className="dash-action-btn ai-create-btn"
+          style={{
+            background: "linear-gradient(135deg, #7c3aed 0%, #4338ca 100%)",
+            color: "#fff",
+            border: "none",
+          }}
+        >
+          ✨ {labels.btnNewSiteAI}
+        </button>
+      )}
 
       {open && (
         <div className="tpl-modal-overlay" onClick={handleClose}>
