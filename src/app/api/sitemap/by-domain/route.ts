@@ -114,47 +114,83 @@ ${alternates}${xDefaultLink}
     }
   }
 
-  // Product & Board individual item URLs from PostgreSQL
-  const productPages = site.pages.filter(p => activeLangs.has(p.lang) && (p.slug === "product" || p.slug === "goods"));
-  const boardPages = site.pages.filter(p => activeLangs.has(p.lang) && p.slug === "board");
+  // Product & Board individual item URLs from PostgreSQL.
+  //
+  // Emit these regardless of whether the site has a dedicated Page row
+  // with slug="product" / "goods" / "board" — every homenshop site serves
+  // these pseudo-pages through /api/published/{shopId}/{lang}/... even
+  // without a matching Page, so they're always part of the crawlable
+  // surface area when the underlying data exists.
+  const langsForItems = Array.from(activeLangs);
+  const primaryLang = activeLangs.has(site.defaultLanguage) ? site.defaultLanguage : langsForItems[0];
 
-  if (productPages.length > 0) {
-    const products = await prisma.product.findMany({
-      where: { siteId: site.id },
-      select: { legacyId: true, createdAt: true },
-      orderBy: { legacyId: "desc" },
-    });
-    for (const prod of products) {
-      for (const pp of productPages) {
-        const loc = `${baseUrl}/${pp.lang}/${pp.slug}.html?action=read&id=${prod.legacyId}`;
-        const lastmod = prod.createdAt.toISOString().split("T")[0];
-        urls.push(`  <url>
+  // Products → /{lang}/goods.html?action=read&id=N
+  const products = await prisma.product.findMany({
+    where: { siteId: site.id },
+    select: { legacyId: true, updatedAt: true },
+    orderBy: { legacyId: "desc" },
+  });
+  for (const prod of products) {
+    const lastmod = prod.updatedAt.toISOString().split("T")[0];
+    for (const lang of langsForItems) {
+      const loc = `${baseUrl}/${lang}/goods.html?action=read&id=${prod.legacyId}`;
+      urls.push(`  <url>
     <loc>${escapeXml(loc)}</loc>
     <lastmod>${lastmod}</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>`);
-      }
     }
   }
 
-  if (boardPages.length > 0) {
-    const posts = await prisma.boardPost.findMany({
-      where: { siteId: site.id, parentId: null },
-      select: { legacyId: true, regdate: true, createdAt: true },
-      orderBy: { legacyId: "desc" },
-    });
-    for (const post of posts) {
-      for (const bp of boardPages) {
-        const loc = `${baseUrl}/${bp.lang}/board.html?action=read&id=${post.legacyId}`;
-        const lastmod = post.regdate ? post.regdate.substring(0, 10) : post.createdAt.toISOString().split("T")[0];
-        urls.push(`  <url>
+  // Board category list URLs → /{lang}/board.html?action=list&category=N
+  // (one per non-hidden, non-duplicate category that has posts)
+  const categories = await prisma.boardCategory.findMany({
+    where: {
+      siteId: site.id,
+      lang: primaryLang,
+      NOT: { name: { in: ["Default", "New Category"] } },
+    },
+    select: {
+      legacyId: true, name: true,
+      _count: { select: { posts: { where: { parentId: null } } } },
+    },
+    orderBy: { legacyId: "asc" },
+  });
+  const todayStr = new Date().toISOString().split("T")[0];
+  for (const cat of categories) {
+    if (!cat.legacyId || cat._count.posts === 0) continue;
+    const lastmod = todayStr;
+    for (const lang of langsForItems) {
+      const loc = `${baseUrl}/${lang}/board.html?action=list&category=${cat.legacyId}`;
+      urls.push(`  <url>
+    <loc>${escapeXml(loc)}</loc>
+    <lastmod>${lastmod}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>`);
+    }
+  }
+
+  // Individual board post read URLs → /{lang}/board.html?action=read&id=N
+  const posts = await prisma.boardPost.findMany({
+    where: { siteId: site.id, parentId: null, lang: primaryLang },
+    select: { legacyId: true, regdate: true, updatedAt: true },
+    orderBy: { legacyId: "desc" },
+  });
+  for (const post of posts) {
+    if (!post.legacyId) continue;
+    const lastmod = post.regdate && /^\d{4}-\d{2}-\d{2}/.test(post.regdate)
+      ? post.regdate.substring(0, 10)
+      : post.updatedAt.toISOString().split("T")[0];
+    for (const lang of langsForItems) {
+      const loc = `${baseUrl}/${lang}/board.html?action=read&id=${post.legacyId}`;
+      urls.push(`  <url>
     <loc>${escapeXml(loc)}</loc>
     <lastmod>${lastmod}</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>`);
-      }
     }
   }
 

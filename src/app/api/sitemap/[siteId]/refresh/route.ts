@@ -83,22 +83,55 @@ export async function POST(
   });
   if (!site) return NextResponse.json({ error: "not_found_or_forbidden" }, { status: 404 });
 
-  /* Count URLs that would appear in sitemap */
+  /* Count URLs that would appear in sitemap — same logic as the
+   * sitemap generators: Pages + Board categories (with posts) +
+   * individual BoardPosts + Products. */
   const activeLangs = new Set(site.languages?.length ? site.languages : [site.defaultLanguage]);
+  const langsForItems = Array.from(activeLangs);
+  const primaryLang = activeLangs.has(site.defaultLanguage) ? site.defaultLanguage : langsForItems[0];
   const skipSlugs = new Set(["empty", "user", "users", "agreement"]);
 
-  const pages = await prisma.page.findMany({
-    where: { siteId: site.id },
-    select: { slug: true, lang: true, updatedAt: true, isHome: true },
-  });
+  const [pages, boardCats, boardPostCount, productCount] = await Promise.all([
+    prisma.page.findMany({
+      where: { siteId: site.id },
+      select: { slug: true, lang: true, updatedAt: true, isHome: true },
+    }),
+    prisma.boardCategory.findMany({
+      where: {
+        siteId: site.id,
+        lang: primaryLang,
+        NOT: { name: { in: ["Default", "New Category"] } },
+      },
+      select: {
+        legacyId: true,
+        _count: { select: { posts: { where: { parentId: null } } } },
+      },
+    }),
+    prisma.boardPost.count({
+      where: { siteId: site.id, parentId: null, lang: primaryLang },
+    }),
+    prisma.product.count({ where: { siteId: site.id } }),
+  ]);
 
-  const eligible = pages.filter(
+  const eligiblePages = pages.filter(
     (p) => activeLangs.has(p.lang) && !skipSlugs.has(p.slug.toLowerCase()),
   );
-  const urlCount = eligible.length;
-  const lastModified = eligible.length
-    ? new Date(Math.max(...eligible.map((p) => p.updatedAt.getTime()))).toISOString()
-    : null;
+  const eligibleCats = boardCats.filter(
+    (c) => c.legacyId && c._count.posts > 0,
+  );
+
+  // URL counts: pages (lang-multiplied), + categories × langs,
+  // + post × langs + product × langs
+  const urlCount =
+    eligiblePages.length +
+    eligibleCats.length * langsForItems.length +
+    boardPostCount * langsForItems.length +
+    productCount * langsForItems.length;
+
+  const pageLastMod = eligiblePages.length
+    ? Math.max(...eligiblePages.map((p) => p.updatedAt.getTime()))
+    : 0;
+  const lastModified = pageLastMod ? new Date(pageLastMod).toISOString() : null;
 
   /* Submit to search engines if we have a custom domain + IndexNow key */
   const activeDomain = site.domains[0]?.domain || null;
@@ -107,11 +140,29 @@ export async function POST(
 
   if (activeDomain && indexNowKey) {
     const baseUrl = `https://${activeDomain}`;
-    const urls = eligible.map((p) => {
+    const urlList: string[] = [];
+    // Pages
+    for (const p of eligiblePages) {
       const path = p.isHome ? `/${p.lang}/` : `/${p.lang}/${p.slug}.html`;
-      return `${baseUrl}${path}`;
+      urlList.push(`${baseUrl}${path}`);
+    }
+    // Board category list pages (primary-lang only to keep the submission
+    // reasonable; per-lang alternates still appear in the sitemap)
+    for (const c of eligibleCats) {
+      urlList.push(`${baseUrl}/${primaryLang}/board.html?action=list&category=${c.legacyId}`);
+    }
+    // Individual board posts (primary-lang only, limited to 500 most recent
+    // so large sites don't blow out IndexNow's 10k submission cap on one click)
+    const recentPosts = await prisma.boardPost.findMany({
+      where: { siteId: site.id, parentId: null, lang: primaryLang },
+      select: { legacyId: true },
+      orderBy: { updatedAt: "desc" },
+      take: 500,
     });
-    submissions = await pingIndexNow(activeDomain, indexNowKey, urls);
+    for (const p of recentPosts) {
+      if (p.legacyId) urlList.push(`${baseUrl}/${primaryLang}/board.html?action=read&id=${p.legacyId}`);
+    }
+    submissions = await pingIndexNow(activeDomain, indexNowKey, urlList);
   }
 
   return NextResponse.json({
@@ -156,18 +207,38 @@ export async function GET(
   if (!site) return NextResponse.json({ error: "not_found_or_forbidden" }, { status: 404 });
 
   const activeLangs = new Set(site.languages?.length ? site.languages : [site.defaultLanguage]);
+  const langsForItems = Array.from(activeLangs);
+  const primaryLang = activeLangs.has(site.defaultLanguage) ? site.defaultLanguage : langsForItems[0];
   const skipSlugs = new Set(["empty", "user", "users", "agreement"]);
-  const pages = await prisma.page.findMany({
-    where: { siteId: site.id },
-    select: { slug: true, lang: true, updatedAt: true },
-  });
-  const eligible = pages.filter(
+  const [pages, cats, postCount, productCount] = await Promise.all([
+    prisma.page.findMany({
+      where: { siteId: site.id },
+      select: { slug: true, lang: true, updatedAt: true },
+    }),
+    prisma.boardCategory.findMany({
+      where: {
+        siteId: site.id,
+        lang: primaryLang,
+        NOT: { name: { in: ["Default", "New Category"] } },
+      },
+      select: { legacyId: true, _count: { select: { posts: { where: { parentId: null } } } } },
+    }),
+    prisma.boardPost.count({ where: { siteId: site.id, parentId: null, lang: primaryLang } }),
+    prisma.product.count({ where: { siteId: site.id } }),
+  ]);
+  const eligiblePages = pages.filter(
     (p) => activeLangs.has(p.lang) && !skipSlugs.has(p.slug.toLowerCase()),
   );
+  const eligibleCats = cats.filter((c) => c.legacyId && c._count.posts > 0);
+  const urlCount =
+    eligiblePages.length +
+    eligibleCats.length * langsForItems.length +
+    postCount * langsForItems.length +
+    productCount * langsForItems.length;
   return NextResponse.json({
-    urlCount: eligible.length,
-    lastModified: eligible.length
-      ? new Date(Math.max(...eligible.map((p) => p.updatedAt.getTime()))).toISOString()
+    urlCount,
+    lastModified: eligiblePages.length
+      ? new Date(Math.max(...eligiblePages.map((p) => p.updatedAt.getTime()))).toISOString()
       : null,
     activeDomain: site.domains[0]?.domain || null,
     indexNowConfigured: Boolean(process.env.INDEXNOW_KEY),

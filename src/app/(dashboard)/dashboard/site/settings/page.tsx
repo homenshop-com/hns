@@ -44,23 +44,42 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
   const siteLanguages = (site as typeof site & { languages?: string[] })
     .languages || ["ko"];
 
-  // Sitemap stats for the status display. The sitemap itself is always
-  // dynamic — these counts are what's live right now, refreshed on every
-  // page load + on demand via the client button below.
-  const sitePages = await prisma.page.findMany({
-    where: { siteId: site.id },
-    select: { slug: true, lang: true, updatedAt: true },
-  });
+  // Sitemap stats for the status display. Counts match the sitemap
+  // generator: eligible Pages × active langs + non-empty BoardCategories
+  // × active langs + BoardPosts × active langs + Products × active langs.
   const _activeLangs = new Set(
     siteLanguages.length ? siteLanguages : [site.defaultLanguage],
   );
+  const _langArr = Array.from(_activeLangs);
+  const _primaryLang = _activeLangs.has(site.defaultLanguage) ? site.defaultLanguage : _langArr[0];
   const _skipSlugs = new Set(["empty", "user", "users", "agreement"]);
-  const _eligible = sitePages.filter(
+  const [sitePages, sitemapCats, sitemapPostCount, sitemapProductCount] = await Promise.all([
+    prisma.page.findMany({
+      where: { siteId: site.id },
+      select: { slug: true, lang: true, updatedAt: true },
+    }),
+    prisma.boardCategory.findMany({
+      where: {
+        siteId: site.id,
+        lang: _primaryLang,
+        NOT: { name: { in: ["Default", "New Category"] } },
+      },
+      select: { legacyId: true, _count: { select: { posts: { where: { parentId: null } } } } },
+    }),
+    prisma.boardPost.count({ where: { siteId: site.id, parentId: null, lang: _primaryLang } }),
+    prisma.product.count({ where: { siteId: site.id } }),
+  ]);
+  const _eligiblePages = sitePages.filter(
     (p) => _activeLangs.has(p.lang) && !_skipSlugs.has(p.slug.toLowerCase()),
   );
-  const sitemapUrlCount = _eligible.length;
-  const sitemapLastMod = _eligible.length
-    ? new Date(Math.max(..._eligible.map((p) => p.updatedAt.getTime()))).toISOString()
+  const _eligibleCats = sitemapCats.filter((c) => c.legacyId && c._count.posts > 0);
+  const sitemapUrlCount =
+    _eligiblePages.length +
+    _eligibleCats.length * _langArr.length +
+    sitemapPostCount * _langArr.length +
+    sitemapProductCount * _langArr.length;
+  const sitemapLastMod = _eligiblePages.length
+    ? new Date(Math.max(..._eligiblePages.map((p) => p.updatedAt.getTime()))).toISOString()
     : null;
 
   const ACCOUNT_LABELS: Record<string, string> = {
