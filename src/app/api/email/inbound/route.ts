@@ -95,21 +95,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "bad signature" }, { status: 401 });
   }
 
-  let payload: {
-    type?: string;
-    data?: {
-      email_id?: string;
-      id?: string;
-      from?: InboundAddress;
-      to?: InboundAddress[];
-      cc?: InboundAddress[];
-      subject?: string;
-      html?: string;
-      text?: string;
-      headers?: unknown;
-      attachments?: unknown;
-    };
-  };
+  let payload: { type?: string; data?: Record<string, unknown> };
   try {
     payload = JSON.parse(raw);
   } catch {
@@ -121,22 +107,77 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, skipped: payload.type });
   }
 
-  const d = payload.data || {};
-  const fromEmail = addrEmail(d.from);
-  const fromName = addrName(d.from);
-  const toEmail = addrEmail(d.to?.[0]) || "help@homenshop.com";
-  const cc = addrList(d.cc);
+  const d: Record<string, unknown> = (payload.data as Record<string, unknown>) || {};
+
+  // Log payload shape for diagnostics — Resend's inbound format isn't fully documented
+  console.log("[inbound] data keys:", Object.keys(d));
+  const preview: Record<string, unknown> = {};
+  for (const k of Object.keys(d)) {
+    const v = (d as Record<string, unknown>)[k];
+    preview[k] =
+      typeof v === "string"
+        ? v.length > 80
+          ? v.slice(0, 80) + `…(${v.length})`
+          : v
+        : Array.isArray(v)
+          ? `array(${v.length})`
+          : typeof v === "object" && v !== null
+            ? `object(${Object.keys(v).join(",")})`
+            : v;
+  }
+  console.log("[inbound] preview:", JSON.stringify(preview));
+
+  // Pick text/html from multiple possible field names
+  const pickStr = (...keys: string[]): string | undefined => {
+    for (const k of keys) {
+      const v = d[k];
+      if (typeof v === "string" && v.length > 0) return v;
+    }
+    return undefined;
+  };
+  const text = pickStr("text", "body_text", "bodyText", "textBody", "plain");
+  const html = pickStr("html", "body_html", "bodyHtml", "htmlBody");
+
+  // from/to may be string, object, or array
+  const pickFirstAddr = (keys: string[]): InboundAddress | undefined => {
+    for (const k of keys) {
+      const v = d[k];
+      if (!v) continue;
+      if (typeof v === "string") return v;
+      if (Array.isArray(v) && v.length > 0) return v[0] as InboundAddress;
+      if (typeof v === "object") return v as InboundAddress;
+    }
+    return undefined;
+  };
+  const fromRaw = pickFirstAddr(["from", "fromAddress", "sender"]);
+  const fromEmailParsed = parseEmailAddr(addrEmail(fromRaw) || (typeof fromRaw === "string" ? fromRaw : ""));
+  const fromEmail = fromEmailParsed.email;
+  const fromName = addrName(fromRaw) ?? fromEmailParsed.name;
+
+  const toRaw = pickFirstAddr(["to", "toAddress", "recipient"]);
+  const toEmailParsed = parseEmailAddr(addrEmail(toRaw) || (typeof toRaw === "string" ? toRaw : ""));
+  const toEmail = toEmailParsed.email || "help@homenshop.com";
+
+  const ccVal = d.cc;
+  const cc = Array.isArray(ccVal)
+    ? (ccVal as InboundAddress[]).map(addrEmail).filter(Boolean).join(", ")
+    : typeof ccVal === "string"
+      ? ccVal
+      : "";
 
   const record = await prisma.inboundEmail.create({
     data: {
-      resendId: d.email_id || d.id || null,
+      resendId:
+        (typeof d.email_id === "string" ? d.email_id : undefined) ||
+        (typeof d.id === "string" ? d.id : undefined) ||
+        null,
       fromEmail,
       fromName,
       toEmail,
       cc: cc || null,
-      subject: d.subject || null,
-      text: d.text || null,
-      html: d.html || null,
+      subject: typeof d.subject === "string" ? d.subject : null,
+      text: text ?? null,
+      html: html ?? null,
       headers: (d.headers as object | undefined) ?? undefined,
       attachments: (d.attachments as object | undefined) ?? undefined,
     },
@@ -146,17 +187,18 @@ export async function POST(req: NextRequest) {
   if (process.env.RESEND_API_KEY) {
     try {
       const resend = new Resend(process.env.RESEND_API_KEY);
-      const subject = `[${toEmail}] ${d.subject || "(no subject)"}`;
+      const subjectStr = typeof d.subject === "string" ? d.subject : "";
+      const subject = `[${toEmail}] ${subjectStr || "(no subject)"}`;
       const headerHtml = `
 <div style="font-family:sans-serif;font-size:13px;color:#555;border-bottom:1px solid #ddd;padding:8px 0;margin-bottom:12px">
   <div><b>From:</b> ${escapeHtml(fromName ? `${fromName} <${fromEmail}>` : fromEmail)}</div>
   <div><b>To:</b> ${escapeHtml(toEmail)}</div>
   ${cc ? `<div><b>Cc:</b> ${escapeHtml(cc)}</div>` : ""}
-  <div><b>Subject:</b> ${escapeHtml(d.subject || "")}</div>
+  <div><b>Subject:</b> ${escapeHtml(subjectStr)}</div>
 </div>`;
-      const body = d.html
-        ? headerHtml + d.html
-        : headerHtml + `<pre style="white-space:pre-wrap;font-family:inherit">${escapeHtml(d.text || "")}</pre>`;
+      const body = html
+        ? headerHtml + html
+        : headerHtml + `<pre style="white-space:pre-wrap;font-family:inherit">${escapeHtml(text || "")}</pre>`;
 
       const { error } = await resend.emails.send({
         from: FORWARD_FROM,
@@ -164,7 +206,7 @@ export async function POST(req: NextRequest) {
         replyTo: fromEmail || undefined,
         subject,
         html: body,
-        text: d.text || undefined,
+        text: text || undefined,
       });
       if (error) {
         console.error("[inbound] forward failed:", error);
@@ -180,6 +222,18 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ ok: true, id: record.id });
+}
+
+/** Parse "Name <email@host>" or bare "email@host" into {name?, email}. */
+function parseEmailAddr(input: string): { email: string; name?: string } {
+  const s = (input || "").trim();
+  if (!s) return { email: "" };
+  const m = s.match(/^\s*(.*?)\s*<([^>]+)>\s*$/);
+  if (m) {
+    const name = m[1].replace(/^"|"$/g, "").trim();
+    return { email: m[2].trim(), name: name || undefined };
+  }
+  return { email: s };
 }
 
 function escapeHtml(s: string): string {
