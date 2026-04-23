@@ -127,6 +127,10 @@ model Site {
   googleAnalyticsId  String?
   googleVerification String?
   productSettings    Json?
+  /// Email address the contact form sends to. Falls back to site owner's
+  /// User.email when not set. Stored per-site so one user can operate
+  /// multiple sites with different inbox destinations.
+  contactEmail       String?
   /// true = a hidden "template storage" site created by save-from-site.
   /// Filtered out of all user/admin site listings, site count limits, etc.
   /// Only reachable via Template.demoSiteId → 디자인 수정.
