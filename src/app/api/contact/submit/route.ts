@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
     || process.env.FROM_EMAIL
     || "homeNshop <noreply@homenshop.com>";
 
-  const subject = `[${site.name || shopId}] 홈페이지 견적·상담 문의`;
+  const subject = `[${site.name || shopId}] 견적·상담 문의 — ${name}`;
 
   const html = `
     <div style="font-family:system-ui,-apple-system,sans-serif;max-width:600px;margin:0 auto;padding:24px;background:#fff;color:#222;">
@@ -148,9 +148,9 @@ export async function POST(req: NextRequest) {
         <div>IP &middot; <code>${escapeHtml(ip)}</code></div>
         <div>시각 &middot; <code>${new Date().toISOString()}</code></div>
       </div>
-      <div style="margin-top:16px;font-size:11px;color:#999;text-align:center;">
-        이 메일은 ${escapeHtml(site.name || shopId)} 홈페이지의 견적 요청 폼에서 자동 발송되었습니다.<br>
-        답장은 위의 고객 이메일/전화로 직접 보내주세요.
+      <div style="margin-top:16px;font-size:11px;color:#999;text-align:center;line-height:1.6;">
+        이 메일은 ${escapeHtml(site.name || shopId)} 견적 요청 폼에서 자동 발송되었습니다.<br>
+        ${email ? `<b style="color:#666;">답장 버튼을 누르면 고객 (${escapeHtml(email)})에게 바로 회신됩니다.</b>` : `고객이 이메일을 남기지 않았습니다. ${phone ? `전화(<b style="color:#666;">${escapeHtml(phone)}</b>)로 회신해주세요.` : "전화로 회신해주세요."}`}
       </div>
     </div>
   `;
