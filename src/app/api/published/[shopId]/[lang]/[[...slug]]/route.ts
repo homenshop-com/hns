@@ -58,24 +58,67 @@ async function renderBoardRead(siteId: string, shopId: string, lang: string, id:
 
   const listHref = `${urlPrefix}/${lang}/board.html?action=list&category=${catLegacyId}`;
 
+  // Scoped class for theme-neutral read view — adapts to light and dark
+  // templates via color:inherit + rgba borders.
+  const scope = `brd-read`;
+  const css = `
+    .board-content.${scope}-wrap { max-width:1080px !important; }
+    .${scope}-wrap { width:100%; margin:20px auto; position:relative; color:inherit; padding:0 20px; box-sizing:border-box; }
+    .${scope}-header { padding-bottom:20px; border-bottom:1px solid rgba(255,181,71,.35); margin-bottom:28px; }
+    .${scope}-cat { font-family:'JetBrains Mono',monospace; font-size:11px; color:#ffb547; letter-spacing:.14em; margin-bottom:10px; }
+    .${scope}-title { font-family:'Pretendard',sans-serif; font-size:28px; font-weight:800; color:inherit; margin:0 0 14px 0; letter-spacing:-.02em; line-height:1.3; }
+    .${scope}-meta { display:flex; flex-wrap:wrap; gap:20px; font-size:12px; color:inherit; opacity:.55; font-family:'JetBrains Mono',monospace; letter-spacing:.02em; }
+    .${scope}-meta span::before { content:""; display:inline-block; width:3px; height:3px; background:currentColor; border-radius:50%; vertical-align:middle; margin-right:8px; opacity:.5; }
+    .${scope}-body { min-height:200px; line-height:1.8; font-size:15px; color:inherit; }
+    .${scope}-body p { color:inherit; }
+    .${scope}-body img { max-width:100%; height:auto; border-radius:6px; margin:14px 0; box-shadow:0 4px 18px rgba(0,0,0,.25); }
+    .${scope}-body a { color:#ffb547; }
+    .${scope}-body table { max-width:100%; border-collapse:collapse; }
+    .${scope}-body td, .${scope}-body th { padding:6px 8px; }
+    .${scope}-replies { margin-top:32px; padding-top:20px; border-top:1px solid rgba(128,128,128,.15); }
+    .${scope}-replies-title { font-family:'JetBrains Mono',monospace; font-size:12px; color:#ffb547; letter-spacing:.1em; margin-bottom:12px; }
+    .${scope}-reply { border:1px solid rgba(128,128,128,.15); border-radius:8px; padding:14px 16px; margin-bottom:8px; background:rgba(255,255,255,.02); }
+    .${scope}-reply-meta { display:flex; justify-content:space-between; font-size:11px; color:inherit; opacity:.5; margin-bottom:8px; font-family:'JetBrains Mono',monospace; }
+    .${scope}-reply-body { font-size:13px; line-height:1.7; color:inherit; opacity:.8; }
+    .${scope}-footer { margin-top:40px; padding-top:20px; border-top:1px solid rgba(128,128,128,.15); text-align:center; }
+    .${scope}-back { display:inline-flex; align-items:center; gap:8px; padding:12px 28px; background:transparent; color:inherit; border:1px solid rgba(255,181,71,.35); border-radius:8px; font-size:13px; font-weight:600; text-decoration:none; letter-spacing:.02em; transition:all .2s; }
+    .${scope}-back:hover { background:rgba(255,181,71,.1); border-color:#ffb547; color:#ffb547; }
+    @media (max-width:640px){ .${scope}-title { font-size:22px; } }
+  `.replace(/\n\s+/g, "\n");
+
+  const repliesScoped = replies.length > 0 ? `
+    <div class="${scope}-replies">
+      <div class="${scope}-replies-title">COMMENTS (${replies.length})</div>
+      ${replies.map((r) => `
+        <div class="${scope}-reply">
+          <div class="${scope}-reply-meta">
+            <span>${escapeHtml(r.author || "익명")}</span>
+            <span>${r.regdate || ""}</span>
+          </div>
+          <div class="${scope}-reply-body">${r.content || ""}</div>
+        </div>
+      `).join("")}
+    </div>` : "";
+
   return `
-  <div class="board-content" style="width:100%;margin:20px auto;position:relative;color:#333;">
-    <div style="border-bottom:2px solid #89C23D;padding-bottom:12px;margin-bottom:16px;">
-      ${catName ? `<div style="font-size:11px;color:#89C23D;margin-bottom:4px;">${escapeHtml(catName)}</div>` : ""}
-      <h2 style="font-size:18px;font-weight:bold;color:#1a1a1a;margin:0 0 8px 0;">${escapeHtml(row.title || "")}</h2>
-      <div style="display:flex;gap:20px;font-size:12px;color:#888;">
-        <span>작성자: ${escapeHtml(row.author || "관리자")}</span>
-        <span>날짜: ${row.regdate || ""}</span>
-        <span>조회: ${row.views || 0}</span>
+  <div class="board-content ${scope}-wrap">
+    <style>${css}</style>
+    <div class="${scope}-header">
+      ${catName ? `<div class="${scope}-cat">${escapeHtml(catName)}</div>` : ""}
+      <h1 class="${scope}-title">${escapeHtml(row.title || "")}</h1>
+      <div class="${scope}-meta">
+        <span>작성자 ${escapeHtml(row.author || "관리자")}</span>
+        <span>${row.regdate || ""}</span>
+        <span>조회 ${row.views || 0}</span>
       </div>
     </div>
-    <div style="min-height:200px;line-height:1.8;font-size:14px;color:#333;">
+    <div class="${scope}-body">
       ${row.content || ""}
       ${photoHtml}
     </div>
-    ${replies.length > 0 ? `<div style="margin-top:24px;"><div style="font-size:14px;font-weight:bold;color:#89C23D;margin-bottom:8px;">댓글 (${replies.length})</div>${repliesHtml}</div>` : ""}
-    <div style="margin-top:24px;padding-top:16px;border-top:1px solid #e5e5e5;text-align:center;">
-      <a href="${listHref}" style="display:inline-block;padding:8px 24px;background:#89C23D;color:#fff;border-radius:4px;font-size:13px;font-weight:bold;text-decoration:none;">목록으로</a>
+    ${repliesScoped}
+    <div class="${scope}-footer">
+      <a href="${listHref}" class="${scope}-back">← 목록으로</a>
     </div>
   </div>`;
 }
@@ -118,19 +161,20 @@ async function renderBoardList(siteId: string, shopId: string, lang: string, cat
     select: { legacyId: true, title: true, author: true, regdate: true, views: true, photos: true },
   });
 
-  // Pagination (shared between table + gallery)
+  // Pagination (shared between table + gallery) — uses currentColor so it
+  // adapts to both light and dark templates. Active page gets amber accent.
   let paginationHtml = "";
   if (totalPages > 1) {
     const links: string[] = [];
     for (let p = 1; p <= totalPages; p++) {
       const href = `${urlPrefix}/${lang}/board.html?action=list&category=${category}&page=${p}`;
       if (p === pageNum) {
-        links.push(`<span style="display:inline-block;padding:4px 10px;background:#89C23D;color:#fff;border-radius:3px;font-weight:bold;">${p}</span>`);
+        links.push(`<span style="display:inline-flex;align-items:center;justify-content:center;min-width:36px;height:36px;padding:0 10px;background:linear-gradient(180deg,#ffb547,#f28a17);color:#1a1a1a;border-radius:8px;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:13px;box-shadow:0 4px 12px rgba(255,181,71,.2);">${p}</span>`);
       } else {
-        links.push(`<a href="${href}" style="display:inline-block;padding:4px 10px;color:#999;text-decoration:none;">${p}</a>`);
+        links.push(`<a href="${href}" style="display:inline-flex;align-items:center;justify-content:center;min-width:36px;height:36px;padding:0 10px;color:inherit;text-decoration:none;border:1px solid rgba(128,128,128,.2);border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:13px;opacity:.7;transition:all .15s;">${p}</a>`);
       }
     }
-    paginationHtml = `<div style="text-align:center;margin-top:20px;">${links.join("")}</div>`;
+    paginationHtml = `<div style="display:flex;justify-content:center;gap:6px;margin-top:32px;flex-wrap:wrap;">${links.join("")}</div>`;
   }
 
   /* ─── Gallery mode (listStyle === 1) ─── */
@@ -203,33 +247,72 @@ async function renderBoardList(siteId: string, shopId: string, lang: string, cat
     </div>`;
   }
 
-  /* ─── Table mode (listStyle === 0, default) ─── */
+  /* ─── Table mode (listStyle === 0, default) ──────────────────────
+   * Scoped class names and color:inherit so the table adapts to both
+   * light (default) and dark (UNION LED-style) templates. The underlying
+   * .board-content container keeps color:inherit and we pick text/muted
+   * colors via `currentColor` with rgba mixing — readable on any bg. */
+  const scope = `brd-tbl-${category}`;
   const rowsHtml = rows.map((r) => {
     const href = `${urlPrefix}/${lang}/board.html?action=read&id=${r.legacyId}`;
-    return `<tr style="border-bottom:1px solid #e5e5e5;">
-      <td style="padding:10px 8px;text-align:center;color:#888;font-size:13px;">${r.legacyId}</td>
-      <td style="padding:10px 8px;"><a href="${href}" style="color:#333;text-decoration:none;font-size:14px;">${escapeHtml(r.title || "")}</a></td>
-      <td style="padding:10px 8px;text-align:center;color:#888;font-size:13px;">${escapeHtml(r.author || "관리자")}</td>
-      <td style="padding:10px 8px;text-align:center;color:#888;font-size:13px;">${r.regdate || ""}</td>
-      <td style="padding:10px 8px;text-align:center;color:#888;font-size:13px;">${r.views || 0}</td>
+    return `<tr class="${scope}-row">
+      <td class="${scope}-num">${r.legacyId}</td>
+      <td class="${scope}-title"><a href="${href}">${escapeHtml(r.title || "")}</a></td>
+      <td class="${scope}-muted">${escapeHtml(r.author || "관리자")}</td>
+      <td class="${scope}-muted">${r.regdate || ""}</td>
+      <td class="${scope}-muted">${r.views || 0}</td>
     </tr>`;
   }).join("");
 
+  const css = `
+    .board-content.${scope}-wrap { max-width:1240px !important; }
+    .${scope}-wrap { width:100%; margin:20px auto; position:relative; color:inherit; padding:0 20px; box-sizing:border-box; }
+    .${scope}-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; border-bottom:1px solid rgba(137,194,61,.25); padding-bottom:14px; margin-bottom:16px; }
+    .${scope}-head h2 { font-size:22px; font-weight:700; margin:0; color:inherit; letter-spacing:-.01em; display:flex; align-items:center; gap:10px; }
+    .${scope}-head h2::before { content:""; display:inline-block; width:5px; height:18px; background:linear-gradient(180deg,#ffb547 0%,#f28a17 100%); border-radius:2px; box-shadow:0 0 12px rgba(255,181,71,.45); }
+    .${scope}-head .${scope}-count { font-family:'JetBrains Mono',monospace; font-size:12px; color:inherit; opacity:.55; letter-spacing:.05em; }
+    .${scope}-table { width:100%; border-collapse:collapse; font-size:14px; color:inherit; }
+    .${scope}-table thead tr { border-bottom:1px solid rgba(128,128,128,.25); }
+    .${scope}-table th { padding:12px 10px; font-size:12px; font-weight:600; color:inherit; opacity:.55; letter-spacing:.04em; }
+    .${scope}-table th.${scope}-col-num,
+    .${scope}-table th.${scope}-col-meta { text-align:center; }
+    .${scope}-table th.${scope}-col-title { text-align:left; }
+    .${scope}-row { border-bottom:1px solid rgba(128,128,128,.12); transition:background .15s; }
+    .${scope}-row:hover { background:rgba(255,181,71,.05); }
+    .${scope}-row td { padding:14px 10px; vertical-align:middle; }
+    .${scope}-num { text-align:center; width:72px; font-family:'JetBrains Mono',monospace; font-size:12px; color:inherit; opacity:.5; }
+    .${scope}-title { color:inherit; }
+    .${scope}-title a { color:inherit; text-decoration:none; font-size:14px; letter-spacing:-.01em; transition:color .15s; }
+    .${scope}-title a:hover { color:#ffb547; }
+    .${scope}-muted { text-align:center; width:100px; font-size:12px; color:inherit; opacity:.55; font-family:'JetBrains Mono',monospace; }
+    .${scope}-muted:last-child { width:72px; }
+    .${scope}-empty { padding:48px 20px; text-align:center; color:inherit; opacity:.5; font-size:14px; }
+    @media (max-width:720px) {
+      .${scope}-col-author, .${scope}-muted:nth-last-child(3),
+      .${scope}-muted:nth-last-child(1) { display:none; }
+      .${scope}-col-author, .${scope}-col-views { display:none; }
+    }
+  `.replace(/\n\s+/g, "\n");
+
   return `
-  <div class="board-content" style="width:100%;margin:20px auto;position:relative;color:#333;">
-    <h2 style="font-size:18px;font-weight:bold;color:#89C23D;border-bottom:2px solid #89C23D;padding-bottom:12px;margin:0 0 16px 0;">${escapeHtml(catName)}</h2>
-    <table style="width:100%;border-collapse:collapse;">
+  <div class="board-content ${scope}-wrap">
+    <style>${css}</style>
+    <div class="${scope}-head">
+      <h2>${escapeHtml(catName)}</h2>
+      <span class="${scope}-count">TOTAL ${total} · PAGE ${pageNum}/${Math.max(1, totalPages)}</span>
+    </div>
+    <table class="${scope}-table">
       <thead>
-        <tr style="border-bottom:2px solid #ccc;">
-          <th style="padding:10px 8px;text-align:center;color:#666;font-size:13px;width:60px;">번호</th>
-          <th style="padding:10px 8px;text-align:left;color:#666;font-size:13px;">제목</th>
-          <th style="padding:10px 8px;text-align:center;color:#666;font-size:13px;width:100px;">작성자</th>
-          <th style="padding:10px 8px;text-align:center;color:#666;font-size:13px;width:100px;">날짜</th>
-          <th style="padding:10px 8px;text-align:center;color:#666;font-size:13px;width:60px;">조회</th>
+        <tr>
+          <th class="${scope}-col-num">번호</th>
+          <th class="${scope}-col-title">제목</th>
+          <th class="${scope}-col-meta ${scope}-col-author">작성자</th>
+          <th class="${scope}-col-meta">날짜</th>
+          <th class="${scope}-col-meta ${scope}-col-views">조회</th>
         </tr>
       </thead>
       <tbody>
-        ${rowsHtml || '<tr><td colspan="5" style="padding:40px;text-align:center;color:#999;">등록된 글이 없습니다.</td></tr>'}
+        ${rowsHtml || `<tr><td colspan="5" class="${scope}-empty">등록된 글이 없습니다.</td></tr>`}
       </tbody>
     </table>
     ${paginationHtml}
