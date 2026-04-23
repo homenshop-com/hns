@@ -5,28 +5,54 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import SignOutButton from "../sign-out-button";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import ImpersonationBanner from "@/components/ImpersonationBanner";
 import AddDomainForm from "./add-domain-form";
 import ProvisionSslButton from "./provision-ssl-button";
+import DeleteDomainForm from "./delete-domain-form";
+import { DashboardIconSprite, Icon } from "../dashboard-icons";
+import "../dashboard-v2.css";
+import "../site/[siteId]/manage/manage-v2.css";
+import "./domains-v2.css";
 
 interface DomainsPageProps {
   searchParams: Promise<{ siteId?: string }>;
 }
 
+const SITE_THUMB_GRADS: Record<string, [string, string, string, string]> = {
+  unionled:      ["#0a1630", "#1a3370", "#6fa0ff", "LED"],
+  xunion5:       ["#1f2940", "#3a4b7a", "#ffffff", "X5"],
+  bomnaldriving: ["#ffe8d4", "#ff9a5a", "#7c3a00", "봄"],
+};
+
+function pickThumb(shopId: string): [string, string, string, string] {
+  if (SITE_THUMB_GRADS[shopId]) return SITE_THUMB_GRADS[shopId];
+  let h = 0;
+  for (let i = 0; i < shopId.length; i++) h = ((h << 5) - h + shopId.charCodeAt(i)) | 0;
+  const hue = Math.abs(h) % 360;
+  return [`hsl(${hue}, 40%, 22%)`, `hsl(${hue}, 45%, 40%)`, "#fff", shopId.slice(0, 2).toUpperCase()];
+}
+
+function initialsFrom(s: string): string {
+  const clean = (s || "").trim().replace(/[^\p{L}\p{N}]+/gu, "");
+  if (!clean) return "?";
+  if (/^[A-Za-z0-9]+$/.test(clean)) return clean.slice(0, 2).toUpperCase();
+  return clean.slice(0, 2);
+}
+
+function daysBetween(future: Date, now: Date) {
+  const ms = future.getTime() - now.getTime();
+  return Math.max(0, Math.round(ms / (1000 * 60 * 60 * 24)));
+}
+
 export default async function DashboardDomainsPage({ searchParams }: DomainsPageProps) {
   const session = await auth();
-  if (!session) {
-    redirect("/login");
-  }
+  if (!session) redirect("/login");
 
   const t = await getTranslations("domainsPage");
-  const td = await getTranslations("dashboard");
 
   const params = await searchParams;
   const siteIdFilter = params.siteId;
 
-  // When the user arrives from a specific site's settings page (?siteId=...),
-  // scope both the listing and the add-form to that one site. Otherwise
-  // show every domain the user owns (account-wide view).
   const filteredSite = siteIdFilter
     ? await prisma.site.findFirst({
         where: { id: siteIdFilter, userId: session.user.id },
@@ -35,184 +61,443 @@ export default async function DashboardDomainsPage({ searchParams }: DomainsPage
     : null;
   const effectiveSiteId = filteredSite?.id ?? null;
 
-  const domains = await prisma.domain.findMany({
-    where: {
-      userId: session.user.id,
-      ...(effectiveSiteId ? { siteId: effectiveSiteId } : {}),
-    },
-    orderBy: { createdAt: "desc" },
-    include: {
-      site: { select: { id: true, name: true } },
-    },
-  });
+  const [domains, userSites, currentUser] = await Promise.all([
+    prisma.domain.findMany({
+      where: {
+        userId: session.user.id,
+        ...(effectiveSiteId ? { siteId: effectiveSiteId } : {}),
+      },
+      orderBy: { createdAt: "desc" },
+      include: {
+        site: { select: { id: true, name: true, shopId: true } },
+      },
+    }),
+    prisma.site.findMany({
+      where: { userId: session.user.id, isTemplateStorage: false },
+      select: { id: true, name: true, shopId: true },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { name: true, email: true, credits: true },
+    }),
+  ]);
 
-  // Need the set of user's sites so if no siteId is given we can show a
-  // site selector in the form (multi-site accounts should always pick).
-  const userSites = await prisma.site.findMany({
-    where: { userId: session.user.id, isTemplateStorage: false },
-    select: { id: true, name: true, shopId: true },
-    orderBy: { createdAt: "asc" },
-  });
+  // Stats
+  const totalCount = domains.length;
+  const activeCount = domains.filter((d) => d.status === "ACTIVE").length;
+  const sslCount = domains.filter((d) => d.sslEnabled).length;
+  const now = new Date();
+  // Domain registry expiration is not tracked in our DB — we estimate "time
+  // until renewal" as (registered_at + 365 days) for display purposes only.
+  // Actual expiry lives at the registrar.
+  function estimatedExpiry(createdAt: Date) {
+    const d = new Date(createdAt);
+    d.setFullYear(d.getFullYear() + 1);
+    return d;
+  }
+  const longestDays = domains
+    .map((d) => daysBetween(estimatedExpiry(d.createdAt), now))
+    .reduce((max, n) => Math.max(max, n), 0);
+
+  const displayName = currentUser?.name || currentUser?.email?.split("@")[0] || "게스트";
+  const credits = currentUser?.credits ?? 0;
+
+  // Sidebar context: if filtered to a site, show that site; else show a generic account view
+  const sidebarSite = filteredSite
+    ? userSites.find((s) => s.id === filteredSite.id) || null
+    : userSites[0] || null;
+
+  const [thumbFrom, thumbTo, thumbColor, thumbLabel] = sidebarSite
+    ? pickThumb(sidebarSite.shopId)
+    : ["#60667e", "#8a91a8", "#fff", "—"];
 
   return (
-    <div className="dash-page">
-      {/* HEADER */}
-      <header className="dash-header">
-        <div className="dash-header-inner">
-          <div style={{ display: "flex", alignItems: "center" }}>
-            <Link href="/dashboard" className="dash-logo">
-              homeNshop
-            </Link>
-            <span className="dash-logo-sub">{t("title")}</span>
+    <>
+      <ImpersonationBanner />
+      <DashboardIconSprite />
+      <div className="dv2-app">
+        {/* ───── SIDEBAR ───── */}
+        <aside className="dv2-side">
+          <div className="dv2-brand">
+            <div className="dv2-brand-mark">h</div>
+            <div className="dv2-brand-name">
+              home<span className="ns">Nshop</span>
+            </div>
           </div>
-          <div className="dash-header-right">
-            <Link href="/dashboard" className="dash-header-btn">
-              {td("dashboard")}
-            </Link>
-            <Link href="/dashboard/profile" className="dash-header-btn">
-              {td("memberInfo")}
-            </Link>
-            <SignOutButton />
-            <LanguageSwitcher />
-          </div>
-        </div>
-      </header>
 
-      {/* MAIN */}
-      <main className="dash-main">
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
-          <div>
-            <h1 className="dash-title" style={{ marginBottom: 0 }}>{t("title")}</h1>
-            {filteredSite && (
-              <div style={{ marginTop: 6, fontSize: 13, color: "#4a90d9" }}>
-                <span style={{ color: "#868e96" }}>사이트 필터:</span>{" "}
-                <strong style={{ color: "#2c5fa0" }}>{filteredSite.name}</strong>
-                <span style={{ color: "#888", marginLeft: 6, fontFamily: "monospace", fontSize: 11 }}>/{filteredSite.shopId}/</span>
-                <Link href="/dashboard/domains" style={{ marginLeft: 10, fontSize: 12, color: "#888", textDecoration: "underline" }}>
-                  전체 보기 →
-                </Link>
+          {sidebarSite && (
+            <Link
+              href={
+                filteredSite
+                  ? `/dashboard/site/settings?id=${sidebarSite.id}`
+                  : "/dashboard"
+              }
+              className="mv2-site-switcher"
+              title={filteredSite ? "사이트 설정으로" : "홈페이지 선택"}
+            >
+              <div
+                className="thumb"
+                style={{
+                  background: `linear-gradient(135deg, ${thumbFrom}, ${thumbTo})`,
+                  color: thumbColor,
+                }}
+              >
+                <span className="live" />
+                {thumbLabel}
               </div>
-            )}
+              <div className="ss-info">
+                <div className="ss-name">
+                  {filteredSite ? sidebarSite.name : `전체 사이트 (${userSites.length})`}
+                </div>
+                <div className="ss-url">
+                  {filteredSite ? `home.homenshop.com/${sidebarSite.shopId}` : "모든 도메인 보기"}
+                </div>
+              </div>
+              <div className="ss-chev">
+                <Icon id="i-chev-down" size={14} />
+              </div>
+            </Link>
+          )}
+
+          <div className="dv2-side-section">
+            <div className="dv2-side-label">사이트 관리</div>
+            <nav className="dv2-nav">
+              <Link href="/dashboard">
+                <span className="ic"><Icon id="i-home" /></span>
+                <span className="label">대시보드</span>
+              </Link>
+              {sidebarSite && (
+                <>
+                  <Link href={`/dashboard/site/${sidebarSite.id}/manage`}>
+                    <span className="ic"><Icon id="i-database" /></span>
+                    <span className="label">데이터 관리</span>
+                  </Link>
+                  <Link href={`/dashboard/site/settings?id=${sidebarSite.id}`}>
+                    <span className="ic"><Icon id="i-info" /></span>
+                    <span className="label">기본정보 관리</span>
+                  </Link>
+                </>
+              )}
+              <Link
+                className="active"
+                href={filteredSite ? `/dashboard/domains?siteId=${filteredSite.id}` : "/dashboard/domains"}
+              >
+                <span className="ic"><Icon id="i-globe" /></span>
+                <span className="label">도메인 관리</span>
+                {totalCount > 0 && <span className="badge">{totalCount}</span>}
+              </Link>
+            </nav>
           </div>
-          <span style={{ fontSize: 13, color: "#868e96" }}>
-            {domains.length}{t("domainCount")}
-          </span>
+
+          <div className="dv2-side-section">
+            <div className="dv2-side-label">계정</div>
+            <nav className="dv2-nav">
+              <Link href="/dashboard/credits">
+                <span className="ic"><Icon id="i-credit" /></span>
+                <span className="label">결제 · 크레딧</span>
+              </Link>
+              <Link href="/dashboard/profile">
+                <span className="ic"><Icon id="i-user" /></span>
+                <span className="label">관리자 정보</span>
+              </Link>
+              <a href="mailto:help@homenshop.com">
+                <span className="ic"><Icon id="i-life" /></span>
+                <span className="label">도움말 · 지원</span>
+              </a>
+            </nav>
+          </div>
+
+          <div className="dv2-side-footer">
+            <div className="dv2-coin-card">
+              <div className="row">
+                <div className="ball">C</div>
+                <div>
+                  <div className="num">
+                    {credits.toLocaleString()} <span style={{ fontSize: 11, fontWeight: 600 }}>coin</span>
+                  </div>
+                  <div className="cap">AI 제작 · 편집에 사용</div>
+                </div>
+              </div>
+              <Link className="go" href="/dashboard/credits">
+                충전하기 <Icon id="i-chev-right" size={12} />
+              </Link>
+            </div>
+          </div>
+        </aside>
+
+        {/* ───── MAIN ───── */}
+        <div className="dv2-main">
+          <div className="dv2-topbar">
+            <div className="dv2-crumbs">
+              <Link href="/dashboard">대시보드</Link>
+              <span className="sep">/</span>
+              {filteredSite && (
+                <>
+                  <Link href={`/dashboard/site/settings?id=${filteredSite.id}`}>
+                    {filteredSite.name}
+                  </Link>
+                  <span className="sep">/</span>
+                </>
+              )}
+              <span className="cur">도메인 관리</span>
+            </div>
+            <div className="dv2-spacer" />
+            <div className="dv2-topbar-actions">
+              <Link className="dv2-coin-pill" href="/dashboard/credits" title="크레딧 잔액">
+                <span className="ball">C</span>
+                <span>{credits.toLocaleString()}</span>
+                <span className="c">coin</span>
+              </Link>
+              <div className="dv2-lang">
+                <LanguageSwitcher />
+              </div>
+              <Link href="/dashboard/profile" className="dv2-user" style={{ textDecoration: "none" }}>
+                <div>
+                  <div className="name">{displayName}</div>
+                  <div className="role">Owner</div>
+                </div>
+                <div className="dv2-avatar">{initialsFrom(displayName)}</div>
+              </Link>
+              <SignOutButton />
+            </div>
+          </div>
+
+          <div className="dv2-content">
+            {/* Page head */}
+            <div className="dm2-page-head">
+              <div className="dm2-title-wrap">
+                <h1 className="dm2-title">
+                  <svg width={22} height={22} style={{ color: "var(--brand)" }}>
+                    <use href="#i-globe" />
+                  </svg>
+                  {t("title")}
+                  <span className="cnt">{totalCount}{t("domainCount")}</span>
+                </h1>
+                <div className="dm2-sub">
+                  보유한 커스텀 도메인을 사이트에 연결하고, DNS · SSL 상태를 관리합니다.
+                </div>
+                {filteredSite && (
+                  <div className="dm2-filter-chip">
+                    <Icon id="i-link" size={11} />
+                    <span>
+                      사이트 필터: <b>{filteredSite.name}</b>
+                    </span>
+                    <Link href="/dashboard/domains" className="close" title="전체 보기">×</Link>
+                  </div>
+                )}
+              </div>
+              <a href="#add-domain" className="dm2-add-btn">
+                <Icon id="i-plus" size={13} /> 도메인 추가
+              </a>
+            </div>
+
+            {/* Stat pills */}
+            <div className="dm2-stats">
+              <div className="dm2-stat a">
+                <div className="ic"><Icon id="i-globe" size={18} /></div>
+                <div>
+                  <div className="v">{totalCount}</div>
+                  <div className="k">등록된 도메인</div>
+                </div>
+              </div>
+              <div className="dm2-stat b">
+                <div className="ic"><Icon id="i-check" size={18} /></div>
+                <div>
+                  <div className="v">{activeCount}</div>
+                  <div className="k">활성 연결</div>
+                </div>
+              </div>
+              <div className="dm2-stat c">
+                <div className="ic"><Icon id="i-shield" size={18} /></div>
+                <div>
+                  <div className="v">
+                    {sslCount}
+                    {totalCount > 0 && <span style={{ color: "var(--ink-3)", fontWeight: 600 }}>/{totalCount}</span>}
+                  </div>
+                  <div className="k">SSL 발급됨</div>
+                </div>
+              </div>
+              <div className="dm2-stat d">
+                <div className="ic"><Icon id="i-clock" size={18} /></div>
+                <div>
+                  <div className="v">
+                    {longestDays > 0 ? (
+                      <>
+                        {longestDays}
+                        <span className="unit">일</span>
+                      </>
+                    ) : (
+                      "—"
+                    )}
+                  </div>
+                  <div className="k">최장 갱신까지</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Domain list */}
+            <section className="dm2-card blue">
+              <div className="dm2-card-head">
+                <div className="accent" />
+                <h3>
+                  <svg className="ic" width={16} height={16}><use href="#i-globe" /></svg>
+                  내 도메인
+                </h3>
+                <div className="dm2-head-btns">
+                  <span className="dm2-search" title="도메인 검색 (곧 제공)">
+                    <Icon id="i-search" size={13} />
+                    <input placeholder="도메인 검색…" disabled />
+                  </span>
+                </div>
+              </div>
+
+              {domains.length > 0 ? (
+                <table className="dm2-tbl">
+                  <thead>
+                    <tr>
+                      <th>도메인</th>
+                      <th>상태</th>
+                      <th>SSL</th>
+                      <th>연결된 사이트</th>
+                      <th>등록일</th>
+                      <th>만료까지</th>
+                      <th className="right">관리</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {domains.map((d, idx) => {
+                      const [from, to, color, label] = pickThumb(d.site.shopId);
+                      const days = daysBetween(estimatedExpiry(d.createdAt), now);
+                      const daysClass = days > 300 ? "ok" : days > 90 ? "warn" : "danger";
+                      const isPrimary = idx === 0;
+
+                      return (
+                        <tr key={d.id}>
+                          <td>
+                            <div className="dm2-cell-domain">
+                              <div className="dm2-fav">
+                                <Icon id="i-globe" size={14} />
+                              </div>
+                              <div>
+                                <a
+                                  href={`https://${d.domain}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="dm2-domain-name"
+                                >
+                                  {d.domain}
+                                  {isPrimary && filteredSite && (
+                                    <span className="dm2-primary-tag">★ 기본</span>
+                                  )}
+                                </a>
+                                <div className="dm2-subdomain">
+                                  www.{d.domain}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td>
+                            <DomainStatusBadge status={d.status} labels={{
+                              PENDING: t("statusPending"),
+                              ACTIVE: t("statusActive"),
+                              EXPIRED: t("statusExpired"),
+                            }} />
+                          </td>
+                          <td>
+                            {d.sslEnabled ? (
+                              <span className="dm2-badge ok">
+                                <svg width={10} height={10} style={{ marginRight: -2 }}>
+                                  <use href="#i-lock" />
+                                </svg>
+                                활성
+                              </span>
+                            ) : d.status === "ACTIVE" ? (
+                              <ProvisionSslButton domainId={d.id} />
+                            ) : (
+                              <span className="dm2-badge none">{t("sslInactive")}</span>
+                            )}
+                          </td>
+                          <td>
+                            <Link
+                              href={`/dashboard/site/settings?id=${d.site.id}`}
+                              className="dm2-site-link"
+                              title="사이트 설정으로 이동"
+                            >
+                              <span
+                                className="dm2-site-thumb"
+                                style={{ background: `linear-gradient(135deg, ${from}, ${to})`, color }}
+                              >
+                                {label}
+                              </span>
+                              {d.site.name}
+                            </Link>
+                          </td>
+                          <td>
+                            <span className="dm2-date">
+                              {d.createdAt.toLocaleDateString("ko-KR")}
+                            </span>
+                          </td>
+                          <td>
+                            <span
+                              className={`dm2-days ${daysClass}`}
+                              title="도메인 등록일 + 365일 기준 추정치 (정확한 만료일은 도메인 구매 업체 확인)"
+                            >
+                              ~{days}일
+                            </span>
+                          </td>
+                          <td>
+                            <div className="dm2-actions">
+                              <Link
+                                href={`/dashboard/domains?siteId=${d.site.id}`}
+                                className="dm2-act"
+                              >
+                                설정
+                              </Link>
+                              <DeleteDomainForm domainId={d.id} />
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              ) : (
+                <table className="dm2-tbl">
+                  <tbody>
+                    <tr className="dm2-empty-row">
+                      <td colSpan={7}>
+                        <div className="dm2-empty-ic">
+                          <Icon id="i-globe" size={28} />
+                        </div>
+                        <div className="dm2-empty-t">연결된 도메인이 없습니다</div>
+                        <div className="dm2-empty-s">아래에서 첫 도메인을 추가해보세요.</div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              )}
+            </section>
+
+            {/* Add Domain form */}
+            <div id="add-domain">
+              <AddDomainForm
+                siteId={filteredSite?.id ?? null}
+                siteName={filteredSite?.name ?? null}
+                availableSites={effectiveSiteId ? [] : userSites}
+              />
+            </div>
+          </div>
         </div>
-
-        {/* Domain Table */}
-        {domains.length > 0 ? (
-          <div className="dash-table" style={{ marginBottom: 24 }}>
-            <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
-              <thead>
-                <tr style={{ background: "#f8f9fa", borderBottom: "1px solid #e2e8f0" }}>
-                  <th style={{ padding: "12px 20px", textAlign: "left", fontWeight: 700, color: "#495057" }}>{t("colDomain")}</th>
-                  <th style={{ padding: "12px 20px", textAlign: "center", fontWeight: 700, color: "#495057" }}>{t("colStatus")}</th>
-                  <th style={{ padding: "12px 20px", textAlign: "center", fontWeight: 700, color: "#495057" }}>{t("colSsl")}</th>
-                  <th style={{ padding: "12px 20px", textAlign: "left", fontWeight: 700, color: "#495057" }}>{t("colSite")}</th>
-                  <th style={{ padding: "12px 20px", textAlign: "left", fontWeight: 700, color: "#495057" }}>{t("colDate")}</th>
-                  <th style={{ padding: "12px 20px", textAlign: "center", fontWeight: 700, color: "#495057" }}>{t("colManage")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {domains.map((domain) => (
-                  <tr key={domain.id} style={{ borderBottom: "1px solid #f1f3f5" }}>
-                    <td style={{ padding: "12px 20px", fontFamily: "monospace", fontSize: 13 }}>
-                      {domain.domain}
-                    </td>
-                    <td style={{ padding: "12px 20px", textAlign: "center" }}>
-                      <DomainStatusBadge status={domain.status} labels={{
-                        PENDING: t("statusPending"),
-                        ACTIVE: t("statusActive"),
-                        EXPIRED: t("statusExpired"),
-                      }} />
-                    </td>
-                    <td style={{ padding: "12px 20px", textAlign: "center" }}>
-                      {domain.sslEnabled ? (
-                        <span style={{ display: "inline-block", padding: "2px 10px", fontSize: 11, fontWeight: 600, borderRadius: 20, background: "#f0fdf4", color: "#22c55e" }}>
-                          {t("sslActive")}
-                        </span>
-                      ) : domain.status === "ACTIVE" ? (
-                        <ProvisionSslButton domainId={domain.id} />
-                      ) : (
-                        <span style={{ display: "inline-block", padding: "2px 10px", fontSize: 11, fontWeight: 600, borderRadius: 20, background: "#f8f9fa", color: "#868e96" }}>
-                          {t("sslInactive")}
-                        </span>
-                      )}
-                    </td>
-                    <td style={{ padding: "12px 20px", color: "#495057" }}>
-                      {domain.site.name}
-                    </td>
-                    <td style={{ padding: "12px 20px", color: "#868e96" }}>
-                      {domain.createdAt.toLocaleDateString("ko-KR")}
-                    </td>
-                    <td style={{ padding: "12px 20px", textAlign: "center" }}>
-                      <DeleteDomainButton domainId={domain.id} label={t("delete")} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div style={{ background: "#fff", borderRadius: 8, boxShadow: "0 1px 8px rgba(0,0,0,0.06)", padding: "48px 24px", textAlign: "center", marginBottom: 24, color: "#868e96", fontSize: 14 }}>
-            {t("noDomains")}
-          </div>
-        )}
-
-        {/* Add Domain Form — scoped to filteredSite when present */}
-        <AddDomainForm
-          siteId={filteredSite?.id ?? null}
-          siteName={filteredSite?.name ?? null}
-          availableSites={effectiveSiteId ? [] : userSites}
-        />
-      </main>
-
-      {/* FOOTER */}
-      <footer className="dash-footer">
-        <div className="dash-footer-inner">
-          <p>&copy; {new Date().getFullYear()} homenshop.com. All rights reserved.</p>
-        </div>
-      </footer>
-    </div>
+      </div>
+    </>
   );
 }
 
 function DomainStatusBadge({ status, labels }: { status: string; labels: Record<string, string> }) {
-  const styles: Record<string, { bg: string; color: string }> = {
-    PENDING: { bg: "#fffbeb", color: "#d97706" },
-    ACTIVE: { bg: "#f0fdf4", color: "#22c55e" },
-    EXPIRED: { bg: "#fef2f2", color: "#ef4444" },
-  };
-
-  const s = styles[status] || styles.PENDING;
-
-  return (
-    <span style={{ display: "inline-block", padding: "2px 10px", fontSize: 11, fontWeight: 600, borderRadius: 20, background: s.bg, color: s.color }}>
-      {labels[status] || status}
-    </span>
-  );
-}
-
-function DeleteDomainButton({ domainId, label }: { domainId: string; label: string }) {
-  return (
-    <form
-      action={async () => {
-        "use server";
-        const session = await auth();
-        if (!session) return;
-        await prisma.domain.deleteMany({
-          where: { id: domainId, userId: session.user.id },
-        });
-        const { revalidatePath } = await import("next/cache");
-        revalidatePath("/dashboard/domains");
-      }}
-    >
-      <button
-        type="submit"
-        style={{ fontSize: 12, color: "#e03131", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}
-      >
-        {label}
-      </button>
-    </form>
-  );
+  const cls =
+    status === "ACTIVE" ? "dm2-badge ok"
+    : status === "EXPIRED" ? "dm2-badge error"
+    : "dm2-badge pending";
+  return <span className={cls}>{labels[status] || status}</span>;
 }

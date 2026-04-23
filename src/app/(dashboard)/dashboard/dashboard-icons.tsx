@@ -58,6 +58,13 @@ export function DashboardIconSprite() {
         <symbol id="i-external" viewBox="0 0 20 20"><path className="i" d="M8 4H5a1 1 0 00-1 1v10a1 1 0 001 1h10a1 1 0 001-1v-3M12 4h4v4M10 10l6-6" /></symbol>
         <symbol id="i-google" viewBox="0 0 20 20"><path fill="#4285F4" d="M18 10.2c0-.6 0-1.1-.1-1.7H10v3.2h4.5c-.2 1-.8 1.9-1.7 2.5v2.1h2.7c1.6-1.5 2.5-3.6 2.5-6.1z" /><path fill="#34A853" d="M10 18c2.3 0 4.2-.8 5.6-2.1l-2.7-2.1c-.8.5-1.7.8-2.9.8-2.2 0-4.1-1.5-4.8-3.5H2.4v2.2A8 8 0 0010 18z" /><path fill="#FBBC04" d="M5.2 11.1a4.8 4.8 0 010-3.1V5.8H2.4a8 8 0 000 7.2l2.8-2z" /><path fill="#EA4335" d="M10 5c1.2 0 2.3.4 3.2 1.3l2.4-2.4A8 8 0 002.4 5.8l2.8 2.2C5.9 6 7.8 5 10 5z" /></symbol>
         <symbol id="i-lang" viewBox="0 0 20 20"><path className="i" d="M3 5h8M7 3v2M5 5c0 4 3 7 6 8M11 5c0 3-2 6-5 7M10 17l3-7 3 7M11 14.5h4" /></symbol>
+        <symbol id="i-lock" viewBox="0 0 20 20"><rect className="i" x="4" y="9" width="12" height="9" rx="1.5" /><path className="i" d="M7 9V6a3 3 0 016 0v3" /></symbol>
+        <symbol id="i-shield" viewBox="0 0 20 20"><path className="i" d="M10 2l7 3v5c0 4-3 7-7 8-4-1-7-4-7-8V5l7-3z" /><path className="i" d="M7 10l2 2 4-4" /></symbol>
+        <symbol id="i-clock" viewBox="0 0 20 20"><circle className="i" cx="10" cy="10" r="7.5" /><path className="i" d="M10 6v4l2.5 2.5" /></symbol>
+        <symbol id="i-bulb" viewBox="0 0 20 20"><path className="i" d="M10 2a5 5 0 00-3 9c.5.5 1 1 1 2v1h4v-1c0-1 .5-1.5 1-2a5 5 0 00-3-9z" /><path className="i" d="M8 17h4M9 19h2" /></symbol>
+        <symbol id="i-book" viewBox="0 0 20 20"><path className="i" d="M3 4a1 1 0 011-1h5a2 2 0 012 2v11a2 2 0 00-2-2H4a1 1 0 01-1-1V4zM17 4a1 1 0 00-1-1h-5a2 2 0 00-2 2v11a2 2 0 012-2h5a1 1 0 001-1V4z" /></symbol>
+        <symbol id="i-pin" viewBox="0 0 20 20"><path className="i" d="M10 2l2 5 5 1-4 4 1 5-4-3-4 3 1-5-4-4 5-1 2-5z" /></symbol>
+        <symbol id="i-link" viewBox="0 0 20 20"><path className="i" d="M11 4.5L12.5 3a3 3 0 014.2 4.2L15 9M9 15.5L7.5 17a3 3 0 01-4.2-4.2L5 11M7 13l6-6" /></symbol>
       </defs>
     </svg>
   );

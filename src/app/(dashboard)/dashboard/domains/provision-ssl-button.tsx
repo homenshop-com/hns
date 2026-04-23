@@ -5,9 +5,7 @@ import { useRouter } from "next/navigation";
 
 /**
  * Triggers background SSL provisioning for a domain.
- * The API spawns a detached shell script (certbot + nginx reload);
- * the button flips to a "발급 중" state and auto-polls for sslEnabled
- * for ~2 minutes so the user sees the green badge without manual refresh.
+ * Flips to "발급 중" and auto-polls for sslEnabled for ~2 minutes.
  */
 export default function ProvisionSslButton({ domainId }: { domainId: string }) {
   const router = useRouter();
@@ -22,13 +20,12 @@ export default function ProvisionSslButton({ domainId }: { domainId: string }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "SSL 발급 요청 실패");
 
-      // Poll every 5s for up to 2 min — script typically takes 20–40s.
       let tries = 0;
       const poll = () => {
         tries += 1;
         router.refresh();
         if (tries < 24) setTimeout(poll, 5000);
-        else setState("idle"); // let the refresh show whatever the DB has
+        else setState("idle");
       };
       setTimeout(poll, 5000);
     } catch (e) {
@@ -40,18 +37,11 @@ export default function ProvisionSslButton({ domainId }: { domainId: string }) {
   if (state === "running") {
     return (
       <span
+        className="dm2-badge issuing"
         title="certbot이 인증서를 발급하고 nginx를 재시작하는 중입니다. 페이지가 자동으로 갱신됩니다."
-        style={{
-          display: "inline-block",
-          padding: "2px 10px",
-          fontSize: 11,
-          fontWeight: 600,
-          borderRadius: 20,
-          background: "#fefce8",
-          color: "#a16207",
-        }}
       >
-        🔄 발급 중…
+        <svg width={10} height={10}><use href="#i-shield" /></svg>
+        SSL 발급 중
       </span>
     );
   }
@@ -59,40 +49,28 @@ export default function ProvisionSslButton({ domainId }: { domainId: string }) {
   if (state === "error") {
     return (
       <button
+        type="button"
         onClick={start}
         title={error}
-        style={{
-          padding: "2px 10px",
-          fontSize: 11,
-          fontWeight: 600,
-          borderRadius: 20,
-          background: "#fef2f2",
-          color: "#ef4444",
-          border: "1px solid #fecaca",
-          cursor: "pointer",
-        }}
+        className="dm2-badge error"
+        style={{ cursor: "pointer" }}
       >
-        ⚠️ 재시도
+        <svg width={10} height={10}><use href="#i-warn" /></svg>
+        재시도
       </button>
     );
   }
 
   return (
     <button
+      type="button"
       onClick={start}
       title="Let's Encrypt 인증서를 자동 발급하고 HTTPS를 활성화합니다."
-      style={{
-        padding: "2px 10px",
-        fontSize: 11,
-        fontWeight: 600,
-        borderRadius: 20,
-        background: "#eef4fc",
-        color: "#2c5fa0",
-        border: "1px solid #c6daf7",
-        cursor: "pointer",
-      }}
+      className="dm2-badge issuing"
+      style={{ cursor: "pointer" }}
     >
-      🔒 SSL 발급
+      <svg width={10} height={10}><use href="#i-lock" /></svg>
+      SSL 발급
     </button>
   );
 }
