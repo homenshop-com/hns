@@ -1,0 +1,409 @@
+/* ───────────────────────────────────────────────────────────────
+ * AI Credits v2 — Claude Design bundle Ix3T-SvhhfM...
+ * Scoped under .dv2-app, reuses shell tokens from dashboard-v2.css.
+ * ─────────────────────────────────────────────────────────────── */
+
+.dv2-app .cr2-back {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: var(--ink-2); font-size: 12.5px; font-weight: 500;
+  margin-bottom: 16px; text-decoration: none;
+}
+.dv2-app .cr2-back:hover { color: var(--ai); }
+
+/* ── Balance hero ── */
+.dv2-app .cr2-balance {
+  position: relative; overflow: hidden;
+  border-radius: 22px; padding: 38px 32px;
+  background: radial-gradient(ellipse at 20% 30%, #4d41c8 0%, #2a1d7a 60%, #1a1258 100%);
+  color: #fff;
+  box-shadow: 0 30px 60px -28px #2a1d7a99, 0 8px 16px -8px #2a1d7a44;
+  display: flex; align-items: center; gap: 28px;
+  margin-bottom: 28px;
+}
+.dv2-app .cr2-balance::before {
+  content: ""; position: absolute; inset: 0; opacity: .35; pointer-events: none;
+  background-image:
+    radial-gradient(circle at 90% 20%, #a897ff 0%, transparent 30%),
+    radial-gradient(circle at 100% 80%, #7b5cff 0%, transparent 35%);
+}
+.dv2-app .cr2-balance::after {
+  content: ""; position: absolute; inset: 0; opacity: .15; pointer-events: none;
+  background-image:
+    linear-gradient(90deg, #ffffff22 1px, transparent 1px),
+    linear-gradient(0deg,  #ffffff22 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse at 50% 50%, black 30%, transparent 75%);
+  -webkit-mask-image: radial-gradient(ellipse at 50% 50%, black 30%, transparent 75%);
+}
+.dv2-app .cr2-bal-left {
+  position: relative; z-index: 1; flex: 1;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.dv2-app .cr2-bal-label {
+  font-size: 12px; font-weight: 600; letter-spacing: .06em;
+  text-transform: uppercase; color: #d4cbff;
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.dv2-app .cr2-bal-label::before {
+  content: ""; width: 6px; height: 6px; border-radius: 50%;
+  background: #a897ff; box-shadow: 0 0 10px #a897ffaa;
+}
+.dv2-app .cr2-bal-amount {
+  display: flex; align-items: baseline; gap: 10px; margin: 6px 0 4px;
+}
+.dv2-app .cr2-bal-num {
+  font-size: 72px; font-weight: 800; letter-spacing: -.04em; line-height: 1;
+  font-family: "JetBrains Mono", monospace;
+  background: linear-gradient(180deg, #fff 0%, #d4cbff 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  font-variant-numeric: tabular-nums;
+}
+.dv2-app .cr2-bal-unit {
+  font-size: 26px; font-weight: 700; color: #d4cbff; letter-spacing: -.02em;
+}
+.dv2-app .cr2-bal-meta {
+  font-size: 13px; color: #d4cbff;
+  display: flex; flex-wrap: wrap; gap: 18px; margin-top: 6px;
+  position: relative; z-index: 1;
+}
+.dv2-app .cr2-bal-meta .mi { display: inline-flex; align-items: center; gap: 6px; }
+.dv2-app .cr2-bal-meta .mi b { color: #fff; font-weight: 700; }
+.dv2-app .cr2-bal-meta .dot {
+  width: 3px; height: 3px; border-radius: 50%; background: #a897ff; opacity: .6;
+}
+.dv2-app .cr2-bal-meta.secondary {
+  margin-top: 10px; font-size: 12px; color: #b8b0e0;
+}
+.dv2-app .cr2-bal-meta.secondary .mi b { color: #d4cbff; font-weight: 700; }
+
+.dv2-app .cr2-bal-right {
+  position: relative; z-index: 1; min-width: 280px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.dv2-app .cr2-bal-chart {
+  padding: 16px 18px; background: #ffffff14; backdrop-filter: blur(12px);
+  border-radius: 14px; border: 1px solid #ffffff1e;
+}
+.dv2-app .cr2-bal-chart .ct {
+  font-size: 11px; color: #d4cbff; letter-spacing: .04em; text-transform: uppercase;
+  font-weight: 600; margin-bottom: 10px;
+  display: flex; justify-content: space-between;
+}
+.dv2-app .cr2-bal-chart .ct .delta { color: #7ef8b0; font-weight: 700; }
+.dv2-app .cr2-spark { width: 100%; height: 52px; display: block; }
+
+.dv2-app .cr2-bal-ctas { display: flex; gap: 8px; }
+.dv2-app .cr2-bal-cta {
+  flex: 1; height: 40px; border-radius: 10px; border: 0; cursor: pointer;
+  font-size: 13px; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  text-decoration: none;
+}
+.dv2-app .cr2-bal-cta.primary {
+  background: #fff; color: var(--ai-ink, #5d41e0);
+  box-shadow: 0 4px 12px -4px #0007;
+}
+.dv2-app .cr2-bal-cta.primary:hover { background: #f1edff; }
+.dv2-app .cr2-bal-cta.ghost {
+  background: #ffffff18; color: #fff; border: 1px solid #ffffff2e;
+}
+.dv2-app .cr2-bal-cta.ghost:hover { background: #ffffff26; }
+
+/* ── Section heading ── */
+.dv2-app .cr2-sect-head {
+  display: flex; align-items: flex-end; gap: 10px; margin: 32px 0 14px;
+  flex-wrap: wrap;
+}
+.dv2-app .cr2-sect-head h2 {
+  margin: 0; font-size: 18px; font-weight: 800; letter-spacing: -.02em;
+}
+.dv2-app .cr2-sect-head .sub {
+  color: var(--ink-3); font-size: 12.5px; margin-left: 2px; line-height: 1.8;
+}
+.dv2-app .cr2-sect-head .spacer { flex: 1; }
+.dv2-app .cr2-sect-head .help {
+  color: var(--ink-3); font-size: 12px;
+  display: inline-flex; align-items: center; gap: 4px;
+  text-decoration: none;
+}
+.dv2-app .cr2-sect-head .help:hover { color: var(--ai-ink, #5d41e0); }
+
+/* ── Package grid ── */
+.dv2-app .cr2-pkgs {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+}
+.dv2-app .cr2-pkg {
+  position: relative;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 18px;
+  padding: 22px 20px 18px;
+  display: flex; flex-direction: column; gap: 10px;
+  transition: all .15s; cursor: pointer;
+  box-shadow: var(--shadow-sm);
+}
+.dv2-app .cr2-pkg:hover {
+  border-color: #c9bdff;
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+.dv2-app .cr2-pkg.on {
+  border-color: var(--ai, #7b5cff);
+  box-shadow: 0 16px 34px -14px #7b5cff44, 0 0 0 3px #7b5cff1a, var(--shadow-sm);
+  background: linear-gradient(180deg, #fbfaff 0%, #ffffff 40%);
+}
+.dv2-app .cr2-pkg .reco-tag {
+  position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+  background: linear-gradient(135deg, #7b5cff, #5d41e0);
+  color: #fff; font-size: 11px; font-weight: 700;
+  padding: 4px 12px; border-radius: 999px;
+  box-shadow: 0 4px 10px -2px #7b5cff88; letter-spacing: .04em;
+  display: inline-flex; align-items: center; gap: 5px;
+  white-space: nowrap;
+}
+.dv2-app .cr2-pkg-head {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.dv2-app .cr2-pkg-tier {
+  font-size: 11px; font-weight: 700; color: var(--ink-3);
+  letter-spacing: .1em; text-transform: uppercase;
+}
+.dv2-app .cr2-pkg.on .cr2-pkg-tier { color: var(--ai-ink, #5d41e0); }
+.dv2-app .cr2-pkg-discount {
+  font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 5px;
+  background: var(--danger-soft, #ffeef0); color: var(--danger);
+  letter-spacing: .02em;
+}
+.dv2-app .cr2-pkg-amount {
+  display: flex; align-items: baseline; gap: 6px; margin: 6px 0 2px;
+}
+.dv2-app .cr2-pkg-num {
+  font-size: 32px; font-weight: 800; letter-spacing: -.03em;
+  font-family: "JetBrains Mono", monospace;
+  color: var(--ai-ink, #5d41e0); font-variant-numeric: tabular-nums;
+}
+.dv2-app .cr2-pkg-unit {
+  font-size: 16px; font-weight: 700; color: var(--ai, #7b5cff); letter-spacing: -.02em;
+}
+.dv2-app .cr2-pkg-price {
+  font-size: 14px; font-weight: 700; color: var(--ink-0);
+  letter-spacing: -.01em; font-variant-numeric: tabular-nums;
+}
+.dv2-app .cr2-pkg-orig {
+  color: var(--ink-3); font-weight: 500;
+  text-decoration: line-through; margin-left: 6px; font-size: 12.5px;
+}
+.dv2-app .cr2-pkg-per { font-size: 11px; color: var(--ink-3); margin-top: 2px; }
+.dv2-app .cr2-pkg-bonus {
+  display: flex; align-items: center; gap: 6px; margin-top: 8px;
+  padding: 7px 9px; border-radius: 7px;
+  background: var(--ok-soft); color: #0d7d45;
+  font-size: 11px; font-weight: 600;
+}
+.dv2-app .cr2-pkg-bonus.none { visibility: hidden; }
+.dv2-app .cr2-pkg-list {
+  list-style: none; margin: 10px 0 0; padding: 0;
+  display: flex; flex-direction: column; gap: 5px;
+  font-size: 11.5px; color: var(--ink-2);
+}
+.dv2-app .cr2-pkg-list li { display: flex; align-items: center; gap: 6px; }
+.dv2-app .cr2-pkg-list .ok { color: var(--ok); flex-shrink: 0; }
+.dv2-app .cr2-pkg .cr2-buy {
+  margin-top: 10px; height: 40px; border-radius: 10px;
+  background: var(--panel-2); color: var(--ai-ink, #5d41e0);
+  font-size: 13px; font-weight: 700;
+  border: 1px solid var(--line);
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  cursor: pointer; width: 100%;
+}
+.dv2-app .cr2-pkg:hover .cr2-buy {
+  background: var(--ai-soft); border-color: #d9cfff;
+}
+.dv2-app .cr2-pkg.on .cr2-buy {
+  background: var(--ai, #7b5cff); color: #fff; border-color: transparent;
+  box-shadow: 0 4px 10px -2px #7b5cff88;
+}
+.dv2-app .cr2-pkg.on .cr2-buy:hover { background: var(--ai-ink, #5d41e0); }
+.dv2-app .cr2-pkg .cr2-buy:disabled {
+  opacity: .55; cursor: wait; box-shadow: none;
+}
+.dv2-app .cr2-pkg-error {
+  margin-top: 6px; font-size: 11px; color: var(--danger);
+  text-align: center;
+}
+
+/* ── Info strip ── */
+.dv2-app .cr2-info-strip {
+  display: flex; gap: 18px; align-items: center; flex-wrap: wrap;
+  padding: 12px 16px; border-radius: 12px;
+  background: var(--panel); border: 1px solid var(--line);
+  margin-top: 14px; font-size: 12px; color: var(--ink-2);
+}
+.dv2-app .cr2-info-strip .it { display: inline-flex; align-items: center; gap: 6px; }
+.dv2-app .cr2-info-strip .it svg { color: var(--ink-3); }
+.dv2-app .cr2-info-strip b { color: var(--ink-0); font-weight: 700; }
+.dv2-app .cr2-info-strip a {
+  color: var(--ai-ink, #5d41e0); font-weight: 600;
+  margin-left: 2px; text-decoration: none;
+}
+.dv2-app .cr2-info-strip a:hover { text-decoration: underline; }
+
+/* ── Use history ── */
+.dv2-app .cr2-use-card {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 18px; overflow: hidden; box-shadow: var(--shadow-sm);
+}
+.dv2-app .cr2-use-head {
+  padding: 14px 18px; border-bottom: 1px solid var(--line-2);
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.dv2-app .cr2-use-head h3 {
+  margin: 0; font-size: 14.5px; font-weight: 700; flex: 1;
+  letter-spacing: -.01em;
+  display: flex; align-items: center; gap: 8px;
+}
+.dv2-app .cr2-filter {
+  display: flex; gap: 4px; background: var(--panel-2);
+  padding: 3px; border-radius: 8px; border: 1px solid var(--line);
+}
+.dv2-app .cr2-filter button {
+  all: unset; padding: 5px 11px; border-radius: 5px;
+  font-size: 11.5px; color: var(--ink-2); cursor: pointer; font-weight: 500;
+}
+.dv2-app .cr2-filter button.on {
+  background: var(--panel); color: var(--ink-0);
+  box-shadow: var(--shadow-sm); font-weight: 600;
+}
+
+.dv2-app .cr2-tbl { width: 100%; border-collapse: separate; border-spacing: 0; }
+.dv2-app .cr2-tbl thead th {
+  text-align: left; font-size: 11px; font-weight: 700; color: var(--ink-3);
+  letter-spacing: .06em; text-transform: uppercase;
+  padding: 10px 18px; background: var(--panel-2); border-bottom: 1px solid var(--line);
+}
+.dv2-app .cr2-tbl thead th.right { text-align: right; }
+.dv2-app .cr2-tbl tbody td {
+  padding: 14px 18px; border-bottom: 1px solid var(--line-2);
+  font-size: 13px; color: var(--ink-1); vertical-align: middle;
+}
+.dv2-app .cr2-tbl tbody tr:last-child td { border-bottom: 0; }
+.dv2-app .cr2-tbl tbody tr:hover td { background: #fbfbfe; }
+.dv2-app .cr2-tbl .date {
+  font-family: "JetBrains Mono", monospace; font-size: 12.5px; color: var(--ink-2);
+}
+.dv2-app .cr2-tbl .desc-main { color: var(--ink-0); font-weight: 500; }
+.dv2-app .cr2-tbl .desc-sub { color: var(--ink-3); font-size: 11.5px; margin-top: 2px; }
+.dv2-app .cr2-tbl .delta {
+  font-family: "JetBrains Mono", monospace; font-weight: 700;
+  font-size: 13.5px; font-variant-numeric: tabular-nums; text-align: right;
+}
+.dv2-app .cr2-tbl .delta.plus { color: var(--ok); }
+.dv2-app .cr2-tbl .delta.minus { color: var(--danger); }
+.dv2-app .cr2-tbl .bal-cell {
+  font-family: "JetBrains Mono", monospace; font-size: 13px;
+  color: var(--ink-1); font-variant-numeric: tabular-nums; font-weight: 500;
+  text-align: right;
+}
+
+.dv2-app .cr2-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 22px; padding: 0 9px; border-radius: 6px;
+  font-size: 11px; font-weight: 600; letter-spacing: -.005em;
+  border: 1px solid transparent;
+}
+.dv2-app .cr2-chip::before {
+  content: ""; width: 5px; height: 5px; border-radius: 50%; background: currentColor;
+}
+.dv2-app .cr2-chip.bonus { background: var(--ok-soft); color: #0d7d45; border-color: #c7ecd4; }
+.dv2-app .cr2-chip.plan { background: var(--ai-soft); color: var(--ai-ink, #5d41e0); border-color: #d9cfff; }
+.dv2-app .cr2-chip.buy { background: var(--brand-soft); color: var(--brand-ink); border-color: #c8d4ff; }
+.dv2-app .cr2-chip.use { background: #fbecef; color: #b3293a; border-color: #f5cad1; }
+.dv2-app .cr2-chip.refund { background: var(--warn-soft, #fff4e0); color: #a56b00; border-color: #f5d496; }
+
+.dv2-app .cr2-use-empty {
+  padding: 48px 20px; text-align: center; color: var(--ink-3);
+}
+.dv2-app .cr2-use-empty .ic {
+  width: 56px; height: 56px; border-radius: 16px;
+  background: var(--panel-2); display: inline-grid; place-items: center;
+  color: var(--ink-4); margin-bottom: 12px;
+}
+.dv2-app .cr2-use-empty .t {
+  font-size: 14px; font-weight: 700; color: var(--ink-1); margin-bottom: 4px;
+}
+.dv2-app .cr2-use-empty .s { font-size: 12.5px; }
+
+.dv2-app .cr2-use-foot {
+  padding: 12px 18px; border-top: 1px solid var(--line-2);
+  display: flex; align-items: center; gap: 10px;
+  background: var(--panel-2); font-size: 11.5px; color: var(--ink-3);
+}
+.dv2-app .cr2-use-foot b { color: var(--ink-0); }
+.dv2-app .cr2-use-foot .spacer { flex: 1; }
+
+/* ── FAQ ── */
+.dv2-app .cr2-faq {
+  margin-top: 24px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 18px;
+  padding: 20px 22px;
+  display: grid; grid-template-columns: 1fr 2fr; gap: 20px;
+  box-shadow: var(--shadow-sm);
+}
+.dv2-app .cr2-faq h3 {
+  margin: 0 0 6px; font-size: 16px; font-weight: 800; letter-spacing: -.02em;
+}
+.dv2-app .cr2-faq .sub {
+  color: var(--ink-3); font-size: 12.5px; line-height: 1.6;
+}
+.dv2-app .cr2-faq .ask {
+  margin-top: 10px; font-size: 12px; color: var(--ai-ink, #5d41e0); font-weight: 600;
+  display: inline-flex; align-items: center; gap: 4px;
+  text-decoration: none;
+}
+.dv2-app .cr2-faq-list { display: flex; flex-direction: column; gap: 0; }
+.dv2-app .cr2-faq-q {
+  padding: 12px 0; border-bottom: 1px dashed var(--line-2);
+  display: flex; align-items: flex-start; gap: 10px;
+  width: 100%; background: transparent; border-left: 0; border-right: 0; border-top: 0;
+  text-align: left; cursor: pointer;
+}
+.dv2-app .cr2-faq-q:last-child { border-bottom: 0; }
+.dv2-app .cr2-faq-q .q {
+  flex: 1; font-size: 13px; font-weight: 600; color: var(--ink-0); line-height: 1.5;
+}
+.dv2-app .cr2-faq-q .a {
+  display: none; color: var(--ink-2); font-size: 12.5px; line-height: 1.7; margin-top: 6px;
+}
+.dv2-app .cr2-faq-q.open .a { display: block; }
+.dv2-app .cr2-faq-q .chev {
+  color: var(--ink-3); transition: transform .15s; flex-shrink: 0; margin-top: 2px;
+}
+.dv2-app .cr2-faq-q.open .chev { transform: rotate(90deg); color: var(--ai, #7b5cff); }
+
+/* ── Coin pill in sidebar nav (overrides dv2-nav .badge) ── */
+.dv2-app .dv2-nav a.active .cr2-coin-pill {
+  margin-left: auto; font-size: 10.5px; font-weight: 700;
+  padding: 1px 6px; border-radius: 5px;
+  background: var(--ai, #7b5cff); color: #fff;
+  font-family: "JetBrains Mono", monospace; letter-spacing: .02em;
+}
+.dv2-app .dv2-nav a .cr2-coin-pill {
+  margin-left: auto; font-size: 10.5px; font-weight: 700;
+  padding: 1px 6px; border-radius: 5px;
+  background: #f2f4fa; color: var(--ink-2);
+  font-family: "JetBrains Mono", monospace; letter-spacing: .02em;
+}
+.dv2-app .dv2-nav a .cr2-coin-pill.low { background: var(--danger); color: #fff; }
+.dv2-app .dv2-nav a .cr2-coin-pill.high { background: var(--ok); color: #fff; }
+
+/* ── Responsive ── */
+@media (max-width: 1100px) {
+  .dv2-app .cr2-pkgs { grid-template-columns: repeat(2, 1fr); }
+  .dv2-app .cr2-balance { flex-direction: column; align-items: stretch; }
+  .dv2-app .cr2-bal-right { min-width: 0; }
+  .dv2-app .cr2-faq { grid-template-columns: 1fr; }
+}
+@media (max-width: 700px) {
+  .dv2-app .cr2-pkgs { grid-template-columns: 1fr; }
+  .dv2-app .cr2-balance { padding: 24px 20px; }
+  .dv2-app .cr2-bal-num { font-size: 56px; }
+  .dv2-app .cr2-info-strip .it:last-child { margin-left: 0 !important; }
+}

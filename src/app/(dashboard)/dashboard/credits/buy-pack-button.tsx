@@ -7,9 +7,10 @@ interface Props {
   packId: string;
   label: string;
   disabled?: boolean;
+  className?: string;
 }
 
-export default function BuyPackButton({ packId, label, disabled }: Props) {
+export default function BuyPackButton({ packId, label, disabled, className = "cr2-buy" }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -40,13 +41,13 @@ export default function BuyPackButton({ packId, label, disabled }: Props) {
     <>
       <button
         type="button"
-        className="credits-pack-btn"
+        className={className}
         disabled={disabled || loading}
         onClick={buy}
       >
         {loading ? "처리 중…" : label}
       </button>
-      {error && <div className="credits-pack-error">{error}</div>}
+      {error && <div className="cr2-pkg-error">{error}</div>}
     </>
   );
 }

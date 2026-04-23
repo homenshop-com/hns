@@ -65,6 +65,14 @@ export function DashboardIconSprite() {
         <symbol id="i-book" viewBox="0 0 20 20"><path className="i" d="M3 4a1 1 0 011-1h5a2 2 0 012 2v11a2 2 0 00-2-2H4a1 1 0 01-1-1V4zM17 4a1 1 0 00-1-1h-5a2 2 0 00-2 2v11a2 2 0 012-2h5a1 1 0 001-1V4z" /></symbol>
         <symbol id="i-pin" viewBox="0 0 20 20"><path className="i" d="M10 2l2 5 5 1-4 4 1 5-4-3-4 3 1-5-4-4 5-1 2-5z" /></symbol>
         <symbol id="i-link" viewBox="0 0 20 20"><path className="i" d="M11 4.5L12.5 3a3 3 0 014.2 4.2L15 9M9 15.5L7.5 17a3 3 0 01-4.2-4.2L5 11M7 13l6-6" /></symbol>
+        <symbol id="i-coin" viewBox="0 0 20 20"><circle className="i" cx="10" cy="10" r="7.5" /><path className="i" d="M10 5v10M7.5 7.2a2.5 2.5 0 012.5-.7c1.4 0 2.5.8 2.5 2s-1 1.5-2.5 1.7c-1.5.2-2.5.5-2.5 2s1.1 2 2.5 2a2.5 2.5 0 002.5-.7" /></symbol>
+        <symbol id="i-bolt" viewBox="0 0 20 20"><path className="if" d="M11 2L4 11h5l-1 7 7-9h-5l1-7z" /></symbol>
+        <symbol id="i-gift" viewBox="0 0 20 20"><path className="i" d="M3 8h14v9a1 1 0 01-1 1H4a1 1 0 01-1-1V8zM2 5h16v3H2zM10 5v13M10 5c-1-2-4-2-4 0s3 0 4 0c1 0 4 0 4 0 0-2-3-2-4 0z" /></symbol>
+        <symbol id="i-receipt" viewBox="0 0 20 20"><path className="i" d="M4 2h12v16l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L4 18V2zM7 6h6M7 9h6M7 12h4" /></symbol>
+        <symbol id="i-chat" viewBox="0 0 20 20"><path className="i" d="M4 4h12a1 1 0 011 1v9a1 1 0 01-1 1H9l-4 3v-3H4a1 1 0 01-1-1V5a1 1 0 011-1z" /></symbol>
+        <symbol id="i-hash" viewBox="0 0 20 20"><path className="i" d="M7 3l-2 14M15 3l-2 14M3 7h14M3 13h14" /></symbol>
+        <symbol id="i-chev-left" viewBox="0 0 20 20"><path className="i" d="M12 5l-5 5 5 5" /></symbol>
+        <symbol id="i-card" viewBox="0 0 20 20"><rect className="i" x="2" y="5" width="16" height="11" rx="1.5" /><path className="i" d="M2 9h16M5 13h3" /></symbol>
       </defs>
     </svg>
   );
