@@ -641,3 +641,23 @@ model MasterLoginAudit {
   @@index([targetUserId])
   @@index([createdAt])
 }
+
+/// Inbound emails received via Resend Receiving (help@homenshop.com etc.).
+model InboundEmail {
+  id          String   @id @default(cuid())
+  resendId    String?  @unique
+  fromEmail   String
+  fromName    String?
+  toEmail     String
+  cc          String?
+  subject     String?
+  text        String?  @db.Text
+  html        String?  @db.Text
+  headers     Json?
+  attachments Json?
+  forwarded   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([toEmail])
+  @@index([createdAt])
+}
