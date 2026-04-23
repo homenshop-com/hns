@@ -84,12 +84,23 @@ async function renderBoardList(siteId: string, shopId: string, lang: string, cat
   const perPage = 20;
   const offset = (pageNum - 1) * perPage;
 
-  // Get category info
+  // Get category info — including listStyle so we know whether to render as
+  // table (0, default) or gallery (1). listStyle is stored on BoardCategory
+  // per the legacy PHP conventions.
   let catName = "게시판";
   let categoryId: string | undefined;
+  let listStyle = 0;
+  let imgWidth = 150;
+  let imgHeight = 100;
   if (category > 0) {
     const cat = await prisma.boardCategory.findFirst({ where: { siteId, legacyId: category } });
-    if (cat) { catName = cat.name; categoryId = cat.id; }
+    if (cat) {
+      catName = cat.name;
+      categoryId = cat.id;
+      listStyle = cat.listStyle ?? 0;
+      imgWidth = cat.imgWidth || 150;
+      imgHeight = cat.imgHeight || 100;
+    }
   }
 
   // Count total
@@ -107,19 +118,7 @@ async function renderBoardList(siteId: string, shopId: string, lang: string, cat
     select: { legacyId: true, title: true, author: true, regdate: true, views: true, photos: true },
   });
 
-  // Build table rows
-  const rowsHtml = rows.map((r) => {
-    const href = `${urlPrefix}/${lang}/board.html?action=read&id=${r.legacyId}`;
-    return `<tr style="border-bottom:1px solid #e5e5e5;">
-      <td style="padding:10px 8px;text-align:center;color:#888;font-size:13px;">${r.legacyId}</td>
-      <td style="padding:10px 8px;"><a href="${href}" style="color:#333;text-decoration:none;font-size:14px;">${escapeHtml(r.title || "")}</a></td>
-      <td style="padding:10px 8px;text-align:center;color:#888;font-size:13px;">${escapeHtml(r.author || "관리자")}</td>
-      <td style="padding:10px 8px;text-align:center;color:#888;font-size:13px;">${r.regdate || ""}</td>
-      <td style="padding:10px 8px;text-align:center;color:#888;font-size:13px;">${r.views || 0}</td>
-    </tr>`;
-  }).join("");
-
-  // Pagination
+  // Pagination (shared between table + gallery)
   let paginationHtml = "";
   if (totalPages > 1) {
     const links: string[] = [];
@@ -133,6 +132,88 @@ async function renderBoardList(siteId: string, shopId: string, lang: string, cat
     }
     paginationHtml = `<div style="text-align:center;margin-top:20px;">${links.join("")}</div>`;
   }
+
+  /* ─── Gallery mode (listStyle === 1) ─── */
+  if (listStyle === 1) {
+    const scope = `brd-gal-${category}`;
+    // Use a generous thumb size — wider than the tiny plugin default so
+    // cards look good on a full-page list view.
+    const thumbW = Math.max(400, imgWidth * 3);
+    const thumbH = Math.max(280, imgHeight * 3);
+
+    const cardsHtml = rows.map((r) => {
+      const href = `${urlPrefix}/${lang}/board.html?action=read&id=${r.legacyId}`;
+      const photos = r.photos ? r.photos.split("|").filter(Boolean) : [];
+      const firstPhoto = photos[0] || "";
+      const imgSrc = firstPhoto
+        ? `https://home.homenshop.com/${shopId}/thumb/${thumbW}x${thumbH}/${encodeURIComponent(firstPhoto)}`
+        : "";
+      const title = escapeHtml(r.title || "");
+      const date = (r.regdate || "").slice(0, 10);
+      return `<a class="${scope}-card" href="${href}">
+        <div class="${scope}-media">${
+          imgSrc
+            ? `<img src="${imgSrc}" alt="${title}" loading="lazy" />`
+            : `<div class="${scope}-placeholder">📷</div>`
+        }</div>
+        <div class="${scope}-meta">
+          <div class="${scope}-title">${title}</div>
+          ${date ? `<div class="${scope}-date">${date}</div>` : ""}
+        </div>
+      </a>`;
+    }).join("");
+
+    // Self-scoped inline styles: use CSS vars that pick up from body (so dark
+    // templates get dark cards, light templates get light cards). Fallback
+    // values target a light theme.
+    const css = `
+      .board-content.${scope}-wrap { max-width:1240px !important; }
+      .${scope}-wrap { width:100%; margin:20px auto; position:relative; color:inherit; padding:0 20px; box-sizing:border-box; }
+      .${scope}-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; border-bottom:1px solid rgba(137,194,61,.25); padding-bottom:14px; margin-bottom:24px; }
+      .${scope}-head h2 { font-size:22px; font-weight:700; margin:0; color:inherit; letter-spacing:-.01em; display:flex; align-items:center; gap:10px; }
+      .${scope}-head h2::before { content:""; display:inline-block; width:5px; height:18px; background:linear-gradient(180deg,#ffb547 0%,#f28a17 100%); border-radius:2px; box-shadow:0 0 12px rgba(255,181,71,.45); }
+      .${scope}-head .${scope}-count { font-family:'JetBrains Mono',monospace; font-size:12px; color:#888; letter-spacing:.05em; }
+      .${scope}-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; }
+      .${scope}-card { display:block; text-decoration:none; color:inherit; border:1px solid rgba(128,128,128,.18); border-radius:10px; overflow:hidden; background:rgba(255,255,255,.02); transition:border-color .25s, transform .25s, box-shadow .25s; }
+      .${scope}-card:hover { border-color:rgba(255,181,71,.55); transform:translateY(-3px); box-shadow:0 8px 24px rgba(255,181,71,.12); }
+      .${scope}-media { position:relative; width:100%; aspect-ratio:3/2; overflow:hidden; background:#000; }
+      .${scope}-media img { width:100%; height:100%; object-fit:cover; display:block; transition:transform .45s; }
+      .${scope}-card:hover .${scope}-media img { transform:scale(1.04); }
+      .${scope}-placeholder { width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-size:28px; color:#555; }
+      .${scope}-meta { padding:12px 14px; }
+      .${scope}-title { font-size:13px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; letter-spacing:-.01em; }
+      .${scope}-card:hover .${scope}-title { color:#ffb547; }
+      .${scope}-date { font-family:'JetBrains Mono',monospace; font-size:11px; color:#888; margin-top:4px; }
+      .${scope}-empty { grid-column:1/-1; text-align:center; color:#888; padding:60px 20px; border:1px dashed rgba(128,128,128,.2); border-radius:8px; }
+      @media (max-width:900px){ .${scope}-grid{ grid-template-columns:repeat(2,1fr); gap:12px; } }
+      @media (max-width:520px){ .${scope}-grid{ grid-template-columns:repeat(2,1fr); } .${scope}-title{ font-size:12px; } }
+    `.replace(/\n\s+/g, "\n");
+
+    return `
+    <div class="board-content ${scope}-wrap">
+      <style>${css}</style>
+      <div class="${scope}-head">
+        <h2>${escapeHtml(catName)}</h2>
+        <span class="${scope}-count">TOTAL ${total} · PAGE ${pageNum}/${Math.max(1, totalPages)}</span>
+      </div>
+      <div class="${scope}-grid">
+        ${cardsHtml || `<div class="${scope}-empty">등록된 글이 없습니다.</div>`}
+      </div>
+      ${paginationHtml}
+    </div>`;
+  }
+
+  /* ─── Table mode (listStyle === 0, default) ─── */
+  const rowsHtml = rows.map((r) => {
+    const href = `${urlPrefix}/${lang}/board.html?action=read&id=${r.legacyId}`;
+    return `<tr style="border-bottom:1px solid #e5e5e5;">
+      <td style="padding:10px 8px;text-align:center;color:#888;font-size:13px;">${r.legacyId}</td>
+      <td style="padding:10px 8px;"><a href="${href}" style="color:#333;text-decoration:none;font-size:14px;">${escapeHtml(r.title || "")}</a></td>
+      <td style="padding:10px 8px;text-align:center;color:#888;font-size:13px;">${escapeHtml(r.author || "관리자")}</td>
+      <td style="padding:10px 8px;text-align:center;color:#888;font-size:13px;">${r.regdate || ""}</td>
+      <td style="padding:10px 8px;text-align:center;color:#888;font-size:13px;">${r.views || 0}</td>
+    </tr>`;
+  }).join("");
 
   return `
   <div class="board-content" style="width:100%;margin:20px auto;position:relative;color:#333;">
