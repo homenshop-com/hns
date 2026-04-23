@@ -8,6 +8,7 @@ import LanguageSwitcher from "@/components/LanguageSwitcher";
 import EditSiteForm from "../edit-site-form";
 import LanguageSettings from "@/components/LanguageSettings";
 import DeleteSiteButton from "./delete-site-button";
+import SitemapRefreshButton from "./sitemap-refresh-button";
 
 interface SettingsPageProps {
   searchParams: Promise<{ id?: string }>;
@@ -42,6 +43,25 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
 
   const siteLanguages = (site as typeof site & { languages?: string[] })
     .languages || ["ko"];
+
+  // Sitemap stats for the status display. The sitemap itself is always
+  // dynamic — these counts are what's live right now, refreshed on every
+  // page load + on demand via the client button below.
+  const sitePages = await prisma.page.findMany({
+    where: { siteId: site.id },
+    select: { slug: true, lang: true, updatedAt: true },
+  });
+  const _activeLangs = new Set(
+    siteLanguages.length ? siteLanguages : [site.defaultLanguage],
+  );
+  const _skipSlugs = new Set(["empty", "user", "users", "agreement"]);
+  const _eligible = sitePages.filter(
+    (p) => _activeLangs.has(p.lang) && !_skipSlugs.has(p.slug.toLowerCase()),
+  );
+  const sitemapUrlCount = _eligible.length;
+  const sitemapLastMod = _eligible.length
+    ? new Date(Math.max(..._eligible.map((p) => p.updatedAt.getTime()))).toISOString()
+    : null;
 
   const ACCOUNT_LABELS: Record<string, string> = {
     "0": t("accountFree"),
@@ -253,6 +273,12 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                           ? ` ${t("sitemapDomainHint")}`
                           : ` ${t("sitemapNoDomainHint")}`}
                       </p>
+                      <SitemapRefreshButton
+                        siteId={site.id}
+                        initialUrlCount={sitemapUrlCount}
+                        initialLastModified={sitemapLastMod}
+                        hasCustomDomain={Boolean(activeDomain)}
+                      />
                     </div>
                   );
                 })()}
