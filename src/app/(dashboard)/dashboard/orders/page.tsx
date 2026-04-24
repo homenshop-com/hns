@@ -124,12 +124,14 @@ export default async function DashboardOrdersPage() {
                       </Link>
                     </td>
                     <td className="px-6 py-4 text-zinc-600 dark:text-zinc-400">
-                      {order.items.length > 0
-                        ? order.items[0].product.name +
-                          (order.items.length > 1
-                            ? ` 외 ${order.items.length - 1}건`
-                            : "")
-                        : "-"}
+                      {order.orderType === "CREDIT_PACK"
+                        ? `크레딧 팩 · ${order.creditAmount?.toLocaleString() ?? "?"} C`
+                        : order.orderType === "SUBSCRIPTION"
+                          ? `호스팅 연장 · ${order.subscriptionMonths ?? "?"}개월`
+                          : order.items.length > 0
+                            ? order.items[0].product.name +
+                              (order.items.length > 1 ? ` 외 ${order.items.length - 1}건` : "")
+                            : "-"}
                     </td>
                     <td className="px-6 py-4 text-right whitespace-nowrap font-medium">
                       {order.totalAmount.toLocaleString("ko-KR")}원

@@ -45,7 +45,19 @@ export async function GET(
     );
   }
 
-  return NextResponse.json({ order });
+  // For SUBSCRIPTION orders, resolve the linked site so the detail
+  // page can display "사이트: <name> (<shopId>)" instead of just a
+  // raw id. subscriptionSiteId is a plain String column (no relation
+  // in the schema), so we look it up separately.
+  let subscriptionSite: { id: string; name: string; shopId: string } | null = null;
+  if (order.orderType === "SUBSCRIPTION" && order.subscriptionSiteId) {
+    subscriptionSite = await prisma.site.findUnique({
+      where: { id: order.subscriptionSiteId },
+      select: { id: true, name: true, shopId: true },
+    });
+  }
+
+  return NextResponse.json({ order: { ...order, subscriptionSite } });
 }
 
 // PUT /api/admin/orders/[id] — Update order status (admin only)

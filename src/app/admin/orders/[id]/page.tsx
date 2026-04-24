@@ -52,6 +52,10 @@ interface OrderDetail {
   orderNumber: string;
   totalAmount: number;
   status: string;
+  orderType: "PRODUCT" | "CREDIT_PACK" | "SUBSCRIPTION";
+  creditAmount: number | null;
+  subscriptionMonths: number | null;
+  subscriptionSiteId: string | null;
   paymentMethod: string | null;
   paymentKey: string | null;
   shippingName: string | null;
@@ -67,7 +71,24 @@ interface OrderDetail {
     name: string | null;
     phone: string | null;
   };
+  subscriptionSite: {
+    id: string;
+    name: string;
+    shopId: string;
+  } | null;
 }
+
+const ORDER_TYPE_LABELS: Record<string, string> = {
+  PRODUCT: "상품",
+  CREDIT_PACK: "크레딧 팩",
+  SUBSCRIPTION: "호스팅 연장",
+};
+
+const ORDER_TYPE_COLORS: Record<string, string> = {
+  PRODUCT: "bg-slate-100 text-slate-700",
+  CREDIT_PACK: "bg-violet-50 text-violet-700",
+  SUBSCRIPTION: "bg-emerald-50 text-emerald-700",
+};
 
 export default function AdminOrderDetailPage() {
   const params = useParams();
@@ -167,8 +188,13 @@ export default function AdminOrderDetailPage() {
         </Link>
       </div>
 
-      <div className="flex items-center gap-4 mb-6">
+      <div className="flex items-center gap-3 mb-6 flex-wrap">
         <h1 className="text-xl font-bold text-slate-900">주문 상세</h1>
+        <span
+          className={`inline-block rounded-md px-3 py-1 text-sm font-medium ${ORDER_TYPE_COLORS[order.orderType] ?? ""}`}
+        >
+          {ORDER_TYPE_LABELS[order.orderType] ?? order.orderType}
+        </span>
         <span
           className={`inline-block rounded-md px-3 py-1 text-sm font-medium ${STATUS_COLORS[order.status] ?? ""}`}
         >
@@ -194,6 +220,26 @@ export default function AdminOrderDetailPage() {
           <h2 className="text-base font-semibold text-slate-800 mb-4">주문 정보</h2>
           <dl className="space-y-3">
             <InfoRow label="주문번호" value={order.orderNumber} mono />
+            <InfoRow
+              label="유형"
+              value={ORDER_TYPE_LABELS[order.orderType] || order.orderType}
+            />
+            {order.orderType === "CREDIT_PACK" && order.creditAmount && (
+              <InfoRow label="크레딧" value={`${order.creditAmount.toLocaleString()} C`} />
+            )}
+            {order.orderType === "SUBSCRIPTION" && order.subscriptionMonths && (
+              <InfoRow label="연장 기간" value={`${order.subscriptionMonths}개월`} />
+            )}
+            {order.orderType === "SUBSCRIPTION" && (
+              <InfoRow
+                label="대상 사이트"
+                value={
+                  order.subscriptionSite
+                    ? `${order.subscriptionSite.name} (${order.subscriptionSite.shopId})`
+                    : order.subscriptionSiteId || "-"
+                }
+              />
+            )}
             <InfoRow
               label="주문일"
               value={new Date(order.createdAt).toLocaleString("ko-KR")}
@@ -261,55 +307,138 @@ export default function AdminOrderDetailPage() {
         </div>
       </div>
 
-      {/* Order Items */}
-      <div className="mt-6 rounded-xl border border-slate-200 bg-white overflow-hidden">
-        <h2 className="text-base font-semibold text-slate-800 px-6 pt-6 pb-4">주문 상품</h2>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-200">
-              <th className="px-6 py-3 text-left font-semibold text-slate-500 text-[11px] uppercase tracking-wider">
-                상품명
-              </th>
-              <th className="px-6 py-3 text-right font-semibold text-slate-500 text-[11px] uppercase tracking-wider">
-                단가
-              </th>
-              <th className="px-6 py-3 text-right font-semibold text-slate-500 text-[11px] uppercase tracking-wider">
-                수량
-              </th>
-              <th className="px-6 py-3 text-right font-semibold text-slate-500 text-[11px] uppercase tracking-wider">
-                소계
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {order.items.map((item) => (
-              <tr
-                key={item.id}
-                className="border-b border-slate-100 last:border-0"
-              >
-                <td className="px-6 py-4 font-medium text-slate-800">{item.product.name}</td>
-                <td className="px-6 py-4 text-right whitespace-nowrap">
-                  {item.price.toLocaleString("ko-KR")}원
+      {/* Order contents — layout switches on orderType. Credit/Subscription
+          orders don't use OrderItem rows, so the products table would
+          be empty for them; we render a type-specific summary instead. */}
+      {order.orderType === "PRODUCT" && (
+        <div className="mt-6 rounded-xl border border-slate-200 bg-white overflow-hidden">
+          <h2 className="text-base font-semibold text-slate-800 px-6 pt-6 pb-4">주문 상품</h2>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-200">
+                <th className="px-6 py-3 text-left font-semibold text-slate-500 text-[11px] uppercase tracking-wider">
+                  상품명
+                </th>
+                <th className="px-6 py-3 text-right font-semibold text-slate-500 text-[11px] uppercase tracking-wider">
+                  단가
+                </th>
+                <th className="px-6 py-3 text-right font-semibold text-slate-500 text-[11px] uppercase tracking-wider">
+                  수량
+                </th>
+                <th className="px-6 py-3 text-right font-semibold text-slate-500 text-[11px] uppercase tracking-wider">
+                  소계
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {order.items.map((item) => (
+                <tr
+                  key={item.id}
+                  className="border-b border-slate-100 last:border-0"
+                >
+                  <td className="px-6 py-4 font-medium text-slate-800">{item.product.name}</td>
+                  <td className="px-6 py-4 text-right whitespace-nowrap">
+                    {item.price.toLocaleString("ko-KR")}원
+                  </td>
+                  <td className="px-6 py-4 text-right">{item.quantity}</td>
+                  <td className="px-6 py-4 text-right whitespace-nowrap font-medium text-slate-800">
+                    {(item.price * item.quantity).toLocaleString("ko-KR")}원
+                  </td>
+                </tr>
+              ))}
+              {order.items.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-6 py-8 text-center text-slate-500 text-sm">
+                    주문 상품이 없습니다.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+            <tfoot>
+              <tr className="border-t border-slate-200">
+                <td colSpan={3} className="px-6 py-4 text-right font-semibold text-slate-700">
+                  합계
                 </td>
-                <td className="px-6 py-4 text-right">{item.quantity}</td>
-                <td className="px-6 py-4 text-right whitespace-nowrap font-medium text-slate-800">
-                  {(item.price * item.quantity).toLocaleString("ko-KR")}원
+                <td className="px-6 py-4 text-right font-bold text-lg text-slate-900">
+                  {order.totalAmount.toLocaleString("ko-KR")}원
                 </td>
               </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr className="border-t border-slate-200">
-              <td colSpan={3} className="px-6 py-4 text-right font-semibold text-slate-700">
-                합계
-              </td>
-              <td className="px-6 py-4 text-right font-bold text-lg text-slate-900">
+            </tfoot>
+          </table>
+        </div>
+      )}
+
+      {order.orderType === "CREDIT_PACK" && (
+        <div className="mt-6 rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50 to-white p-6">
+          <h2 className="text-base font-semibold text-slate-800 mb-4">주문 내용 — 크레딧 팩</h2>
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-xl bg-violet-600 text-white grid place-items-center text-xl font-bold shrink-0">
+              C
+            </div>
+            <div className="flex-1">
+              <div className="text-lg font-bold text-slate-900">
+                {order.creditAmount ? order.creditAmount.toLocaleString() : "?"} C
+                <span className="text-sm text-slate-500 ml-2 font-normal">크레딧 충전</span>
+              </div>
+              <div className="text-xs text-slate-500 mt-1">
+                결제 완료 시 사용자 계정에 자동 적립됩니다.
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-lg font-bold text-slate-900">
                 {order.totalAmount.toLocaleString("ko-KR")}원
-              </td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
+              </div>
+              {order.creditAmount && order.creditAmount > 0 && (
+                <div className="text-xs text-slate-500">
+                  크레딧당 ₩{Math.round(order.totalAmount / order.creditAmount).toLocaleString()}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {order.orderType === "SUBSCRIPTION" && (
+        <div className="mt-6 rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-6">
+          <h2 className="text-base font-semibold text-slate-800 mb-4">주문 내용 — 호스팅 연장</h2>
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-xl bg-emerald-600 text-white grid place-items-center text-xl font-bold shrink-0">
+              ∞
+            </div>
+            <div className="flex-1">
+              <div className="text-lg font-bold text-slate-900">
+                {order.subscriptionMonths ? `${order.subscriptionMonths}개월` : "?"} 연장
+                {order.subscriptionSite && (
+                  <span className="text-sm text-slate-500 ml-2 font-normal">
+                    · {order.subscriptionSite.name} ({order.subscriptionSite.shopId})
+                  </span>
+                )}
+              </div>
+              <div className="text-xs text-slate-500 mt-1">
+                결제 완료 시 해당 사이트의 만료일이 자동 연장되고 accountType=유료로 전환됩니다.
+              </div>
+              {order.subscriptionSite && (
+                <Link
+                  href={`/admin/sites/${order.subscriptionSite.id}`}
+                  className="text-xs text-[#405189] hover:underline mt-1 inline-block"
+                >
+                  사이트 상세 보기 →
+                </Link>
+              )}
+            </div>
+            <div className="text-right">
+              <div className="text-lg font-bold text-slate-900">
+                {order.totalAmount.toLocaleString("ko-KR")}원
+              </div>
+              {order.subscriptionMonths && order.subscriptionMonths > 0 && (
+                <div className="text-xs text-slate-500">
+                  월 ₩{Math.round(order.totalAmount / order.subscriptionMonths).toLocaleString()}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
