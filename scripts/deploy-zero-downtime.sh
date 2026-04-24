@@ -75,6 +75,17 @@ if [ -d "$STAGING_DIR" ]; then
   rm -rf "$STAGING_DIR"
 fi
 
+# 4b. Clean stale type dirs in the live .next/. These are compile-time
+#     artifacts only (no runtime impact on live workers, which read
+#     .next/server/ and .next/static/), but tsconfig.json includes BOTH
+#     .next/types and .next/dev/types, so their stale contents collide
+#     with the fresh types Next emits into .next-staging/types during
+#     build — you get route-union mismatch errors like
+#        Type 'import(.../next/dev/types/routes").LayoutRoutes' is not
+#        assignable to type 'import(.../next-staging/types/routes")...'
+#     Wiping these before staging build avoids the conflict.
+rm -rf "$LIVE_DIR/types" "$LIVE_DIR/dev" 2>/dev/null || true
+
 # 5. Build into staging directory — live workers keep serving from .next/
 echo -e "${BLUE}[deploy]${RESET} next build → $STAGING_DIR (live workers undisturbed)…"
 BUILD_START=$(date +%s)
