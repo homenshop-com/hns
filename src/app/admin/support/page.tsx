@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
+import NewConversationButton from "./new-conversation-button";
 
 function initialsFrom(s: string): string {
   const clean = (s || "").trim().replace(/[^\p{L}\p{N}]+/gu, "");
@@ -71,6 +72,7 @@ export default async function AdminSupportPage() {
             )}
           </p>
         </div>
+        <NewConversationButton />
       </div>
 
       {threads.length === 0 ? (
