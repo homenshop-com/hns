@@ -5,6 +5,7 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import SignOutButton from "../sign-out-button";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import OrderActions from "./order-actions";
 
 const STATUS_LABELS: Record<string, string> = {
   PENDING: "결제대기",
@@ -103,6 +104,9 @@ export default async function DashboardOrdersPage() {
                   <th className="px-6 py-3 text-right font-medium text-zinc-500 dark:text-zinc-400">
                     주문일
                   </th>
+                  <th className="px-6 py-3 text-right font-medium text-zinc-500 dark:text-zinc-400">
+                    관리
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -139,6 +143,13 @@ export default async function DashboardOrdersPage() {
                     </td>
                     <td className="px-6 py-4 text-right text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
                       {new Date(order.createdAt).toLocaleDateString("ko-KR")}
+                    </td>
+                    <td className="px-6 py-4 text-right whitespace-nowrap">
+                      <OrderActions
+                        orderId={order.id}
+                        orderNumber={order.orderNumber}
+                        status={order.status}
+                      />
                     </td>
                   </tr>
                 ))}
