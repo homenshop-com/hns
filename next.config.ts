@@ -5,6 +5,12 @@ import createNextIntlPlugin from "next-intl/plugin";
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 const nextConfig: NextConfig = {
+  // Build output directory, overridable via env so the deploy script
+  // can build to a staging path (e.g. .next-staging) and atomically
+  // swap it into place once the build succeeds. Without this, running
+  // workers can try to load a client reference manifest that's mid-
+  // rewrite and throw InvariantError 500s for the whole ~90s build.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   images: {
     remotePatterns: [
       {
