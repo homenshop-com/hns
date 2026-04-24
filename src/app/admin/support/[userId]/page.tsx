@@ -3,6 +3,14 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import AdminChat from "./admin-chat";
+// Both required:
+//   · dashboard-v2.css defines the CSS custom properties (--brand, --line,
+//     --panel, etc.) inside `.dv2-app { ... }`.
+//   · support-v2.css styles `.sp2-*` scoped under `.dv2-app`.
+// Without the first, the second's var() refs are undefined and the chat
+// card has no background/border, and the flex heights collapse so the
+// composer falls off the page.
+import "../../../(dashboard)/dashboard/dashboard-v2.css";
 import "../../../(dashboard)/dashboard/support/support-v2.css";
 
 function initialsFrom(s: string): string {
