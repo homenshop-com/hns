@@ -15,6 +15,7 @@ const baseNavItems = [
   { href: "/admin/domains", label: "도메인 관리", icon: "domains" },
   { href: "/admin/boards", label: "게시판 관리", icon: "boards" },
   { href: "/admin/inbox", label: "이메일 수신함", icon: "inbox" },
+  { href: "/admin/support", label: "고객 지원", icon: "support" },
   { href: "/admin/resellers", label: "리셀러 관리", icon: "resellers" },
   { href: "/admin/settings", label: "시스템 설정", icon: "settings" },
 ];

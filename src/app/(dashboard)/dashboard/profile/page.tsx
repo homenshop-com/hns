@@ -125,10 +125,7 @@ export default async function ProfilePage() {
                 <span className="ic"><Icon id="i-user" /></span>
                 <span className="label">관리자 정보</span>
               </Link>
-              <a href="mailto:help@homenshop.com">
-                <span className="ic"><Icon id="i-life" /></span>
-                <span className="label">도움말 · 지원</span>
-              </a>
+              <Link href="/dashboard/support"><span className="ic"><Icon id="i-chat" /></span><span className="label">도움말 · 지원</span></Link>
             </nav>
           </div>
 

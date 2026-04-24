@@ -502,13 +502,10 @@ export default async function DashboardPage() {
                 <span className="ic"><Icon id="i-settings" /></span>
                 <span className="label">관리자 정보</span>
               </Link>
-              <a
-                href="mailto:help@homenshop.com"
-                className=""
-              >
-                <span className="ic"><Icon id="i-life" /></span>
+              <Link href="/dashboard/support">
+                <span className="ic"><Icon id="i-chat" /></span>
                 <span className="label">도움말 · 지원</span>
-              </a>
+              </Link>
             </nav>
           </div>
 
@@ -555,9 +552,9 @@ export default async function DashboardPage() {
                 <Icon id="i-bell" size={17} />
                 {unreadInquiries > 0 && <span className="dot" />}
               </Link>
-              <a href="mailto:help@homenshop.com" className="dv2-icon-btn" title="도움말">
-                <Icon id="i-help" size={17} />
-              </a>
+              <Link href="/dashboard/support" className="dv2-icon-btn" title="도움말 · 지원">
+                <Icon id="i-chat" size={17} />
+              </Link>
               <div className="dv2-lang">
                 <LanguageSwitcher />
               </div>

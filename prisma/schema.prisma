@@ -86,6 +86,7 @@ model User {
   domains             Domain[]
   templates           Template[]
   creditTransactions  CreditTransaction[]
+  supportThread       SupportThread?
 
   @@index([email])
   @@index([shopId])
@@ -648,6 +649,50 @@ model MasterLoginAudit {
 
   @@index([targetUserId])
   @@index([createdAt])
+}
+
+// ============================================
+// Support chat — one thread per user, two-way messages with admin
+// ============================================
+
+/// Persistent conversation between a single user and the admin team.
+/// One thread per user (lazily created on first message). `lastRead*At`
+/// timestamps power unread badges on both sides — compared against the
+/// most recent message from the OTHER side.
+model SupportThread {
+  id              String            @id @default(cuid())
+  userId          String            @unique
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Last time the user opened the thread (null = never). Any admin
+  /// message with createdAt > this is unread for the user.
+  lastUserReadAt  DateTime?
+  /// Last time an admin opened the thread. Any user message with
+  /// createdAt > this is unread on the admin side.
+  lastAdminReadAt DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  messages        SupportMessage[]
+
+  @@index([updatedAt])
+}
+
+enum SupportSender {
+  USER
+  ADMIN
+}
+
+model SupportMessage {
+  id        String         @id @default(cuid())
+  threadId  String
+  thread    SupportThread  @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  sender    SupportSender
+  /// Admin user id when sender=ADMIN (for audit / multi-admin future).
+  /// Null when sender=USER. Not a FK to avoid tying deletion.
+  adminUserId String?
+  body      String         @db.Text
+  createdAt DateTime       @default(now())
+
+  @@index([threadId, createdAt])
 }
 
 /// Inbound emails received via Resend Receiving (help@homenshop.com etc.).
