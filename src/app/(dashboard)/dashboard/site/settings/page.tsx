@@ -12,6 +12,7 @@ import DeleteSiteButton from "./delete-site-button";
 import SitemapRefreshButton from "./sitemap-refresh-button";
 import CopyButton from "./copy-button";
 import { DashboardIconSprite, Icon } from "../../dashboard-icons";
+import SupportUnreadIndicator from "../../support-unread-indicator";
 import { resolveExpiresAt, FREE_TRIAL_DAYS } from "@/lib/site-expiration";
 import "../../dashboard-v2.css";
 import "../[siteId]/manage/manage-v2.css";
@@ -227,7 +228,7 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                 <span className="ic"><Icon id="i-user" /></span>
                 <span className="label">관리자 정보</span>
               </Link>
-              <Link href="/dashboard/support"><span className="ic"><Icon id="i-chat" /></span><span className="label">도움말 · 지원</span></Link>
+              <Link href="/dashboard/support"><span className="ic"><Icon id="i-chat" /></span><span className="label">도움말 · 지원</span><SupportUnreadIndicator variant="count" /></Link>
             </nav>
           </div>
 

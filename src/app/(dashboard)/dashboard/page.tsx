@@ -12,6 +12,7 @@ import AICreateButton from "./ai-create-button";
 import { getSettingBool } from "@/lib/settings";
 import "./dashboard-v2.css";
 import { DashboardIconSprite, Icon } from "./dashboard-icons";
+import SupportUnreadIndicator from "./support-unread-indicator";
 import {
   daysUntilExpiry,
   isSiteExpired,
@@ -502,10 +503,7 @@ export default async function DashboardPage() {
                 <span className="ic"><Icon id="i-settings" /></span>
                 <span className="label">관리자 정보</span>
               </Link>
-              <Link href="/dashboard/support">
-                <span className="ic"><Icon id="i-chat" /></span>
-                <span className="label">도움말 · 지원</span>
-              </Link>
+              <Link href="/dashboard/support"><span className="ic"><Icon id="i-chat" /></span><span className="label">도움말 · 지원</span><SupportUnreadIndicator variant="count" /></Link>
             </nav>
           </div>
 
@@ -552,8 +550,9 @@ export default async function DashboardPage() {
                 <Icon id="i-bell" size={17} />
                 {unreadInquiries > 0 && <span className="dot" />}
               </Link>
-              <Link href="/dashboard/support" className="dv2-icon-btn" title="도움말 · 지원">
+              <Link href="/dashboard/support" className="dv2-icon-btn" title="도움말 · 지원" style={{ position: "relative" }}>
                 <Icon id="i-chat" size={17} />
+                <SupportUnreadIndicator variant="dot" />
               </Link>
               <div className="dv2-lang">
                 <LanguageSwitcher />

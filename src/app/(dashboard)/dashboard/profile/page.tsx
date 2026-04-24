@@ -10,6 +10,7 @@ import ProfileForm from "./profile-form";
 import PasswordForm from "./password-form";
 import DeleteAccount from "./delete-account";
 import { DashboardIconSprite, Icon } from "../dashboard-icons";
+import SupportUnreadIndicator from "../support-unread-indicator";
 import { getBalance } from "@/lib/credits";
 import "../dashboard-v2.css";
 import "./profile-v2.css";
@@ -125,7 +126,7 @@ export default async function ProfilePage() {
                 <span className="ic"><Icon id="i-user" /></span>
                 <span className="label">관리자 정보</span>
               </Link>
-              <Link href="/dashboard/support"><span className="ic"><Icon id="i-chat" /></span><span className="label">도움말 · 지원</span></Link>
+              <Link href="/dashboard/support"><span className="ic"><Icon id="i-chat" /></span><span className="label">도움말 · 지원</span><SupportUnreadIndicator variant="count" /></Link>
             </nav>
           </div>
 

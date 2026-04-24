@@ -10,6 +10,7 @@ import AddDomainForm from "./add-domain-form";
 import ProvisionSslButton from "./provision-ssl-button";
 import DeleteDomainForm from "./delete-domain-form";
 import { DashboardIconSprite, Icon } from "../dashboard-icons";
+import SupportUnreadIndicator from "../support-unread-indicator";
 import "../dashboard-v2.css";
 import "../site/[siteId]/manage/manage-v2.css";
 import "./domains-v2.css";
@@ -201,7 +202,7 @@ export default async function DashboardDomainsPage({ searchParams }: DomainsPage
                 <span className="ic"><Icon id="i-user" /></span>
                 <span className="label">관리자 정보</span>
               </Link>
-              <Link href="/dashboard/support"><span className="ic"><Icon id="i-chat" /></span><span className="label">도움말 · 지원</span></Link>
+              <Link href="/dashboard/support"><span className="ic"><Icon id="i-chat" /></span><span className="label">도움말 · 지원</span><SupportUnreadIndicator variant="count" /></Link>
             </nav>
           </div>
 
