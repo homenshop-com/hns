@@ -6,6 +6,7 @@ import OrderConfirmationEmail, {
 } from "@/emails/order-confirmation";
 import PasswordResetEmail from "@/emails/password-reset";
 import VerifyEmail from "@/emails/verify-email";
+import ExpirationReminderEmail from "@/emails/expiration-reminder";
 
 function getResend() {
   return new Resend(process.env.RESEND_API_KEY);
@@ -123,5 +124,41 @@ export async function sendPasswordResetEmail(
     console.log(`Password reset email sent to ${to}`);
   } catch (err) {
     console.error("Error sending password reset email:", err);
+  }
+}
+
+export async function sendExpirationReminderEmail(
+  to: string,
+  data: {
+    siteName: string;
+    shopId: string;
+    daysRemaining: number;
+    expiresAt: string;
+    extendUrl: string;
+  }
+): Promise<boolean> {
+  try {
+    const html = await render(ExpirationReminderEmail(data));
+    const subject =
+      data.daysRemaining <= 0
+        ? `[오늘 만료] ${data.siteName} 체험 기간이 오늘 종료됩니다`
+        : `[D-${data.daysRemaining}] ${data.siteName} 체험 기간 ${data.daysRemaining}일 남음`;
+
+    const { error } = await getResend().emails.send({
+      from: FROM_ADDRESS,
+      to,
+      subject,
+      html,
+    });
+
+    if (error) {
+      console.error("Failed to send expiration reminder:", error);
+      return false;
+    }
+    console.log(`Expiration reminder sent to ${to} (D-${data.daysRemaining})`);
+    return true;
+  } catch (err) {
+    console.error("Error sending expiration reminder:", err);
+    return false;
   }
 }

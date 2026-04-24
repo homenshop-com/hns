@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-/* ── 호스팅 가격 (월 5,500원 기준) ── */
+/* ── 호스팅 가격 (월 5,500원 기준) — src/lib/subscription.ts와 동일 ── */
 const MONTHLY_PRICE = 5500;
 
 const PLANS = [
@@ -35,9 +35,17 @@ interface ExtendFormProps {
   };
 }
 
-export default function ExtendForm({ siteId, shopId, labels }: ExtendFormProps) {
+type PendingOrder = {
+  orderNumber: string;
+  totalAmount: number;
+  subscriptionMonths: number;
+};
+
+export default function ExtendForm({ siteId, labels }: ExtendFormProps) {
   const [selected, setSelected] = useState(12);
   const [loading, setLoading] = useState(false);
+  const [order, setOrder] = useState<PendingOrder | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const selectedPlan = PLANS.find((p) => p.months === selected)!;
   const basePrice = MONTHLY_PRICE * selectedPlan.months;
@@ -46,23 +54,120 @@ export default function ExtendForm({ siteId, shopId, labels }: ExtendFormProps) 
 
   async function handlePayment() {
     setLoading(true);
+    setError(null);
     try {
-      // TODO: Toss Payments API integration
-      alert(
-        `${labels.tossNotReady}\n\n` +
-        `${labels.account}: ${shopId}\n` +
-        `${labels.plan}: ${labels[selectedPlan.labelKey] || selectedPlan.labelKey}\n` +
-        `${labels.amount}: ${totalPrice.toLocaleString()}${labels.won}\n\n` +
-        labels.useBankTransfer
-      );
+      const res = await fetch(`/api/sites/${siteId}/extend`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ months: selected }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "주문 생성에 실패했습니다.");
+        return;
+      }
+      setOrder(data.order);
+    } catch {
+      setError("네트워크 오류가 발생했습니다.");
     } finally {
       setLoading(false);
     }
   }
 
+  if (order) {
+    return (
+      <div>
+        <div
+          style={{
+            background: "#ecfdf5",
+            border: "1px solid #6ee7b7",
+            borderRadius: 10,
+            padding: 24,
+            marginBottom: 16,
+            textAlign: "center",
+          }}
+        >
+          <div style={{ fontSize: 32, marginBottom: 8 }}>✓</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: "#065f46", marginBottom: 8 }}>
+            주문이 접수되었습니다
+          </div>
+          <div style={{ fontSize: 13, color: "#047857", lineHeight: 1.7 }}>
+            아래 계좌로 <b>{order.totalAmount.toLocaleString()}원</b>을 입금해 주세요.
+            <br />
+            입금 확인 후 <b>{order.subscriptionMonths}개월</b> 기간이 연장됩니다.
+          </div>
+        </div>
+
+        <div
+          style={{
+            background: "#f8fafc",
+            border: "1px solid #e2e8f0",
+            borderRadius: 8,
+            padding: 20,
+            marginBottom: 16,
+          }}
+        >
+          <div style={{ fontSize: 12, color: "#64748b", marginBottom: 6 }}>주문번호 (입금자명 뒤에 적어주세요)</div>
+          <div
+            style={{
+              fontFamily: "monospace",
+              fontSize: 18,
+              fontWeight: 700,
+              color: "#0f172a",
+              background: "#fff",
+              padding: "8px 12px",
+              borderRadius: 6,
+              border: "1px solid #cbd5e1",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <span>{order.orderNumber}</span>
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(order.orderNumber);
+              }}
+              style={{
+                padding: "4px 10px",
+                background: "#2563eb",
+                color: "#fff",
+                border: "none",
+                borderRadius: 4,
+                fontSize: 12,
+                cursor: "pointer",
+                fontWeight: 600,
+              }}
+            >
+              복사
+            </button>
+          </div>
+        </div>
+
+        <div style={{ textAlign: "center" }}>
+          <a
+            href="/dashboard"
+            style={{
+              display: "inline-block",
+              padding: "10px 24px",
+              background: "#3182f6",
+              color: "#fff",
+              borderRadius: 8,
+              fontSize: 14,
+              fontWeight: 600,
+              textDecoration: "none",
+            }}
+          >
+            대시보드로 돌아가기
+          </a>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
-      {/* 플랜 카드 */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 24 }}>
         {PLANS.map((plan) => {
           const base = MONTHLY_PRICE * plan.months;
@@ -111,7 +216,6 @@ export default function ExtendForm({ siteId, shopId, labels }: ExtendFormProps) 
         })}
       </div>
 
-      {/* 결제 요약 */}
       <div style={{
         background: "#f8f9fa",
         borderRadius: 8,
@@ -147,7 +251,22 @@ export default function ExtendForm({ siteId, shopId, labels }: ExtendFormProps) 
         </div>
       </div>
 
-      {/* 결제 버튼 */}
+      {error && (
+        <div
+          style={{
+            background: "#fef2f2",
+            border: "1px solid #fecaca",
+            color: "#991b1b",
+            borderRadius: 8,
+            padding: "10px 14px",
+            fontSize: 13,
+            marginBottom: 12,
+          }}
+        >
+          {error}
+        </div>
+      )}
+
       <button
         type="button"
         onClick={handlePayment}
@@ -166,11 +285,11 @@ export default function ExtendForm({ siteId, shopId, labels }: ExtendFormProps) 
           transition: "background 0.15s",
         }}
       >
-        {loading ? labels.processing : `${totalPrice.toLocaleString()}${labels.won} ${labels.payButton}`}
+        {loading ? labels.processing : `${totalPrice.toLocaleString()}${labels.won} 무통장 입금 신청`}
       </button>
 
       <p style={{ fontSize: 12, color: "#adb5bd", textAlign: "center", marginTop: 12, lineHeight: 1.5 }}>
-        {labels.tossGuide}
+        신청하시면 주문번호와 입금 계좌가 표시됩니다. 입금 확인 후 기간이 연장됩니다.
       </p>
     </div>
   );

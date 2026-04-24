@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { extendedExpiry } from "@/lib/subscription";
 
 // GET /api/admin/orders/[id] — Get order detail (admin only)
 export async function GET(
@@ -107,6 +108,34 @@ export async function PUT(
       },
     },
   });
+
+  // Transition hook: SUBSCRIPTION PENDING → PAID extends the linked site.
+  // Only fire on the first transition into PAID so re-saving PAID is idempotent.
+  if (
+    updatedOrder.orderType === "SUBSCRIPTION" &&
+    updatedOrder.status === "PAID" &&
+    existing.status !== "PAID" &&
+    updatedOrder.subscriptionSiteId &&
+    updatedOrder.subscriptionMonths
+  ) {
+    const site = await prisma.site.findUnique({
+      where: { id: updatedOrder.subscriptionSiteId },
+      select: { expiresAt: true },
+    });
+    const newExpiry = extendedExpiry(site?.expiresAt ?? null, updatedOrder.subscriptionMonths);
+    await prisma.site.update({
+      where: { id: updatedOrder.subscriptionSiteId },
+      data: {
+        expiresAt: newExpiry,
+        accountType: "1",
+        // Reset reminder milestone so next cycle's 7/3/1/0-day reminders fire fresh
+        lastReminderDay: null,
+      },
+    });
+    console.log(
+      `[admin/orders] SUBSCRIPTION PAID: site=${updatedOrder.subscriptionSiteId} +${updatedOrder.subscriptionMonths}m → ${newExpiry.toISOString()}`
+    );
+  }
 
   return NextResponse.json({ order: updatedOrder });
 }

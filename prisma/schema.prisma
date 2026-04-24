@@ -156,6 +156,10 @@ model Site {
   /// Filtered out of all user/admin site listings, site count limits, etc.
   /// Only reachable via Template.demoSiteId → 디자인 수정.
   isTemplateStorage  Boolean   @default(false)
+  /// Last expiration-reminder milestone (7/3/1/0 days) sent to the owner.
+  /// Set by /api/cron/expiration-reminders so we don't spam the same email
+  /// twice for the same milestone. Reset to null when expiresAt is extended.
+  lastReminderDay    Int?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
@@ -265,10 +269,14 @@ model Order {
   status        OrderStatus @default(PENDING)
   /// PRODUCT = physical/service order (default, backwards-compatible).
   /// CREDIT_PACK = AI credit top-up; on PAID → grants credits.packSize credits.
-  /// SUBSCRIPTION = paid site plan (1yr/2yr/3yr) — reserved for future use.
+  /// SUBSCRIPTION = paid site plan (1yr/2yr/3yr); on PAID → extends Site.expiresAt.
   orderType     OrderType   @default(PRODUCT)
   /// For CREDIT_PACK orders: number of credits purchased.
   creditAmount  Int?
+  /// For SUBSCRIPTION orders: number of months to extend the linked site.
+  subscriptionMonths Int?
+  /// For SUBSCRIPTION orders: id of the Site being extended.
+  subscriptionSiteId String?
   paymentMethod String?
   paymentKey    String?
   shippingName  String?
