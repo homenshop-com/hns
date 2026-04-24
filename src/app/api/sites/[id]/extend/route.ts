@@ -10,24 +10,24 @@ import {
 export const dynamic = "force-dynamic";
 
 /**
- * POST /api/sites/[siteId]/extend
+ * POST /api/sites/[id]/extend
  * Body: { months: 12 | 24 | 36 }
  *
  * Creates a PENDING SUBSCRIPTION order for manual bank-transfer payment.
  * Returns the orderNumber so the client can display the deposit guide.
  * Actual site extension happens when an admin confirms the deposit (see
- * /api/admin/orders/[id] PATCH → applyPaidSubscription).
+ * /api/admin/orders/[id] PUT → applyPaidSubscription transition hook).
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ siteId: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { siteId } = await params;
+  const { id: siteId } = await params;
   const body = (await request.json().catch(() => ({}))) as { months?: number };
   const months = body.months;
   if (!isValidSubscriptionMonths(months)) {
