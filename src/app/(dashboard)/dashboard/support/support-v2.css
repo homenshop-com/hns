@@ -100,20 +100,28 @@
 .dv2-app .sp2-msg.mine .meta { text-align: right; }
 
 .dv2-app .sp2-composer {
-  display: flex; gap: 10px; padding: 12px 14px;
-  border-top: 1px solid var(--line-2);
-  background: var(--panel);
+  display: flex; gap: 10px; padding: 14px 16px;
+  border-top: 1px solid #dcdfe7;
+  background: #f7f8fc;
 }
 .dv2-app .sp2-composer textarea {
-  flex: 1; resize: none; min-height: 40px; max-height: 160px;
-  border: 1px solid var(--line); border-radius: 10px;
+  flex: 1; resize: none; min-height: 44px; max-height: 160px;
+  /* Use explicit colors rather than --line so the border is visible
+     even when the wrapping .dv2-app stack's var cascade doesn't reach
+     here (e.g. admin page context). The prior #e7e9f0 against a white
+     card was nearly invisible. */
+  border: 1.5px solid #c8cdd8; border-radius: 10px;
   padding: 10px 14px; font: inherit; font-size: 13.5px;
-  color: var(--ink-0); outline: none; line-height: 1.45;
-  background: var(--panel-2);
+  color: #0f1226; outline: none; line-height: 1.45;
+  background: #ffffff;
+  box-shadow: inset 0 1px 2px #0f122610;
+}
+.dv2-app .sp2-composer textarea::placeholder {
+  color: #8a91a8;
 }
 .dv2-app .sp2-composer textarea:focus {
-  border-color: var(--brand); background: var(--panel);
-  box-shadow: 0 0 0 3px #3b5bff22;
+  border-color: #3b5bff; background: #ffffff;
+  box-shadow: 0 0 0 3px #3b5bff2a, inset 0 1px 2px #0f122608;
 }
 .dv2-app .sp2-composer button {
   align-self: flex-end;
