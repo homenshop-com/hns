@@ -58,7 +58,11 @@ export interface CreditPack {
 export const CREDIT_PACKS: CreditPack[] = [
   { id: "starter", credits: 100, priceKrw: 5_500 },
   { id: "standard", credits: 500, priceKrw: 25_000, discountPct: 10 },
-  { id: "pro", credits: 1_500, priceKrw: 66_000, discountPct: 20, recommended: true },
+  // PRO was priced at 66,000원 which collided exactly with the 1-year
+  // hosting subscription price — admins couldn't tell at a glance which
+  // a 66,000원 order was for, and users sometimes ordered the wrong one.
+  // Bumped to 68,000원 to keep the two price points visibly distinct.
+  { id: "pro", credits: 1_500, priceKrw: 68_000, discountPct: 17, recommended: true },
   { id: "enterprise", credits: 5_000, priceKrw: 200_000, discountPct: 27 },
 ];
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { extendedExpiry } from "@/lib/subscription";
+import { grantCredits } from "@/lib/credits";
 
 // GET /api/admin/orders/[id] — Get order detail (admin only)
 export async function GET(
@@ -120,6 +121,39 @@ export async function PUT(
       },
     },
   });
+
+  // Transition hook: CREDIT_PACK PENDING → PAID grants the credits.
+  // Same guard as Toss webhook — only fire on the first transition into
+  // PAID so re-saving PAID is idempotent. Without this, admin-confirmed
+  // bank-transfer credit purchases would flip to PAID but never deposit
+  // the credits (which is exactly the bug that left KMHG's 1500C ungrant-
+  // ed until the order was reclassified to SUBSCRIPTION).
+  if (
+    updatedOrder.orderType === "CREDIT_PACK" &&
+    updatedOrder.status === "PAID" &&
+    existing.status !== "PAID" &&
+    updatedOrder.creditAmount
+  ) {
+    try {
+      await grantCredits(updatedOrder.userId, {
+        kind: "PURCHASE",
+        amount: updatedOrder.creditAmount,
+        refOrderId: updatedOrder.id,
+        description: `크레딧 충전 (${updatedOrder.creditAmount.toLocaleString()} C) · 관리자 확인`,
+      });
+      console.log(
+        `[admin/orders] CREDIT_PACK PAID: ${updatedOrder.orderNumber} +${updatedOrder.creditAmount} C → user=${updatedOrder.userId}`,
+      );
+    } catch (err) {
+      console.error(
+        "[admin/orders] CREDIT_PACK grant failed for",
+        updatedOrder.id,
+        err,
+      );
+      // Don't fail the status update — ops can grant manually via admin
+      // tools. Logged for monitoring.
+    }
+  }
 
   // Transition hook: SUBSCRIPTION PENDING → PAID extends the linked site.
   // Only fire on the first transition into PAID so re-saving PAID is idempotent.
