@@ -12,6 +12,7 @@ import DeleteSiteButton from "./delete-site-button";
 import SitemapRefreshButton from "./sitemap-refresh-button";
 import CopyButton from "./copy-button";
 import { DashboardIconSprite, Icon } from "../../dashboard-icons";
+import { resolveExpiresAt, FREE_TRIAL_DAYS } from "@/lib/site-expiration";
 import "../../dashboard-v2.css";
 import "../[siteId]/manage/manage-v2.css";
 import "./settings-v2.css";
@@ -128,21 +129,30 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
   };
   const accountTypeKey = String(site.accountType || "free").toLowerCase();
   const planLabel = accountLabels[accountTypeKey] || site.accountType;
-  const isPro = accountTypeKey === "paid";
-  const isExpired = accountTypeKey === "expired" || (site.expiresAt && new Date(site.expiresAt) < new Date());
+  const isPro = accountTypeKey === "paid" || accountTypeKey === "1";
+  const isFreeType = accountTypeKey === "free" || accountTypeKey === "0";
+  const isTrulyUnlimited = accountTypeKey === "test" || accountTypeKey === "2";
+
+  // Derive expiry for free sites without stored expiresAt (legacy records).
+  const effectiveExpiry = resolveExpiresAt(site);
+  const isExpired =
+    accountTypeKey === "expired" ||
+    accountTypeKey === "9" ||
+    (!!effectiveExpiry && effectiveExpiry < new Date());
 
   const createdAtLabel = new Date(site.createdAt).toLocaleDateString("ko-KR", {
     year: "numeric",
     month: "long",
     day: "numeric",
   });
-  const expiresLabel = site.expiresAt
-    ? new Date(site.expiresAt).toLocaleDateString("ko-KR", {
+  const expiresLabel = effectiveExpiry
+    ? new Date(effectiveExpiry).toLocaleDateString("ko-KR", {
         year: "numeric",
         month: "long",
         day: "numeric",
       })
     : null;
+  const isDerivedExpiry = isFreeType && !site.expiresAt && !!effectiveExpiry;
 
   const gaConnected = Boolean(site.googleAnalyticsId);
   const gscConnected = Boolean(site.googleVerification);
@@ -473,8 +483,17 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                   <div className="sv2-info-row">
                     <span className="k">{t("expiresAt")}</span>
                     <span className="v">
-                      {expiresLabel ? (
-                        <span style={{ color: isExpired ? "var(--danger)" : undefined }}>{expiresLabel}</span>
+                      {isTrulyUnlimited ? (
+                        <span className="infinity">∞ {t("unlimited")}</span>
+                      ) : expiresLabel ? (
+                        <>
+                          <span style={{ color: isExpired ? "var(--danger)" : undefined }}>{expiresLabel}</span>
+                          {isDerivedExpiry && (
+                            <div style={{ fontSize: 10.5, color: "var(--ink-3)", fontWeight: 500, marginTop: 2 }}>
+                              무료 체험 {FREE_TRIAL_DAYS}일
+                            </div>
+                          )}
+                        </>
                       ) : (
                         <span className="infinity">∞ {t("unlimited")}</span>
                       )}

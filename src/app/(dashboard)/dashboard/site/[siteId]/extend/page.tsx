@@ -6,6 +6,7 @@ import { getTranslations } from "next-intl/server";
 import SignOutButton from "../../../sign-out-button";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ExtendForm from "./extend-form";
+import { resolveExpiresAt, FREE_TRIAL_DAYS } from "@/lib/site-expiration";
 
 export default async function ExtendPage({
   params,
@@ -24,6 +25,13 @@ export default async function ExtendPage({
     "1": ts("accountPaid"),
     "2": ts("accountTest"),
     "9": ts("accountExpired"),
+    // Legacy string-literal accountType values that some older sites
+    // still carry (pre-freeSiteDefaults path). Map them to the same
+    // user-facing labels so the header reads "무료계정" either way.
+    "free": ts("accountFree"),
+    "paid": ts("accountPaid"),
+    "test": ts("accountTest"),
+    "expired": ts("accountExpired"),
   };
 
   const { siteId } = await params;
@@ -35,7 +43,15 @@ export default async function ExtendPage({
 
   if (!site) redirect("/dashboard");
 
-  const isExpired = site.expiresAt && new Date(site.expiresAt) < new Date();
+  // For free sites with no stored expiresAt we derive it from createdAt
+  // + FREE_TRIAL_DAYS so the user sees a real date instead of "무제한".
+  const effectiveExpiry = resolveExpiresAt(site);
+  const isExpired = !!effectiveExpiry && effectiveExpiry < new Date();
+  const accountTypeLower = String(site.accountType || "").toLowerCase();
+  const isFreeType = accountTypeLower === "0" || accountTypeLower === "free";
+  // Test accounts (type "2") are the only ones we show as truly
+  // unlimited; everything else now has a concrete date.
+  const isTrulyUnlimited = accountTypeLower === "2" && !site.expiresAt;
 
   return (
     <div className="dash-page">
@@ -96,11 +112,18 @@ export default async function ExtendPage({
                 fontWeight: 700,
                 color: isExpired ? "#ffa8a8" : "#fff",
               }}>
-                {site.expiresAt
-                  ? new Date(site.expiresAt).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })
-                  : ts("unlimited")}
+                {isTrulyUnlimited
+                  ? ts("unlimited")
+                  : effectiveExpiry
+                    ? new Date(effectiveExpiry).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })
+                    : ts("unlimited")}
                 {isExpired && <span style={{ fontSize: 12, marginLeft: 6 }}>({t("expired")})</span>}
               </div>
+              {isFreeType && !site.expiresAt && effectiveExpiry && !isExpired && (
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", marginTop: 3 }}>
+                  무료 체험 {FREE_TRIAL_DAYS}일 · 생성일로부터
+                </div>
+              )}
             </div>
           </div>
 

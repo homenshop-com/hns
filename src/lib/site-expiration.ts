@@ -50,6 +50,34 @@ export function daysUntilExpiry(site: SiteExpirationView): number | null {
   return Math.ceil(ms / (24 * 60 * 60 * 1000));
 }
 
+/**
+ * Resolve the effective expiration date for display.
+ *
+ * Some legacy sites were created with `accountType="free"` and no
+ * `expiresAt` (the current create paths use `freeSiteDefaults()` which
+ * sets both correctly — but older imports skipped it). For UI purposes
+ * we fall back to `createdAt + FREE_TRIAL_DAYS` so the user sees a
+ * concrete date rather than "무제한" on their free trial.
+ *
+ * Returns null only for accountTypes that genuinely never expire
+ * (test sites "2", paid-lifetime, etc.) AND have no stored expiresAt.
+ */
+export function resolveExpiresAt(site: {
+  accountType: string;
+  expiresAt: Date | null;
+  createdAt: Date;
+}): Date | null {
+  if (site.expiresAt) return new Date(site.expiresAt);
+  const t = String(site.accountType || "").toLowerCase();
+  const isFree = t === "0" || t === "free";
+  if (isFree) {
+    const d = new Date(site.createdAt);
+    d.setUTCDate(d.getUTCDate() + FREE_TRIAL_DAYS);
+    return d;
+  }
+  return null;
+}
+
 /** true if the site should surface a "your free trial is ending" banner. */
 export function shouldShowExpirationWarning(site: SiteExpirationView): boolean {
   if (site.accountType !== "0") return false;
