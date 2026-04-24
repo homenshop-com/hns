@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/db";
@@ -317,7 +318,9 @@ export default async function DashboardPage() {
           }}
         />
       )}
-      {(expiredAll.length > 0 || expiringSoonSites.length > 0) && (() => {
+      {await (async () => {
+        if (expiredAll.length === 0 && expiringSoonSites.length === 0) return null;
+
         // Pick the banner variant by priority:
         //   · paid-expired first  (paying customer cut off — most urgent)
         //   · trial-expired       (trial ended, needs to convert to paid)
@@ -337,6 +340,18 @@ export default async function DashboardPage() {
           variant === "paid-expired" ? expiredPaid[0]
           : variant === "trial-expired" ? expiredTrial[0]
           : expiringSoonSites[0];
+
+        // Dismiss state — keyed by (variant, affected site ids) so a NEW
+        // site expiring after dismissal still raises the banner. TTL 7d.
+        const affectedIds =
+          variant === "paid-expired" ? expiredPaid.map((s) => s.id)
+          : variant === "trial-expired" ? expiredTrial.map((s) => s.id)
+          : expiringSoonSites.map((s) => s.id);
+        const dismissKey = `${variant}_${affectedIds.sort().join("-")}`;
+        const cookieName = `hns_dismiss_expired_${dismissKey.replace(/[^a-z0-9_-]/gi, "_").slice(0, 120)}`;
+        const cookieStore = await cookies();
+        if (cookieStore.get(cookieName)?.value === "1") return null;
+
         const extendHref = `/dashboard/site/${targetSite.id}/extend`;
 
         const copy = {
@@ -359,6 +374,21 @@ export default async function DashboardPage() {
 
         const isUrgent = variant !== "trial-warning";
 
+        async function dismissBanner(formData: FormData) {
+          "use server";
+          const key = formData.get("cookieName") as string;
+          if (!key || !/^hns_dismiss_expired_[a-z0-9_-]+$/i.test(key)) return;
+          const store = await cookies();
+          store.set(key, "1", {
+            maxAge: 60 * 60 * 24 * 7,
+            httpOnly: true,
+            sameSite: "lax",
+            path: "/",
+          });
+          const { revalidatePath } = await import("next/cache");
+          revalidatePath("/dashboard");
+        }
+
         return (
           <div
             style={{
@@ -378,21 +408,44 @@ export default async function DashboardPage() {
               <b>{copy.title}</b>
               <span style={{ marginLeft: 8, opacity: 0.85 }}>{copy.sub}</span>
             </div>
-            <Link
-              href={extendHref}
-              style={{
-                padding: "8px 16px",
-                background: isUrgent ? "#dc2626" : "#d97706",
-                color: "#fff",
-                borderRadius: 6,
-                fontWeight: 600,
-                textDecoration: "none",
-                fontSize: 13,
-                whiteSpace: "nowrap",
-              }}
-            >
-              {copy.cta}
-            </Link>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <Link
+                href={extendHref}
+                style={{
+                  padding: "8px 16px",
+                  background: isUrgent ? "#dc2626" : "#d97706",
+                  color: "#fff",
+                  borderRadius: 6,
+                  fontWeight: 600,
+                  textDecoration: "none",
+                  fontSize: 13,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {copy.cta}
+              </Link>
+              <form action={dismissBanner}>
+                <input type="hidden" name="cookieName" value={cookieName} />
+                <button
+                  type="submit"
+                  title="이 경고문구를 7일간 숨깁니다"
+                  style={{
+                    background: "transparent",
+                    border: "0",
+                    padding: "6px 10px",
+                    color: isUrgent ? "#991b1b" : "#92400e",
+                    opacity: 0.7,
+                    fontSize: 12,
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    textDecoration: "underline",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  다시 보지 않기
+                </button>
+              </form>
+            </div>
           </div>
         );
       })()}
