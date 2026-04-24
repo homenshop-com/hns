@@ -47,7 +47,8 @@ export default function NewConversationButton() {
         const res = await fetch(url);
         if (!res.ok) throw new Error("검색 실패");
         const data = await res.json();
-        setResults(Array.isArray(data.members) ? data.members.slice(0, 20) : []);
+        // /api/admin/members returns { users, totalCount, ... } — not "members".
+        setResults(Array.isArray(data.users) ? data.users.slice(0, 20) : []);
       } catch {
         setResults([]);
       } finally {

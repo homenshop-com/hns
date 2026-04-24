@@ -285,6 +285,16 @@ export default function AdminMemberDetailPage() {
             >
               {saving ? "저장 중..." : "변경사항 저장"}
             </button>
+
+            <Link
+              href={`/admin/support/${id}`}
+              className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors inline-flex items-center justify-center gap-1.5"
+            >
+              <svg width={14} height={14} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.6}>
+                <path d="M4 4h12a1 1 0 011 1v9a1 1 0 01-1 1H9l-4 3v-3H4a1 1 0 01-1-1V5a1 1 0 011-1z" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              이 고객에게 채팅 보내기
+            </Link>
           </div>
         </div>
 

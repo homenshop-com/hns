@@ -18,6 +18,10 @@ export default function MemberTable({ users, search }: { users: Member[]; search
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
+  const [messageOpen, setMessageOpen] = useState(false);
+  const [messageBody, setMessageBody] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sendErr, setSendErr] = useState<string | null>(null);
 
   const nonAdminUsers = users.filter((u) => u.role !== "ADMIN");
   const allSelected = nonAdminUsers.length > 0 && nonAdminUsers.every((u) => selected.has(u.id));
@@ -65,13 +69,61 @@ export default function MemberTable({ users, search }: { users: Member[]; search
     }
   }
 
+  function startMessage() {
+    if (selected.size === 0) return;
+    // 1 user → skip the compose modal and go straight to their chat.
+    if (selected.size === 1) {
+      const [only] = Array.from(selected);
+      router.push(`/admin/support/${only}`);
+      return;
+    }
+    setMessageBody("");
+    setSendErr(null);
+    setMessageOpen(true);
+  }
+
+  async function sendBroadcast() {
+    const text = messageBody.trim();
+    if (!text || sending) return;
+    setSendErr(null);
+    setSending(true);
+    try {
+      const res = await fetch("/api/admin/support/broadcast", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userIds: Array.from(selected),
+          body: text,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "전송 실패");
+      setMessageOpen(false);
+      setSelected(new Set());
+      alert(`${data.sent}명에게 메시지를 전송했습니다.`);
+    } catch (e) {
+      setSendErr((e as Error).message);
+    } finally {
+      setSending(false);
+    }
+  }
+
   return (
     <>
       {selected.size > 0 && (
-        <div className="mb-4 flex items-center gap-3 rounded-lg bg-red-50 border border-red-500/20 px-4 py-3">
-          <span className="text-sm text-red-700">
+        <div className="mb-4 flex items-center gap-3 rounded-lg bg-[#405189]/5 border border-[#405189]/20 px-4 py-3 flex-wrap">
+          <span className="text-sm text-[#405189] font-semibold">
             {selected.size}명 선택됨
           </span>
+          <button
+            onClick={startMessage}
+            className="rounded-lg bg-[#405189] px-4 py-1.5 text-sm font-medium text-white hover:bg-[#364574] transition-colors inline-flex items-center gap-1.5"
+          >
+            <svg width={13} height={13} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.6}>
+              <path d="M4 4h12a1 1 0 011 1v9a1 1 0 01-1 1H9l-4 3v-3H4a1 1 0 01-1-1V5a1 1 0 011-1z" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            {selected.size === 1 ? "채팅 보내기" : `${selected.size}명에게 메시지 보내기`}
+          </button>
           <button
             onClick={handleDelete}
             disabled={deleting}
@@ -81,10 +133,66 @@ export default function MemberTable({ users, search }: { users: Member[]; search
           </button>
           <button
             onClick={() => setSelected(new Set())}
-            className="text-sm text-slate-600 hover:text-slate-700"
+            className="text-sm text-slate-600 hover:text-slate-700 ml-auto"
           >
             선택 해제
           </button>
+        </div>
+      )}
+
+      {/* Broadcast compose modal (only opens for 2+ recipients) */}
+      {messageOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center pt-[12vh] px-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !sending) setMessageOpen(false);
+          }}
+        >
+          <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm" />
+          <div className="relative w-full max-w-lg bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-100">
+              <div className="font-semibold text-slate-900">
+                {selected.size}명에게 메시지 보내기
+              </div>
+              <div className="text-xs text-slate-500 mt-1">
+                선택한 회원 각각의 고객지원 스레드에 동일한 메시지가 전송됩니다. 단체 채팅방이 아닌, 1:1 대화 N개로 각각 들어갑니다.
+              </div>
+            </div>
+            <div className="p-5">
+              <textarea
+                value={messageBody}
+                onChange={(e) => setMessageBody(e.target.value)}
+                placeholder="메시지를 입력하세요 (최대 4,000자)"
+                maxLength={4000}
+                rows={6}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#405189] focus:ring-2 focus:ring-[#405189]/20 resize-y"
+              />
+              <div className="mt-1 text-xs text-slate-400 text-right">
+                {messageBody.length} / 4,000자
+              </div>
+              {sendErr && (
+                <div className="mt-2 text-sm text-red-600">⚠️ {sendErr}</div>
+              )}
+            </div>
+            <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setMessageOpen(false)}
+                disabled={sending}
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={sendBroadcast}
+                disabled={sending || !messageBody.trim()}
+                className="rounded-lg bg-[#405189] px-4 py-2 text-sm font-medium text-white hover:bg-[#364574] disabled:opacity-50"
+              >
+                {sending ? "전송 중…" : `${selected.size}명에게 전송`}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
