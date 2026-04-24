@@ -308,50 +308,59 @@ export default async function DashboardPage() {
           }}
         />
       )}
-      {(expiredSites.length > 0 || expiringSoonSites.length > 0) && (
-        <div
-          style={{
-            background: expiredSites.length > 0 ? "#fef2f2" : "#fffbeb",
-            borderBottom: `1px solid ${expiredSites.length > 0 ? "#fecaca" : "#fde68a"}`,
-            padding: "12px 20px",
-            fontSize: 14,
-            color: expiredSites.length > 0 ? "#991b1b" : "#92400e",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 16,
-            flexWrap: "wrap",
-          }}
-        >
-          <div>
-            <b>
-              {expiredSites.length > 0
-                ? `체험 기간이 만료된 사이트가 ${expiredSites.length}개 있습니다.`
-                : `체험 기간이 곧 종료됩니다 (${expiringSoonSites.length}개 사이트).`}
-            </b>
-            <span style={{ marginLeft: 8, opacity: 0.85 }}>
-              {expiredSites.length > 0
-                ? "공개가 중지되었습니다. 플랜 업그레이드로 다시 공개하세요."
-                : "지금 업그레이드하여 서비스를 중단 없이 계속 이용하세요."}
-            </span>
-          </div>
-          <Link
-            href="/pricing"
+      {(expiredSites.length > 0 || expiringSoonSites.length > 0) && (() => {
+        // Deep-link the CTA to the single affected site's extend page.
+        // When there are multiple, pick the first (the table below shows
+        // all of them). Prefer expired over expiring-soon.
+        const targetSite = expiredSites[0] ?? expiringSoonSites[0];
+        const extendHref = `/dashboard/site/${targetSite.id}/extend`;
+        const isExpired = expiredSites.length > 0;
+        const count = isExpired ? expiredSites.length : expiringSoonSites.length;
+        return (
+          <div
             style={{
-              padding: "8px 16px",
-              background: expiredSites.length > 0 ? "#dc2626" : "#d97706",
-              color: "#fff",
-              borderRadius: 6,
-              fontWeight: 600,
-              textDecoration: "none",
-              fontSize: 13,
-              whiteSpace: "nowrap",
+              background: isExpired ? "#fef2f2" : "#fffbeb",
+              borderBottom: `1px solid ${isExpired ? "#fecaca" : "#fde68a"}`,
+              padding: "12px 20px",
+              fontSize: 14,
+              color: isExpired ? "#991b1b" : "#92400e",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 16,
+              flexWrap: "wrap",
             }}
           >
-            요금제 보기 →
-          </Link>
-        </div>
-      )}
+            <div>
+              <b>
+                {isExpired
+                  ? `계정이 만료된 사이트가 ${count}개 있습니다.`
+                  : `계정 만료가 곧 도래하는 사이트가 ${count}개 있습니다.`}
+              </b>
+              <span style={{ marginLeft: 8, opacity: 0.85 }}>
+                {isExpired
+                  ? "공개가 중지되었습니다. 기간연장으로 다시 공개하세요."
+                  : "기간연장으로 서비스를 중단 없이 계속 이용하세요."}
+              </span>
+            </div>
+            <Link
+              href={extendHref}
+              style={{
+                padding: "8px 16px",
+                background: isExpired ? "#dc2626" : "#d97706",
+                color: "#fff",
+                borderRadius: 6,
+                fontWeight: 600,
+                textDecoration: "none",
+                fontSize: 13,
+                whiteSpace: "nowrap",
+              }}
+            >
+              기간연장 →
+            </Link>
+          </div>
+        );
+      })()}
       <DashboardIconSprite />
       <div className="dv2-app">
         {/* ───── SIDEBAR ───── */}
