@@ -218,11 +218,20 @@ export default async function DashboardPage() {
     expired: sites.filter((s) => isSiteExpired(s)).length,
   };
 
-  // Any free site whose trial is ending within the warning window?
+  // Expired/warning partitioning. We split by plan type because the
+  // copy for a trial ending ("1개월 체험이 끝났어요, 유료 전환하세요")
+  // is meaningfully different from a paid term lapsing ("운영 기간이
+  // 만료됐어요, 기간연장하세요").
   const expiringSoonSites = sites.filter((s) =>
     shouldShowExpirationWarning(s)
   );
-  const expiredSites = sites.filter((s) => isSiteExpired(s));
+  const expiredAll = sites.filter((s) => isSiteExpired(s));
+  const isFreePlan = (t: string) => {
+    const k = String(t || "").toLowerCase();
+    return k === "0" || k === "free";
+  };
+  const expiredTrial = expiredAll.filter((s) => isFreePlan(s.accountType));
+  const expiredPaid = expiredAll.filter((s) => !isFreePlan(s.accountType));
 
   /* ── Derive activity feed: merge orders + board posts by date desc ── */
   type Activity = { kind: "order" | "board" | "edit"; when: Date; node: React.ReactNode };
@@ -308,22 +317,56 @@ export default async function DashboardPage() {
           }}
         />
       )}
-      {(expiredSites.length > 0 || expiringSoonSites.length > 0) && (() => {
-        // Deep-link the CTA to the single affected site's extend page.
-        // When there are multiple, pick the first (the table below shows
-        // all of them). Prefer expired over expiring-soon.
-        const targetSite = expiredSites[0] ?? expiringSoonSites[0];
+      {(expiredAll.length > 0 || expiringSoonSites.length > 0) && (() => {
+        // Pick the banner variant by priority:
+        //   · paid-expired first  (paying customer cut off — most urgent)
+        //   · trial-expired       (trial ended, needs to convert to paid)
+        //   · trial-expiring-soon (trial nearing 30d limit)
+        // Within each, deep-link the CTA to the first affected site's
+        // /extend page — the sites table below lists the rest.
+        type Variant = "paid-expired" | "trial-expired" | "trial-warning";
+        const variant: Variant =
+          expiredPaid.length > 0 ? "paid-expired"
+          : expiredTrial.length > 0 ? "trial-expired"
+          : "trial-warning";
+        const count =
+          variant === "paid-expired" ? expiredPaid.length
+          : variant === "trial-expired" ? expiredTrial.length
+          : expiringSoonSites.length;
+        const targetSite =
+          variant === "paid-expired" ? expiredPaid[0]
+          : variant === "trial-expired" ? expiredTrial[0]
+          : expiringSoonSites[0];
         const extendHref = `/dashboard/site/${targetSite.id}/extend`;
-        const isExpired = expiredSites.length > 0;
-        const count = isExpired ? expiredSites.length : expiringSoonSites.length;
+
+        const copy = {
+          "paid-expired": {
+            title: `운영 기간이 만료된 사이트가 ${count}개 있습니다.`,
+            sub: "공개가 중지되었습니다. 기간연장으로 다시 공개하세요.",
+            cta: "기간연장 →",
+          },
+          "trial-expired": {
+            title: `무료 체험(1개월)이 종료된 사이트가 ${count}개 있습니다.`,
+            sub: "유료 플랜으로 전환하면 바로 다시 공개됩니다.",
+            cta: "유료 전환 →",
+          },
+          "trial-warning": {
+            title: `무료 체험이 곧 종료되는 사이트가 ${count}개 있습니다.`,
+            sub: "지금 유료 전환하면 중단 없이 계속 이용할 수 있습니다.",
+            cta: "지금 전환 →",
+          },
+        }[variant];
+
+        const isUrgent = variant !== "trial-warning";
+
         return (
           <div
             style={{
-              background: isExpired ? "#fef2f2" : "#fffbeb",
-              borderBottom: `1px solid ${isExpired ? "#fecaca" : "#fde68a"}`,
+              background: isUrgent ? "#fef2f2" : "#fffbeb",
+              borderBottom: `1px solid ${isUrgent ? "#fecaca" : "#fde68a"}`,
               padding: "12px 20px",
               fontSize: 14,
-              color: isExpired ? "#991b1b" : "#92400e",
+              color: isUrgent ? "#991b1b" : "#92400e",
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
@@ -332,22 +375,14 @@ export default async function DashboardPage() {
             }}
           >
             <div>
-              <b>
-                {isExpired
-                  ? `계정이 만료된 사이트가 ${count}개 있습니다.`
-                  : `계정 만료가 곧 도래하는 사이트가 ${count}개 있습니다.`}
-              </b>
-              <span style={{ marginLeft: 8, opacity: 0.85 }}>
-                {isExpired
-                  ? "공개가 중지되었습니다. 기간연장으로 다시 공개하세요."
-                  : "기간연장으로 서비스를 중단 없이 계속 이용하세요."}
-              </span>
+              <b>{copy.title}</b>
+              <span style={{ marginLeft: 8, opacity: 0.85 }}>{copy.sub}</span>
             </div>
             <Link
               href={extendHref}
               style={{
                 padding: "8px 16px",
-                background: isExpired ? "#dc2626" : "#d97706",
+                background: isUrgent ? "#dc2626" : "#d97706",
                 color: "#fff",
                 borderRadius: 6,
                 fontWeight: 600,
@@ -356,7 +391,7 @@ export default async function DashboardPage() {
                 whiteSpace: "nowrap",
               }}
             >
-              기간연장 →
+              {copy.cta}
             </Link>
           </div>
         );
