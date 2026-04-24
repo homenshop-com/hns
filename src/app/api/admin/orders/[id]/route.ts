@@ -139,3 +139,49 @@ export async function PUT(
 
   return NextResponse.json({ order: updatedOrder });
 }
+
+// DELETE /api/admin/orders/[id] — Hard-delete an order (admin only).
+//
+// Same safety rails as the user-facing DELETE: only PENDING or
+// CANCELLED orders can be hard-deleted. PAID+ orders must go through
+// a refund flow first (otherwise their subscription/credit grants
+// would be orphaned). OrderItems cascade-delete via the schema;
+// CreditTransaction.refOrderId gets SET NULL (audit row stays).
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const session = await auth();
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+  });
+  if (user?.role !== "ADMIN") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const { id } = await params;
+  const existing = await prisma.order.findUnique({ where: { id } });
+  if (!existing) {
+    return NextResponse.json({ error: "주문을 찾을 수 없습니다." }, { status: 404 });
+  }
+
+  const deletableStates = new Set(["PENDING", "CANCELLED"]);
+  if (!deletableStates.has(existing.status)) {
+    return NextResponse.json(
+      {
+        error: `결제 완료 이후의 주문은 삭제할 수 없습니다. (${existing.status}) 먼저 환불 처리 후 CANCELLED 상태로 만드세요.`,
+      },
+      { status: 409 },
+    );
+  }
+
+  await prisma.order.delete({ where: { id } });
+  console.log(
+    `[admin/orders] order deleted: ${existing.orderNumber} (${existing.orderType}/${existing.status}) by admin=${session.user.id}`,
+  );
+  return NextResponse.json({ ok: true });
+}

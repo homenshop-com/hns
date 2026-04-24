@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import Link from "next/link";
 import { parsePageParam } from "@/lib/pagination";
 import ConfirmDepositButton from "./confirm-deposit-button";
+import OrderAdminActions from "./order-admin-actions";
 
 const PAGE_SIZE = 20;
 
@@ -221,14 +222,21 @@ export default async function AdminOrdersPage({
                     {order.createdAt.toLocaleDateString("ko-KR")}
                   </td>
                   <td className="px-6 py-3 text-center">
-                    {isPendingSubscription && (
-                      <ConfirmDepositButton
+                    <span className="inline-flex items-center gap-1.5 flex-wrap justify-center">
+                      {isPendingSubscription && (
+                        <ConfirmDepositButton
+                          orderId={order.id}
+                          orderNumber={order.orderNumber}
+                          totalAmount={order.totalAmount}
+                          months={order.subscriptionMonths}
+                        />
+                      )}
+                      <OrderAdminActions
                         orderId={order.id}
                         orderNumber={order.orderNumber}
-                        totalAmount={order.totalAmount}
-                        months={order.subscriptionMonths}
+                        status={order.status}
                       />
-                    )}
+                    </span>
                   </td>
                 </tr>
               );
