@@ -2510,9 +2510,74 @@ export default function DesignEditor({
     }
   }
 
+  function escapeHtml(s: string): string {
+    return s
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  /**
+   * Sync the header's `<nav>` (modern templates with `nav` baked into
+   * headerHtml — HomeBuilder / Plus Academy / Agency) with the latest
+   * pages list. Without this, MenuManagerModal updates Pages in DB but
+   * the header keeps showing the original template links until manual
+   * edit.
+   *
+   * Strategy:
+   *   - Find all `<a>` direct descendants inside `<nav>`
+   *   - Reuse the first `<a>`'s class + child structure (`.num` span,
+   *     icons, etc.) as a template — keeps template-specific styling
+   *   - Rebuild the `<a>` list from visible pages
+   *   - If no `<nav>` is in headerHtml, no-op (auto-menu in #hns_menu
+   *     handles legacy templates already)
+   *
+   * Does NOT save by itself — the rebuilt header DOM gets picked up by
+   * the next save flow via headerRef.current.innerHTML.
+   */
+  function syncHeaderNavToMenu(pagesArg: PageInfo[]) {
+    const hEl = headerRef.current;
+    if (!hEl) return;
+    const nav = hEl.querySelector("nav");
+    if (!nav) return;
+
+    const visible = pagesArg.filter(
+      (p) =>
+        p.showInMenu !== false &&
+        !["user", "users", "agreement", "empty"].includes(p.slug),
+    );
+    // Only top-level (parentId == null) get into the nav. Sub-menus
+    // would need template-specific dropdown markup; we don't infer it.
+    const top = visible.filter((p) => !p.parentId);
+
+    // Capture template features from the first existing <a>.
+    const sample = nav.querySelector("a");
+    const sampleClass = sample?.getAttribute("class") || "";
+    const hasNumSpan = !!sample?.querySelector(".num");
+
+    const html = top
+      .map((p, i) => {
+        const label = p.menuTitle || p.title;
+        const href = p.externalUrl || (p.slug === "index" ? "index.html" : `${p.slug}.html`);
+        const target = p.externalUrl ? ' target="_blank"' : "";
+        const num = String(i + 1).padStart(2, "0");
+        const inner = hasNumSpan
+          ? `<span class="num">${num}</span> ${escapeHtml(label)}`
+          : escapeHtml(label);
+        return `<a href="${escapeHtml(href)}"${target}${sampleClass ? ` class="${sampleClass}"` : ""}>${inner}</a>`;
+      })
+      .join("\n");
+
+    nav.innerHTML = html;
+  }
+
   /* ─── Build 2-depth menu HTML from pages ─── */
-  function buildMenuHtml(): string {
-    const visible = pages.filter(
+  function buildMenuHtml(pagesArg?: PageInfo[]): string {
+    // Accept an explicit list so callers right after setPages() can pass
+    // the fresh value without waiting for the next render's closure.
+    const list = pagesArg ?? pages;
+    const visible = list.filter(
       (p) =>
         p.showInMenu !== false &&
         !["user", "users", "agreement", "empty"].includes(p.slug)
@@ -3363,11 +3428,17 @@ export default function DesignEditor({
             onClose={() => setShowMenuManager(false)}
             onPagesChanged={(updated) => {
               setPages(updated);
-              // Rebuild header menu in auto mode so the canvas reflects
-              // the new ordering / labels immediately.
+              // Auto-menu (#hns_menu) — rebuild from the fresh pages list
+              // (closure-captured `pages` is stale here, so pass updated
+              // explicitly to buildMenuHtml).
               if (menuMode === "auto" && menuRef.current) {
-                menuRef.current.innerHTML = buildMenuHtml();
+                menuRef.current.innerHTML = buildMenuHtml(updated);
               }
+              // Modern templates (HB / PA / Agency) carry `<nav>` inside
+              // headerHtml, not #hns_menu — rewrite it so the visible
+              // header navigation reflects the new menu. Persists when
+              // the user clicks the main 저장 button (saves headerHtml).
+              syncHeaderNavToMenu(updated);
             }}
           />
         </Suspense>
