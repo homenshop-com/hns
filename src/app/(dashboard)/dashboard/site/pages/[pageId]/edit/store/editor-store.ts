@@ -26,6 +26,7 @@ import { temporal } from "zundo";
 import { produce } from "immer";
 import { applyMobileCssToScene, hasTypedChildren, isSection, legacyHtmlToScene, sceneToLegacyHtml } from "@/lib/scene";
 import type {
+  BoxLayer,
   GroupLayer,
   ImageLayer,
   Layer,
@@ -171,45 +172,67 @@ export type AlignMode =
 
 /* ─── Helpers that operate on the Immer draft ─── */
 
+/** Image attribute set used by both ImageLayer and BoxLayer (whose
+ *  `<img>` lives entirely inside innerHtml). */
+type ImageAttrs = {
+  src: string;
+  alt?: string;
+  href?: string;
+  hrefTarget?: string;
+  objectFit?: ImageLayer["objectFit"];
+};
+
 /**
- * Rewrite an ImageLayer's `innerHtml` to reflect the layer's current
- * src/alt/href/objectFit. Parses the existing markup, updates the inner
- * `<img>` and (if present) `<a>` wrapper, then serializes back. Falls
- * back to a fresh minimal markup when parsing yields no `<img>`.
+ * Rewrite an innerHtml blob's inner `<img>` (and optional outer `<a>`)
+ * to reflect the given attributes. Used by `setImage` for both image
+ * and box layers. Falls back to minimal markup if no `<img>` was found.
  */
-function rewriteImageInnerHtml(prev: string, img: ImageLayer): string {
+function rewriteImageInnerHtml(prev: string, attrs: ImageAttrs): string {
   if (typeof window === "undefined" || !window.DOMParser) {
-    // SSR / non-browser fallback — emit a minimal `<img>` only.
-    const altAttr = img.alt ? ` alt="${escapeAttr(img.alt)}"` : "";
-    return `<img src="${escapeAttr(img.src ?? "")}"${altAttr} />`;
+    const altAttr = attrs.alt ? ` alt="${escapeAttr(attrs.alt)}"` : "";
+    return `<img src="${escapeAttr(attrs.src ?? "")}"${altAttr} />`;
   }
   const wrapper = document.createElement("div");
   wrapper.innerHTML = prev ?? "";
   const imgEl = wrapper.querySelector("img");
   if (!imgEl) {
-    // No `<img>` to update — fabricate minimal markup so the layer
-    // stays renderable.
-    const altAttr = img.alt ? ` alt="${escapeAttr(img.alt)}"` : "";
-    return `<img src="${escapeAttr(img.src ?? "")}"${altAttr} />`;
+    const altAttr = attrs.alt ? ` alt="${escapeAttr(attrs.alt)}"` : "";
+    return `<img src="${escapeAttr(attrs.src ?? "")}"${altAttr} />`;
   }
-  imgEl.setAttribute("src", img.src ?? "");
-  if (img.alt) imgEl.setAttribute("alt", img.alt);
+  imgEl.setAttribute("src", attrs.src ?? "");
+  if (attrs.alt) imgEl.setAttribute("alt", attrs.alt);
   else imgEl.removeAttribute("alt");
-  // object-fit lives on inline style — preserve other inline styles.
-  if (img.objectFit) {
-    imgEl.style.setProperty("object-fit", img.objectFit);
-  } else {
-    imgEl.style.removeProperty("object-fit");
-  }
-  // Update outer <a> if present
+  if (attrs.objectFit) imgEl.style.setProperty("object-fit", attrs.objectFit);
+  else imgEl.style.removeProperty("object-fit");
   const a = wrapper.querySelector("a");
   if (a) {
-    if (img.href) a.setAttribute("href", img.href);
+    if (attrs.href) a.setAttribute("href", attrs.href);
     else a.removeAttribute("href");
-    if (img.hrefTarget) a.setAttribute("target", img.hrefTarget);
+    if (attrs.hrefTarget) a.setAttribute("target", attrs.hrefTarget);
     else a.removeAttribute("target");
   }
   return wrapper.innerHTML;
+}
+
+/** Inverse of rewriteImageInnerHtml — read attrs out of an innerHtml
+ *  blob. Returns null if there's no `<img>` (caller should treat the
+ *  layer as not-an-image). Used by setImage for box layers and by the
+ *  Inspector to populate field defaults. */
+export function readImgFromInnerHtml(html: string): ImageAttrs | null {
+  if (typeof window === "undefined" || !window.DOMParser) return null;
+  const wrapper = document.createElement("div");
+  wrapper.innerHTML = html ?? "";
+  const imgEl = wrapper.querySelector("img");
+  if (!imgEl) return null;
+  const a = wrapper.querySelector("a");
+  const fit = (imgEl.style.objectFit || imgEl.getAttribute("style")?.match(/object-fit:\s*([\w-]+)/)?.[1] || "") as string;
+  return {
+    src: imgEl.getAttribute("src") ?? "",
+    alt: imgEl.getAttribute("alt") ?? undefined,
+    href: a?.getAttribute("href") ?? undefined,
+    hrefTarget: a?.getAttribute("target") ?? undefined,
+    objectFit: (fit as ImageAttrs["objectFit"]) || undefined,
+  };
 }
 
 function escapeAttr(s: string): string {
@@ -496,18 +519,38 @@ export const useEditorStore = create<EditorStore>()(
         set((s) => ({
           scene: produce(s.scene, (draft) => {
             const l = findLayer(draft.root, id);
-            if (!l || l.type !== "image") return;
-            const img = l as ImageLayer;
-            // Update typed fields
-            if (patch.src !== undefined) img.src = patch.src;
-            if (patch.alt !== undefined) img.alt = patch.alt || undefined;
-            if (patch.href !== undefined) img.href = patch.href || undefined;
-            if (patch.hrefTarget !== undefined) img.hrefTarget = patch.hrefTarget || undefined;
-            if (patch.objectFit !== undefined) img.objectFit = patch.objectFit;
-            // Rewrite innerHtml so it stays in sync with typed fields. The
-            // serializer reads innerHtml verbatim — without this, the next
-            // save would emit the old src.
-            img.innerHtml = rewriteImageInnerHtml(img.innerHtml, img);
+            if (!l) return;
+            if (l.type === "image") {
+              const img = l as ImageLayer;
+              if (patch.src !== undefined) img.src = patch.src;
+              if (patch.alt !== undefined) img.alt = patch.alt || undefined;
+              if (patch.href !== undefined) img.href = patch.href || undefined;
+              if (patch.hrefTarget !== undefined) img.hrefTarget = patch.hrefTarget || undefined;
+              if (patch.objectFit !== undefined) img.objectFit = patch.objectFit;
+              img.innerHtml = rewriteImageInnerHtml(img.innerHtml, {
+                src: img.src ?? "",
+                alt: img.alt,
+                href: img.href,
+                hrefTarget: img.hrefTarget,
+                objectFit: img.objectFit,
+              });
+            } else if (l.type === "box") {
+              // Box layers don't have typed src/alt fields; the editable
+              // image lives entirely inside `innerHtml` (e.g., a `.frame`
+              // wrapper around an <img> with overlay siblings). Read the
+              // current attrs out of innerHtml, merge the patch, and
+              // rewrite. Layers without an <img> remain a no-op.
+              const box = l as BoxLayer;
+              const current = readImgFromInnerHtml(box.innerHtml ?? "");
+              if (!current) return;
+              box.innerHtml = rewriteImageInnerHtml(box.innerHtml ?? "", {
+                src: patch.src ?? current.src ?? "",
+                alt: patch.alt !== undefined ? patch.alt : current.alt,
+                href: patch.href !== undefined ? patch.href : current.href,
+                hrefTarget: patch.hrefTarget !== undefined ? patch.hrefTarget : current.hrefTarget,
+                objectFit: patch.objectFit !== undefined ? patch.objectFit : current.objectFit,
+              });
+            }
           }),
           dirty: true,
         })),

@@ -19,8 +19,9 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import {
   useEditorStore,
   selectRoot,
+  readImgFromInnerHtml,
 } from "../store/editor-store";
-import type { ImageLayer, Layer, LayerId, LayerInteraction, LayerStyle } from "@/lib/scene";
+import type { BoxLayer, ImageLayer, Layer, LayerId, LayerInteraction, LayerStyle } from "@/lib/scene";
 
 const LayerPanel = lazy(() => import("./LayerPanel"));
 
@@ -178,11 +179,33 @@ function DesignTab({ layer, path }: DesignTabProps) {
         disabled={layer.type === "section" || layer.type === "inline"}
       />
 
-      {layer.type === "image" && <ImageSection layer={layer as ImageLayer} />}
+      {/* Image-edit section: appears for image layers (typed src/alt) AND
+          for box layers whose innerHtml contains an <img> (e.g., the
+          Company Preview .frame wrapping img + decorative overlays). */}
+      {(() => {
+        if (layer.type === "image") {
+          return <ImageSection layer={layer as ImageLayer} />;
+        }
+        if (layer.type === "box") {
+          const box = layer as BoxLayer;
+          const imgAttrs = readImgFromInnerHtml(box.innerHtml ?? "");
+          if (imgAttrs) {
+            return <ImageSection layer={layer} initialAttrs={imgAttrs} />;
+          }
+        }
+        return null;
+      })()}
 
       <TypographySection layer={layer} />
 
       <FillSection layer={layer} />
+
+      {/* Background image editor — for box layers without an inner <img>,
+          let the user set CSS `background-image: url(...)`. Boxes that
+          DO have an inner <img> get the ImageSection above instead. */}
+      {layer.type === "box" && !readImgFromInnerHtml((layer as BoxLayer).innerHtml ?? "") && (
+        <BackgroundImageSection layer={layer} />
+      )}
 
       <BorderSection layer={layer} />
 
@@ -195,16 +218,36 @@ function DesignTab({ layer, path }: DesignTabProps) {
 
 /**
  * ImageSection — appears in the design tab when the selected layer is an
- * image. Lets the user replace the source (URL paste or file upload),
- * edit alt text, switch object-fit, and set an optional click-through
- * link. Commits flow through `setImage` which mutates the typed fields
- * AND rewrites `innerHtml` in parallel.
+ * image (typed) OR a box whose innerHtml contains an <img>. Lets the
+ * user replace the source (URL paste or file upload), edit alt text,
+ * switch object-fit, and set an optional click-through link. Commits
+ * flow through `setImage` which mutates the typed fields AND rewrites
+ * `innerHtml` in parallel for image layers; for box layers, only
+ * innerHtml is rewritten.
+ *
+ * `initialAttrs` is supplied for box layers (read out of innerHtml at
+ * render time). Image layers ignore it and read from typed fields.
  */
-function ImageSection({ layer }: { layer: ImageLayer }) {
+function ImageSection({
+  layer,
+  initialAttrs,
+}: {
+  layer: Layer;
+  initialAttrs?: { src: string; alt?: string; href?: string; hrefTarget?: string; objectFit?: ImageLayer["objectFit"] };
+}) {
   const setImage = useEditorStore((s) => s.setImage);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadErr, setUploadErr] = useState<string | null>(null);
+
+  const isImage = layer.type === "image";
+  const img = isImage ? (layer as ImageLayer) : null;
+  const src = isImage ? img!.src ?? "" : initialAttrs?.src ?? "";
+  const alt = isImage ? img!.alt ?? "" : initialAttrs?.alt ?? "";
+  const href = isImage ? img!.href ?? "" : initialAttrs?.href ?? "";
+  const objectFit: string = isImage
+    ? (img!.objectFit ?? "")
+    : (initialAttrs?.objectFit ?? "");
 
   const handleFile = async (file: File) => {
     setUploading(true);
@@ -232,7 +275,7 @@ function ImageSection({ layer }: { layer: ImageLayer }) {
       <div className="ins-prop-row">
         <TextField
           label="소스"
-          value={layer.src ?? ""}
+          value={src}
           placeholder="https://… 또는 /uploaded/…"
           onCommit={(v) => setImage(layer.id, { src: v })}
           wide
@@ -282,7 +325,7 @@ function ImageSection({ layer }: { layer: ImageLayer }) {
       <div className="ins-prop-row">
         <TextField
           label="대체 텍스트"
-          value={layer.alt ?? ""}
+          value={alt}
           placeholder="이미지 설명 (SEO·접근성)"
           onCommit={(v) => setImage(layer.id, { alt: v })}
           wide
@@ -290,7 +333,7 @@ function ImageSection({ layer }: { layer: ImageLayer }) {
       </div>
       <div className="ins-prop-row">
         <FitToggle
-          value={layer.objectFit ?? ""}
+          value={objectFit}
           onChange={(v) =>
             setImage(layer.id, {
               objectFit: (v || undefined) as ImageLayer["objectFit"],
@@ -301,12 +344,143 @@ function ImageSection({ layer }: { layer: ImageLayer }) {
       <div className="ins-prop-row">
         <TextField
           label="링크"
-          value={layer.href ?? ""}
+          value={href}
           placeholder="클릭 시 이동할 URL (선택)"
           onCommit={(v) => setImage(layer.id, { href: v })}
           wide
         />
       </div>
+    </Section>
+  );
+}
+
+/**
+ * BackgroundImageSection — for box layers WITHOUT an inner `<img>`. Sets
+ * CSS `background-image: url(...)` via setStyle's `background` field
+ * (CSS shorthand handles both color and image). On the first edit, we
+ * preserve any existing color/gradient by stripping just the url(...)
+ * token and re-emitting `url(<new>) <existing-rest>`.
+ */
+function BackgroundImageSection({ layer }: { layer: Layer }) {
+  const setStyle = useEditorStore((s) => s.setStyle);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadErr, setUploadErr] = useState<string | null>(null);
+  const bg = layer.style?.background ?? "";
+  const urlMatch = bg.match(/url\(["']?([^"')]+)["']?\)/);
+  const currentUrl = urlMatch?.[1] ?? "";
+
+  const setBgUrl = (url: string) => {
+    if (!url) {
+      // Clear: strip the url() token, keep the rest. If nothing else
+      // remains, drop background entirely.
+      const stripped = bg.replace(/url\(["']?[^"')]+["']?\)\s*/g, "").trim();
+      setStyle(layer.id, { background: stripped || undefined });
+      return;
+    }
+    if (urlMatch) {
+      const next = bg.replace(/url\(["']?[^"')]+["']?\)/, `url("${url}")`);
+      setStyle(layer.id, { background: next });
+    } else {
+      // No prior url — append. Center / cover / no-repeat is the most
+      // common useful default for background imagery.
+      const prefix = bg ? `${bg} ` : "";
+      setStyle(layer.id, {
+        background: `${prefix}url("${url}") center/cover no-repeat`,
+      });
+    }
+  };
+
+  const handleFile = async (file: File) => {
+    setUploading(true);
+    setUploadErr(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("folder", "site-uploads");
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error || `업로드 실패 (${res.status})`);
+      }
+      const { url } = await res.json();
+      if (typeof url === "string") setBgUrl(url);
+    } catch (e) {
+      setUploadErr(e instanceof Error ? e.message : "업로드 실패");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <Section title="배경 이미지">
+      <div className="ins-prop-row">
+        <TextField
+          label="URL"
+          value={currentUrl}
+          placeholder="https://… 또는 /uploaded/…"
+          onCommit={setBgUrl}
+          wide
+        />
+      </div>
+      <div className="ins-prop-row">
+        <button
+          type="button"
+          disabled={uploading}
+          onClick={() => fileInputRef.current?.click()}
+          style={{
+            flex: 1,
+            padding: "8px 10px",
+            background: "#2a79ff",
+            color: "#fff",
+            border: "none",
+            borderRadius: 6,
+            cursor: uploading ? "wait" : "pointer",
+            fontSize: 12,
+            opacity: uploading ? 0.6 : 1,
+          }}
+        >
+          <i className="fa-solid fa-upload" style={{ marginRight: 6 }} />
+          {uploading ? "업로드 중…" : "배경 이미지 업로드"}
+        </button>
+        {currentUrl && (
+          <button
+            type="button"
+            onClick={() => setBgUrl("")}
+            title="배경 이미지 제거"
+            style={{
+              padding: "8px 10px",
+              background: "#3a3d4a",
+              color: "#fff",
+              border: "none",
+              borderRadius: 6,
+              cursor: "pointer",
+              fontSize: 12,
+            }}
+          >
+            <i className="fa-solid fa-trash" />
+          </button>
+        )}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/gif,image/webp"
+          style={{ display: "none" }}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) void handleFile(f);
+            e.target.value = "";
+          }}
+        />
+      </div>
+      {uploadErr && (
+        <div
+          className="ins-prop-row"
+          style={{ color: "#ff6b6b", fontSize: 11, padding: "0 4px" }}
+        >
+          {uploadErr}
+        </div>
+      )}
     </Section>
   );
 }

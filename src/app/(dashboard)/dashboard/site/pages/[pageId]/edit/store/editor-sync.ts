@@ -397,7 +397,7 @@ export function applyStructure(
       applyFrameToEl(childEl, child, viewportMode);
       applyTransformToEl(childEl, child, viewportMode);
       applyStyleToEl(childEl, child);
-      if (child.type === "image") {
+      if (child.type === "image" || child.type === "box") {
         applyImageDataToEl(childEl, child);
       }
       if (hasTypedChildren(child)) {
@@ -409,36 +409,66 @@ export function applyStructure(
 }
 
 /**
- * Push an ImageLayer's typed `src` / `alt` / `href` / `objectFit` onto the
- * live DOM. Called from applyStructure whenever the scene changes so
- * Inspector edits show up on the canvas without waiting for save.
+ * Push image data (src / alt / href / objectFit) onto the live DOM:
+ *   - For ImageLayer: read from typed fields (layer.src, layer.alt, …)
+ *   - For BoxLayer: parse `layer.innerHtml` to read the same fields
+ *     (boxes that wrap an `<img>` carry their image state inside
+ *     innerHtml — there are no typed fields on BoxLayer for src/alt)
  *
- * The wrapper element's full innerHTML is NOT replaced — that would blow
- * away the rotation handle / selection outline / any caret state. We
- * just patch the inner `<img>` and (if present) outer `<a>`.
+ * Box layers without an `<img>` are a no-op (nothing to apply).
+ *
+ * The wrapper element's full innerHTML is NEVER replaced — that would
+ * blow away rotation handles / selection outlines / any caret state.
+ * We just patch the inner `<img>` and (if present) outer `<a>`.
  */
 function applyImageDataToEl(el: HTMLElement, layer: Layer) {
-  if (layer.type !== "image") return;
   type ImgFields = { src?: string; alt?: string; href?: string; hrefTarget?: string; objectFit?: string };
-  const img = layer as Layer & ImgFields;
+  let attrs: ImgFields | null = null;
+  if (layer.type === "image") {
+    const img = layer as Layer & ImgFields;
+    attrs = {
+      src: img.src,
+      alt: img.alt,
+      href: img.href,
+      hrefTarget: img.hrefTarget,
+      objectFit: img.objectFit,
+    };
+  } else if (layer.type === "box") {
+    const box = layer as Layer & { innerHtml?: string };
+    if (typeof window === "undefined" || !box.innerHtml) return;
+    const tmp = document.createElement("div");
+    tmp.innerHTML = box.innerHtml;
+    const ie = tmp.querySelector("img");
+    if (!ie) return;
+    const ae = tmp.querySelector("a");
+    attrs = {
+      src: ie.getAttribute("src") ?? "",
+      alt: ie.getAttribute("alt") ?? undefined,
+      href: ae?.getAttribute("href") ?? undefined,
+      hrefTarget: ae?.getAttribute("target") ?? undefined,
+      objectFit: ie.style.objectFit || undefined,
+    };
+  }
+  if (!attrs) return;
+
   const imgEl = el.querySelector("img");
   if (imgEl) {
-    if (img.src != null) {
-      if (imgEl.getAttribute("src") !== img.src) imgEl.setAttribute("src", img.src);
+    if (attrs.src != null) {
+      if (imgEl.getAttribute("src") !== attrs.src) imgEl.setAttribute("src", attrs.src);
     }
-    if (img.alt) imgEl.setAttribute("alt", img.alt);
+    if (attrs.alt) imgEl.setAttribute("alt", attrs.alt);
     else imgEl.removeAttribute("alt");
-    if (img.objectFit) {
-      (imgEl as HTMLImageElement).style.setProperty("object-fit", img.objectFit);
+    if (attrs.objectFit) {
+      (imgEl as HTMLImageElement).style.setProperty("object-fit", attrs.objectFit);
     } else {
       (imgEl as HTMLImageElement).style.removeProperty("object-fit");
     }
   }
   const a = el.querySelector("a");
   if (a) {
-    if (img.href) a.setAttribute("href", img.href);
+    if (attrs.href) a.setAttribute("href", attrs.href);
     else a.removeAttribute("href");
-    if (img.hrefTarget) a.setAttribute("target", img.hrefTarget);
+    if (attrs.hrefTarget) a.setAttribute("target", attrs.hrefTarget);
     else a.removeAttribute("target");
   }
 }
