@@ -45,7 +45,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const folder = (formData.get("folder") as string) || "uploads";
+    const folderRaw = (formData.get("folder") as string) || "uploads";
+    const siteIdRaw = formData.get("siteId");
+    // siteId scopes uploads to /uploads/site-uploads/{siteId}/ so the
+    // 에셋 tab can list a site's media without leaking other sites'
+    // assets. Whitelist a-z 0-9 _ - to prevent path traversal.
+    const siteId = typeof siteIdRaw === "string" && /^[a-z0-9_-]+$/i.test(siteIdRaw)
+      ? siteIdRaw
+      : null;
+    const folder = siteId && folderRaw === "site-uploads"
+      ? `site-uploads/${siteId}`
+      : folderRaw;
     const resize = formData.get("resize") === "true";
     const compress = formData.get("compress") === "true";
 

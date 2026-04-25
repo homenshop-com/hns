@@ -23,6 +23,9 @@ interface Props {
    *  detect when the canvas hasn't mounted yet. Usually `bodyRef.current`
    *  or the shared canvas container ref. */
   containerRef: React.RefObject<HTMLElement | null>;
+  /** Owner site id — passed to /api/upload so the floating ↻ image
+   *  replace button puts the file into the per-site asset folder. */
+  siteId?: string;
 }
 
 interface Rect {
@@ -66,7 +69,7 @@ function measureEl(el: HTMLElement): Rect {
   };
 }
 
-export default function CanvasOverlay({ containerRef }: Props) {
+export default function CanvasOverlay({ containerRef, siteId }: Props) {
   const [primary, setPrimary] = useState<string | null>(useEditorStore.getState().selectedId);
   const [multi, setMulti] = useState<Set<string>>(useEditorStore.getState().multiSelectedIds);
   const [tick, setTick] = useState(0); // re-measure trigger
@@ -477,7 +480,7 @@ export default function CanvasOverlay({ containerRef }: Props) {
           opening the right rail. Pure UI; the actual replace flow goes
           through `setImage` so undo/redo + save serialize correctly. */}
       {single && singleRect && singleIsImage && (
-        <ImageReplaceButton layerId={single} rect={singleRect} />
+        <ImageReplaceButton layerId={single} rect={singleRect} siteId={siteId} />
       )}
 
       {/* Multi-selection align toolbar */}
@@ -621,7 +624,15 @@ function AlignGlyph({ mode, fallback }: { mode: AlignMode; fallback: string }) {
  * Uses `position: fixed` against the live element rect (same pattern as
  * the rotation handle / resize handles), so it tracks zoom + scroll.
  */
-function ImageReplaceButton({ layerId, rect }: { layerId: string; rect: Rect }) {
+function ImageReplaceButton({
+  layerId,
+  rect,
+  siteId,
+}: {
+  layerId: string;
+  rect: Rect;
+  siteId?: string;
+}) {
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [busy, setBusy] = useState(false);
   const setImage = useEditorStore((s) => s.setImage);
@@ -633,6 +644,7 @@ function ImageReplaceButton({ layerId, rect }: { layerId: string; rect: Rect }) 
       fd.append("file", file);
       fd.append("folder", "site-uploads");
       fd.append("compress", "true");
+      if (siteId) fd.append("siteId", siteId);
       const res = await fetch("/api/upload", { method: "POST", body: fd });
       if (!res.ok) throw new Error(`업로드 실패 (${res.status})`);
       const { url } = await res.json();

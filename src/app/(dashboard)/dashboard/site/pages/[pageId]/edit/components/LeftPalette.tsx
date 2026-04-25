@@ -68,6 +68,13 @@ interface Props {
   /** Insert a pre-built section preset (by preset.id). Wired to
    *  design-editor.tsx's insertSectionPresetHtml helper. */
   onInsertSection(presetId: string): void;
+  /** Insert an existing image asset (URL) into the canvas. Wired in
+   *  design-editor.tsx so it routes to flow / absolute insert depending
+   *  on the template's responsive flag. */
+  onInsertAsset?(url: string): void;
+  /** Owner site id — used by the 에셋 tab to fetch /api/uploads/list
+   *  scoped to this site. */
+  siteId?: string;
 
   /* ─── 테마 tab — site-wide theme tokens ──────────────────────────── */
   /** Apply brand/accent color + font stack to the site's CSS. Callee
@@ -92,6 +99,8 @@ interface Props {
 export default function LeftPalette({
   onInsert,
   onInsertSection,
+  onInsertAsset,
+  siteId,
   onApplyTheme,
   currentThemeId,
   currentFontId,
@@ -109,6 +118,70 @@ export default function LeftPalette({
   const [tab, setTab] = useState<"insert" | "assets" | "theme" | "ai">("insert");
   const [query, setQuery] = useState("");
   const aiRef = useRef<HTMLTextAreaElement>(null);
+
+  /* ─── 에셋 tab — recent uploads list ─────────────────────────────── */
+  type AssetItem = { url: string; name: string; mtime: number; size: number };
+  const [assets, setAssets] = useState<AssetItem[]>([]);
+  const [assetsLoading, setAssetsLoading] = useState(false);
+  const [assetsErr, setAssetsErr] = useState<string | null>(null);
+  const [assetUploadBusy, setAssetUploadBusy] = useState(false);
+  const assetFileRef = useRef<HTMLInputElement>(null);
+
+  // Load (and refresh on tab open) the site's recent uploads.
+  useEffect(() => {
+    if (tab !== "assets" || !siteId) return;
+    let cancelled = false;
+    (async () => {
+      setAssetsLoading(true);
+      setAssetsErr(null);
+      try {
+        const res = await fetch(`/api/uploads/list?siteId=${encodeURIComponent(siteId)}&limit=60`);
+        if (!res.ok) {
+          const j = (await res.json().catch(() => ({}))) as { error?: string };
+          throw new Error(j.error || `목록 불러오기 실패 (${res.status})`);
+        }
+        const j = (await res.json()) as { items?: AssetItem[] };
+        if (!cancelled) setAssets(j.items ?? []);
+      } catch (e) {
+        if (!cancelled) setAssetsErr(e instanceof Error ? e.message : "오류");
+      } finally {
+        if (!cancelled) setAssetsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [tab, siteId]);
+
+  const uploadAsset = async (file: File) => {
+    if (!siteId) return;
+    setAssetUploadBusy(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("folder", "site-uploads");
+      fd.append("compress", "true");
+      fd.append("siteId", siteId);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      if (!res.ok) {
+        const j = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(j.error || `업로드 실패 (${res.status})`);
+      }
+      const j = (await res.json()) as { url?: string };
+      if (j.url) {
+        // Prepend the new asset so it shows up at the top without
+        // re-fetching the whole list.
+        setAssets((prev) => [
+          { url: j.url!, name: j.url!.split("/").pop() ?? "", mtime: Date.now(), size: file.size },
+          ...prev,
+        ]);
+      }
+    } catch (e) {
+      setAssetsErr(e instanceof Error ? e.message : "업로드 실패");
+    } finally {
+      setAssetUploadBusy(false);
+    }
+  };
 
   // Focus the AI textarea whenever the tab becomes active.
   useEffect(() => {
@@ -252,10 +325,119 @@ export default function LeftPalette({
       )}
 
       {tab === "assets" && (
-        <div className="lp-empty">
-          <i className="fa-solid fa-images lp-empty-icon" aria-hidden />
-          <div className="lp-empty-title">에셋</div>
-          <div className="lp-empty-sub">이미지·브랜드 에셋 업로드가 곧 추가됩니다.</div>
+        <div className="lp-scroll">
+          {/* Upload bar — drop a new file directly into the site's bucket.
+              Pre-pends the result to the grid so the user sees instant
+              feedback without a full refetch. */}
+          <section className="lp-section">
+            <h4>
+              에셋 라이브러리
+              <i className="fa-solid fa-images lp-chev" aria-hidden />
+            </h4>
+            <div style={{ padding: "0 10px 8px", display: "flex", gap: 6 }}>
+              <button
+                type="button"
+                onClick={() => assetFileRef.current?.click()}
+                disabled={!siteId || assetUploadBusy}
+                style={{
+                  flex: 1,
+                  padding: "8px 10px",
+                  background: "var(--fig-accent, #2a79ff)",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 6,
+                  cursor: assetUploadBusy ? "wait" : "pointer",
+                  fontSize: 12,
+                  opacity: assetUploadBusy ? 0.6 : 1,
+                }}
+              >
+                <i className="fa-solid fa-upload" style={{ marginRight: 6 }} />
+                {assetUploadBusy ? "업로드 중…" : "파일 업로드"}
+              </button>
+              <input
+                ref={assetFileRef}
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                style={{ display: "none" }}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) void uploadAsset(f);
+                  e.target.value = "";
+                }}
+              />
+            </div>
+            {assetsErr && (
+              <div style={{ padding: "0 14px 10px", color: "#ff6b6b", fontSize: 11 }}>
+                {assetsErr}
+              </div>
+            )}
+            {!siteId && (
+              <div className="lp-empty-sub" style={{ padding: "0 14px 14px" }}>
+                사이트 컨텍스트가 없어 에셋을 표시할 수 없습니다.
+              </div>
+            )}
+            {siteId && assetsLoading && assets.length === 0 && (
+              <div className="lp-empty-sub" style={{ padding: "0 14px 14px" }}>
+                불러오는 중…
+              </div>
+            )}
+            {siteId && !assetsLoading && assets.length === 0 && !assetsErr && (
+              <div className="lp-empty-sub" style={{ padding: "0 14px 14px" }}>
+                아직 업로드한 이미지가 없습니다.
+              </div>
+            )}
+            {/* Grid — 3 cols, square thumbs, click → insert into canvas
+                via onInsertAsset (design-editor decides flow vs absolute
+                based on the template's responsive flag). */}
+            {assets.length > 0 && (
+              <div
+                style={{
+                  padding: "0 10px 12px",
+                  display: "grid",
+                  gridTemplateColumns: "repeat(3, 1fr)",
+                  gap: 6,
+                }}
+              >
+                {assets.map((a) => (
+                  <button
+                    key={a.url}
+                    type="button"
+                    title={a.name}
+                    onClick={() => onInsertAsset?.(a.url)}
+                    draggable
+                    onDragStart={(e) => {
+                      // Reuse the same dataTransfer key used by the 추가
+                      // panel's drag-to-canvas flow. Payload is "asset:<url>"
+                      // so the canvas drop handler can distinguish from
+                      // basic-element inserts.
+                      e.dataTransfer.setData(
+                        "text/x-homenshop-insert",
+                        `asset:${a.url}`,
+                      );
+                      e.dataTransfer.effectAllowed = "copy";
+                    }}
+                    style={{
+                      aspectRatio: "1 / 1",
+                      padding: 0,
+                      border: "1px solid var(--fig-line, #2a2d3a)",
+                      borderRadius: 4,
+                      background: "#1a1c24",
+                      cursor: "pointer",
+                      overflow: "hidden",
+                      position: "relative",
+                    }}
+                  >
+                    <img
+                      src={a.url}
+                      alt={a.name}
+                      loading="lazy"
+                      style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
         </div>
       )}
 
@@ -272,9 +454,19 @@ export default function LeftPalette({
                   key={t.id}
                   type="button"
                   className={`lp-theme-swatch${currentThemeId === t.id ? " active" : ""}`}
-                  onClick={() =>
-                    onApplyTheme?.({ brand: t.brand, accent: t.accent })
-                  }
+                  onClick={() => {
+                    // Preserve the currently-applied font (if any). Without
+                    // this, switching color after picking a font would
+                    // silently drop the `--brand-font` line in the
+                    // managed :root{} block (applyTheme rebuilds the block
+                    // from scratch every call).
+                    const font = THEME_FONTS.find((f) => f.id === currentFontId);
+                    onApplyTheme?.({
+                      brand: t.brand,
+                      accent: t.accent,
+                      ...(font && { fontStack: font.stack }),
+                    });
+                  }}
                   title={t.label}
                 >
                   <span className="lp-theme-bar" style={{ background: t.brand }} />
@@ -350,10 +542,39 @@ export default function LeftPalette({
             type="button"
             className="lp-ai-run"
             onClick={onRunAi}
-            disabled={aiLoading || !aiPrompt.trim()}
+            disabled={
+              aiLoading ||
+              !aiPrompt.trim() ||
+              (creditBalance !== null && creditBalance < creditCost)
+            }
           >
             {aiLoading ? "처리 중…" : `실행 (⌘↵) · ${creditCost}C`}
           </button>
+          {/* In-tab insufficient-credits warning. Without this the user
+              just sees the run button greyed out with no explanation;
+              the modal that handles 402 only fires AFTER trying to run. */}
+          {creditBalance !== null && creditBalance < creditCost && (
+            <div
+              style={{
+                marginTop: 8,
+                padding: "10px 12px",
+                background: "rgba(255, 107, 107, 0.1)",
+                border: "1px solid rgba(255, 107, 107, 0.4)",
+                borderRadius: 6,
+                fontSize: 11,
+                color: "#ffb4b4",
+                lineHeight: 1.5,
+              }}
+            >
+              크레딧이 부족합니다. 보유 {creditBalance}C, 필요 {creditCost}C.{" "}
+              <a
+                href="/dashboard/credits"
+                style={{ color: "#fff", textDecoration: "underline", fontWeight: 600 }}
+              >
+                충전하기 →
+              </a>
+            </div>
+          )}
           {canUndoAi && aiStatus === "success" && (
             <button
               type="button"

@@ -74,9 +74,12 @@ function layerMeta(type: string): { label: string; icon: string; color: string }
 interface Props {
   /** Null when editor-v2 is disabled — then we render legacy LayerPanel-less state. */
   enabled: boolean;
+  /** Owner site id — passed to /api/upload so files land in the
+   *  per-site folder and show up in the 에셋 tab. */
+  siteId?: string;
 }
 
-export default function InspectorPanel({ enabled }: Props) {
+export default function InspectorPanel({ enabled, siteId }: Props) {
   const [tab, setTab] = useState<Tab>("design");
   const [selectedId, setSelectedId] = useState<LayerId | null>(null);
   // Subscribe to selection + scene changes.
@@ -123,7 +126,7 @@ export default function InspectorPanel({ enabled }: Props) {
 
       <div className="ins-scroll">
         {tab === "design" && (
-          <DesignTab layer={layer} path={path} />
+          <DesignTab layer={layer} path={path} siteId={siteId} />
         )}
 
         {tab === "layers" && (
@@ -145,9 +148,10 @@ export default function InspectorPanel({ enabled }: Props) {
 interface DesignTabProps {
   layer: Layer | null;
   path: Array<{ id: string; name: string; type: string }>;
+  siteId?: string;
 }
 
-function DesignTab({ layer, path }: DesignTabProps) {
+function DesignTab({ layer, path, siteId }: DesignTabProps) {
   if (!layer) {
     return (
       <div className="ins-empty">
@@ -184,13 +188,13 @@ function DesignTab({ layer, path }: DesignTabProps) {
           Company Preview .frame wrapping img + decorative overlays). */}
       {(() => {
         if (layer.type === "image") {
-          return <ImageSection layer={layer as ImageLayer} />;
+          return <ImageSection layer={layer as ImageLayer} siteId={siteId} />;
         }
         if (layer.type === "box") {
           const box = layer as BoxLayer;
           const imgAttrs = readImgFromInnerHtml(box.innerHtml ?? "");
           if (imgAttrs) {
-            return <ImageSection layer={layer} initialAttrs={imgAttrs} />;
+            return <ImageSection layer={layer} initialAttrs={imgAttrs} siteId={siteId} />;
           }
         }
         return null;
@@ -204,7 +208,7 @@ function DesignTab({ layer, path }: DesignTabProps) {
           let the user set CSS `background-image: url(...)`. Boxes that
           DO have an inner <img> get the ImageSection above instead. */}
       {layer.type === "box" && !readImgFromInnerHtml((layer as BoxLayer).innerHtml ?? "") && (
-        <BackgroundImageSection layer={layer} />
+        <BackgroundImageSection layer={layer} siteId={siteId} />
       )}
 
       <BorderSection layer={layer} />
@@ -231,9 +235,11 @@ function DesignTab({ layer, path }: DesignTabProps) {
 function ImageSection({
   layer,
   initialAttrs,
+  siteId,
 }: {
   layer: Layer;
   initialAttrs?: { src: string; alt?: string; href?: string; hrefTarget?: string; objectFit?: ImageLayer["objectFit"] };
+  siteId?: string;
 }) {
   const setImage = useEditorStore((s) => s.setImage);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -257,6 +263,7 @@ function ImageSection({
       fd.append("file", file);
       fd.append("folder", "site-uploads");
       fd.append("compress", "true");
+      if (siteId) fd.append("siteId", siteId);
       const res = await fetch("/api/upload", { method: "POST", body: fd });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
@@ -362,7 +369,7 @@ function ImageSection({
  * preserve any existing color/gradient by stripping just the url(...)
  * token and re-emitting `url(<new>) <existing-rest>`.
  */
-function BackgroundImageSection({ layer }: { layer: Layer }) {
+function BackgroundImageSection({ layer, siteId }: { layer: Layer; siteId?: string }) {
   const setStyle = useEditorStore((s) => s.setStyle);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -400,6 +407,7 @@ function BackgroundImageSection({ layer }: { layer: Layer }) {
       fd.append("file", file);
       fd.append("folder", "site-uploads");
       fd.append("compress", "true");
+      if (siteId) fd.append("siteId", siteId);
       const res = await fetch("/api/upload", { method: "POST", body: fd });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));

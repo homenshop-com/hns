@@ -1890,6 +1890,43 @@ export default function DesignEditor({
     return el;
   }
 
+  /**
+   * Insert an image asset (from the 에셋 tab) into the canvas. Routes
+   * through the same flow / absolute branching as `addElement` so the
+   * insert respects the responsive template flag.
+   */
+  function addImageAsset(url: string) {
+    const bodyEl = bodyRef.current;
+    if (!bodyEl) return;
+    const id = "el_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
+
+    if (isResponsiveTemplate) {
+      const target = findResponsiveDropTarget(selectedElId);
+      const el = document.createElement("div");
+      el.id = id;
+      el.className = "dragable";
+      el.style.minHeight = "180px";
+      el.innerHTML = `<img src="${url}" alt="" style="width:100%;height:100%;object-fit:cover;" />`;
+      (target ?? bodyEl).appendChild(el);
+      setSelectedElId(id);
+      return;
+    }
+    // Fix template — drop at a sensible offset, sized to a reasonable
+    // default (300×200). User can resize via canvas handles.
+    const el = document.createElement("div");
+    el.id = id;
+    el.className = "dragable";
+    el.style.position = "absolute";
+    el.style.left = "100px";
+    el.style.top = "100px";
+    el.style.width = "300px";
+    el.style.height = "200px";
+    el.style.zIndex = "10";
+    el.innerHTML = `<img src="${url}" alt="" style="width:100%;height:100%;object-fit:cover;" />`;
+    bodyEl.appendChild(el);
+    setSelectedElId(id);
+  }
+
   function addElement(type: string) {
     const bodyEl = bodyRef.current;
     if (!bodyEl) return;
@@ -2845,6 +2882,8 @@ export default function DesignEditor({
           <LeftPalette
             onInsert={(type) => addElement(type)}
             onInsertSection={(presetId) => insertSectionPreset(presetId)}
+            onInsertAsset={(url) => addImageAsset(url)}
+            siteId={siteId}
             onApplyTheme={applyTheme}
             currentThemeId={currentThemeId}
             currentFontId={currentFontId}
@@ -2883,7 +2922,7 @@ export default function DesignEditor({
           bare LayerPanel on the right rail. */}
       {editorV2Enabled && (
         <Suspense fallback={null}>
-          <InspectorPanel enabled={editorV2Enabled} />
+          <InspectorPanel enabled={editorV2Enabled} siteId={siteId} />
         </Suspense>
       )}
 
@@ -2893,7 +2932,7 @@ export default function DesignEditor({
       {/* V2 CANVAS OVERLAY — rotation handle + align toolbar */}
       {editorV2Enabled && (
         <Suspense fallback={null}>
-          <CanvasOverlay containerRef={bodyRef} />
+          <CanvasOverlay containerRef={bodyRef} siteId={siteId} />
         </Suspense>
       )}
 
