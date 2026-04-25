@@ -18,6 +18,8 @@
 
 import { useState, useMemo, useEffect, useRef } from "react";
 import { SECTION_PRESETS } from "./section-library";
+import { useEditorStore, selectRoot } from "../store/editor-store";
+import type { Layer } from "@/lib/scene";
 
 type ShapeKind =
   | "shape:rect"
@@ -143,7 +145,7 @@ export default function LeftPalette({
   onRunAi,
   onUndoAi,
 }: Props) {
-  const [tab, setTab] = useState<"insert" | "assets" | "theme" | "ai">("insert");
+  const [tab, setTab] = useState<"insert" | "sections" | "assets" | "theme" | "ai">("insert");
   const [query, setQuery] = useState("");
   const [shapePopoverOpen, setShapePopoverOpen] = useState(false);
   const aiRef = useRef<HTMLTextAreaElement>(null);
@@ -239,10 +241,11 @@ export default function LeftPalette({
       {/* Tabs */}
       <div className="lp-tabs" role="tablist">
         {([
-          ["insert", "추가"],
-          ["assets", "에셋"],
-          ["theme",  "테마"],
-          ["ai",     "AI"],
+          ["insert",   "추가"],
+          ["sections", "섹션"],
+          ["assets",   "에셋"],
+          ["theme",    "테마"],
+          ["ai",       "AI"],
         ] as const).map(([id, label]) => (
           <button
             key={id}
@@ -462,6 +465,10 @@ export default function LeftPalette({
             )}
           </div>
         </>
+      )}
+
+      {tab === "sections" && (
+        <SectionsTab onAddSectionClick={() => setTab("insert")} />
       )}
 
       {tab === "assets" && (
@@ -738,3 +745,373 @@ export default function LeftPalette({
     </aside>
   );
 }
+
+/* ─── 섹션 (Sections) tab — PPT-style page list (2026-04-25) ───────────
+ *
+ * For beginner users who think of sections as "slides" / "pages"
+ * stacked vertically. Mirrors the PowerPoint slide-strip mental model:
+ *   - Click a section → scroll the canvas to it + select it
+ *   - Drag a section row → reorder (moves the section up/down on the page)
+ *   - Hover row → quick action buttons (↑ / ↓ / 복제 / 삭제)
+ *   - "+ 새 섹션 추가" button → switches to the 추가 tab so the user
+ *     can pick a section preset (히어로 / 갤러리 / CTA / etc.)
+ *
+ * Uses content-preview labels (parse.ts → suggestName) so the user
+ * sees "섹션 · We build enterprise" instead of opaque "섹션 25".
+ *
+ * The advanced layer tree (right-side LayerPanel) stays as the
+ * power-user view — this tab is the simplified flat alternative.
+ */
+function SectionsTab({ onAddSectionClick }: { onAddSectionClick: () => void }) {
+  // Subscribe to the scene root so the list reflects every reorder /
+  // add / delete instantly (same pattern as InspectorPanel).
+  const [tick, setTick] = useState(0);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  useEffect(() => {
+    setSelectedId(useEditorStore.getState().selectedId);
+    return useEditorStore.subscribe((s) => {
+      setSelectedId((prev) => (prev === s.selectedId ? prev : s.selectedId));
+      setTick((t) => t + 1);
+    });
+  }, []);
+
+  const sections = useMemo(() => {
+    const root = selectRoot(useEditorStore.getState());
+    return ((root as { children?: Layer[] }).children ?? []).filter(
+      // Hide the virtual root's special children types if any. Top-level
+      // dragables that the user thinks of as "sections" are typically
+      // type=section, but boxes/groups at the top level also count
+      // (legacy templates rarely use the typed section role).
+      (c) => c.type !== "inline",
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tick]);
+
+  /* ── Drag-and-drop reorder state ── */
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+
+  const onRowClick = (id: string) => {
+    useEditorStore.getState().select(id);
+    // Scroll the canvas to the section. The canvas viewport (#de-canvas-inner)
+    // is the closest scrollable ancestor; use the element's scrollIntoView
+    // which respects nested scroll containers.
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const moveBy = (id: string, delta: -1 | 1) => {
+    const root = selectRoot(useEditorStore.getState());
+    const idx = (root as { children?: Layer[] }).children?.findIndex(
+      (c) => c.id === id,
+    );
+    if (idx == null || idx < 0) return;
+    const newIdx = idx + delta;
+    const total = (root as { children?: Layer[] }).children?.length ?? 0;
+    if (newIdx < 0 || newIdx >= total) return;
+    // moveLayer uses the post-removal index, so moving down by 1 means
+    // target index = idx + 1 (after the dragged element is removed,
+    // sliding everything up; +1 puts it after its previous neighbor).
+    const targetIdx = delta === 1 ? idx + 1 : idx - 1;
+    useEditorStore.getState().moveLayer(id, root.id, targetIdx);
+  };
+
+  const dup = (id: string) => {
+    useEditorStore.getState().duplicateLayer(id, { dx: 0, dy: 0 });
+  };
+  const del = (id: string) => {
+    if (!confirm("이 섹션을 삭제할까요?")) return;
+    useEditorStore.getState().remove(id);
+  };
+
+  return (
+    <div className="lp-scroll">
+      <section className="lp-section">
+        <h4>
+          섹션 (페이지 슬라이드)
+          <i className="fa-solid fa-layer-group lp-chev" aria-hidden />
+        </h4>
+        <div style={{ padding: "0 10px 8px" }}>
+          <button
+            type="button"
+            onClick={onAddSectionClick}
+            style={{
+              width: "100%",
+              padding: "8px 10px",
+              background: "var(--fig-accent, #2a79ff)",
+              color: "#fff",
+              border: "none",
+              borderRadius: 6,
+              cursor: "pointer",
+              fontSize: 12,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+            }}
+          >
+            <i className="fa-solid fa-plus" /> 새 섹션 추가
+          </button>
+        </div>
+        {sections.length === 0 && (
+          <div className="lp-empty-sub" style={{ padding: "0 14px 14px" }}>
+            아직 섹션이 없습니다. "새 섹션 추가" 버튼으로 시작하세요.
+          </div>
+        )}
+        {sections.length > 0 && (
+          <ol
+            style={{
+              listStyle: "none",
+              margin: 0,
+              padding: "0 6px 12px",
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+            }}
+          >
+            {sections.map((s, i) => (
+              <SectionRow
+                key={s.id}
+                index={i}
+                total={sections.length}
+                section={s}
+                isSelected={s.id === selectedId}
+                isDragging={s.id === draggingId}
+                isDropAbove={dragOverIdx === i && draggingId !== s.id}
+                onClick={() => onRowClick(s.id)}
+                onDragStart={() => setDraggingId(s.id)}
+                onDragEnd={() => {
+                  setDraggingId(null);
+                  setDragOverIdx(null);
+                }}
+                onDragOverRow={(e) => {
+                  e.preventDefault();
+                  if (!draggingId || draggingId === s.id) return;
+                  // Decide above vs below based on cursor Y vs row mid.
+                  const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                  const above = e.clientY < r.top + r.height / 2;
+                  setDragOverIdx(above ? i : i + 1);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (!draggingId || dragOverIdx == null) return;
+                  const root = selectRoot(useEditorStore.getState());
+                  const fromIdx =
+                    (root as { children?: Layer[] }).children?.findIndex(
+                      (c) => c.id === draggingId,
+                    ) ?? -1;
+                  let toIdx = dragOverIdx;
+                  // moveLayer expects index in the post-removal child list.
+                  if (toIdx > fromIdx) toIdx -= 1;
+                  if (fromIdx >= 0 && toIdx !== fromIdx) {
+                    useEditorStore.getState().moveLayer(draggingId, root.id, toIdx);
+                  }
+                  setDraggingId(null);
+                  setDragOverIdx(null);
+                }}
+                onMoveUp={() => moveBy(s.id, -1)}
+                onMoveDown={() => moveBy(s.id, 1)}
+                onDuplicate={() => dup(s.id)}
+                onDelete={() => del(s.id)}
+              />
+            ))}
+          </ol>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function SectionRow({
+  index,
+  total,
+  section,
+  isSelected,
+  isDragging,
+  isDropAbove,
+  onClick,
+  onDragStart,
+  onDragEnd,
+  onDragOverRow,
+  onDrop,
+  onMoveUp,
+  onMoveDown,
+  onDuplicate,
+  onDelete,
+}: {
+  index: number;
+  total: number;
+  section: Layer;
+  isSelected: boolean;
+  isDragging: boolean;
+  isDropAbove: boolean;
+  onClick: () => void;
+  onDragStart: () => void;
+  onDragEnd: () => void;
+  onDragOverRow: (e: React.DragEvent<HTMLLIElement>) => void;
+  onDrop: (e: React.DragEvent<HTMLLIElement>) => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  onDuplicate: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <li
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", section.id);
+        onDragStart();
+      }}
+      onDragEnd={onDragEnd}
+      onDragOver={onDragOverRow}
+      onDrop={onDrop}
+      onClick={onClick}
+      style={{
+        position: "relative",
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "8px 8px",
+        background: isSelected ? "rgba(42,121,255,0.15)" : "#1a1c24",
+        border: isSelected ? "1px solid #2a79ff" : "1px solid #2a2d3a",
+        borderRadius: 6,
+        cursor: "grab",
+        opacity: isDragging ? 0.5 : 1,
+        userSelect: "none",
+      }}
+    >
+      {/* Drop-above indicator line */}
+      {isDropAbove && (
+        <span
+          aria-hidden
+          style={{
+            position: "absolute",
+            top: -3,
+            left: 0,
+            right: 0,
+            height: 3,
+            background: "#2a79ff",
+            borderRadius: 2,
+            boxShadow: "0 0 6px rgba(42,121,255,0.6)",
+          }}
+        />
+      )}
+
+      {/* Position number — 1-based, matches user's slide-counting model */}
+      <span
+        style={{
+          minWidth: 22,
+          height: 22,
+          padding: "0 6px",
+          background: "#2a2d3a",
+          color: "#c6c9d6",
+          fontSize: 11,
+          fontFamily: "ui-monospace, monospace",
+          borderRadius: 4,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {index + 1}
+      </span>
+
+      {/* Name */}
+      <span
+        title={section.name}
+        style={{
+          flex: 1,
+          fontSize: 12,
+          color: "#e8eaf2",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {section.name}
+      </span>
+
+      {/* Quick action buttons. Always visible to keep the affordance
+          obvious for beginners — hover-only would be a discoverability
+          regression. */}
+      <span style={{ display: "flex", gap: 2 }}>
+        <RowBtn
+          icon="fa-arrow-up"
+          title="위로"
+          disabled={index === 0}
+          onClick={(e) => {
+            e.stopPropagation();
+            onMoveUp();
+          }}
+        />
+        <RowBtn
+          icon="fa-arrow-down"
+          title="아래로"
+          disabled={index === total - 1}
+          onClick={(e) => {
+            e.stopPropagation();
+            onMoveDown();
+          }}
+        />
+        <RowBtn
+          icon="fa-clone"
+          title="복제"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDuplicate();
+          }}
+        />
+        <RowBtn
+          icon="fa-trash"
+          title="삭제"
+          danger
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+        />
+      </span>
+    </li>
+  );
+}
+
+function RowBtn({
+  icon,
+  title,
+  disabled,
+  danger,
+  onClick,
+}: {
+  icon: string;
+  title: string;
+  disabled?: boolean;
+  danger?: boolean;
+  onClick: (e: React.MouseEvent) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      style={{
+        width: 22,
+        height: 22,
+        padding: 0,
+        background: "transparent",
+        color: disabled ? "#444" : danger ? "#ff8b8b" : "#888",
+        border: "none",
+        borderRadius: 4,
+        cursor: disabled ? "default" : "pointer",
+        fontSize: 11,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <i className={`fa-solid ${icon}`} aria-hidden />
+    </button>
+  );
+}
+
