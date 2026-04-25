@@ -602,23 +602,114 @@ function ensureId(el: Element): string {
   return generated;
 }
 
-function suggestName(type: Layer["type"], idx: number): string {
-  const label: Record<Layer["type"], string> = {
-    group: "그룹",
-    section: "섹션",
-    inline: "요소",
-    text: "텍스트",
-    image: "이미지",
-    box: "박스",
-    shape: "도형",
-    board: "게시판",
-    product: "상품",
-    exhibition: "전시",
-    menu: "메뉴",
-    login: "로그인",
-    mail: "메일",
+const TYPE_LABEL: Record<Layer["type"], string> = {
+  group: "그룹",
+  section: "섹션",
+  inline: "요소",
+  text: "텍스트",
+  image: "이미지",
+  box: "박스",
+  shape: "도형",
+  board: "게시판",
+  product: "상품",
+  exhibition: "전시",
+  menu: "메뉴",
+  login: "로그인",
+  mail: "메일",
+};
+
+/**
+ * Generate a layer label.
+ *
+ * Goal: at-a-glance recognition in the layer panel. Older versions
+ * emitted just `{type} {globalCounter}` ("섹션 25") — the number was a
+ * walk-order index that bore no relation to visual position, so the
+ * panel showed e.g. "섹션 25" before "섹션 2" which confused users.
+ *
+ * New labeling (2026-04-25, type C — content-preview + position
+ * fallback):
+ *   1. Try a content preview from the element's text / alt / first
+ *      heading — caps at ~24 chars, returns `${typeLabel} <preview>`.
+ *   2. If no usable preview (empty section / shape / decorative box),
+ *      fall back to `${typeLabel} ${idx}` so the user still has a
+ *      stable identifier.
+ *
+ * Manual renames (LayerPanel inline edit → store.rename) take
+ * precedence at runtime — this function only seeds defaults.
+ */
+function suggestName(type: Layer["type"], idx: number, el?: Element): string {
+  const typeLabel = TYPE_LABEL[type];
+  const preview = el ? extractContentPreview(type, el) : "";
+  if (preview) return `${typeLabel} · ${preview}`;
+  return `${typeLabel} ${idx}`;
+}
+
+/** Pick the most identifying snippet for a layer's content. Different
+ *  layer types have different "primary" content — a section's first
+ *  heading vs. an image's alt vs. a text leaf's full text. */
+function extractContentPreview(type: Layer["type"], el: Element): string {
+  const cap = (s: string, n = 24): string => {
+    const t = s.replace(/\s+/g, " ").trim();
+    if (!t) return "";
+    return t.length > n ? `${t.slice(0, n)}…` : t;
   };
-  return `${label[type]} ${idx}`;
+
+  switch (type) {
+    case "image": {
+      const img = el.querySelector("img");
+      const alt = img?.getAttribute("alt")?.trim();
+      if (alt) return cap(alt);
+      const src = img?.getAttribute("src") ?? "";
+      // Pull a meaningful filename: strip path, strip extension, replace
+      // hyphens/underscores with spaces.
+      const file = src.split("/").pop()?.split("?")[0] ?? "";
+      const stem = file.replace(/\.[a-z]+$/i, "").replace(/[-_]+/g, " ");
+      // Skip UUID-ish stems — they're noise.
+      if (stem && !/^[0-9a-f-]{20,}$/i.test(stem)) return cap(stem);
+      return "";
+    }
+    case "text": {
+      // Prefer first heading > first paragraph > raw text.
+      const h = el.querySelector("h1, h2, h3, h4, h5, h6");
+      if (h?.textContent?.trim()) return cap(h.textContent);
+      const p = el.querySelector("p");
+      if (p?.textContent?.trim()) return cap(p.textContent);
+      return cap(el.textContent ?? "");
+    }
+    case "section":
+    case "group": {
+      // Surface the section/group's most prominent text — the first
+      // heading inside, then first text leaf.
+      const h = el.querySelector("h1, h2, h3, h4, h5, h6");
+      if (h?.textContent?.trim()) return cap(h.textContent);
+      const t = el.querySelector("p, span, a, li");
+      if (t?.textContent?.trim()) return cap(t.textContent);
+      return "";
+    }
+    case "box": {
+      // Box can be a button (text inside) or a wrapper around an image.
+      // Prefer text content; fall back to inner img alt.
+      const txt = el.textContent?.trim();
+      if (txt) return cap(txt);
+      const img = el.querySelector("img");
+      const alt = img?.getAttribute("alt")?.trim();
+      if (alt) return cap(alt);
+      return "";
+    }
+    case "shape":
+    case "inline":
+    case "menu":
+    case "login":
+    case "mail": {
+      const txt = el.textContent?.trim();
+      return txt ? cap(txt) : "";
+    }
+    case "board":
+    case "product":
+    case "exhibition":
+      return ""; // Plugin types have no useful inline preview.
+  }
+  return "";
 }
 
 /** Given a parent element, return the direct `.dragable` child
@@ -635,7 +726,7 @@ function directLayerChildren(parent: Element): Element[] {
 function elementToLayer(el: Element, nameIdx: { n: number }): Layer {
   const id = ensureId(el);
   const type = detectType(el);
-  const name = suggestName(type, ++nameIdx.n);
+  const name = suggestName(type, ++nameIdx.n, el);
 
   switch (type) {
     case "group": {

@@ -273,6 +273,11 @@ export default function DesignEditor({
   const aiPrevHtmlRef = useRef<string | null>(null);
 
   // Drag state
+  /** Persistent fixed-position blue line gizmo for section reorder
+   *  drops. Created once on first reorder; reused. Hidden between
+   *  drags by setting display:none. */
+  const sectionReorderIndicatorRef = useRef<HTMLDivElement | null>(null);
+
   const dragRef = useRef<{
     el: HTMLElement;
     startX: number;
@@ -926,6 +931,122 @@ export default function DesignEditor({
     return 1;
   }
 
+  /* ─── Section reorder via canvas drag ───────────────────────────────
+   * When the user mousedown-drags on a section (flow `.dragable` with
+   * dragable descendants), instead of the no-op pixel drag we enter
+   * REORDER mode. A horizontal blue line follows the cursor showing
+   * the insertion slot; on mouseup we call `moveLayer` to swap order.
+   *
+   * Scope: only sections that are direct children of the body container
+   * (the common case for templates). Sections nested inside groups
+   * fall through to a no-op so we don't accidentally pull them out of
+   * their parent.
+   */
+  function startSectionReorder(sectionEl: HTMLElement, startX: number, startY: number) {
+    const bodyEl = bodyRef.current;
+    if (!bodyEl || sectionEl.parentElement !== bodyEl) return;
+
+    // Snapshot top-level sibling sections (other top-level .dragable kids of body).
+    const siblings = Array.from(bodyEl.children).filter(
+      (n): n is HTMLElement =>
+        n instanceof HTMLElement && n.classList.contains("dragable"),
+    );
+    const myIndex = siblings.indexOf(sectionEl);
+    if (myIndex === -1) return;
+
+    // Lazily-built fixed-position indicator. Reused across drags via ref.
+    if (!sectionReorderIndicatorRef.current) {
+      const ind = document.createElement("div");
+      ind.style.cssText =
+        "position:fixed;height:3px;background:#2a79ff;box-shadow:0 0 8px rgba(42,121,255,0.6);pointer-events:none;z-index:9999;border-radius:2px;display:none;";
+      document.body.appendChild(ind);
+      sectionReorderIndicatorRef.current = ind;
+    }
+    const ind = sectionReorderIndicatorRef.current;
+
+    let movedFar = false;
+    let dropIndex: number | null = null;
+
+    const computeDropIndex = (clientY: number): number => {
+      // Walk siblings; whatever's mid-Y is above the cursor pushes the
+      // drop index past it. Result is the slot index in the original
+      // siblings list (pre-removal).
+      let idx = 0;
+      for (let i = 0; i < siblings.length; i++) {
+        const r = siblings[i]!.getBoundingClientRect();
+        if (clientY > r.top + r.height / 2) idx = i + 1;
+        else break;
+      }
+      return idx;
+    };
+
+    const showIndicator = (idx: number) => {
+      let r: DOMRect;
+      let topY: number;
+      if (idx <= 0) {
+        r = siblings[0]!.getBoundingClientRect();
+        topY = r.top - 1;
+      } else if (idx >= siblings.length) {
+        r = siblings[siblings.length - 1]!.getBoundingClientRect();
+        topY = r.bottom - 1;
+      } else {
+        const above = siblings[idx - 1]!.getBoundingClientRect();
+        const below = siblings[idx]!.getBoundingClientRect();
+        r = above;
+        topY = (above.bottom + below.top) / 2 - 1;
+      }
+      ind.style.top = `${topY}px`;
+      ind.style.left = `${r.left}px`;
+      ind.style.width = `${r.width}px`;
+      ind.style.display = "block";
+    };
+
+    const onMove = (e: PointerEvent) => {
+      const dx = Math.abs(e.clientX - startX);
+      const dy = Math.abs(e.clientY - startY);
+      if (!movedFar && (dx > 5 || dy > 5)) {
+        movedFar = true;
+        sectionEl.style.opacity = "0.5";
+        sectionEl.style.cursor = "grabbing";
+        document.body.style.cursor = "grabbing";
+      }
+      if (!movedFar) return;
+      dropIndex = computeDropIndex(e.clientY);
+      showIndicator(dropIndex);
+    };
+
+    const onUp = () => {
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      sectionEl.style.opacity = "";
+      sectionEl.style.cursor = "";
+      document.body.style.cursor = "";
+      ind.style.display = "none";
+
+      if (!movedFar || dropIndex === null) return;
+      // Adjust for removal of the dragged element when moving downward.
+      let newIdx = dropIndex;
+      if (newIdx > myIndex) newIdx -= 1;
+      if (newIdx === myIndex) return; // no change
+
+      if (editorV2Enabled) {
+        // Sections are top-level children of the scene root. moveLayer
+        // takes (fromId, toParentId, toIndex) — the root is the parent.
+        const rootId = useEditorStore.getState().scene.root.id;
+        useEditorStore.getState().moveLayer(sectionEl.id, rootId, newIdx);
+      } else {
+        // V1 fallback: shuffle DOM directly. (V1 path is rare now.)
+        const target = newIdx >= siblings.length ? null : siblings[newIdx]!;
+        if (target) bodyEl.insertBefore(sectionEl, target);
+        else bodyEl.appendChild(sectionEl);
+        setCurrentBodyHtml(bodyEl.innerHTML);
+      }
+    };
+
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+  }
+
   /* ─── Shared: start drag on an element ─── */
   function startDragOnElement(target: HTMLElement, clientX: number, clientY: number, shiftKey?: boolean) {
     const dragable = target.closest(".dragable") as HTMLElement | null;
@@ -988,7 +1109,12 @@ export default function DesignEditor({
     const isFlow = pos !== "absolute" && pos !== "fixed";
     const hasDragableChildren = dragable.querySelector(".dragable") !== null;
     if (isFlow && hasDragableChildren) {
-      // Page section — selection only, no drag.
+      // Page section / group container — pixel drag would rip the
+      // page layout. Instead, enter reorder mode: user drags the
+      // section up/down to swap its order among siblings. A blue
+      // insert-line gizmo follows the cursor; on mouseup we call
+      // moveLayer to commit. Selection (set above) remains.
+      startSectionReorder(dragable, clientX, clientY);
       return;
     }
     // Flow atomic child — ensure the nearest section ancestor is
