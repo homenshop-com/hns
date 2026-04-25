@@ -468,6 +468,10 @@ model Template {
   /// Public templates with a userId are user-contributed; null userId is system-authored.
   isPublic     Boolean  @default(false)
   isActive     Boolean  @default(true)
+  /// true = built mobile-responsive (single layout that flows). false = fixed desktop
+  /// width (legacy templates that need a separate mobile layout). Drives the badge
+  /// on the template list and the mobile-mode toggle in the design editor.
+  isResponsive Boolean  @default(false)
   clicks       Int      @default(0)
   sortOrder    Int      @default(0)
   createdAt    DateTime @default(now())
