@@ -397,6 +397,7 @@ export function applyStructure(
       applyFrameToEl(childEl, child, viewportMode);
       applyTransformToEl(childEl, child, viewportMode);
       applyStyleToEl(childEl, child);
+      applyInteractionToEl(childEl, child);
       if (child.type === "image" || child.type === "box") {
         applyImageDataToEl(childEl, child);
       }
@@ -406,6 +407,34 @@ export function applyStructure(
     }
   };
   reconcile(scene.root, container);
+}
+
+/**
+ * Mirror `layer.interaction` onto the DOM as `data-hns-interaction`. The
+ * published route's tiny click runtime reads this attribute to wire up
+ * link / scrollTo / modal / toggle behavior at view time.
+ *
+ * Saving the page snapshots `bodyEl.innerHTML` directly, so without this
+ * step the interaction lives only in the scene graph and never makes it
+ * to the published HTML — clicks do nothing.
+ *
+ * Removing an interaction (Inspector → 인터랙션 제거) drops the attribute.
+ */
+function applyInteractionToEl(el: HTMLElement, layer: Layer) {
+  if (layer.interaction) {
+    try {
+      const json = JSON.stringify(layer.interaction);
+      if (el.getAttribute("data-hns-interaction") !== json) {
+        el.setAttribute("data-hns-interaction", json);
+      }
+    } catch {
+      // Defensive — bad payload shouldn't crash the editor. Drop the
+      // attribute so the page doesn't ship a malformed handler.
+      el.removeAttribute("data-hns-interaction");
+    }
+  } else {
+    el.removeAttribute("data-hns-interaction");
+  }
 }
 
 /**
