@@ -934,7 +934,10 @@ export async function GET(
   //
   // Safe to no-op for paths that are already well-formed.
   const siteBasePath = `${urlPrefix}/${lang}`; // e.g. "/test313322/ko" or "/ko" (custom)
-  const RESERVED_ROOTS = /^\/(tpl|uploaded|api|_next|static|favicon|ko|en|ja|zh|vi)(\/|$)/i;
+  // `uploaded` = legacy PHP user-data path; `uploads` = Next.js /api/upload
+  // destination (UPLOAD_URL default). Both are served at the domain root by
+  // nginx, so they must NOT be prefixed with /{shopId}/{lang}/.
+  const RESERVED_ROOTS = /^\/(tpl|uploaded|uploads|api|_next|static|favicon|ko|en|ja|zh|vi)(\/|$)/i;
   const rewriteInternalLinks = (h: string): string =>
     h.replace(
       /(href|action|src)=(["'])(\/[^"'#?][^"']*)(["'])/gi,
