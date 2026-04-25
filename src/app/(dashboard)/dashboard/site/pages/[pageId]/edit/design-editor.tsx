@@ -33,6 +33,7 @@ const DragInsertLayer = lazy(() => import("./components/DragInsertLayer"));
 const CanvasOverlay = lazy(() => import("./components/CanvasOverlay"));
 const HeaderImageOverlay = lazy(() => import("./components/HeaderImageOverlay"));
 const MenuManagerModal = lazy(() => import("./components/MenuManagerModal"));
+const HeaderEditModal = lazy(() => import("./components/HeaderEditModal"));
 
 /** Module-scoped clipboard for V2 copy/paste. Lives for the page
  *  session, cleared on navigation. We also mirror to navigator.clipboard
@@ -147,6 +148,9 @@ export default function DesignEditor({
   // Menu manager modal — drag-reorder + showInMenu toggle + label edit
   // for the entire pages tree. Opens from settings or canvas affordance.
   const [showMenuManager, setShowMenuManager] = useState(false);
+  // Header edit modal — one-stop editor for logo / texts / menu / lang /
+  // layout. Opens from the SectionsTab "헤더" pinned row.
+  const [showHeaderEdit, setShowHeaderEdit] = useState(false);
   // Hidden file input for logo replace via the settings modal "로고 변경"
   // button. The canvas-side ↻ floating button has its own picker; this
   // one keeps the modal flow consistent.
@@ -1568,12 +1572,30 @@ export default function DesignEditor({
    */
   function findEditTarget(target: HTMLElement): HTMLElement | null {
     const body = document.getElementById("hns_body");
-    if (!body || !body.contains(target)) return null;
+    const header = document.getElementById("hns_header");
+    const footer = document.getElementById("hns_footer");
+    // Allow editing inside header / footer as well as body. The dblclick
+    // handler can route any text-leaf inside the canvas into in-place
+    // editing — restricting to body only meant header text (logo
+    // wordmark, contact info, nav labels) had no edit path on canvas.
+    const inEditable =
+      (body && body.contains(target)) ||
+      (header && header.contains(target)) ||
+      (footer && footer.contains(target));
+    if (!inEditable) return null;
+    // Reuse `body` reference name below for the loop guard so we don't
+    // bail out at the header's parent.
+    const editableRoot =
+      body && body.contains(target)
+        ? body
+        : header && header.contains(target)
+          ? header
+          : footer!;
 
     // Walk up from target to find the innermost leaf-text element
     let el: HTMLElement | null = target;
     let leafText: HTMLElement | null = null;
-    while (el && el !== body) {
+    while (el && el !== editableRoot) {
       if (LEAF_TEXT_TAGS.has(el.tagName)) {
         leafText = el;
         break;  // Found innermost leaf-text, use it
@@ -1592,20 +1614,20 @@ export default function DesignEditor({
       const isBlock = LEAF_TEXT_TAGS.has(leafText.tagName); // h1-h6, p, li, etc.
       if (isBlock) return leafText;
       // Inline leaf (SPAN, A) — prefer whole dragable if it's simple
-      if (dragable && body.contains(dragable) && isSimpleDragable(dragable)) {
+      if (dragable && editableRoot.contains(dragable) && isSimpleDragable(dragable)) {
         return dragable;
       }
       return leafText;
     }
 
     // Try .dragable — but only if it's a simple one (legacy absolute positioned)
-    if (dragable && body.contains(dragable) && isSimpleDragable(dragable)) {
+    if (dragable && editableRoot.contains(dragable) && isSimpleDragable(dragable)) {
       return dragable;
     }
 
     // For complex dragables (custom template section wrappers),
     // find the nearest text element the user likely intended to edit
-    if (dragable && body.contains(dragable)) {
+    if (dragable && editableRoot.contains(dragable)) {
       // Walk up from click target
       el = target;
       while (el && el !== dragable) {
@@ -1629,6 +1651,26 @@ export default function DesignEditor({
         !hasNestedDragable
       ) {
         return dragable;
+      }
+    }
+
+    // Header / footer don't use `.dragable` wrappers — they have plain
+    // HTML (template-baked nav, brand text, contact info). When the
+    // editable root is header/footer and we already located a leafText
+    // (LEAF_TEXT_TAGS or SPAN), allow editing it directly. For body, we
+    // still require a `.dragable` parent so we don't accidentally edit
+    // structural-only blocks like grid wrappers.
+    const isBody = body !== null && editableRoot === body;
+    if (!isBody && leafText) {
+      return leafText;
+    }
+    if (!isBody) {
+      // Walk up from target to nearest TEXT_TAGS — last-chance for
+      // header/footer clicks that landed on a wrapper.
+      el = target;
+      while (el && el !== editableRoot) {
+        if (TEXT_TAGS.has(el.tagName)) return el;
+        el = el.parentElement;
       }
     }
 
@@ -3357,6 +3399,7 @@ export default function DesignEditor({
             onInsert={(type) => addElement(type)}
             onInsertSection={(presetId) => insertSectionPreset(presetId)}
             onInsertAsset={(url) => addImageAsset(url)}
+            onOpenHeaderEdit={() => setShowHeaderEdit(true)}
             siteId={siteId}
             onApplyTheme={applyTheme}
             currentThemeId={currentThemeId}
@@ -3420,6 +3463,26 @@ export default function DesignEditor({
       {/* MENU MANAGER MODAL — opens from settings or from the canvas
           floating "메뉴 편집" button. Drives Pages list (showInMenu /
           menuTitle / parentId / order) which buildMenuHtml() reads. */}
+      {showHeaderEdit && (
+        <Suspense fallback={null}>
+          <HeaderEditModal
+            siteId={siteId}
+            currentLang={currentLang}
+            siteLanguages={siteLanguages}
+            defaultLanguage={defaultLanguage}
+            headerRef={headerRef}
+            initialHeaderHtml={headerHtml}
+            headerLayout={headerLayout}
+            onApplyLayout={(next) => {
+              setHeaderLayout(next);
+              applyHeaderLayout(next);
+            }}
+            onOpenMenuManager={() => setShowMenuManager(true)}
+            onClose={() => setShowHeaderEdit(false)}
+          />
+        </Suspense>
+      )}
+
       {showMenuManager && (
         <Suspense fallback={null}>
           <MenuManagerModal

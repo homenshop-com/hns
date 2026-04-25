@@ -102,6 +102,9 @@ interface Props {
    *  design-editor.tsx so it routes to flow / absolute insert depending
    *  on the template's responsive flag. */
   onInsertAsset?(url: string): void;
+  /** Open the dedicated header edit modal — wired from the 섹션 tab's
+   *  "헤더" pinned row so users can find one-stop header editing. */
+  onOpenHeaderEdit?(): void;
   /** Owner site id — used by the 에셋 tab to fetch /api/uploads/list
    *  scoped to this site. */
   siteId?: string;
@@ -130,6 +133,7 @@ export default function LeftPalette({
   onInsert,
   onInsertSection,
   onInsertAsset,
+  onOpenHeaderEdit,
   siteId,
   onApplyTheme,
   currentThemeId,
@@ -468,7 +472,10 @@ export default function LeftPalette({
       )}
 
       {tab === "sections" && (
-        <SectionsTab onAddSectionClick={() => setTab("insert")} />
+        <SectionsTab
+          onAddSectionClick={() => setTab("insert")}
+          onOpenHeaderEdit={onOpenHeaderEdit}
+        />
       )}
 
       {tab === "assets" && (
@@ -762,7 +769,13 @@ export default function LeftPalette({
  * The advanced layer tree (right-side LayerPanel) stays as the
  * power-user view — this tab is the simplified flat alternative.
  */
-function SectionsTab({ onAddSectionClick }: { onAddSectionClick: () => void }) {
+function SectionsTab({
+  onAddSectionClick,
+  onOpenHeaderEdit,
+}: {
+  onAddSectionClick: () => void;
+  onOpenHeaderEdit?: () => void;
+}) {
   // Subscribe to the scene root so the list reflects every reorder /
   // add / delete instantly (same pattern as InspectorPanel).
   const [tick, setTick] = useState(0);
@@ -826,6 +839,62 @@ function SectionsTab({ onAddSectionClick }: { onAddSectionClick: () => void }) {
 
   return (
     <div className="lp-scroll">
+      {/* Pinned site-frame items — header (and footer in future). These
+          are not part of scene.root.children; they live in Site.headerHtml
+          / Site.footerHtml and need their own dedicated editor. Showing
+          them here keeps every "page section" entry-point in one tab. */}
+      {onOpenHeaderEdit && (
+        <section className="lp-section" style={{ borderBottom: "1px solid #2a2d3a", paddingBottom: 8 }}>
+          <h4>
+            사이트 영역
+            <i className="fa-solid fa-window-maximize lp-chev" aria-hidden />
+          </h4>
+          <div style={{ padding: "0 6px" }}>
+            <button
+              type="button"
+              onClick={onOpenHeaderEdit}
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "10px 10px",
+                background: "#1a1c24",
+                border: "1px solid #2a2d3a",
+                borderRadius: 6,
+                cursor: "pointer",
+                color: "#e8eaf2",
+                fontSize: 12,
+                textAlign: "left",
+              }}
+            >
+              <span
+                style={{
+                  width: 22,
+                  height: 22,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: "#2a79ff",
+                  color: "#fff",
+                  borderRadius: 4,
+                  fontSize: 11,
+                }}
+              >
+                <i className="fa-solid fa-window-maximize" />
+              </span>
+              <span style={{ flex: 1 }}>
+                <div style={{ fontWeight: 600 }}>헤더 편집</div>
+                <div style={{ fontSize: 10, color: "#888", marginTop: 2 }}>
+                  로고 · 메뉴 · 텍스트 · 언어 · 스타일
+                </div>
+              </span>
+              <i className="fa-solid fa-chevron-right" style={{ color: "#666", fontSize: 11 }} />
+            </button>
+          </div>
+        </section>
+      )}
+
       <section className="lp-section">
         <h4>
           섹션 (페이지 슬라이드)
