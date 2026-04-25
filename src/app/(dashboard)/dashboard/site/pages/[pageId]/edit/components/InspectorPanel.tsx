@@ -15,12 +15,12 @@
 
 "use client";
 
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import {
   useEditorStore,
   selectRoot,
 } from "../store/editor-store";
-import type { Layer, LayerId, LayerInteraction, LayerStyle } from "@/lib/scene";
+import type { ImageLayer, Layer, LayerId, LayerInteraction, LayerStyle } from "@/lib/scene";
 
 const LayerPanel = lazy(() => import("./LayerPanel"));
 
@@ -178,6 +178,8 @@ function DesignTab({ layer, path }: DesignTabProps) {
         disabled={layer.type === "section" || layer.type === "inline"}
       />
 
+      {layer.type === "image" && <ImageSection layer={layer as ImageLayer} />}
+
       <TypographySection layer={layer} />
 
       <FillSection layer={layer} />
@@ -186,6 +188,168 @@ function DesignTab({ layer, path }: DesignTabProps) {
 
       <EffectSection layer={layer} />
     </>
+  );
+}
+
+/* ─── Image-specific section (2026-04-25) ────────────────────────── */
+
+/**
+ * ImageSection — appears in the design tab when the selected layer is an
+ * image. Lets the user replace the source (URL paste or file upload),
+ * edit alt text, switch object-fit, and set an optional click-through
+ * link. Commits flow through `setImage` which mutates the typed fields
+ * AND rewrites `innerHtml` in parallel.
+ */
+function ImageSection({ layer }: { layer: ImageLayer }) {
+  const setImage = useEditorStore((s) => s.setImage);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadErr, setUploadErr] = useState<string | null>(null);
+
+  const handleFile = async (file: File) => {
+    setUploading(true);
+    setUploadErr(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("folder", "site-uploads");
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error || `업로드 실패 (${res.status})`);
+      }
+      const { url } = await res.json();
+      if (typeof url === "string") setImage(layer.id, { src: url });
+    } catch (e) {
+      setUploadErr(e instanceof Error ? e.message : "업로드 실패");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <Section title="이미지">
+      <div className="ins-prop-row">
+        <TextField
+          label="소스"
+          value={layer.src ?? ""}
+          placeholder="https://… 또는 /uploaded/…"
+          onCommit={(v) => setImage(layer.id, { src: v })}
+          wide
+        />
+      </div>
+      <div className="ins-prop-row">
+        <button
+          type="button"
+          className="ins-btn"
+          disabled={uploading}
+          onClick={() => fileInputRef.current?.click()}
+          style={{
+            flex: 1,
+            padding: "8px 10px",
+            background: "#2a79ff",
+            color: "#fff",
+            border: "none",
+            borderRadius: 6,
+            cursor: uploading ? "wait" : "pointer",
+            fontSize: 12,
+            opacity: uploading ? 0.6 : 1,
+          }}
+        >
+          <i className="fa-solid fa-upload" style={{ marginRight: 6 }} />
+          {uploading ? "업로드 중…" : "파일 업로드"}
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/gif,image/webp"
+          style={{ display: "none" }}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) void handleFile(f);
+            e.target.value = "";
+          }}
+        />
+      </div>
+      {uploadErr && (
+        <div
+          className="ins-prop-row"
+          style={{ color: "#ff6b6b", fontSize: 11, padding: "0 4px" }}
+        >
+          {uploadErr}
+        </div>
+      )}
+      <div className="ins-prop-row">
+        <TextField
+          label="대체 텍스트"
+          value={layer.alt ?? ""}
+          placeholder="이미지 설명 (SEO·접근성)"
+          onCommit={(v) => setImage(layer.id, { alt: v })}
+          wide
+        />
+      </div>
+      <div className="ins-prop-row">
+        <FitToggle
+          value={layer.objectFit ?? ""}
+          onChange={(v) =>
+            setImage(layer.id, {
+              objectFit: (v || undefined) as ImageLayer["objectFit"],
+            })
+          }
+        />
+      </div>
+      <div className="ins-prop-row">
+        <TextField
+          label="링크"
+          value={layer.href ?? ""}
+          placeholder="클릭 시 이동할 URL (선택)"
+          onCommit={(v) => setImage(layer.id, { href: v })}
+          wide
+        />
+      </div>
+    </Section>
+  );
+}
+
+function FitToggle({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange(v: string): void;
+}) {
+  const opts: Array<[string, string]> = [
+    ["", "자동"],
+    ["cover", "cover"],
+    ["contain", "contain"],
+    ["fill", "fill"],
+    ["none", "none"],
+  ];
+  return (
+    <div className="ins-prop wide">
+      <label>맞춤</label>
+      <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+        {opts.map(([v, label]) => (
+          <button
+            key={v || "auto"}
+            type="button"
+            onClick={() => onChange(v)}
+            style={{
+              flex: "1 1 auto",
+              padding: "5px 8px",
+              fontSize: 11,
+              border: "1px solid #2a2d3a",
+              background: value === v ? "#2a79ff" : "#1a1c24",
+              color: value === v ? "#fff" : "#c6c9d6",
+              borderRadius: 4,
+              cursor: "pointer",
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 

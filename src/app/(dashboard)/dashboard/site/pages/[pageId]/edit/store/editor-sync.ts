@@ -397,12 +397,50 @@ export function applyStructure(
       applyFrameToEl(childEl, child, viewportMode);
       applyTransformToEl(childEl, child, viewportMode);
       applyStyleToEl(childEl, child);
+      if (child.type === "image") {
+        applyImageDataToEl(childEl, child);
+      }
       if (hasTypedChildren(child)) {
         reconcile(child, childEl);
       }
     }
   };
   reconcile(scene.root, container);
+}
+
+/**
+ * Push an ImageLayer's typed `src` / `alt` / `href` / `objectFit` onto the
+ * live DOM. Called from applyStructure whenever the scene changes so
+ * Inspector edits show up on the canvas without waiting for save.
+ *
+ * The wrapper element's full innerHTML is NOT replaced — that would blow
+ * away the rotation handle / selection outline / any caret state. We
+ * just patch the inner `<img>` and (if present) outer `<a>`.
+ */
+function applyImageDataToEl(el: HTMLElement, layer: Layer) {
+  if (layer.type !== "image") return;
+  type ImgFields = { src?: string; alt?: string; href?: string; hrefTarget?: string; objectFit?: string };
+  const img = layer as Layer & ImgFields;
+  const imgEl = el.querySelector("img");
+  if (imgEl) {
+    if (img.src != null) {
+      if (imgEl.getAttribute("src") !== img.src) imgEl.setAttribute("src", img.src);
+    }
+    if (img.alt) imgEl.setAttribute("alt", img.alt);
+    else imgEl.removeAttribute("alt");
+    if (img.objectFit) {
+      (imgEl as HTMLImageElement).style.setProperty("object-fit", img.objectFit);
+    } else {
+      (imgEl as HTMLImageElement).style.removeProperty("object-fit");
+    }
+  }
+  const a = el.querySelector("a");
+  if (a) {
+    if (img.href) a.setAttribute("href", img.href);
+    else a.removeAttribute("href");
+    if (img.hrefTarget) a.setAttribute("target", img.hrefTarget);
+    else a.removeAttribute("target");
+  }
 }
 
 /**

@@ -27,6 +27,7 @@ import { produce } from "immer";
 import { applyMobileCssToScene, hasTypedChildren, isSection, legacyHtmlToScene, sceneToLegacyHtml } from "@/lib/scene";
 import type {
   GroupLayer,
+  ImageLayer,
   Layer,
   LayerId,
   LayerInteraction,
@@ -109,6 +110,23 @@ export interface EditorActions {
    */
   setInteraction(id: LayerId, patch: LayerInteraction | null): void;
 
+  /**
+   * Update an ImageLayer's source / alt / href / object-fit. Mutates the
+   * typed fields AND rewrites `innerHtml` in parallel so the serializer
+   * (which uses innerHtml as the source of truth) emits the new image.
+   * Empty string in any patch field clears that field.
+   */
+  setImage(
+    id: LayerId,
+    patch: Partial<{
+      src: string;
+      alt: string;
+      href: string;
+      hrefTarget: string;
+      objectFit: ImageLayer["objectFit"];
+    }>,
+  ): void;
+
   /** Align multiple layers along an axis. Mutates each layer's frame.x/y
    *  and augments `frameKeys` so the serializer emits `left`/`top`. */
   alignLayers(ids: LayerId[], mode: AlignMode): void;
@@ -152,6 +170,51 @@ export type AlignMode =
   | "bottom";
 
 /* ─── Helpers that operate on the Immer draft ─── */
+
+/**
+ * Rewrite an ImageLayer's `innerHtml` to reflect the layer's current
+ * src/alt/href/objectFit. Parses the existing markup, updates the inner
+ * `<img>` and (if present) `<a>` wrapper, then serializes back. Falls
+ * back to a fresh minimal markup when parsing yields no `<img>`.
+ */
+function rewriteImageInnerHtml(prev: string, img: ImageLayer): string {
+  if (typeof window === "undefined" || !window.DOMParser) {
+    // SSR / non-browser fallback — emit a minimal `<img>` only.
+    const altAttr = img.alt ? ` alt="${escapeAttr(img.alt)}"` : "";
+    return `<img src="${escapeAttr(img.src ?? "")}"${altAttr} />`;
+  }
+  const wrapper = document.createElement("div");
+  wrapper.innerHTML = prev ?? "";
+  const imgEl = wrapper.querySelector("img");
+  if (!imgEl) {
+    // No `<img>` to update — fabricate minimal markup so the layer
+    // stays renderable.
+    const altAttr = img.alt ? ` alt="${escapeAttr(img.alt)}"` : "";
+    return `<img src="${escapeAttr(img.src ?? "")}"${altAttr} />`;
+  }
+  imgEl.setAttribute("src", img.src ?? "");
+  if (img.alt) imgEl.setAttribute("alt", img.alt);
+  else imgEl.removeAttribute("alt");
+  // object-fit lives on inline style — preserve other inline styles.
+  if (img.objectFit) {
+    imgEl.style.setProperty("object-fit", img.objectFit);
+  } else {
+    imgEl.style.removeProperty("object-fit");
+  }
+  // Update outer <a> if present
+  const a = wrapper.querySelector("a");
+  if (a) {
+    if (img.href) a.setAttribute("href", img.href);
+    else a.removeAttribute("href");
+    if (img.hrefTarget) a.setAttribute("target", img.hrefTarget);
+    else a.removeAttribute("target");
+  }
+  return wrapper.innerHTML;
+}
+
+function escapeAttr(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+}
 
 function findParentAndIndex(
   root: Container,
@@ -425,6 +488,26 @@ export const useEditorStore = create<EditorStore>()(
             } else {
               l.interaction = patch;
             }
+          }),
+          dirty: true,
+        })),
+
+      setImage: (id, patch) =>
+        set((s) => ({
+          scene: produce(s.scene, (draft) => {
+            const l = findLayer(draft.root, id);
+            if (!l || l.type !== "image") return;
+            const img = l as ImageLayer;
+            // Update typed fields
+            if (patch.src !== undefined) img.src = patch.src;
+            if (patch.alt !== undefined) img.alt = patch.alt || undefined;
+            if (patch.href !== undefined) img.href = patch.href || undefined;
+            if (patch.hrefTarget !== undefined) img.hrefTarget = patch.hrefTarget || undefined;
+            if (patch.objectFit !== undefined) img.objectFit = patch.objectFit;
+            // Rewrite innerHtml so it stays in sync with typed fields. The
+            // serializer reads innerHtml verbatim — without this, the next
+            // save would emit the old src.
+            img.innerHtml = rewriteImageInnerHtml(img.innerHtml, img);
           }),
           dirty: true,
         })),

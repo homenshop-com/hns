@@ -14,8 +14,9 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState, useCallback } from "react";
-import { useEditorStore, type AlignMode } from "../store/editor-store";
+import { useEditorStore, selectRoot, type AlignMode } from "../store/editor-store";
 import { snapResize, type Rect as SnapRect } from "../store/snap";
+import type { Layer } from "@/lib/scene";
 
 interface Props {
   /** The canvas content element — used to scope element lookups and to
@@ -32,6 +33,24 @@ interface Rect {
   /** Element center in viewport coords. */
   cx: number;
   cy: number;
+}
+
+/** Walk the scene graph for a layer by id. Used by overlay gizmos that
+ *  need scene-type info (image vs. text vs. group) without subscribing
+ *  to the whole store on every render. */
+function findLayerInScene(id: string): Layer | null {
+  const root = selectRoot(useEditorStore.getState()) as Layer & { children?: Layer[] };
+  function walk(node: Layer & { children?: Layer[] }): Layer | null {
+    if (node.id === id) return node;
+    if (Array.isArray(node.children)) {
+      for (const c of node.children) {
+        const f = walk(c as Layer & { children?: Layer[] });
+        if (f) return f;
+      }
+    }
+    return null;
+  }
+  return walk(root);
 }
 
 /** Measure the element's visible rect (already transformed). */
@@ -93,11 +112,13 @@ export default function CanvasOverlay({ containerRef }: Props) {
   const [singleRect, setSingleRect] = useState<Rect | null>(null);
   const [singleIsSection, setSingleIsSection] = useState(false);
   const [singleIsInline, setSingleIsInline] = useState(false);
+  const [singleIsImage, setSingleIsImage] = useState(false);
   useLayoutEffect(() => {
     if (!single || !container) {
       setSingleRect(null);
       setSingleIsSection(false);
       setSingleIsInline(false);
+      setSingleIsImage(false);
       return;
     }
     const el = container.ownerDocument.getElementById(single);
@@ -105,6 +126,7 @@ export default function CanvasOverlay({ containerRef }: Props) {
       setSingleRect(null);
       setSingleIsSection(false);
       setSingleIsInline(false);
+      setSingleIsImage(false);
       return;
     }
     setSingleRect(measureEl(el));
@@ -118,6 +140,16 @@ export default function CanvasOverlay({ containerRef }: Props) {
     // doesn't make sense (text reflows), but rotation still does.
     const tag = el.tagName;
     setSingleIsInline(tag !== "DIV" && tag !== "SECTION" && tag !== "ARTICLE");
+    // Image: scene type === "image" (preferred) OR DOM contains an <img>
+    // and no nested .dragable (atomic image leaf).
+    const layer = findLayerInScene(single);
+    if (layer?.type === "image") {
+      setSingleIsImage(true);
+    } else if (!hasDragableChild && el.querySelector("img")) {
+      setSingleIsImage(true);
+    } else {
+      setSingleIsImage(false);
+    }
   }, [single, container, tick]);
 
   // Measure multi-selection union bbox for toolbar placement.
@@ -440,6 +472,14 @@ export default function CanvasOverlay({ containerRef }: Props) {
         </div>
       )}
 
+      {/* Image quick-replace floating button — top-right of selected image.
+          Pairs with the Inspector "이미지" section: 1-click swap without
+          opening the right rail. Pure UI; the actual replace flow goes
+          through `setImage` so undo/redo + save serialize correctly. */}
+      {single && singleRect && singleIsImage && (
+        <ImageReplaceButton layerId={single} rect={singleRect} />
+      )}
+
       {/* Multi-selection align toolbar */}
       {multiMode && multiAnchor && (
         <div
@@ -569,4 +609,82 @@ function AlignGlyph({ mode, fallback }: { mode: AlignMode; fallback: string }) {
     default:
       return <span>{fallback}</span>;
   }
+}
+
+/* ─── Image quick-replace button ──────────────────────────────────── */
+
+/**
+ * ImageReplaceButton — small floating "↻" pill anchored at the top-right
+ * of a selected image. Clicking opens a hidden file input; on file pick,
+ * uploads via /api/upload and dispatches `setImage` with the new URL.
+ *
+ * Uses `position: fixed` against the live element rect (same pattern as
+ * the rotation handle / resize handles), so it tracks zoom + scroll.
+ */
+function ImageReplaceButton({ layerId, rect }: { layerId: string; rect: Rect }) {
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const [busy, setBusy] = useState(false);
+  const setImage = useEditorStore((s) => s.setImage);
+
+  const onPick = async (file: File) => {
+    setBusy(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("folder", "site-uploads");
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      if (!res.ok) throw new Error(`업로드 실패 (${res.status})`);
+      const { url } = await res.json();
+      if (typeof url === "string") setImage(layerId, { src: url });
+    } catch (e) {
+      // Lightweight: surface as alert. The Inspector ImageSection has the
+      // proper inline error state for power-user replace flows.
+      alert(e instanceof Error ? e.message : "업로드 실패");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => fileRef.current?.click()}
+        title="이미지 교체"
+        style={{
+          position: "fixed",
+          left: rect.left + rect.width - 32,
+          top: rect.top + 8,
+          width: 24,
+          height: 24,
+          padding: 0,
+          background: busy ? "#666" : "rgba(42, 121, 255, 0.95)",
+          color: "#fff",
+          border: "1.5px solid #fff",
+          borderRadius: 4,
+          cursor: busy ? "wait" : "pointer",
+          zIndex: 9450,
+          pointerEvents: "auto",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 12,
+          boxShadow: "0 1px 3px rgba(0,0,0,0.4)",
+        }}
+      >
+        <i className={busy ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-arrows-rotate"} />
+      </button>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/jpeg,image/png,image/gif,image/webp"
+        style={{ display: "none" }}
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) void onPick(f);
+          e.target.value = "";
+        }}
+      />
+    </>
+  );
 }
