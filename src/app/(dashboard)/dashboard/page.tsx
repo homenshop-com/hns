@@ -454,12 +454,7 @@ export default async function DashboardPage() {
       <div className="dv2-app">
         {/* ───── SIDEBAR ───── */}
         <aside className="dv2-side">
-          <div className="dv2-brand">
-            <div className="dv2-brand-mark">h</div>
-            <div className="dv2-brand-name">
-              home<span className="ns">Nshop</span>
-            </div>
-          </div>
+          <Link href="/dashboard" className="dv2-brand" title="대시보드로"><div className="dv2-brand-mark">h</div><div className="dv2-brand-name">home<span className="ns">Nshop</span></div></Link>
 
           <nav className="dv2-nav">
             <Link className="active" href="/dashboard">
