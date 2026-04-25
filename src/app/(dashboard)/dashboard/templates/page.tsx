@@ -11,7 +11,7 @@ import { getSettingBool } from "@/lib/settings";
 export default async function TemplatesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ sort?: string; keyword?: string }>;
+  searchParams: Promise<{ sort?: string; keyword?: string; type?: string }>;
 }) {
   const session = await auth();
   if (!session) redirect("/login");
@@ -32,6 +32,8 @@ export default async function TemplatesPage({
   const params = await searchParams;
   const sort = params.sort || "newest";
   const keyword = params.keyword || "";
+  // type filter: "" (all) | "responsive" | "fixed"
+  const typeFilter = params.type === "responsive" || params.type === "fixed" ? params.type : "";
 
   // Keyword OR (may be combined with visibility OR via AND below)
   const keywordOr = keyword
@@ -66,15 +68,17 @@ export default async function TemplatesPage({
     { userId: null },
     { isPublic: true },
   ];
-  const publicWhere = keywordOr
-    ? {
-        isActive: true,
-        AND: [{ OR: keywordOr }, { OR: visibilityOr }],
-      }
-    : {
-        isActive: true,
-        OR: visibilityOr,
-      };
+  const typeWhere =
+    typeFilter === "responsive" ? { isResponsive: true }
+    : typeFilter === "fixed" ? { isResponsive: false }
+    : null;
+  const andClauses: Array<Record<string, unknown>> = [{ OR: visibilityOr }];
+  if (keywordOr) andClauses.push({ OR: keywordOr });
+  if (typeWhere) andClauses.push(typeWhere);
+  const publicWhere = {
+    isActive: true,
+    AND: andClauses,
+  };
   const templates = await prisma.template.findMany({
     where: publicWhere,
     orderBy,
@@ -128,6 +132,7 @@ export default async function TemplatesPage({
             thumbnailUrl: t.thumbnailUrl,
             category: t.category,
             price: t.price,
+            isResponsive: t.isResponsive,
           }))}
           myTemplates={myTemplates.map((t) => ({
             id: t.id,
@@ -138,10 +143,12 @@ export default async function TemplatesPage({
             price: t.price,
             isPublic: t.isPublic,
             demoSiteId: t.demoSiteId,
+            isResponsive: t.isResponsive,
           }))}
           totalCount={templates.length}
           currentSort={sort}
           currentKeyword={keyword}
+          currentType={typeFilter}
           emailVerified={!emailVerificationEnabled || !!currentUser?.emailVerified || isDemoAccount}
           labels={{
             total: tTpl("total"),

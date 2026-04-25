@@ -14,6 +14,8 @@ interface TemplateItem {
   price: number;
   isPublic?: boolean;
   demoSiteId?: string | null;
+  /** true = built mobile-responsive (newer templates). false = legacy fixed-width. */
+  isResponsive?: boolean;
 }
 
 interface TemplateGalleryProps {
@@ -22,6 +24,7 @@ interface TemplateGalleryProps {
   totalCount: number;
   currentSort: string;
   currentKeyword: string;
+  currentType?: string;
   emailVerified: boolean;
   labels: {
     total: string;
@@ -85,6 +88,7 @@ export default function TemplateGallery({
   totalCount,
   currentSort,
   currentKeyword,
+  currentType = "",
   emailVerified,
   labels,
 }: TemplateGalleryProps) {
@@ -290,6 +294,7 @@ export default function TemplateGallery({
     const params = new URLSearchParams();
     if (sort && sort !== "newest") params.set("sort", sort);
     if (keyword) params.set("keyword", keyword);
+    if (currentType) params.set("type", currentType);
     router.push(`/dashboard/templates?${params.toString()}`);
   }
 
@@ -298,6 +303,15 @@ export default function TemplateGallery({
     const params = new URLSearchParams();
     if (currentSort && currentSort !== "newest") params.set("sort", currentSort);
     if (keyword) params.set("keyword", keyword);
+    if (currentType) params.set("type", currentType);
+    router.push(`/dashboard/templates?${params.toString()}`);
+  }
+
+  function handleTypeFilter(type: "" | "responsive" | "fixed") {
+    const params = new URLSearchParams();
+    if (currentSort && currentSort !== "newest") params.set("sort", currentSort);
+    if (keyword) params.set("keyword", keyword);
+    if (type) params.set("type", type);
     router.push(`/dashboard/templates?${params.toString()}`);
   }
 
@@ -534,7 +548,7 @@ export default function TemplateGallery({
         <>
           {/* TOOLBAR */}
           <div className="tpl-toolbar">
-            <div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
               <select
                 defaultValue={currentSort}
                 onChange={handleSortChange}
@@ -554,6 +568,54 @@ export default function TemplateGallery({
                 <option value="name">{labels.sortName}</option>
                 <option value="popular">{labels.sortPopular}</option>
               </select>
+              {/* Type filter — segmented control: 전체 / 반응형 / Fix형 */}
+              <div
+                role="group"
+                aria-label="템플릿 유형 필터"
+                style={{
+                  display: "inline-flex",
+                  background: "#f1f5f9",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: 6,
+                  padding: 2,
+                  gap: 1,
+                }}
+              >
+                {([
+                  { v: "" as const, label: "전체" },
+                  { v: "responsive" as const, label: "반응형" },
+                  { v: "fixed" as const, label: "Fix형" },
+                ]).map((opt) => {
+                  const active = currentType === opt.v;
+                  return (
+                    <button
+                      key={opt.v || "all"}
+                      type="button"
+                      onClick={() => handleTypeFilter(opt.v)}
+                      aria-pressed={active}
+                      style={{
+                        padding: "6px 14px",
+                        fontSize: 12.5,
+                        fontWeight: active ? 700 : 500,
+                        border: 0,
+                        borderRadius: 4,
+                        background: active ? "#fff" : "transparent",
+                        color: active
+                          ? opt.v === "responsive"
+                            ? "#7b5cff"
+                            : opt.v === "fixed"
+                              ? "#475569"
+                              : "#1a1a2e"
+                          : "#64748b",
+                        boxShadow: active ? "0 1px 2px rgba(15,18,38,0.08)" : "none",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
             <div className="tpl-search">
               <form onSubmit={handleSearch} style={{ display: "flex", gap: 6 }}>
@@ -593,6 +655,33 @@ export default function TemplateGallery({
                     <div className="tpl-thumb-placeholder">🎨</div>
                   )}
                   {tpl.price === 0 && <span className="tpl-badge">FREE</span>}
+                  {tpl.isResponsive ? (
+                    <span
+                      className="tpl-badge"
+                      style={{
+                        left: 8,
+                        right: "auto",
+                        background: "#7b5cff",
+                        color: "#fff",
+                      }}
+                      title="모바일 반응형 디자인 — 한 레이아웃이 모든 화면에 자동 대응"
+                    >
+                      반응형
+                    </span>
+                  ) : (
+                    <span
+                      className="tpl-badge"
+                      style={{
+                        left: 8,
+                        right: "auto",
+                        background: "#94a3b8",
+                        color: "#fff",
+                      }}
+                      title="고정 폭 디자인 — 데스크탑/모바일 별도 레이아웃 필요"
+                    >
+                      Fix형
+                    </span>
+                  )}
                 </div>
                 <div className="tpl-card-body">
                   <span className="tpl-card-name">{tpl.name}</span>

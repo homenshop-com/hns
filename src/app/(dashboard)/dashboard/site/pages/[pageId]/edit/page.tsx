@@ -34,6 +34,16 @@ export default async function EditPagePage({ params }: EditPageProps) {
   }
 
   const site = currentPage.site;
+  // Pull the source template's isResponsive flag so the editor can hide
+  // the PC/Mobile toggle for new responsive templates (Agency, Plus
+  // Academy, HomeBuilder…) where mobile is auto-handled by the layout.
+  const sourceTemplate = site.templateId
+    ? await prisma.template.findUnique({
+        where: { id: site.templateId },
+        select: { isResponsive: true },
+      })
+    : null;
+  const isResponsiveTemplate = !!sourceTemplate?.isResponsive;
   const siteLanguages = (site as typeof site & { languages?: string[] }).languages || ["ko"];
   // Use the page's language if it's in configured languages, otherwise fall back to default
   const currentLang = siteLanguages.includes(currentPage.lang)
@@ -132,6 +142,7 @@ export default async function EditPagePage({ params }: EditPageProps) {
       siteLanguages={siteLanguages}
       langPageMap={langPageMap}
       editorV2Enabled={isEditorV2Enabled(session.user?.email)}
+      isResponsiveTemplate={isResponsiveTemplate}
     />
   );
 }

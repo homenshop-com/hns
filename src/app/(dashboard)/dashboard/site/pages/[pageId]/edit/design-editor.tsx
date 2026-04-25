@@ -79,6 +79,11 @@ interface DesignEditorProps {
   langPageMap?: Record<string, string>;
   /** Editor V2 (scene-graph + LayerPanel) enabled for this user. Default off. */
   editorV2Enabled?: boolean;
+  /** true = source template is mobile-responsive (Agency, Plus Academy,
+   *  HomeBuilder etc.). When true, we hide the PC/Mobile viewport toggle
+   *  in the toolbar — the layout flows automatically and there's no
+   *  separate "mobile" coordinate system to edit. */
+  isResponsiveTemplate?: boolean;
 }
 
 /* ─── Component ─── */
@@ -104,6 +109,7 @@ export default function DesignEditor({
   siteLanguages,
   langPageMap = {},
   editorV2Enabled = false,
+  isResponsiveTemplate = false,
 }: DesignEditorProps) {
   const router = useRouter();
 
@@ -1984,7 +1990,7 @@ export default function DesignEditor({
           </nav>
         </div>
         <div className="de-header-right">
-          {editorV2Enabled && (
+          {editorV2Enabled && !isResponsiveTemplate && (
             <div className="de-viewport-toggle" role="group" aria-label="뷰포트 전환">
               <button
                 type="button"
