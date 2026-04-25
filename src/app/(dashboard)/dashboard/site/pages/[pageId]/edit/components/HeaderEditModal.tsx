@@ -112,15 +112,47 @@ export default function HeaderEditModal({
       }
       const { url } = (await res.json()) as { url?: string };
       if (typeof url !== "string") return;
-      // Patch the live header DOM. Match the same selectors as detection.
+      // Patch the live header DOM. Two-tier strategy:
+      //   1. If an <img> already exists in a logo-ish position → swap src
+      //   2. Else (text-based logo like HomeBuilder's "h HomeBuilder"):
+      //      find the logo *container* and replace its content with a
+      //      fresh <img>. We keep the container's classes so the
+      //      template's positioning / sizing CSS still applies.
       const hEl = headerRef.current;
       if (hEl) {
-        const img = hEl.querySelector(
-          "#hns_h_logo img, .logo img, [id*=logo] img, header img, a img",
+        const existingImg = hEl.querySelector(
+          "#hns_h_logo img, .logo img, .brand img, [id*=logo] img, [class*=logo] img, [class*=brand] img",
         ) as HTMLImageElement | null;
-        if (img) img.setAttribute("src", url);
+        if (existingImg) {
+          existingImg.setAttribute("src", url);
+        } else {
+          // No <img>: find the container that holds the brand. Try in
+          // priority order so we land on the most semantic match.
+          const container =
+            (hEl.querySelector(
+              "#hns_h_logo, .logo, .brand, [id*=logo], [class*=logo], [class*=brand]",
+            ) as HTMLElement | null) ??
+            // Last resort: first link or heading inside header. Many
+            // templates wrap the brand in `<a class="...">` or `<h1>`.
+            (hEl.querySelector("header a:first-of-type, h1, h2") as HTMLElement | null);
+          if (container) {
+            // Replace contents with an <img>. Keep the wrapper element
+            // (its class drives sizing/positioning); just swap inner.
+            container.innerHTML = `<img src="${url}" alt="로고" style="display:block;max-height:48px;width:auto;height:auto;" />`;
+          } else {
+            // Truly no logo container — inject at start of header.
+            const wrap = document.createElement("a");
+            wrap.className = "logo";
+            wrap.href = "/";
+            wrap.style.cssText = "display:inline-block;padding:8px;";
+            wrap.innerHTML = `<img src="${url}" alt="로고" style="display:block;max-height:48px;width:auto;height:auto;" />`;
+            hEl.insertBefore(wrap, hEl.firstChild);
+          }
+        }
       }
       setLogoSrc(url);
+      // Clear the text-logo input — image takes precedence now.
+      setLogoText("");
     } catch (e) {
       alert(e instanceof Error ? e.message : "업로드 실패");
     } finally {
