@@ -31,6 +31,8 @@ const CanvasRulers = lazy(() => import("./components/CanvasRulers"));
 // Sprint 9k — drag-to-insert ghost + drop indicator
 const DragInsertLayer = lazy(() => import("./components/DragInsertLayer"));
 const CanvasOverlay = lazy(() => import("./components/CanvasOverlay"));
+const HeaderImageOverlay = lazy(() => import("./components/HeaderImageOverlay"));
+const MenuManagerModal = lazy(() => import("./components/MenuManagerModal"));
 
 /** Module-scoped clipboard for V2 copy/paste. Lives for the page
  *  session, cleared on navigation. We also mirror to navigator.clipboard
@@ -103,7 +105,7 @@ export default function DesignEditor({
   pageId,
   pageTitle,
   pageSlug,
-  pages,
+  pages: initialPages,
   bodyHtml,
   published: initialPublished,
   currentLang,
@@ -142,6 +144,50 @@ export default function DesignEditor({
   // Site settings modal — opens from ⋯ overflow menu (holds what used to
   // be in the old "설정" tab: header/logo, menu mode, footer reset).
   const [showSiteSettings, setShowSiteSettings] = useState(false);
+  // Menu manager modal — drag-reorder + showInMenu toggle + label edit
+  // for the entire pages tree. Opens from settings or canvas affordance.
+  const [showMenuManager, setShowMenuManager] = useState(false);
+  // Hidden file input for logo replace via the settings modal "로고 변경"
+  // button. The canvas-side ↻ floating button has its own picker; this
+  // one keeps the modal flow consistent.
+  const logoFileInputRef = useRef<HTMLInputElement | null>(null);
+  // Local mirror of the `pages` prop so the menu manager modal can
+  // mutate the in-memory list. buildMenuHtml() reads from this state
+  // (was `pages` prop directly), so menu changes show on the canvas
+  // immediately without a parent re-fetch.
+  const [pages, setPages] = useState<PageInfo[]>(initialPages);
+  useEffect(() => {
+    setPages(initialPages);
+  }, [initialPages]);
+  // Header layout tokens (sticky/height/background). Persisted as a
+  // managed `:root{}` block in pageCss — see applyHeaderLayout helper.
+  type HeaderLayout = {
+    sticky: boolean;
+    height: string; // e.g. "auto" | "64px"
+    background: string; // hex / var() / "transparent"
+  };
+  const [headerLayout, setHeaderLayout] = useState<HeaderLayout>({
+    sticky: false,
+    height: "auto",
+    background: "transparent",
+  });
+  // Hydrate from existing pageCss on mount (idempotent).
+  useEffect(() => {
+    const css = pageCss ?? "";
+    const re = /\/\* HNS-HEADER-LAYOUT:START \*\/[\s\S]*?\/\* HNS-HEADER-LAYOUT:END \*\//;
+    const m = css.match(re);
+    if (!m) return;
+    const block = m[0];
+    const sticky = /sticky\s*:\s*1/.test(block);
+    const heightMatch = block.match(/--hns-header-height:\s*([^;]+);/);
+    const bgMatch = block.match(/--hns-header-bg:\s*([^;]+);/);
+    setHeaderLayout({
+      sticky,
+      height: heightMatch?.[1]?.trim() ?? "auto",
+      background: bgMatch?.[1]?.trim() ?? "transparent",
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // Page tab context menu (right-click on a page tab in the App bar).
   const [pageCtxMenu, setPageCtxMenu] = useState<{ pageId: string; x: number; y: number } | null>(null);
   // Undo/Redo button enable state — subscribe to zundo's temporal store
@@ -2315,16 +2361,36 @@ export default function DesignEditor({
 
   /* ─── Header/Footer settings helpers ─── */
   function handleLogoChange() {
-    const url = prompt("새 로고 이미지 URL을 입력하세요:", logoUrl || "https://");
-    if (url === null) return;
-    setLogoUrl(url);
-    // Update logo in header DOM
-    const hEl = headerRef.current;
-    if (!hEl) return;
-    const logoImg = hEl.querySelector("#hns_h_logo img, .logo img, [id*=logo] img, a img") as HTMLImageElement | null;
-    if (logoImg) {
-      logoImg.src = url;
-      logoImg.setAttribute("src", url);
+    // Triggers the hidden file input — actual upload + DOM swap happens
+    // in `handleLogoFile` on the input's change event.
+    logoFileInputRef.current?.click();
+  }
+
+  async function handleLogoFile(file: File) {
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("folder", "site-uploads");
+      fd.append("compress", "true");
+      if (siteId) fd.append("siteId", siteId);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      if (!res.ok) {
+        const j = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(j.error || `업로드 실패 (${res.status})`);
+      }
+      const { url } = (await res.json()) as { url?: string };
+      if (typeof url !== "string") return;
+      setLogoUrl(url);
+      // Update the live header DOM so the change shows immediately.
+      // The save flow picks up `headerRef.current.innerHTML` later.
+      const hEl = headerRef.current;
+      if (!hEl) return;
+      const logoImg = hEl.querySelector(
+        "#hns_h_logo img, .logo img, [id*=logo] img, a img",
+      ) as HTMLImageElement | null;
+      if (logoImg) logoImg.setAttribute("src", url);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "로고 업로드 실패");
     }
   }
 
@@ -2360,6 +2426,51 @@ export default function DesignEditor({
    * CSS. Downstream: any CSS that references `var(--brand-color)` /
    * `var(--brand-accent)` / `var(--brand-font)` picks up the values.
    */
+  /** Persist header layout tokens (sticky/height/background) into the
+   *  page CSS as a managed `:root{}` block. Uses the same marker pattern
+   *  as `applyTheme` so updates replace in place without disturbing
+   *  surrounding CSS. The tokens are read by header CSS rules:
+   *    #hns_header { background: var(--hns-header-bg); height: var(...) }
+   *    body[data-header-sticky] #hns_header { position: sticky; top: 0; z-index: 100 }
+   */
+  function applyHeaderLayout(layout: { sticky: boolean; height: string; background: string }) {
+    const MARK_START = "/* HNS-HEADER-LAYOUT:START */";
+    const MARK_END = "/* HNS-HEADER-LAYOUT:END */";
+    const heightLine =
+      layout.height && layout.height !== "auto"
+        ? `  --hns-header-height: ${layout.height};\n  #hns_header { height: var(--hns-header-height); min-height: var(--hns-header-height); }\n`
+        : "";
+    const bgLine =
+      layout.background && layout.background !== "transparent"
+        ? `  --hns-header-bg: ${layout.background};\n  #hns_header { background: var(--hns-header-bg); }\n`
+        : "";
+    const stickyLine = layout.sticky
+      ? `  #hns_header { position: sticky; top: 0; z-index: 100; }\n  /* sticky:1 */\n`
+      : `  /* sticky:0 */\n`;
+    const block = `${MARK_START}\n:root {\n${heightLine}${bgLine}${stickyLine}}\n${MARK_END}`;
+    const css = currentPageCss ?? "";
+    const re = new RegExp(
+      MARK_START.replace(/[/*]/g, "\\$&") + "[\\s\\S]*?" + MARK_END.replace(/[/*]/g, "\\$&"),
+    );
+    const next = re.test(css)
+      ? css.replace(re, block)
+      : css + (css.trim() ? "\n\n" : "") + block + "\n";
+    setCurrentPageCss(next);
+    // Apply live to the canvas so the user sees the change immediately.
+    const hEl = headerRef.current;
+    if (hEl) {
+      hEl.style.position = layout.sticky ? "sticky" : "";
+      hEl.style.top = layout.sticky ? "0" : "";
+      hEl.style.zIndex = layout.sticky ? "100" : "";
+      hEl.style.background = layout.background !== "transparent" ? layout.background : "";
+      if (layout.height && layout.height !== "auto") {
+        hEl.style.minHeight = layout.height;
+      } else {
+        hEl.style.minHeight = "";
+      }
+    }
+  }
+
   function applyTheme(tokens: { brand: string; accent: string; fontStack?: string }) {
     const MARK_START = "/* HNS-THEME-TOKENS:START */";
     const MARK_END = "/* HNS-THEME-TOKENS:END */";
@@ -2924,7 +3035,41 @@ export default function DesignEditor({
                     헤더 초기화
                   </button>
                 </div>
+                <span style={{ fontSize: 12, color: "#6b7280" }}>
+                  캔버스의 로고를 직접 클릭해도 ↻ 버튼으로 교체할 수 있습니다.
+                </span>
+                <input
+                  ref={logoFileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
+                  style={{ display: "none" }}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) void handleLogoFile(f);
+                    e.target.value = "";
+                  }}
+                />
               </div>
+
+              {/* Header layout — sticky / height / background.
+                  Writes to a managed `:root{}` block in the page CSS via
+                  applyHeaderLayout, mirroring the theme tokens pattern. */}
+              <HeaderLayoutSection
+                value={headerLayout}
+                onChange={(next) => {
+                  setHeaderLayout(next);
+                  applyHeaderLayout(next);
+                }}
+              />
+
+              {/* Languages — site-wide languages list + default. PUT to
+                  /api/sites/{id} updates Site.languages array. */}
+              <LanguagesSection
+                siteId={siteId}
+                currentLang={currentLang}
+                languages={siteLanguages}
+                defaultLanguage={defaultLanguage}
+              />
 
               {/* Menu Mode */}
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -2961,6 +3106,27 @@ export default function DesignEditor({
                     }}
                   >
                     커스텀 수정
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowSiteSettings(false);
+                      setShowMenuManager(true);
+                    }}
+                    style={{
+                      padding: "6px 14px",
+                      fontSize: 13,
+                      borderRadius: 6,
+                      border: "1px solid #2563eb",
+                      background: "#2563eb",
+                      color: "#fff",
+                      cursor: "pointer",
+                      fontWeight: 600,
+                      marginLeft: "auto",
+                    }}
+                  >
+                    <i className="fa-solid fa-list-ul" style={{ marginRight: 6 }} />
+                    메뉴 관리 열기
                   </button>
                 </div>
                 <span style={{ fontSize: 12, color: "#6b7280" }}>
@@ -3179,6 +3345,34 @@ export default function DesignEditor({
         </Suspense>
       )}
 
+      {/* HEADER IMAGE OVERLAY — floating ↻ buttons over each <img> in
+          the site header so the user can swap the logo (and any other
+          header images) without opening the settings modal. */}
+      <Suspense fallback={null}>
+        <HeaderImageOverlay headerRef={headerRef} siteId={siteId} />
+      </Suspense>
+
+      {/* MENU MANAGER MODAL — opens from settings or from the canvas
+          floating "메뉴 편집" button. Drives Pages list (showInMenu /
+          menuTitle / parentId / order) which buildMenuHtml() reads. */}
+      {showMenuManager && (
+        <Suspense fallback={null}>
+          <MenuManagerModal
+            siteId={siteId}
+            pages={pages}
+            onClose={() => setShowMenuManager(false)}
+            onPagesChanged={(updated) => {
+              setPages(updated);
+              // Rebuild header menu in auto mode so the canvas reflects
+              // the new ordering / labels immediately.
+              if (menuMode === "auto" && menuRef.current) {
+                menuRef.current.innerHTML = buildMenuHtml();
+              }
+            }}
+          />
+        </Suspense>
+      )}
+
       {/* TIPTAP EDITOR MODAL — disabled in favor of in-place contenteditable
           editing (Claude-design-style). The state + handlers are kept so a
           future "rich text" entry point (e.g., Cmd+Shift+E) can re-open the
@@ -3369,3 +3563,211 @@ export default function DesignEditor({
     </div>
   );
 }
+
+
+/* ─── Header Layout & Languages — sub-sections of Site Settings modal
+ * (2026-04-25). Inlined here so they can use the design-editor scope
+ * for style consistency; pulled to top-level functions to keep the
+ * main component readable.
+ */
+
+interface HeaderLayoutValue {
+  sticky: boolean;
+  height: string;
+  background: string;
+}
+
+function HeaderLayoutSection({
+  value,
+  onChange,
+}: {
+  value: HeaderLayoutValue;
+  onChange: (v: HeaderLayoutValue) => void;
+}) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <span style={{ fontSize: 11, color: "#6b7280", textTransform: "uppercase", letterSpacing: 1, fontWeight: 600 }}>
+        헤더 레이아웃
+      </span>
+      <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#374151" }}>
+        <input
+          type="checkbox"
+          checked={value.sticky}
+          onChange={(e) => onChange({ ...value, sticky: e.target.checked })}
+        />
+        스크롤 시 상단 고정 (sticky)
+      </label>
+      <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+        <label style={{ fontSize: 13, color: "#374151", display: "flex", alignItems: "center", gap: 6 }}>
+          높이
+          <input
+            type="text"
+            value={value.height}
+            onChange={(e) => onChange({ ...value, height: e.target.value })}
+            placeholder="auto / 64px"
+            style={{ width: 100, padding: "4px 8px", fontSize: 12, border: "1px solid #d1d5db", borderRadius: 4 }}
+          />
+        </label>
+        <label style={{ fontSize: 13, color: "#374151", display: "flex", alignItems: "center", gap: 6 }}>
+          배경
+          <input
+            type="text"
+            value={value.background}
+            onChange={(e) => onChange({ ...value, background: e.target.value })}
+            placeholder="transparent / #fff"
+            style={{ width: 130, padding: "4px 8px", fontSize: 12, border: "1px solid #d1d5db", borderRadius: 4 }}
+          />
+        </label>
+      </div>
+      <span style={{ fontSize: 11, color: "#6b7280" }}>
+        값은 :root CSS 변수로 페이지 CSS에 저장됩니다 (HNS-HEADER-LAYOUT 블록).
+      </span>
+    </div>
+  );
+}
+
+function LanguagesSection({
+  siteId,
+  currentLang,
+  languages,
+  defaultLanguage,
+}: {
+  siteId: string;
+  currentLang: string;
+  languages: string[];
+  defaultLanguage: string;
+}) {
+  const [selected, setSelected] = useState<string[]>(languages);
+  const [defaultLang, setDefaultLang] = useState<string>(defaultLanguage);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const VALID = [
+    { code: "ko", label: "한국어" },
+    { code: "en", label: "English" },
+    { code: "ja", label: "日本語" },
+    { code: "zh-cn", label: "简体中文" },
+    { code: "zh-tw", label: "繁體中文" },
+    { code: "es", label: "Español" },
+  ];
+
+  const toggle = (code: string) => {
+    setSelected((prev) =>
+      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code],
+    );
+  };
+
+  const save = async () => {
+    if (selected.length === 0) {
+      setMsg("최소 1개 언어를 선택하세요.");
+      return;
+    }
+    if (!selected.includes(defaultLang)) {
+      // Auto-pick first as default if current default got unchecked.
+      setDefaultLang(selected[0]!);
+    }
+    setSaving(true);
+    setMsg(null);
+    try {
+      const res = await fetch(`/api/sites/${siteId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          languages: selected,
+          defaultLanguage: selected.includes(defaultLang) ? defaultLang : selected[0],
+        }),
+      });
+      if (!res.ok) {
+        const j = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(j.error || `저장 실패 (${res.status})`);
+      }
+      setMsg("저장됨. 페이지 새로고침 후 반영됩니다.");
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "저장 실패");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <span style={{ fontSize: 11, color: "#6b7280", textTransform: "uppercase", letterSpacing: 1, fontWeight: 600 }}>
+        언어
+      </span>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 6 }}>
+        {VALID.map((l) => {
+          const checked = selected.includes(l.code);
+          const isDefault = defaultLang === l.code;
+          const isCurrent = currentLang === l.code;
+          return (
+            <label
+              key={l.code}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "6px 10px",
+                background: checked ? "#eff6ff" : "#fff",
+                border: checked ? "1px solid #2563eb" : "1px solid #d1d5db",
+                borderRadius: 6,
+                fontSize: 13,
+                cursor: "pointer",
+              }}
+            >
+              <input type="checkbox" checked={checked} onChange={() => toggle(l.code)} />
+              <span style={{ flex: 1, color: "#374151" }}>
+                {l.label} <span style={{ color: "#9ca3af", fontSize: 11 }}>({l.code})</span>
+              </span>
+              {checked && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setDefaultLang(l.code);
+                  }}
+                  title="기본 언어로 설정"
+                  style={{
+                    padding: "2px 6px",
+                    fontSize: 10,
+                    borderRadius: 3,
+                    border: isDefault ? "1px solid #2563eb" : "1px solid #d1d5db",
+                    background: isDefault ? "#2563eb" : "#fff",
+                    color: isDefault ? "#fff" : "#374151",
+                    cursor: "pointer",
+                  }}
+                >
+                  {isDefault ? "기본" : "기본으로"}
+                </button>
+              )}
+              {isCurrent && (
+                <span style={{ color: "#10b981", fontSize: 10 }} title="편집 중인 언어">●</span>
+              )}
+            </label>
+          );
+        })}
+      </div>
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <button
+          type="button"
+          onClick={save}
+          disabled={saving}
+          style={{
+            padding: "6px 14px",
+            fontSize: 13,
+            background: "#111827",
+            color: "#fff",
+            border: 0,
+            borderRadius: 6,
+            cursor: saving ? "wait" : "pointer",
+            fontWeight: 500,
+            opacity: saving ? 0.6 : 1,
+          }}
+        >
+          {saving ? "저장 중…" : "언어 설정 저장"}
+        </button>
+        {msg && <span style={{ fontSize: 12, color: msg.startsWith("저장됨") ? "#10b981" : "#dc2626" }}>{msg}</span>}
+      </div>
+    </div>
+  );
+}
+
