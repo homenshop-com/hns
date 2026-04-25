@@ -105,6 +105,8 @@ interface Props {
   /** Open the dedicated header edit modal — wired from the 섹션 tab's
    *  "헤더" pinned row so users can find one-stop header editing. */
   onOpenHeaderEdit?(): void;
+  /** Open the dedicated footer edit modal — same pattern as header. */
+  onOpenFooterEdit?(): void;
   /** Owner site id — used by the 에셋 tab to fetch /api/uploads/list
    *  scoped to this site. */
   siteId?: string;
@@ -134,6 +136,7 @@ export default function LeftPalette({
   onInsertSection,
   onInsertAsset,
   onOpenHeaderEdit,
+  onOpenFooterEdit,
   siteId,
   onApplyTheme,
   currentThemeId,
@@ -475,6 +478,7 @@ export default function LeftPalette({
         <SectionsTab
           onAddSectionClick={() => setTab("insert")}
           onOpenHeaderEdit={onOpenHeaderEdit}
+          onOpenFooterEdit={onOpenFooterEdit}
         />
       )}
 
@@ -772,9 +776,11 @@ export default function LeftPalette({
 function SectionsTab({
   onAddSectionClick,
   onOpenHeaderEdit,
+  onOpenFooterEdit,
 }: {
   onAddSectionClick: () => void;
   onOpenHeaderEdit?: () => void;
+  onOpenFooterEdit?: () => void;
 }) {
   // Subscribe to the scene root so the list reflects every reorder /
   // add / delete instantly (same pattern as InspectorPanel).
@@ -839,58 +845,53 @@ function SectionsTab({
 
   return (
     <div className="lp-scroll">
-      {/* Pinned site-frame items — header (and footer in future). These
-          are not part of scene.root.children; they live in Site.headerHtml
-          / Site.footerHtml and need their own dedicated editor. Showing
+      {/* Pinned site-frame items — header + footer. These are not part
+          of scene.root.children; they live in Site.headerHtml /
+          Site.footerHtml and need their own dedicated editors. Showing
           them here keeps every "page section" entry-point in one tab. */}
-      {onOpenHeaderEdit && (
+      {(onOpenHeaderEdit || onOpenFooterEdit) && (
         <section className="lp-section" style={{ borderBottom: "1px solid #2a2d3a", paddingBottom: 8 }}>
           <h4>
             사이트 영역
             <i className="fa-solid fa-window-maximize lp-chev" aria-hidden />
           </h4>
-          <div style={{ padding: "0 6px" }}>
-            <button
-              type="button"
-              onClick={onOpenHeaderEdit}
-              style={{
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "10px 10px",
-                background: "#1a1c24",
-                border: "1px solid #2a2d3a",
-                borderRadius: 6,
-                cursor: "pointer",
-                color: "#e8eaf2",
-                fontSize: 12,
-                textAlign: "left",
-              }}
-            >
-              <span
-                style={{
-                  width: 22,
-                  height: 22,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  background: "#2a79ff",
-                  color: "#fff",
-                  borderRadius: 4,
-                  fontSize: 11,
-                }}
+          <div style={{ padding: "0 6px", display: "flex", flexDirection: "column", gap: 6 }}>
+            {onOpenHeaderEdit && (
+              <button
+                type="button"
+                onClick={onOpenHeaderEdit}
+                style={frameRowBtn}
               >
-                <i className="fa-solid fa-window-maximize" />
-              </span>
-              <span style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600 }}>헤더 편집</div>
-                <div style={{ fontSize: 10, color: "#888", marginTop: 2 }}>
-                  로고 · 메뉴 · 텍스트 · 언어 · 스타일
-                </div>
-              </span>
-              <i className="fa-solid fa-chevron-right" style={{ color: "#666", fontSize: 11 }} />
-            </button>
+                <span style={{ ...frameRowIcon, background: "#2a79ff" }}>
+                  <i className="fa-solid fa-window-maximize" />
+                </span>
+                <span style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600 }}>헤더 편집</div>
+                  <div style={{ fontSize: 10, color: "#888", marginTop: 2 }}>
+                    로고 · 메뉴 · 텍스트 · 언어 · 스타일
+                  </div>
+                </span>
+                <i className="fa-solid fa-chevron-right" style={{ color: "#666", fontSize: 11 }} />
+              </button>
+            )}
+            {onOpenFooterEdit && (
+              <button
+                type="button"
+                onClick={onOpenFooterEdit}
+                style={frameRowBtn}
+              >
+                <span style={{ ...frameRowIcon, background: "#7a5af8", transform: "rotate(180deg)" }}>
+                  <i className="fa-solid fa-window-maximize" />
+                </span>
+                <span style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600 }}>푸터 편집</div>
+                  <div style={{ fontSize: 10, color: "#888", marginTop: 2 }}>
+                    이미지 · 텍스트 · 링크 · 스타일
+                  </div>
+                </span>
+                <i className="fa-solid fa-chevron-right" style={{ color: "#666", fontSize: 11 }} />
+              </button>
+            )}
           </div>
         </section>
       )}
@@ -1184,3 +1185,29 @@ function RowBtn({
   );
 }
 
+
+const frameRowBtn: React.CSSProperties = {
+  width: "100%",
+  display: "flex",
+  alignItems: "center",
+  gap: 10,
+  padding: "10px",
+  background: "#1a1c24",
+  border: "1px solid #2a2d3a",
+  borderRadius: 6,
+  cursor: "pointer",
+  color: "#e8eaf2",
+  fontSize: 12,
+  textAlign: "left",
+};
+
+const frameRowIcon: React.CSSProperties = {
+  width: 22,
+  height: 22,
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  color: "#fff",
+  borderRadius: 4,
+  fontSize: 11,
+};

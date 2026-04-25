@@ -34,6 +34,7 @@ const CanvasOverlay = lazy(() => import("./components/CanvasOverlay"));
 const HeaderImageOverlay = lazy(() => import("./components/HeaderImageOverlay"));
 const MenuManagerModal = lazy(() => import("./components/MenuManagerModal"));
 const HeaderEditModal = lazy(() => import("./components/HeaderEditModal"));
+const FooterEditModal = lazy(() => import("./components/FooterEditModal"));
 
 /** Module-scoped clipboard for V2 copy/paste. Lives for the page
  *  session, cleared on navigation. We also mirror to navigator.clipboard
@@ -151,6 +152,9 @@ export default function DesignEditor({
   // Header edit modal — one-stop editor for logo / texts / menu / lang /
   // layout. Opens from the SectionsTab "헤더" pinned row.
   const [showHeaderEdit, setShowHeaderEdit] = useState(false);
+  // Footer edit modal — same pattern as header but trimmed to the
+  // surfaces footers actually have (images / texts / links / style).
+  const [showFooterEdit, setShowFooterEdit] = useState(false);
   // Hidden file input for logo replace via the settings modal "로고 변경"
   // button. The canvas-side ↻ floating button has its own picker; this
   // one keeps the modal flow consistent.
@@ -3400,6 +3404,7 @@ export default function DesignEditor({
             onInsertSection={(presetId) => insertSectionPreset(presetId)}
             onInsertAsset={(url) => addImageAsset(url)}
             onOpenHeaderEdit={() => setShowHeaderEdit(true)}
+            onOpenFooterEdit={() => setShowFooterEdit(true)}
             siteId={siteId}
             onApplyTheme={applyTheme}
             currentThemeId={currentThemeId}
@@ -3460,6 +3465,13 @@ export default function DesignEditor({
         <HeaderImageOverlay headerRef={headerRef} siteId={siteId} />
       </Suspense>
 
+      {/* Same overlay reused for the footer — every <img> in the footer
+          gets a ↻ replace button. Component name is misleading but the
+          props/effects are region-agnostic. */}
+      <Suspense fallback={null}>
+        <HeaderImageOverlay headerRef={footerRef} siteId={siteId} />
+      </Suspense>
+
       {/* MENU MANAGER MODAL — opens from settings or from the canvas
           floating "메뉴 편집" button. Drives Pages list (showInMenu /
           menuTitle / parentId / order) which buildMenuHtml() reads. */}
@@ -3479,6 +3491,17 @@ export default function DesignEditor({
             }}
             onOpenMenuManager={() => setShowMenuManager(true)}
             onClose={() => setShowHeaderEdit(false)}
+          />
+        </Suspense>
+      )}
+
+      {showFooterEdit && (
+        <Suspense fallback={null}>
+          <FooterEditModal
+            siteId={siteId}
+            footerRef={footerRef}
+            initialFooterHtml={footerHtml}
+            onClose={() => setShowFooterEdit(false)}
           />
         </Suspense>
       )}
