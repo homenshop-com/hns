@@ -1891,6 +1891,26 @@ export default function DesignEditor({
   }
 
   /**
+   * Re-parse the live body DOM into the scene graph and select the
+   * given id. Called after any add / drop / paste that mutates DOM
+   * directly so the LayerPanel + Inspector pick up the new element.
+   * Without this, an `appendChild` ships the element visually but the
+   * V2 scene graph (and therefore the layer tree) stays stale.
+   */
+  function syncSceneFromDomAndSelect(newId: string) {
+    const bodyEl = bodyRef.current;
+    if (!bodyEl) return;
+    setCurrentBodyHtml(bodyEl.innerHTML);
+    if (editorV2Enabled) {
+      useEditorStore.getState().importHtml(bodyEl.innerHTML, currentPageCss);
+      // importHtml clears selection; re-apply now so the new element is
+      // immediately editable in the Inspector.
+      useEditorStore.getState().select(newId);
+    }
+    setSelectedElId(newId);
+  }
+
+  /**
    * Insert an image asset (from the 에셋 tab) into the canvas. Routes
    * through the same flow / absolute branching as `addElement` so the
    * insert respects the responsive template flag.
@@ -1908,7 +1928,7 @@ export default function DesignEditor({
       el.style.minHeight = "180px";
       el.innerHTML = `<img src="${url}" alt="" style="width:100%;height:100%;object-fit:cover;" />`;
       (target ?? bodyEl).appendChild(el);
-      setSelectedElId(id);
+      syncSceneFromDomAndSelect(id);
       return;
     }
     // Fix template — drop at a sensible offset, sized to a reasonable
@@ -1924,7 +1944,7 @@ export default function DesignEditor({
     el.style.zIndex = "10";
     el.innerHTML = `<img src="${url}" alt="" style="width:100%;height:100%;object-fit:cover;" />`;
     bodyEl.appendChild(el);
-    setSelectedElId(id);
+    syncSceneFromDomAndSelect(id);
   }
 
   function addElement(type: string) {
@@ -1941,7 +1961,7 @@ export default function DesignEditor({
       const target = findResponsiveDropTarget(selectedElId);
       const el = buildFlowElement(type, id);
       (target ?? bodyEl).appendChild(el);
-      setSelectedElId(id);
+      syncSceneFromDomAndSelect(id);
       return;
     }
 
@@ -2001,7 +2021,7 @@ export default function DesignEditor({
     }
 
     bodyEl.appendChild(el);
-    setSelectedElId(id);
+    syncSceneFromDomAndSelect(id);
   }
 
   /* ─── Build the template CSS for the canvas ─── */
