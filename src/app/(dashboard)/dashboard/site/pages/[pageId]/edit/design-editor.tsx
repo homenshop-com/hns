@@ -1854,13 +1854,30 @@ export default function DesignEditor({
         el.className = "dragable sol-replacible-text";
         el.innerHTML = "<p>텍스트를 입력하세요</p>";
         break;
-      case "image":
+      case "image": {
+        // Must contain exactly one <img> (no other structural children) so
+        // the scene parser classifies this as type=image, not type=box —
+        // otherwise the layer panel labels it "박스" and the Inspector
+        // image section never appears. Inline SVG data URI keeps the
+        // placeholder offline-friendly and self-contained.
         el.className = "dragable";
         el.style.minHeight = "180px";
-        el.style.background = "#1a1c24";
-        el.innerHTML =
-          '<div style="width:100%;height:100%;min-height:180px;display:flex;align-items:center;justify-content:center;color:#888;font-size:13px;">이미지 — Inspector 에서 교체</div>';
+        const placeholderSvg =
+          "data:image/svg+xml;charset=utf-8," +
+          encodeURIComponent(
+            "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 400'>" +
+              "<rect width='600' height='400' fill='#1a1c24'/>" +
+              "<g fill='#888' font-family='-apple-system,BlinkMacSystemFont,Pretendard,sans-serif'>" +
+              "<circle cx='300' cy='180' r='32' fill='none' stroke='#666' stroke-width='2'/>" +
+              "<path d='M286 180l9 9 19-22' fill='none' stroke='#666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/>" +
+              "<text x='300' y='250' text-anchor='middle' font-size='16'>이미지</text>" +
+              "<text x='300' y='275' text-anchor='middle' font-size='12' opacity='.7'>Inspector 또는 ↻ 버튼으로 교체</text>" +
+              "</g>" +
+              "</svg>",
+          );
+        el.innerHTML = `<img src="${placeholderSvg}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;" />`;
         break;
+      }
       case "box":
         // Generic visual; user differentiates button vs shape via Inspector.
         el.className = "dragable";
