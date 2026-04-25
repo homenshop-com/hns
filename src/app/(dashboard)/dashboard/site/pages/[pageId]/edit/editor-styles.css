@@ -472,6 +472,21 @@
   outline: 2px solid #4a90d9 !important;
   box-shadow: 0 0 0 1px rgba(74, 144, 217, 0.3);
 }
+/* In-place text editing — distinct from selection so the user can tell
+   when they're typing vs. just selected. Lifts user-select restriction
+   and shows a text caret. */
+#de-canvas-inner .de-text-editing,
+#de-canvas-inner [contenteditable="true"] {
+  outline: 2px solid #c084fc !important;
+  box-shadow: 0 0 0 1px rgba(192, 132, 252, 0.35);
+  cursor: text !important;
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
+#de-canvas-inner [contenteditable="true"] * {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
 /* Inline flow-text layers (spans, anchors promoted from id=el_*) need
    a visible outline too — they're not .dragable. */
 #de-canvas-inner [id^="el_"]:hover {

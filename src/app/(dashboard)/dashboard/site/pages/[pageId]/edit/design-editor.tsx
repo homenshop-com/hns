@@ -624,6 +624,12 @@ export default function DesignEditor({
         bodyEl.querySelectorAll(".de-resize-handle").forEach((h) => h.remove());
         // Remove de-selected class
         bodyEl.querySelectorAll(".de-selected").forEach((el) => el.classList.remove("de-selected"));
+        // Strip in-place text-edit artifacts so the saved HTML is clean.
+        bodyEl.querySelectorAll('[contenteditable="true"]').forEach((el) => {
+          el.removeAttribute("contenteditable");
+          el.removeAttribute("spellcheck");
+        });
+        bodyEl.querySelectorAll(".de-text-editing").forEach((el) => el.classList.remove("de-text-editing"));
         // For elements with margin:auto (centered), remove left/top that conflict
         bodyEl.querySelectorAll(".dragable").forEach((el) => {
           const htmlEl = el as HTMLElement;
@@ -1081,18 +1087,24 @@ export default function DesignEditor({
     if (!bodyEl) return;
 
     function handleMouseDown(e: MouseEvent) {
-      if ((e.target as HTMLElement).closest(".dragable")) {
+      const t = e.target as HTMLElement;
+      // If the click is inside a contenteditable element, let the browser
+      // handle caret positioning — never start a drag during in-place edit.
+      if (t.closest('[contenteditable="true"]')) return;
+      if (t.closest(".dragable")) {
         e.preventDefault();
         // Don't stopPropagation — allow dblclick to bubble to canvasEl
       }
-      startDragOnElement(e.target as HTMLElement, e.clientX, e.clientY, e.shiftKey);
+      startDragOnElement(t, e.clientX, e.clientY, e.shiftKey);
     }
 
     function handleTouchStart(e: TouchEvent) {
       const touch = e.touches[0];
       if (!touch) return;
-      startDragOnElement(e.target as HTMLElement, touch.clientX, touch.clientY);
-      if ((e.target as HTMLElement).closest(".dragable")) {
+      const t = e.target as HTMLElement;
+      if (t.closest('[contenteditable="true"]')) return;
+      startDragOnElement(t, touch.clientX, touch.clientY);
+      if (t.closest(".dragable")) {
         e.preventDefault();
       }
     }
@@ -1436,7 +1448,7 @@ export default function DesignEditor({
     return null;
   }
 
-  function enterTextEdit(editEl: HTMLElement) {
+  function enterTextEdit(editEl: HTMLElement, clientX?: number, clientY?: number) {
     // Cancel any in-progress drag
     dragRef.current = null;
     resizeRef.current = null;
@@ -1445,9 +1457,74 @@ export default function DesignEditor({
       editEl.id = "el_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
     }
     setSelectedElId(editEl.id);
-    // Store direct ref to element and open TipTap modal
-    tiptapElRef.current = editEl;
-    setTiptapTarget({ elId: editEl.id, html: editEl.innerHTML });
+
+    // In-place edit: enable contenteditable on the element itself so the user
+    // can type directly on the canvas (Claude-design style). The right-side
+    // Inspector handles font/size/color/etc. — no separate modal.
+    editEl.setAttribute("contenteditable", "true");
+    editEl.setAttribute("spellcheck", "false");
+    editEl.classList.add("de-text-editing");
+    setEditingTextId(editEl.id);
+
+    // Defer focus + caret placement to next tick so the contenteditable
+    // attribute has settled before we try to position the cursor.
+    setTimeout(() => {
+      try {
+        editEl.focus({ preventScroll: true });
+      } catch {
+        editEl.focus();
+      }
+      const sel = window.getSelection();
+      if (!sel) return;
+      sel.removeAllRanges();
+      // Place cursor at the click position when available, else at end of content.
+      let placed = false;
+      if (clientX != null && clientY != null) {
+        const docAny = document as Document & {
+          caretRangeFromPoint?: (x: number, y: number) => Range | null;
+          caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null;
+        };
+        let r: Range | null = null;
+        if (typeof docAny.caretRangeFromPoint === "function") {
+          r = docAny.caretRangeFromPoint(clientX, clientY);
+        } else if (typeof docAny.caretPositionFromPoint === "function") {
+          const pos = docAny.caretPositionFromPoint(clientX, clientY);
+          if (pos) {
+            r = document.createRange();
+            r.setStart(pos.offsetNode, pos.offset);
+            r.collapse(true);
+          }
+        }
+        if (r && editEl.contains(r.startContainer)) {
+          sel.addRange(r);
+          placed = true;
+        }
+      }
+      if (!placed) {
+        const r = document.createRange();
+        r.selectNodeContents(editEl);
+        r.collapse(false);
+        sel.addRange(r);
+      }
+    }, 0);
+  }
+
+  // Exit in-place text editing for the given element id (or the currently
+  // editing one). Strips contenteditable and clears the editing state.
+  function exitTextEdit(elId?: string) {
+    const id = elId ?? editingTextId;
+    if (!id) return;
+    const el = document.getElementById(id);
+    if (el) {
+      el.removeAttribute("contenteditable");
+      el.removeAttribute("spellcheck");
+      el.classList.remove("de-text-editing");
+      // Drop the browser selection so the next click doesn't keep a caret
+      // visible inside the element.
+      const sel = window.getSelection();
+      if (sel && el.contains(sel.anchorNode)) sel.removeAllRanges();
+    }
+    setEditingTextId(null);
   }
 
   useEffect(() => {
@@ -1461,7 +1538,7 @@ export default function DesignEditor({
       if (!editEl) return;
       e.preventDefault();
       e.stopPropagation();
-      enterTextEdit(editEl);
+      enterTextEdit(editEl, e.clientX, e.clientY);
     }
 
     // Mobile: detect double-tap (two taps within 400ms on same element)
@@ -1480,7 +1557,8 @@ export default function DesignEditor({
       if (elId && elId === last.id && now - last.time < 400) {
         // Double-tap detected
         e.preventDefault();
-        enterTextEdit(editEl);
+        const t = e.changedTouches[0];
+        enterTextEdit(editEl, t?.clientX, t?.clientY);
         lastTapRef.current = { time: 0, id: "" };
       } else {
         lastTapRef.current = { time: now, id: elId };
@@ -1494,6 +1572,44 @@ export default function DesignEditor({
       canvasEl.removeEventListener("touchend", handleTapForEdit);
     };
   }, []);
+
+  // While in-place text edit is active, listen for Escape (commit + exit)
+  // and outside clicks (commit + exit). Clicks inside the InspectorPanel
+  // (font / size / color tweaks) must NOT exit, so the user can adjust
+  // formatting while still typing.
+  useEffect(() => {
+    if (!editingTextId) return;
+
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        exitTextEdit();
+      }
+    }
+    function onMouseDown(e: MouseEvent) {
+      const id = editingTextId;
+      if (!id) return;
+      const el = document.getElementById(id);
+      if (!el) {
+        exitTextEdit();
+        return;
+      }
+      const tgt = e.target as Node | null;
+      if (!tgt) return;
+      if (el.contains(tgt)) return;            // click inside the editing element
+      const t = tgt as HTMLElement;
+      if (t.closest && t.closest(".inspector-rail")) return;  // tweaking inspector
+      if (t.closest && t.closest("[data-tiptap-modal]")) return; // (legacy modal, kept inert)
+      exitTextEdit();
+    }
+
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("mousedown", onMouseDown, true);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("mousedown", onMouseDown, true);
+    };
+  }, [editingTextId]);
 
   // TipTap modal save handler — directly modify DOM element (no React state sync needed)
   const handleTiptapSave = useCallback((html: string) => {
@@ -2650,15 +2766,18 @@ export default function DesignEditor({
         </Suspense>
       )}
 
-      {/* TIPTAP EDITOR MODAL */}
-      {tiptapTarget && (
+      {/* TIPTAP EDITOR MODAL — disabled in favor of in-place contenteditable
+          editing (Claude-design-style). The state + handlers are kept so a
+          future "rich text" entry point (e.g., Cmd+Shift+E) can re-open the
+          modal for link/image inserts that the inspector doesn't cover. */}
+      {false && tiptapTarget && (
         <Suspense fallback={
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10000, color: "#fff" }}>
             에디터 로딩 중...
           </div>
         }>
           <TiptapModal
-            initialHtml={tiptapTarget.html}
+            initialHtml={tiptapTarget?.html ?? ""}
             onSave={handleTiptapSave}
             onClose={() => { tiptapElRef.current = null; setTiptapTarget(null); }}
           />
