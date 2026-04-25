@@ -133,7 +133,7 @@ export default async function SupportPage() {
                 <span className="status-dot" title="응답 가능" />
               </h1>
               <div className="sp2-page-sub">
-                homeNshop 지원팀과 직접 대화하실 수 있습니다. 계정 · 결제 · 기능 관련 문의를 남겨주세요.
+                홈앤샵 시스템 이용하시면서 불편사항이 있으시면 메세지 주시면 확인 후 바로 조치토록 하겠습니다.
               </div>
             </div>
             <SupportChat userInitial={userInitial} />
