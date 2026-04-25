@@ -19,21 +19,49 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { SECTION_PRESETS } from "./section-library";
 
+type ShapeKind =
+  | "shape:rect"
+  | "shape:rounded"
+  | "shape:circle"
+  | "shape:triangle"
+  | "shape:diamond"
+  | "shape:star"
+  | "shape:arrow"
+  | "shape:line";
+
 type InsertType =
   | "text"
   | "image"
   | "box"
+  | ShapeKind
   | "board"
   | "product"
   | "exhibition"
   | "login"
   | "mail";
 
-const BASIC_ELEMENTS: Array<{ id: InsertType; label: string; icon: string; swatch: string }> = [
-  { id: "text",  label: "텍스트", icon: "fa-font",         swatch: "text" },
-  { id: "box",   label: "버튼",   icon: "fa-hand-pointer", swatch: "button" },
-  { id: "image", label: "이미지", icon: "fa-image",        swatch: "image" },
-  { id: "box",   label: "도형",   icon: "fa-shapes",       swatch: "shape" },
+// Top-level basic elements. "도형" is a meta-button that opens a popover
+// (handled in render below); the entry here is a sentinel — clicking it
+// won't fire onInsert directly, the popover does that.
+const BASIC_ELEMENTS: Array<{ id: InsertType | "shape:_picker"; label: string; icon: string; swatch: string }> = [
+  { id: "text",            label: "텍스트", icon: "fa-font",         swatch: "text" },
+  { id: "box",             label: "버튼",   icon: "fa-hand-pointer", swatch: "button" },
+  { id: "image",           label: "이미지", icon: "fa-image",        swatch: "image" },
+  { id: "shape:_picker",   label: "도형",   icon: "fa-shapes",       swatch: "shape" },
+];
+
+// Shape choices shown in the picker popover. `kind` becomes `shape:<name>`
+// in the InsertType, and addElement (design-editor) maps each to a
+// concrete CSS / clip-path style.
+const SHAPE_OPTIONS: Array<{ kind: ShapeKind; label: string; preview: React.CSSProperties }> = [
+  { kind: "shape:rect",     label: "사각형",   preview: { background: "#2a79ff" } },
+  { kind: "shape:rounded",  label: "둥근사각", preview: { background: "#2a79ff", borderRadius: 8 } },
+  { kind: "shape:circle",   label: "원",       preview: { background: "#2a79ff", borderRadius: "50%" } },
+  { kind: "shape:triangle", label: "삼각형",   preview: { background: "#2a79ff", clipPath: "polygon(50% 0%, 100% 100%, 0% 100%)" } },
+  { kind: "shape:diamond",  label: "다이아몬드", preview: { background: "#2a79ff", clipPath: "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)" } },
+  { kind: "shape:star",     label: "별",       preview: { background: "#2a79ff", clipPath: "polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)" } },
+  { kind: "shape:arrow",    label: "화살표",   preview: { background: "#2a79ff", clipPath: "polygon(0% 35%, 65% 35%, 65% 15%, 100% 50%, 65% 85%, 65% 65%, 0% 65%)" } },
+  { kind: "shape:line",     label: "선",       preview: { background: "#2a79ff", height: 3, alignSelf: "center" } },
 ];
 
 const MY_COMPONENTS = [
@@ -117,7 +145,13 @@ export default function LeftPalette({
 }: Props) {
   const [tab, setTab] = useState<"insert" | "assets" | "theme" | "ai">("insert");
   const [query, setQuery] = useState("");
+  const [shapePopoverOpen, setShapePopoverOpen] = useState(false);
   const aiRef = useRef<HTMLTextAreaElement>(null);
+
+  // Close shape popover when switching tab or typing in search.
+  useEffect(() => {
+    if (tab !== "insert" || query) setShapePopoverOpen(false);
+  }, [tab, query]);
 
   /* ─── 에셋 tab — recent uploads list ─────────────────────────────── */
   type AssetItem = { url: string; name: string; mtime: number; size: number };
@@ -244,26 +278,132 @@ export default function LeftPalette({
                   <i className="fa-solid fa-chevron-down lp-chev" aria-hidden />
                 </h4>
                 <div className="lp-block-grid">
-                  {filteredBasics.map((b, i) => (
-                    <button
-                      key={`${b.id}-${i}`}
-                      type="button"
-                      className="lp-block"
-                      title={b.label}
-                      draggable
-                      onClick={() => onInsert(b.id)}
-                      onDragStart={(e) => {
-                        e.dataTransfer.setData("text/x-homenshop-insert", b.id);
-                        e.dataTransfer.effectAllowed = "copy";
+                  {filteredBasics.map((b, i) => {
+                    // The "도형" entry is a popover trigger, not a direct
+                    // insert. All other entries call onInsert immediately.
+                    const isShapePicker = b.id === "shape:_picker";
+                    return (
+                      <button
+                        key={`${b.id}-${i}`}
+                        type="button"
+                        className={`lp-block${isShapePicker && shapePopoverOpen ? " active" : ""}`}
+                        title={b.label}
+                        draggable={!isShapePicker}
+                        onClick={() => {
+                          if (isShapePicker) {
+                            setShapePopoverOpen((v) => !v);
+                          } else {
+                            onInsert(b.id as InsertType);
+                          }
+                        }}
+                        onDragStart={(e) => {
+                          if (isShapePicker) {
+                            e.preventDefault();
+                            return;
+                          }
+                          e.dataTransfer.setData("text/x-homenshop-insert", b.id);
+                          e.dataTransfer.effectAllowed = "copy";
+                        }}
+                      >
+                        <div className={`lp-thumb swatch-${b.swatch}`}>
+                          <i className={`fa-solid ${b.icon}`} aria-hidden />
+                        </div>
+                        <div className="lp-label">{b.label}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+                {/* Shape picker popover — Figma-style 4-col grid of common
+                    shape variants. Click → onInsert("shape:<name>") →
+                    design-editor maps to clip-path / border-radius styles
+                    on a fresh .dragable. Click outside (handled by the
+                    backdrop layer) closes without inserting. */}
+                {shapePopoverOpen && (
+                  <>
+                    <div
+                      onClick={() => setShapePopoverOpen(false)}
+                      style={{
+                        position: "fixed",
+                        inset: 0,
+                        zIndex: 9000,
+                        cursor: "default",
+                      }}
+                    />
+                    <div
+                      style={{
+                        position: "relative",
+                        zIndex: 9001,
+                        margin: "6px 10px 12px",
+                        padding: 10,
+                        background: "#16181f",
+                        border: "1px solid #2a2d3a",
+                        borderRadius: 8,
+                        boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
                       }}
                     >
-                      <div className={`lp-thumb swatch-${b.swatch}`}>
-                        <i className={`fa-solid ${b.icon}`} aria-hidden />
+                      <div
+                        style={{
+                          fontSize: 11,
+                          color: "#888",
+                          marginBottom: 8,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.05em",
+                        }}
+                      >
+                        도형 선택
                       </div>
-                      <div className="lp-label">{b.label}</div>
-                    </button>
-                  ))}
-                </div>
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "repeat(4, 1fr)",
+                          gap: 6,
+                        }}
+                      >
+                        {SHAPE_OPTIONS.map((s) => (
+                          <button
+                            key={s.kind}
+                            type="button"
+                            title={s.label}
+                            draggable
+                            onClick={() => {
+                              onInsert(s.kind);
+                              setShapePopoverOpen(false);
+                            }}
+                            onDragStart={(e) => {
+                              e.dataTransfer.setData(
+                                "text/x-homenshop-insert",
+                                s.kind,
+                              );
+                              e.dataTransfer.effectAllowed = "copy";
+                            }}
+                            style={{
+                              padding: 8,
+                              background: "#1a1c24",
+                              border: "1px solid #2a2d3a",
+                              borderRadius: 6,
+                              cursor: "pointer",
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "center",
+                              gap: 4,
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: 28,
+                                height: 28,
+                                ...s.preview,
+                              }}
+                            />
+                            <div style={{ fontSize: 10, color: "#c6c9d6" }}>
+                              {s.label}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
               </section>
             )}
 

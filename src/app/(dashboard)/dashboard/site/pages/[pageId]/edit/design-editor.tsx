@@ -1846,6 +1846,46 @@ export default function DesignEditor({
     return best ?? candidates[0]!;
   }
 
+  /** Apply CSS that turns a generic .dragable into a specific shape.
+   *  Used by both the responsive flow path and the absolute fix path so
+   *  the look stays consistent across template types.
+   *  Defaults to a 200×200 wrapper (square) — Inspector resize/handles
+   *  let the user adjust later. Line is 4px tall.
+   */
+  function applyShapeStyle(el: HTMLElement, kind: string) {
+    const fill = "#2a79ff";
+    el.style.background = fill;
+    switch (kind) {
+      case "shape:rect":
+        // No clip-path / radius — plain rectangle.
+        break;
+      case "shape:rounded":
+        el.style.borderRadius = "12px";
+        break;
+      case "shape:circle":
+        el.style.borderRadius = "50%";
+        break;
+      case "shape:triangle":
+        el.style.clipPath = "polygon(50% 0%, 100% 100%, 0% 100%)";
+        break;
+      case "shape:diamond":
+        el.style.clipPath = "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)";
+        break;
+      case "shape:star":
+        el.style.clipPath =
+          "polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)";
+        break;
+      case "shape:arrow":
+        el.style.clipPath =
+          "polygon(0% 35%, 65% 35%, 65% 15%, 100% 50%, 65% 85%, 65% 65%, 0% 65%)";
+        break;
+      case "shape:line":
+        // Line is a thin filled rectangle. Override defaults set by caller.
+        el.style.borderRadius = "2px";
+        break;
+    }
+  }
+
   function buildFlowElement(type: string, id: string): HTMLElement {
     const el = document.createElement("div");
     el.id = id;
@@ -1879,7 +1919,7 @@ export default function DesignEditor({
         break;
       }
       case "box":
-        // Generic visual; user differentiates button vs shape via Inspector.
+        // Button — distinct from a generic shape.
         el.className = "dragable";
         el.style.padding = "12px 20px";
         el.style.background = "#2a79ff";
@@ -1889,6 +1929,24 @@ export default function DesignEditor({
         el.style.minWidth = "120px";
         el.style.textAlign = "center";
         el.innerHTML = '<span style="font-size:14px;">버튼</span>';
+        break;
+      case "shape:rect":
+      case "shape:rounded":
+      case "shape:circle":
+      case "shape:triangle":
+      case "shape:diamond":
+      case "shape:star":
+      case "shape:arrow":
+        el.className = "dragable";
+        el.style.width = "180px";
+        el.style.height = "180px";
+        applyShapeStyle(el, type);
+        break;
+      case "shape:line":
+        el.className = "dragable";
+        el.style.width = "240px";
+        el.style.height = "4px";
+        applyShapeStyle(el, type);
         break;
       case "board":
         el.className = "dragable sol-replacible-text boardPlugin";
@@ -2011,6 +2069,28 @@ export default function DesignEditor({
         el.style.backgroundColor = "#f0f0f0";
         el.style.border = "1px solid #ccc";
         el.style.zIndex = "5";
+        break;
+      case "shape:rect":
+      case "shape:rounded":
+      case "shape:circle":
+      case "shape:triangle":
+      case "shape:diamond":
+      case "shape:star":
+      case "shape:arrow":
+        el.style.left = "100px";
+        el.style.top = "100px";
+        el.style.width = "180px";
+        el.style.height = "180px";
+        el.style.zIndex = "10";
+        applyShapeStyle(el, type);
+        break;
+      case "shape:line":
+        el.style.left = "100px";
+        el.style.top = "100px";
+        el.style.width = "240px";
+        el.style.height = "4px";
+        el.style.zIndex = "10";
+        applyShapeStyle(el, type);
         break;
       case "board":
         el.className = "dragable sol-replacible-text boardPlugin";
