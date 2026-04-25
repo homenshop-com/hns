@@ -364,7 +364,10 @@ export function applyStructure(
       }
       if (!childEl) continue;
 
-      if (child.type === "inline" || child.type === "section") {
+      // Inline layers (legacy `id="el_*"` flow text/anchor) are flow-
+      // positioned and live wherever the surrounding section's HTML put
+      // them — never reorder, never reparent. Just apply visuals.
+      if (child.type === "inline") {
         applyFrameToEl(childEl, child, viewportMode);
         applyTransformToEl(childEl, child, viewportMode);
         applyStyleToEl(childEl, child);
@@ -373,17 +376,15 @@ export function applyStructure(
       }
 
       if (parentIsSection) {
-        // Section child: only move if it escaped the section entirely.
-        // `.contains(child)` is true even through decorative wrappers
-        // (CSS grid/flex wrappers, margin-auto layouts, etc.).
+        // Section's children are anchored by `<!--scene-child:${id}-->`
+        // placeholders in the section's innerHtml template. Reordering
+        // a child of a section would detach it from its anchor — skip
+        // order reconciliation; only ensure it's still inside.
         if (!domParent.contains(childEl)) {
           domParent.appendChild(childEl);
         }
-        // Skip order reconciliation — the section's innerHtml template
-        // (with <!--scene-child:id--> placeholders) is the source of
-        // truth for section layout, not scene order.
       } else if (childEl.parentElement !== domParent) {
-        // Group: children should be direct kids of the group wrapper.
+        // Group / root: children should be direct kids of the wrapper.
         domParent.appendChild(childEl);
       } else if (prevInOrder) {
         const pos = childEl.compareDocumentPosition(prevInOrder);
