@@ -40,6 +40,44 @@ function renderExpiredPage(shopId: string, name: string): string {
 </div></body></html>`;
 }
 
+/**
+ * "Site is being prepared" landing — shown when a Site row exists but
+ * has no pages yet (race window during /api/sites/create-from-* flows
+ * where the Site INSERT lands ms before the Page rows commit), or when
+ * the owner has unpublished it temporarily.
+ *
+ * Critical: this returns 200 (not 404). nginx for home.homenshop.com
+ * has `error_page 404 = @legacy_static` which falls through to a
+ * static `/expired.html` reading "계정이 만료되어 삭제되었습니다" —
+ * a misleading message for a brand-new site. Returning 200 keeps
+ * nginx from falling through.
+ */
+function renderPreparingPage(shopId: string, name: string, refresh = true): string {
+  const safeName = name.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return `<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${safeName} - 사이트 준비 중</title>
+<meta name="robots" content="noindex">
+${refresh ? '<meta http-equiv="refresh" content="6">' : ""}
+<style>
+  body{margin:0;font-family:'Pretendard','Apple SD Gothic Neo',sans-serif;background:#f8fafc;color:#334155;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+  .card{background:#fff;max-width:520px;width:100%;padding:48px 40px;border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,.06);text-align:center}
+  .spinner{width:40px;height:40px;border:3px solid #e2e8f0;border-top-color:#2563eb;border-radius:50%;animation:spin .9s linear infinite;margin:0 auto 18px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  h1{margin:0 0 12px 0;font-size:22px;font-weight:700;color:#0f172a}
+  p{margin:0 0 24px 0;font-size:15px;line-height:1.7;color:#64748b}
+  .btn{display:inline-block;padding:12px 28px;border-radius:8px;background:#2563eb;color:#fff;text-decoration:none;font-weight:600;font-size:14px}
+  .shop{display:inline-block;margin-top:20px;padding:6px 12px;background:#f1f5f9;border-radius:6px;font-size:12px;color:#64748b;font-family:monospace}
+</style></head>
+<body><div class="card">
+  <div class="spinner"></div>
+  <h1>사이트가 준비 중입니다</h1>
+  <p>${safeName}을(를) 게시 중이에요. 잠시 후 자동으로 새로고침됩니다.<br>오랫동안 이 화면이 보인다면 사이트 소유자에게 문의하세요.</p>
+  <a href="https://homenshop.com/dashboard" class="btn">대시보드로</a>
+  <div class="shop">shopId: ${shopId}</div>
+</div></body></html>`;
+}
+
 /* ─── Board rendering helpers ─── */
 
 function escapeHtml(s: unknown): string {
@@ -596,7 +634,15 @@ export async function GET(
     });
   }
   if (!site.published) {
-    return new NextResponse("Not Found", { status: 404 });
+    // Site exists, owner just hasn't published yet. Returning 404 here
+    // would let nginx's @legacy_static fallback hijack the response and
+    // serve the legacy /expired.html — which says "계정이 만료되어
+    // 삭제되었습니다". That's a flat-out lie for a brand-new site, so we
+    // serve a "준비 중" page with a 200 instead.
+    return new NextResponse(renderPreparingPage(shopId, site.name), {
+      status: 200,
+      headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
+    });
   }
 
   // Fallback: if no pages for this lang, try defaultLanguage
@@ -627,7 +673,14 @@ export async function GET(
     page = pages.find((p) => p.isHome) || pages[0];
   }
   if (!page) {
-    return new NextResponse("Not Found", { status: 404 });
+    // Same nginx-404-hijack concern as the !published case above.
+    // A fresh site that just had its Site row inserted but pages still
+    // racing to commit hits this branch. Serve "준비 중" instead of a
+    // 404 that nginx will replace with the legacy expired.html.
+    return new NextResponse(renderPreparingPage(shopId, site.name), {
+      status: 200,
+      headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
+    });
   }
 
   // Extract body HTML
