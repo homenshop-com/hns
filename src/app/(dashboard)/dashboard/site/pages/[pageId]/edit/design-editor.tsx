@@ -1443,6 +1443,21 @@ export default function DesignEditor({
       // If clicked on dragable itself (empty space), find first text child
       const firstText = dragable.querySelector("h1, h2, h3, h4, h5, h6, p, span, li, td, th, label, blockquote");
       if (firstText) return firstText as HTMLElement;
+
+      // Atomized text dragables wrap visible content in a styled <div>
+      // (e.g., <div class="dragable sol-replacible-text"><div class="big">94%</div></div>).
+      // The content has no LEAF_TEXT / SPAN / A tag so the loops above all
+      // miss it. Fall back to editing the whole dragable when:
+      //   - it's marked .sol-replacible-text (designed to be editable), OR
+      //   - it has direct text content but no nested .dragable children
+      //     (so we won't accidentally swallow a nested editable group).
+      const hasNestedDragable = dragable.querySelector(".dragable");
+      if (
+        (dragable.classList.contains("sol-replacible-text") || dragable.textContent?.trim()) &&
+        !hasNestedDragable
+      ) {
+        return dragable;
+      }
     }
 
     return null;
