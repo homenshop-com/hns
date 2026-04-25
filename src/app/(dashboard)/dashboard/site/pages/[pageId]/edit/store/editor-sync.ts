@@ -458,10 +458,15 @@ function applyImageDataToEl(el: HTMLElement, layer: Layer) {
     }
     if (attrs.alt) imgEl.setAttribute("alt", attrs.alt);
     else imgEl.removeAttribute("alt");
-    if (attrs.objectFit) {
-      (imgEl as HTMLImageElement).style.setProperty("object-fit", attrs.objectFit);
-    } else {
+    // Force fill — matches rewriteImageInnerHtml so editor canvas and
+    // published page render identically after a swap.
+    (imgEl as HTMLImageElement).style.setProperty("width", "100%");
+    (imgEl as HTMLImageElement).style.setProperty("height", "100%");
+    const fit = attrs.objectFit ?? "cover";
+    if (fit === "none") {
       (imgEl as HTMLImageElement).style.removeProperty("object-fit");
+    } else {
+      (imgEl as HTMLImageElement).style.setProperty("object-fit", fit);
     }
   }
   const a = el.querySelector("a");

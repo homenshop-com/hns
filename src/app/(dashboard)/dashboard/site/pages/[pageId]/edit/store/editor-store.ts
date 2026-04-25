@@ -186,24 +186,40 @@ type ImageAttrs = {
  * Rewrite an innerHtml blob's inner `<img>` (and optional outer `<a>`)
  * to reflect the given attributes. Used by `setImage` for both image
  * and box layers. Falls back to minimal markup if no `<img>` was found.
+ *
+ * Sizing behavior — the wrapper's `<img>` is forced to fill its parent
+ * (`width:100%; height:100%`) and gets a default `object-fit: cover`
+ * when none was specified. Without this, replacing a 1920×1280 photo
+ * into a 307×384 wrapper would render at the photo's natural size and
+ * blow out the layout. Users opt out of cropping by switching object-fit
+ * to `contain` / `none` in the Inspector.
  */
 function rewriteImageInnerHtml(prev: string, attrs: ImageAttrs): string {
   if (typeof window === "undefined" || !window.DOMParser) {
     const altAttr = attrs.alt ? ` alt="${escapeAttr(attrs.alt)}"` : "";
-    return `<img src="${escapeAttr(attrs.src ?? "")}"${altAttr} />`;
+    return `<img src="${escapeAttr(attrs.src ?? "")}"${altAttr} style="width:100%;height:100%;object-fit:${attrs.objectFit ?? "cover"};" />`;
   }
   const wrapper = document.createElement("div");
   wrapper.innerHTML = prev ?? "";
   const imgEl = wrapper.querySelector("img");
   if (!imgEl) {
     const altAttr = attrs.alt ? ` alt="${escapeAttr(attrs.alt)}"` : "";
-    return `<img src="${escapeAttr(attrs.src ?? "")}"${altAttr} />`;
+    return `<img src="${escapeAttr(attrs.src ?? "")}"${altAttr} style="width:100%;height:100%;object-fit:${attrs.objectFit ?? "cover"};" />`;
   }
   imgEl.setAttribute("src", attrs.src ?? "");
   if (attrs.alt) imgEl.setAttribute("alt", attrs.alt);
   else imgEl.removeAttribute("alt");
-  if (attrs.objectFit) imgEl.style.setProperty("object-fit", attrs.objectFit);
-  else imgEl.style.removeProperty("object-fit");
+  // Force img to fill its wrapper — replaces any pre-existing inline
+  // width/height (which were tuned to the original template image's
+  // natural size and would clip / overflow with a swapped photo).
+  imgEl.style.setProperty("width", "100%");
+  imgEl.style.setProperty("height", "100%");
+  // Default object-fit: cover (most natural result for hero / card images).
+  // User can override via Inspector → "맞춤" toggle, including "none" to
+  // restore raw natural sizing when intentional.
+  const fit = attrs.objectFit ?? "cover";
+  if (fit === "none") imgEl.style.removeProperty("object-fit");
+  else imgEl.style.setProperty("object-fit", fit);
   const a = wrapper.querySelector("a");
   if (a) {
     if (attrs.href) a.setAttribute("href", attrs.href);
