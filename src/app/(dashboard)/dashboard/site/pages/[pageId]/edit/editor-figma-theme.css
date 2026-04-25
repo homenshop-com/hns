@@ -186,6 +186,38 @@
   color: var(--fig-text-0);
 }
 
+/* ── Undo / Redo icon buttons (sit between URL and Save) ─────────── */
+.de-root .de-history-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  margin: 0 2px;
+}
+.de-root .de-history-btn {
+  width: 30px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--fig-text-2);
+  cursor: pointer;
+  transition: background .12s, color .12s, border-color .12s;
+}
+.de-root .de-history-btn:hover:not(:disabled) {
+  color: var(--fig-text-0);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--fig-line);
+}
+.de-root .de-history-btn:active:not(:disabled) {
+  background: var(--fig-bg-4);
+}
+.de-root .de-history-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
 /* ───── Sub-toolbar (contextual tools + numeric fields) ───────────── */
 .de-root .de-subtoolbar {
   background: var(--fig-bg-1);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect, lazy, Suspense } from "react";
+import { useStore } from "zustand";
 import { useRouter } from "next/navigation";
 import "./editor-styles.css";
 // Sprint 9i (2026-04-22) — Figma-inspired dark theme overlay, recreating
@@ -143,6 +144,19 @@ export default function DesignEditor({
   const [showSiteSettings, setShowSiteSettings] = useState(false);
   // Page tab context menu (right-click on a page tab in the App bar).
   const [pageCtxMenu, setPageCtxMenu] = useState<{ pageId: string; x: number; y: number } | null>(null);
+  // Undo/Redo button enable state — subscribe to zundo's temporal store
+  // so the icon buttons in the toolbar disable when there's nothing to
+  // undo or redo. Keyboard shortcuts (Ctrl+Z / Ctrl+Shift+Z) are wired
+  // separately in the global keydown handler below.
+  const canUndo = useStore(
+    useEditorStore.temporal,
+    (s) => s.pastStates.length > 0,
+  );
+  const canRedo = useStore(
+    useEditorStore.temporal,
+    (s) => s.futureStates.length > 0,
+  );
+
   // Subscribe to viewport mode (for toolbar button highlighting + canvas width).
   const [viewportMode, setLocalViewportMode] = useState<"desktop" | "mobile">("desktop");
   useEffect(() => {
@@ -2024,6 +2038,38 @@ export default function DesignEditor({
           <a className="de-url" href={`https://home.homenshop.com/${shopId}/${defaultLanguage}/${pageSlug === "index" ? "" : pageSlug}`} target="_blank" rel="noopener noreferrer">
             home.homenshop.com/{shopId}/{defaultLanguage}/{pageSlug === "index" ? "" : pageSlug}
           </a>
+          {/* Undo / Redo — between URL and Save, mirroring the keyboard
+              shortcuts already handled in the global keydown listener. */}
+          {editorV2Enabled && (
+            <div className="de-history-group" role="group" aria-label="실행 취소 / 다시 실행">
+              <button
+                type="button"
+                className="de-history-btn"
+                onClick={() => useEditorStore.temporal.getState().undo()}
+                disabled={!canUndo}
+                title={`실행 취소 (${typeof navigator !== "undefined" && /Mac/.test(navigator.platform) ? "⌘Z" : "Ctrl+Z"})`}
+                aria-label="실행 취소"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 7v6h6" />
+                  <path d="M21 17a9 9 0 0 0-15-6.7L3 13" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                className="de-history-btn"
+                onClick={() => useEditorStore.temporal.getState().redo()}
+                disabled={!canRedo}
+                title={`다시 실행 (${typeof navigator !== "undefined" && /Mac/.test(navigator.platform) ? "⇧⌘Z" : "Ctrl+Shift+Z"})`}
+                aria-label="다시 실행"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 7v6h-6" />
+                  <path d="M3 17a9 9 0 0 1 15-6.7L21 13" />
+                </svg>
+              </button>
+            </div>
+          )}
           <button
             className="de-save-btn"
             onClick={saveContent}
