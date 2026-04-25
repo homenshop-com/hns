@@ -63,11 +63,15 @@ fi
 echo -e "${BLUE}[deploy]${RESET} npm install (idempotent if no changes)…"
 npm install --no-audit --no-fund --prefer-offline
 
-# 3. Prisma client regenerate if schema changed
-if git diff --name-only HEAD@{1} HEAD 2>/dev/null | grep -q "prisma/schema.prisma"; then
-  echo -e "${YELLOW}[deploy]${RESET} Prisma schema changed — regenerating client"
-  npx prisma generate
-fi
+# 3. Prisma client regenerate. Always run — it's idempotent (~1s) and
+#    the previous "only on schema change" check using HEAD@{1} silently
+#    skipped the regen when reflog moves were quirky (autostash, prior
+#    failed deploys, multi-commit pulls). The cost of running every time
+#    is negligible; the cost of a stale client is a build failure with
+#    cryptic "Object literal may only specify known properties" errors
+#    on whatever new column was just added.
+echo -e "${BLUE}[deploy]${RESET} prisma generate…"
+npx prisma generate
 
 # 4. Clean stale staging from a previous failed deploy
 if [ -d "$STAGING_DIR" ]; then
