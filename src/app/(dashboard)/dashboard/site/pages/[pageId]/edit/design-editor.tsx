@@ -1789,11 +1789,127 @@ export default function DesignEditor({
     }
   }
 
+  /**
+   * Find the nearest element that can host a flow-mode child:
+   *   - If `fromId` itself is a section / group container, use it
+   *   - Else walk up to the nearest ancestor `.dragable` that contains
+   *     other `.dragable`s (i.e., a section / group, not a leaf)
+   *   - If no selection or no matching ancestor, pick the container
+   *     whose viewport rect is closest to the canvas center.
+   * Returns null only when bodyEl has zero `.dragable` containers
+   * (truly empty page) — caller falls back to bodyEl in that case.
+   */
+  function findResponsiveDropTarget(fromId: string | null): HTMLElement | null {
+    const bodyEl = bodyRef.current;
+    if (!bodyEl) return null;
+
+    const isContainer = (e: HTMLElement): boolean =>
+      e.classList.contains("dragable") && e.querySelector(".dragable") !== null;
+
+    if (fromId) {
+      const start = bodyEl.querySelector<HTMLElement>(`#${CSS.escape(fromId)}`);
+      if (start) {
+        if (isContainer(start)) return start;
+        let p: HTMLElement | null = start.parentElement;
+        while (p && p !== bodyEl) {
+          if (p.classList.contains("dragable") && isContainer(p)) return p;
+          p = p.parentElement;
+        }
+      }
+    }
+
+    // Fallback — pick the container whose center is nearest to the
+    // canvas viewport center. Matches the user's mental "I'm looking
+    // at this section, drop here."
+    const candidates = Array.from(
+      bodyEl.querySelectorAll<HTMLElement>(".dragable"),
+    ).filter(isContainer);
+    if (candidates.length === 0) return null;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const cx = vw / 2;
+    const cy = vh / 2;
+    let best: HTMLElement | null = null;
+    let bestDist = Infinity;
+    for (const c of candidates) {
+      const r = c.getBoundingClientRect();
+      // Skip containers fully off-screen.
+      if (r.bottom < 0 || r.top > vh) continue;
+      const dx = (r.left + r.width / 2) - cx;
+      const dy = (r.top + r.height / 2) - cy;
+      const d = dx * dx + dy * dy;
+      if (d < bestDist) {
+        bestDist = d;
+        best = c;
+      }
+    }
+    return best ?? candidates[0]!;
+  }
+
+  function buildFlowElement(type: string, id: string): HTMLElement {
+    const el = document.createElement("div");
+    el.id = id;
+    switch (type) {
+      case "text":
+        el.className = "dragable sol-replacible-text";
+        el.innerHTML = "<p>텍스트를 입력하세요</p>";
+        break;
+      case "image":
+        el.className = "dragable";
+        el.style.minHeight = "180px";
+        el.style.background = "#1a1c24";
+        el.innerHTML =
+          '<div style="width:100%;height:100%;min-height:180px;display:flex;align-items:center;justify-content:center;color:#888;font-size:13px;">이미지 — Inspector 에서 교체</div>';
+        break;
+      case "box":
+        // Generic visual; user differentiates button vs shape via Inspector.
+        el.className = "dragable";
+        el.style.padding = "12px 20px";
+        el.style.background = "#2a79ff";
+        el.style.color = "#fff";
+        el.style.borderRadius = "6px";
+        el.style.display = "inline-block";
+        el.style.minWidth = "120px";
+        el.style.textAlign = "center";
+        el.innerHTML = '<span style="font-size:14px;">버튼</span>';
+        break;
+      case "board":
+        el.className = "dragable sol-replacible-text boardPlugin";
+        el.innerHTML =
+          '<div style="padding:10px;color:#333"><strong>게시판</strong><ul style="margin-top:8px"><li style="line-height:22px">게시글 제목 1</li><li style="line-height:22px">게시글 제목 2</li><li style="line-height:22px">게시글 제목 3</li></ul></div>';
+        break;
+      case "product":
+        el.className = "dragable sol-replacible-text productPlugin";
+        el.innerHTML =
+          '<div style="padding:10px;color:#333"><strong>상품 목록</strong><div style="display:flex;gap:10px;margin-top:8px"><div style="width:80px;height:80px;background:#eee;border:1px solid #ddd"></div><div style="width:80px;height:80px;background:#eee;border:1px solid #ddd"></div><div style="width:80px;height:80px;background:#eee;border:1px solid #ddd"></div></div></div>';
+        break;
+      default:
+        el.className = "dragable sol-replacible-text";
+        el.innerHTML = `<div style="padding:10px">${type}</div>`;
+    }
+    return el;
+  }
+
   function addElement(type: string) {
     const bodyEl = bodyRef.current;
     if (!bodyEl) return;
 
     const id = "el_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
+
+    // Responsive templates: drop into the selected/visible section as a
+    // flow child. Avoids pinning new elements to absolute pixel coords
+    // that would ignore the section's flex/grid layout. See
+    // template-creation-guide §8.5 for the section/group philosophy.
+    if (isResponsiveTemplate) {
+      const target = findResponsiveDropTarget(selectedElId);
+      const el = buildFlowElement(type, id);
+      (target ?? bodyEl).appendChild(el);
+      setSelectedElId(id);
+      return;
+    }
+
+    // Fix-template legacy path — absolute pixel positioning at a
+    // hardcoded offset. User then drags / resizes via canvas handles.
     const el = document.createElement("div");
     el.id = id;
     el.className = "dragable sol-replacible-text";
