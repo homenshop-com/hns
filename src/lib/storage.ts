@@ -38,6 +38,64 @@ export async function uploadFile(file: File, folder: string = "uploads"): Promis
 }
 
 /**
+ * Upload a design-editor image with mild compression.
+ *
+ * Use when the user is putting an image into a site (hero, card, gallery,
+ * background) and we want one URL — not 4 variants like products. Pipeline:
+ *   1. EXIF auto-rotate so portraits don't end up sideways
+ *   2. Strip metadata (EXIF / GPS) — privacy + smaller file
+ *   3. Cap at max-width / max-height (default 1920×1920) — never upscale
+ *   4. Re-encode: JPEG 85 / PNG 90 / WebP 85 / GIF passthrough
+ *
+ * Typical: 5MB phone photo → 200-500KB output, visually indistinguishable.
+ * Format passthrough: PNG stays PNG (preserves transparency), GIF stays
+ * GIF (preserves animation since sharp's animated-GIF support is fragile).
+ */
+export async function uploadImageCompressed(
+  file: File,
+  folder: string = "uploads",
+  opts: { maxWidth?: number; maxHeight?: number } = {},
+): Promise<string> {
+  const maxWidth = opts.maxWidth ?? 1920;
+  const maxHeight = opts.maxHeight ?? 1920;
+
+  const ext = extname(file.name).toLowerCase();
+  const isPng = ext === ".png" || file.type === "image/png";
+  const isWebp = ext === ".webp" || file.type === "image/webp";
+  const isGif = ext === ".gif" || file.type === "image/gif";
+  // GIF passthrough — sharp would flatten animation. Save as-is, no resize.
+  if (isGif) {
+    return uploadFile(file, folder);
+  }
+
+  const outputExt = isPng ? ".png" : isWebp ? ".webp" : ".jpg";
+  const uuid = randomUUID();
+  const filename = `${uuid}${outputExt}`;
+  const dir = join(UPLOAD_DIR, folder);
+  await mkdir(dir, { recursive: true });
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const filePath = join(dir, filename);
+
+  let pipe = sharp(buffer).rotate().resize({
+    width: maxWidth,
+    height: maxHeight,
+    fit: "inside",
+    withoutEnlargement: true,
+  });
+
+  if (isPng) {
+    await pipe.png({ quality: 90, compressionLevel: 9 }).toFile(filePath);
+  } else if (isWebp) {
+    await pipe.webp({ quality: 85 }).toFile(filePath);
+  } else {
+    await pipe.jpeg({ quality: 85, mozjpeg: true }).toFile(filePath);
+  }
+
+  return `${UPLOAD_URL}/${folder}/${filename}`;
+}
+
+/**
  * Upload an image file and create resized variants (thumb, medium, large).
  * Returns URLs for all three sizes plus the original.
  */

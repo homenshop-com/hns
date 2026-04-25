@@ -256,6 +256,7 @@ function ImageSection({
       const fd = new FormData();
       fd.append("file", file);
       fd.append("folder", "site-uploads");
+      fd.append("compress", "true");
       const res = await fetch("/api/upload", { method: "POST", body: fd });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
@@ -398,6 +399,7 @@ function BackgroundImageSection({ layer }: { layer: Layer }) {
       const fd = new FormData();
       fd.append("file", file);
       fd.append("folder", "site-uploads");
+      fd.append("compress", "true");
       const res = await fetch("/api/upload", { method: "POST", body: fd });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));

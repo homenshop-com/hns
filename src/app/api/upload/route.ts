@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { uploadFile, uploadImageWithResize } from "@/lib/storage";
+import { uploadFile, uploadImageCompressed, uploadImageWithResize } from "@/lib/storage";
 
 const ALLOWED_TYPES = new Set([
   "image/jpeg",
@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
 
     const folder = (formData.get("folder") as string) || "uploads";
     const resize = formData.get("resize") === "true";
+    const compress = formData.get("compress") === "true";
 
     if (resize) {
       // Product images: generate thumb/medium/large variants
@@ -54,7 +55,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(urls, { status: 201 });
     }
 
-    // Simple upload (no resize)
+    if (compress) {
+      // Design-editor images: max 1920×1920, JPEG 85 / PNG 90 / WebP 85,
+      // EXIF stripped, format passthrough (PNG transparency / GIF animation
+      // preserved). Returns one URL.
+      const maxWidthRaw = formData.get("maxWidth");
+      const maxWidth = typeof maxWidthRaw === "string" ? parseInt(maxWidthRaw) : undefined;
+      const url = await uploadImageCompressed(file, folder, {
+        maxWidth: Number.isFinite(maxWidth) ? maxWidth : undefined,
+      });
+      return NextResponse.json({ url }, { status: 201 });
+    }
+
+    // Simple upload (no resize / no compress) — kept for non-image files
+    // and any caller that explicitly wants the bytes verbatim.
     const url = await uploadFile(file, folder);
     return NextResponse.json({ url }, { status: 201 });
   } catch (err) {

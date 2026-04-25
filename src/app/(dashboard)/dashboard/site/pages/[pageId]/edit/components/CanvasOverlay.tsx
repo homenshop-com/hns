@@ -632,6 +632,7 @@ function ImageReplaceButton({ layerId, rect }: { layerId: string; rect: Rect }) 
       const fd = new FormData();
       fd.append("file", file);
       fd.append("folder", "site-uploads");
+      fd.append("compress", "true");
       const res = await fetch("/api/upload", { method: "POST", body: fd });
       if (!res.ok) throw new Error(`업로드 실패 (${res.status})`);
       const { url } = await res.json();
