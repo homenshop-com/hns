@@ -18,7 +18,8 @@
 
 import { useState, useMemo, useEffect, useRef } from "react";
 import { SECTION_PRESETS } from "./section-library";
-import { FONT_CATALOG, FONT_CATEGORIES, type FontDef } from "./font-catalog";
+import { FONT_CATALOG, FONT_CATEGORIES } from "./font-catalog";
+import { THEME_PRESETS, THEME_CATEGORIES, type ThemePreset } from "./theme-presets";
 import { useEditorStore, selectRoot } from "../store/editor-store";
 import type { Layer } from "@/lib/scene";
 
@@ -73,23 +74,9 @@ const MY_COMPONENTS = [
   { label: "문의 카드",         icon: "fa-id-card" },
 ];
 
-/** Curated palette presets for the 테마 tab. Applied as `--brand-*`
- *  custom properties injected into a `:root{}` rule, so any CSS that
- *  references `var(--brand-color)` picks up the change. Non-themed
- *  markup is unaffected. */
-const THEME_PRESETS: Array<{ id: string; label: string; brand: string; accent: string }> = [
-  { id: "mint",    label: "민트",   brand: "#3ccf97", accent: "#5be5b3" },
-  { id: "ocean",   label: "오션",   brand: "#2563eb", accent: "#4a90d9" },
-  { id: "sunset",  label: "선셋",   brand: "#e89a78", accent: "#f4b66a" },
-  { id: "berry",   label: "베리",   brand: "#b6267e", accent: "#ff8bb1" },
-  { id: "forest",  label: "포레스트", brand: "#1f6f5c", accent: "#3ccf97" },
-  { id: "graphite",label: "그래파이트", brand: "#111827", accent: "#6b7280" },
-];
+/** Theme presets and font catalog live in shared modules so the
+ *  inspector and design-editor reuse the same source of truth. */
 
-/** Font picker for the 테마 tab pulls directly from the catalog so the
- *  inspector and the theme tab stay in sync. The legacy `THEME_FONTS`
- *  array (5 families) is replaced by `FONT_CATALOG` (24 families).  */
-const THEME_FONTS: FontDef[] = FONT_CATALOG;
 
 interface Props {
   onInsert(type: InsertType): void;
@@ -112,7 +99,13 @@ interface Props {
   /* ─── 테마 tab — site-wide theme tokens ──────────────────────────── */
   /** Apply brand/accent color + font stack to the site's CSS. Callee
    *  injects/updates a `:root{...}` rule into Site.cssText. */
-  onApplyTheme?(tokens: { brand: string; accent: string; fontStack?: string }): void;
+  onApplyTheme?(tokens: {
+    brand: string;
+    accent: string;
+    surface?: string;
+    text?: string;
+    fontStack?: string;
+  }): void;
   currentThemeId?: string | null;
   currentFontId?: string | null;
 
@@ -159,6 +152,45 @@ export default function LeftPalette({
   useEffect(() => {
     if (tab !== "insert" || query) setShapePopoverOpen(false);
   }, [tab, query]);
+
+  /* ─── 테마 tab — local working copy of the 4 color tokens ────────
+   * Initialised from the active preset (if any) and kept in sync when
+   * the user picks a different preset. Each color picker updates this
+   * state and immediately calls onApplyTheme so the canvas reflects
+   * changes live without an explicit "apply" press. */
+  const initialPreset = THEME_PRESETS.find((p) => p.id === currentThemeId) ?? THEME_PRESETS[0]!;
+  const [themeColors, setThemeColors] = useState({
+    brand: initialPreset.brand,
+    accent: initialPreset.accent,
+    surface: initialPreset.surface,
+    text: initialPreset.text,
+  });
+  // When design-editor reports a new active preset (e.g. on page load or
+  // after applying a swatch), pull its colors into our local state so
+  // the custom inputs reflect the canvas truth.
+  useEffect(() => {
+    if (!currentThemeId) return;
+    const p = THEME_PRESETS.find((pp) => pp.id === currentThemeId);
+    if (!p) return;
+    setThemeColors({ brand: p.brand, accent: p.accent, surface: p.surface, text: p.text });
+  }, [currentThemeId]);
+
+  /** Apply a tokens patch + always include the currently-selected font
+   *  so picking a new color doesn't drop --brand-font from the managed
+   *  CSS block (rebuilt from scratch every call). */
+  const applyThemePatch = (patch: Partial<typeof themeColors>) => {
+    const next = { ...themeColors, ...patch };
+    setThemeColors(next);
+    const font = FONT_CATALOG.find((f) => f.id === currentFontId);
+    onApplyTheme?.({
+      ...next,
+      ...(font && { fontStack: font.stack }),
+    });
+  };
+
+  const activeFontStack =
+    FONT_CATALOG.find((f) => f.id === currentFontId)?.stack ??
+    "'Pretendard Variable', Pretendard, system-ui, sans-serif";
 
   /* ─── 에셋 tab — recent uploads list ─────────────────────────────── */
   type AssetItem = { url: string; name: string; mtime: number; size: number };
@@ -598,48 +630,150 @@ export default function LeftPalette({
       )}
 
       {tab === "theme" && (
-        <div className="lp-scroll">
+        <div className="lp-scroll lp-theme-tab">
+          {/* ─── Live preview ─────────────────────────────────────── */}
           <section className="lp-section">
             <h4>
-              색상 팔레트
+              미리보기
+              <i className="fa-solid fa-eye lp-chev" aria-hidden />
+            </h4>
+            <div
+              className="lp-theme-preview"
+              style={{
+                background: themeColors.surface,
+                color: themeColors.text,
+                fontFamily: activeFontStack,
+              }}
+            >
+              <div className="lp-theme-preview-eyebrow" style={{ color: themeColors.accent }}>
+                NEW · COLLECTION
+              </div>
+              <div className="lp-theme-preview-title" style={{ color: themeColors.brand }}>
+                헤드라인 텍스트
+              </div>
+              <div className="lp-theme-preview-body">
+                본문 텍스트는 이런 색으로 보여집니다.
+              </div>
+              <div className="lp-theme-preview-buttons">
+                <span
+                  className="lp-theme-preview-btn primary"
+                  style={{ background: themeColors.brand, color: "#fff" }}
+                >
+                  주요 버튼
+                </span>
+                <span
+                  className="lp-theme-preview-btn outline"
+                  style={{ borderColor: themeColors.accent, color: themeColors.brand }}
+                >
+                  보조 버튼
+                </span>
+              </div>
+            </div>
+          </section>
+
+          {/* ─── Preset cards by category ─────────────────────────── */}
+          <section className="lp-section">
+            <h4>
+              테마 프리셋
               <i className="fa-solid fa-palette lp-chev" aria-hidden />
             </h4>
-            <div className="lp-theme-grid">
-              {THEME_PRESETS.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  className={`lp-theme-swatch${currentThemeId === t.id ? " active" : ""}`}
-                  onClick={() => {
-                    // Preserve the currently-applied font (if any). Without
-                    // this, switching color after picking a font would
-                    // silently drop the `--brand-font` line in the
-                    // managed :root{} block (applyTheme rebuilds the block
-                    // from scratch every call).
-                    const font = THEME_FONTS.find((f) => f.id === currentFontId);
-                    onApplyTheme?.({
-                      brand: t.brand,
-                      accent: t.accent,
-                      ...(font && { fontStack: font.stack }),
-                    });
-                  }}
-                  title={t.label}
-                >
-                  <span className="lp-theme-bar" style={{ background: t.brand }} />
-                  <span className="lp-theme-bar" style={{ background: t.accent }} />
-                  <span className="lp-theme-label">{t.label}</span>
-                </button>
+            {THEME_CATEGORIES.map((cat) => {
+              const presets = THEME_PRESETS.filter((p: ThemePreset) => p.category === cat.key);
+              if (presets.length === 0) return null;
+              return (
+                <div key={cat.key} className="lp-theme-category">
+                  <div className="lp-theme-category-label">{cat.label}</div>
+                  <div className="lp-theme-card-grid">
+                    {presets.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        className={`lp-theme-card${currentThemeId === p.id ? " active" : ""}`}
+                        onClick={() =>
+                          applyThemePatch({
+                            brand: p.brand,
+                            accent: p.accent,
+                            surface: p.surface,
+                            text: p.text,
+                          })
+                        }
+                        title={`${p.label} · ${p.mood}`}
+                      >
+                        <div className="lp-theme-card-swatch">
+                          <span style={{ background: p.brand }} />
+                          <span style={{ background: p.accent }} />
+                          <span style={{ background: p.surface, border: "1px solid rgba(0,0,0,0.06)" }} />
+                          <span style={{ background: p.text }} />
+                        </div>
+                        <div className="lp-theme-card-meta">
+                          <div className="lp-theme-card-label">{p.label}</div>
+                          <div className="lp-theme-card-mood">{p.mood}</div>
+                        </div>
+                        {currentThemeId === p.id && (
+                          <div className="lp-theme-card-check" aria-hidden>
+                            <i className="fa-solid fa-check" />
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </section>
+
+          {/* ─── Custom 4-token color picker ──────────────────────── */}
+          <section className="lp-section">
+            <h4>
+              커스텀 컬러
+              <i className="fa-solid fa-eye-dropper lp-chev" aria-hidden />
+            </h4>
+            <div className="lp-color-list">
+              {([
+                { key: "brand",   label: "포인트", help: "버튼 / 제목" },
+                { key: "accent",  label: "강조",   help: "배지 / 보조" },
+                { key: "surface", label: "배경",   help: "페이지 바탕" },
+                { key: "text",    label: "본문",   help: "기본 글자색" },
+              ] as const).map((row) => (
+                <div key={row.key} className="lp-color-row">
+                  <input
+                    type="color"
+                    className="lp-color-swatch"
+                    value={themeColors[row.key]}
+                    onChange={(e) => applyThemePatch({ [row.key]: e.target.value })}
+                    aria-label={row.label}
+                  />
+                  <div className="lp-color-meta">
+                    <div className="lp-color-label">{row.label}</div>
+                    <div className="lp-color-help">{row.help}</div>
+                  </div>
+                  <input
+                    type="text"
+                    className="lp-color-input"
+                    value={themeColors[row.key]}
+                    onChange={(e) => setThemeColors((s) => ({ ...s, [row.key]: e.target.value }))}
+                    onBlur={(e) => {
+                      const v = e.target.value.trim();
+                      // Only commit valid CSS color formats — avoids
+                      // applying garbage half-typed input live.
+                      if (/^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(v) || v.startsWith("rgb")) {
+                        applyThemePatch({ [row.key]: v });
+                      }
+                    }}
+                  />
+                </div>
               ))}
             </div>
           </section>
 
+          {/* ─── Typography (categorized font picker, unchanged) ──── */}
           <section className="lp-section">
             <h4>
               타이포그래피
               <i className="fa-solid fa-font lp-chev" aria-hidden />
             </h4>
             {FONT_CATEGORIES.map((cat) => {
-              const fonts = THEME_FONTS.filter((f) => f.category === cat.key);
+              const fonts = FONT_CATALOG.filter((f) => f.category === cat.key);
               if (fonts.length === 0) return null;
               return (
                 <div key={cat.key} className="lp-font-group">
@@ -651,9 +785,14 @@ export default function LeftPalette({
                         type="button"
                         className={`lp-row${currentFontId === f.id ? " active" : ""}`}
                         onClick={() => {
-                          // Preserve current color selection; only change font.
-                          const preset = THEME_PRESETS.find((p) => p.id === currentThemeId) ?? THEME_PRESETS[0]!;
-                          onApplyTheme?.({ brand: preset.brand, accent: preset.accent, fontStack: f.stack });
+                          // Preserve current color tokens; only change font.
+                          onApplyTheme?.({
+                            brand: themeColors.brand,
+                            accent: themeColors.accent,
+                            surface: themeColors.surface,
+                            text: themeColors.text,
+                            fontStack: f.stack,
+                          });
                         }}
                         style={{ fontFamily: f.stack }}
                         title={`${f.label} · ${f.english}`}
@@ -670,10 +809,6 @@ export default function LeftPalette({
               );
             })}
           </section>
-
-          <div className="lp-empty-sub" style={{ padding: "0 14px 14px" }}>
-            테마를 적용하면 사이트 CSS의 <code>:root</code>에 <code>--brand-color</code>·<code>--brand-accent</code>·<code>--brand-font</code> 변수가 주입됩니다.
-          </div>
         </div>
       )}
 

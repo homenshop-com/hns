@@ -1708,45 +1708,196 @@ body:has(.inspector-rail) .de-canvas-wrapper {
   padding: 6px 0;
 }
 
-/* ─── LeftPalette — 테마 tab ───────────────────────────────────────── */
-.lp-theme-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 6px;
-  padding: 0 14px 10px;
-}
-.lp-theme-swatch {
-  all: unset;
+/* ─── LeftPalette — 테마 tab (modernized 2026-04-26) ──────────────── */
+.lp-theme-tab .lp-section { padding: 6px 12px 14px; }
+
+/* Live preview card — shows headline / body / button rendered in the
+ * currently-selected tokens so the user sees the impact before committing. */
+.lp-theme-preview {
+  margin: 0 2px;
+  padding: 18px 16px 20px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  gap: 3px;
-  padding: 8px;
+  gap: 6px;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+.lp-theme-preview-eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.lp-theme-preview-title {
+  font-size: 19px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+.lp-theme-preview-body {
+  font-size: 12px;
+  line-height: 1.55;
+  opacity: 0.85;
+}
+.lp-theme-preview-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+.lp-theme-preview-btn {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.lp-theme-preview-btn.outline {
+  background: transparent;
+  border: 1.5px solid currentColor;
+}
+
+/* Preset card grid */
+.lp-theme-category + .lp-theme-category { margin-top: 10px; }
+.lp-theme-category-label {
+  padding: 0 2px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--fig-text-3);
+  text-transform: uppercase;
+}
+.lp-theme-card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.lp-theme-card {
+  all: unset;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 7px 7px 8px;
   border-radius: 6px;
   background: var(--fig-bg-2);
-  border: 1px solid var(--fig-line-2);
+  border: 1px solid transparent;
   cursor: pointer;
-  transition: border-color 0.12s, background 0.12s;
+  transition: border-color 0.12s, background 0.12s, transform 0.12s;
+  box-sizing: border-box;
 }
-.lp-theme-swatch:hover {
-  border-color: var(--fig-accent);
+.lp-theme-card:hover {
+  border-color: rgba(91, 229, 179, 0.5);
   background: var(--fig-bg-3);
+  transform: translateY(-1px);
 }
-.lp-theme-swatch.active {
+.lp-theme-card.active {
   border-color: var(--fig-accent);
-  box-shadow: 0 0 0 2px rgba(91, 229, 179, 0.2);
+  box-shadow: 0 0 0 2px rgba(91, 229, 179, 0.18);
 }
-.lp-theme-bar {
+.lp-theme-card-swatch {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+  height: 22px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.lp-theme-card-swatch span {
   display: block;
-  height: 14px;
-  border-radius: 3px;
+  height: 100%;
 }
-.lp-theme-label {
-  margin-top: 4px;
+.lp-theme-card-meta { line-height: 1.2; }
+.lp-theme-card-label {
   font-size: 11px;
-  color: var(--fig-text-2);
-  text-align: center;
+  font-weight: 600;
+  color: var(--fig-text-0);
 }
+.lp-theme-card-mood {
+  font-size: 9.5px;
+  color: var(--fig-text-3);
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lp-theme-card-check {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 14px;
+  height: 14px;
+  display: grid;
+  place-items: center;
+  background: var(--fig-accent);
+  color: #0b1220;
+  border-radius: 50%;
+  font-size: 8px;
+}
+
+/* Custom 4-token color picker rows */
+.lp-color-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.lp-color-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--fig-bg-2);
+  border: 1px solid transparent;
+}
+.lp-color-row:hover { border-color: var(--fig-line-2); }
+.lp-color-swatch {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--fig-line-2);
+  border-radius: 6px;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.lp-color-swatch::-webkit-color-swatch-wrapper { padding: 0; }
+.lp-color-swatch::-webkit-color-swatch { border: none; border-radius: 5px; }
+.lp-color-swatch::-moz-color-swatch { border: none; border-radius: 5px; }
+.lp-color-meta { flex: 1; min-width: 0; }
+.lp-color-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--fig-text-0);
+}
+.lp-color-help {
+  font-size: 9.5px;
+  color: var(--fig-text-3);
+  margin-top: 1px;
+}
+.lp-color-input {
+  all: unset;
+  width: 78px;
+  height: 24px;
+  padding: 0 8px;
+  background: var(--fig-bg-3);
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 10.5px;
+  color: var(--fig-text-0);
+  text-align: right;
+  box-sizing: border-box;
+}
+.lp-color-input:focus {
+  border-color: var(--fig-accent);
+  background: var(--fig-bg-2);
+}
+
+/* Generic active-row tint reused by typography list */
 .lp-row.active {
   background: rgba(91, 229, 179, 0.08);
 }

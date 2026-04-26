@@ -21,6 +21,7 @@ import {
 // Sprint 9k — section preset library for LeftPalette "섹션 블록" list.
 import { SECTION_PRESETS } from "./components/section-library";
 import { findFontIdByStack } from "./components/font-catalog";
+import { findThemePresetByColors } from "./components/theme-presets";
 
 const TiptapModal = lazy(() => import("./tiptap-modal"));
 // LayerPanel is rendered by InspectorPanel's "레이어" tab; no direct
@@ -44,14 +45,19 @@ let v2Clipboard: unknown[] = [];
 
 const THEME_MARK_START = "/* HNS-THEME-TOKENS:START */";
 const THEME_MARK_END = "/* HNS-THEME-TOKENS:END */";
-const THEME_PRESETS = {
-  mint:     { brand: "#3ccf97", accent: "#5be5b3" },
-  ocean:    { brand: "#2563eb", accent: "#4a90d9" },
-  sunset:   { brand: "#e89a78", accent: "#f4b66a" },
-  berry:    { brand: "#b6267e", accent: "#ff8bb1" },
-  forest:   { brand: "#1f6f5c", accent: "#3ccf97" },
-  graphite: { brand: "#111827", accent: "#6b7280" },
-} as const;
+
+/** Theme tokens written into the managed `:root{}` block. The 4 color
+ *  tokens are surfaced as `--brand-color/-accent/-surface/-text` CSS
+ *  vars; the rest of `buildThemeCssBlock` cascades them onto common
+ *  selectors so the canvas reflects the change without per-element
+ *  edits. */
+export type ThemeTokens = {
+  brand: string;
+  accent: string;
+  surface?: string;
+  text?: string;
+  fontStack?: string;
+};
 
 function cssManagedBlockRegex(start: string, end: string) {
   return new RegExp(
@@ -59,11 +65,30 @@ function cssManagedBlockRegex(start: string, end: string) {
   );
 }
 
-function buildThemeCssBlock(tokens: { brand: string; accent: string; fontStack?: string }) {
+/**
+ * Build the managed `:root{...}` CSS block + element overrides for the
+ * current theme tokens. Stronger than the previous version:
+ *
+ * - Selectors use `#de-canvas-inner` directly (specificity 1,0,0 + the
+ *   `!important` flag) instead of `:where()` (0,0,0,0). `:where()` was
+ *   chosen originally for "soft" overrides that templates could opt out
+ *   of — but in practice templates rely on inline `style="color:#xxx"`
+ *   which has 1,0,0,0 specificity, so `:where()` lost. Direct ID +
+ *   `!important` wins against inline-without-important.
+ * - Adds `--brand-surface` / `--brand-text` so backgrounds and body
+ *   copy follow the theme — previous version only handled brand+accent.
+ * - Targets the editor's atomic-layer text wrappers (`.dragable`
+ *   followed by `.sol-replacible-text` content) which carry inline
+ *   `color:` attributes — those are matched by attribute selectors so
+ *   the theme actually visibly takes over the page.
+ */
+function buildThemeCssBlock(tokens: ThemeTokens) {
+  const surface = tokens.surface ?? "#ffffff";
+  const text = tokens.text ?? "#111827";
   const fontVar = tokens.fontStack ? `  --brand-font: ${tokens.fontStack};\n` : "";
   const fontRules = tokens.fontStack
     ? `
-:where(#hns_header, #hns_menu, #hns_body, #hns_footer, #de-canvas-inner) :where(*:not(i):not(.fa):not([class^="fa-"]):not([class*=" fa-"])) {
+#de-canvas-inner *:not(i):not(.fa):not([class^="fa-"]):not([class*=" fa-"]) {
   font-family: var(--brand-font) !important;
 }
 `
@@ -73,42 +98,99 @@ function buildThemeCssBlock(tokens: { brand: string; accent: string; fontStack?:
 :root {
   --brand-color: ${tokens.brand};
   --brand-accent: ${tokens.accent};
+  --brand-surface: ${surface};
+  --brand-text: ${text};
 ${fontVar}}
 
-${fontRules}:where(#hns_body, #de-canvas-inner) :where(h1, h2, h3, h4, h5, h6, .title, .headline, .section-title, .sol-replacible-text h1, .sol-replacible-text h2, .sol-replacible-text h3) {
+/* Page surface — the canvas root carries the surface tone so sections
+   without their own background pick it up. */
+#de-canvas-inner {
+  background-color: var(--brand-surface) !important;
+  color: var(--brand-text) !important;
+}
+
+/* Body copy — paragraphs and generic text blocks follow --brand-text.
+   Headings & buttons get their own color rules below, which override
+   this via cascade order. */
+#de-canvas-inner p,
+#de-canvas-inner li,
+#de-canvas-inner span:not([style*="color"]),
+#de-canvas-inner div:not([style*="color"]):not([style*="background"]) {
+  color: var(--brand-text);
+}
+
+/* Headings & first-class titles → brand color. Includes both real
+   semantic tags and the editor's text-layer naming patterns. */
+#de-canvas-inner h1,
+#de-canvas-inner h2,
+#de-canvas-inner h3,
+#de-canvas-inner h4,
+#de-canvas-inner h5,
+#de-canvas-inner h6,
+#de-canvas-inner .title,
+#de-canvas-inner .headline,
+#de-canvas-inner .section-title,
+#de-canvas-inner [class*="-title"],
+#de-canvas-inner [class*="-heading"],
+#de-canvas-inner .sol-replacible-text h1,
+#de-canvas-inner .sol-replacible-text h2,
+#de-canvas-inner .sol-replacible-text h3 {
   color: var(--brand-color) !important;
 }
 
-:where(#hns_body, #de-canvas-inner) :where(.badge, .tag, .eyebrow, [class*="badge"], [class*="tag"], [style*="border-radius"]) {
-  background-color: color-mix(in srgb, var(--brand-accent) 82%, white) !important;
+/* Badges / pills / tags pick up the accent color as a soft tint. */
+#de-canvas-inner .badge,
+#de-canvas-inner .tag,
+#de-canvas-inner .eyebrow,
+#de-canvas-inner [class*="badge"],
+#de-canvas-inner [class*="tag"],
+#de-canvas-inner [class*="pill"],
+#de-canvas-inner [class*="chip"] {
+  background-color: color-mix(in srgb, var(--brand-accent) 18%, var(--brand-surface)) !important;
   border-color: var(--brand-accent) !important;
+  color: color-mix(in srgb, var(--brand-color) 80%, black) !important;
 }
 
-:where(#hns_body, #de-canvas-inner) :where(button, .btn, [class*="btn"], [class*="button"], a[style*="background"]) {
+/* Buttons & button-like links — fill with brand. */
+#de-canvas-inner button,
+#de-canvas-inner .btn,
+#de-canvas-inner [class*="btn-primary"],
+#de-canvas-inner [class*="button-primary"],
+#de-canvas-inner a[style*="background"] {
   background-color: var(--brand-color) !important;
   border-color: var(--brand-color) !important;
-  color: #fff !important;
+  color: #ffffff !important;
 }
 
-:where(#hns_body, #de-canvas-inner) :where(a:not([style*="background"]):not([class*="btn"]):not([class*="button"])) {
+/* Secondary buttons (outlined) — accent border. */
+#de-canvas-inner [class*="btn-secondary"],
+#de-canvas-inner [class*="button-secondary"],
+#de-canvas-inner [class*="btn-outline"] {
+  background-color: transparent !important;
+  border-color: var(--brand-accent) !important;
   color: var(--brand-color) !important;
 }
-${THEME_MARK_END}`;
+
+/* Plain links — brand color. Excludes button-styled and inline-bg links
+   handled above. */
+#de-canvas-inner a:not([style*="background"]):not([class*="btn"]):not([class*="button"]) {
+  color: var(--brand-color) !important;
+}
+${fontRules}${THEME_MARK_END}`;
 }
 
 function inferThemePresetId(brand: string, accent: string): string | null {
-  const entry = Object.entries(THEME_PRESETS).find(
-    ([, preset]) => preset.brand.toLowerCase() === brand.toLowerCase() && preset.accent.toLowerCase() === accent.toLowerCase(),
-  );
-  return entry?.[0] ?? null;
+  return findThemePresetByColors(brand, accent)?.id ?? null;
 }
 
 function parseThemeTokens(css: string) {
   const block = css.match(cssManagedBlockRegex(THEME_MARK_START, THEME_MARK_END))?.[0] ?? css;
   const brand = block.match(/--brand-color\s*:\s*([^;]+);/i)?.[1]?.trim();
   const accent = block.match(/--brand-accent\s*:\s*([^;]+);/i)?.[1]?.trim();
+  const surface = block.match(/--brand-surface\s*:\s*([^;]+);/i)?.[1]?.trim();
+  const text = block.match(/--brand-text\s*:\s*([^;]+);/i)?.[1]?.trim();
   const fontStack = block.match(/--brand-font\s*:\s*([^;]+);/i)?.[1]?.trim();
-  return { brand, accent, fontStack };
+  return { brand, accent, surface, text, fontStack };
 }
 
 /* ─── Types ─── */
@@ -2699,7 +2781,7 @@ export default function DesignEditor({
     }
   }
 
-  function applyTheme(tokens: { brand: string; accent: string; fontStack?: string }) {
+  function applyTheme(tokens: ThemeTokens) {
     const block = buildThemeCssBlock(tokens);
     const css = currentPageCss ?? "";
     const re = cssManagedBlockRegex(THEME_MARK_START, THEME_MARK_END);
@@ -2708,7 +2790,7 @@ export default function DesignEditor({
 
     // Track which preset the user picked for the UI active-state.
     const matched = inferThemePresetId(tokens.brand, tokens.accent);
-    if (matched) setCurrentThemeId(matched);
+    setCurrentThemeId(matched); // null clears the highlight for custom colors
 
     if (tokens.fontStack) {
       const id = findFontIdByStack(tokens.fontStack);
