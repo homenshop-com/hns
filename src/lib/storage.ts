@@ -77,6 +77,12 @@ export async function uploadImageCompressed(
   const buffer = Buffer.from(await file.arrayBuffer());
   const filePath = join(dir, filename);
 
+  // Probe input for alpha so we never accidentally flatten a
+  // transparent PNG/WebP (sharp's resize/format ops occasionally drop
+  // alpha when the source is unusual; we explicitly preserve it).
+  const inputMeta = await sharp(buffer).metadata();
+  const inputHasAlpha = !!inputMeta.hasAlpha;
+
   let pipe = sharp(buffer).rotate().resize({
     width: maxWidth,
     height: maxHeight,
@@ -85,8 +91,16 @@ export async function uploadImageCompressed(
   });
 
   if (isPng) {
-    await pipe.png({ quality: 90, compressionLevel: 9 }).toFile(filePath);
+    // ensureAlpha() forces RGBA output when input had alpha — guards
+    // against any subtle sharp behavior that would convert to RGB.
+    // Also disable palette mode so transparent areas stay editable
+    // pixel-perfect.
+    if (inputHasAlpha) pipe = pipe.ensureAlpha();
+    await pipe
+      .png({ quality: 90, compressionLevel: 9, palette: false })
+      .toFile(filePath);
   } else if (isWebp) {
+    if (inputHasAlpha) pipe = pipe.ensureAlpha();
     await pipe.webp({ quality: 85 }).toFile(filePath);
   } else {
     await pipe.jpeg({ quality: 85, mozjpeg: true }).toFile(filePath);
