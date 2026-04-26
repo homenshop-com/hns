@@ -18,6 +18,7 @@
 
 import { useState, useMemo, useEffect, useRef } from "react";
 import { SECTION_PRESETS } from "./section-library";
+import { FONT_CATALOG, FONT_CATEGORIES, type FontDef } from "./font-catalog";
 import { useEditorStore, selectRoot } from "../store/editor-store";
 import type { Layer } from "@/lib/scene";
 
@@ -85,13 +86,10 @@ const THEME_PRESETS: Array<{ id: string; label: string; brand: string; accent: s
   { id: "graphite",label: "그래파이트", brand: "#111827", accent: "#6b7280" },
 ];
 
-const THEME_FONTS: Array<{ id: string; label: string; stack: string }> = [
-  { id: "pretendard",  label: "Pretendard",  stack: "'Pretendard Variable', Pretendard, system-ui, sans-serif" },
-  { id: "inter",       label: "Inter",       stack: "Inter, system-ui, sans-serif" },
-  { id: "noto",        label: "Noto Sans KR",stack: "'Noto Sans KR', system-ui, sans-serif" },
-  { id: "serif",       label: "Serif",       stack: "'Noto Serif KR', Georgia, serif" },
-  { id: "mono",        label: "Mono",        stack: "'JetBrains Mono', ui-monospace, monospace" },
-];
+/** Font picker for the 테마 tab pulls directly from the catalog so the
+ *  inspector and the theme tab stay in sync. The legacy `THEME_FONTS`
+ *  array (5 families) is replaced by `FONT_CATALOG` (24 families).  */
+const THEME_FONTS: FontDef[] = FONT_CATALOG;
 
 interface Props {
   onInsert(type: InsertType): void;
@@ -640,27 +638,37 @@ export default function LeftPalette({
               타이포그래피
               <i className="fa-solid fa-font lp-chev" aria-hidden />
             </h4>
-            <div className="lp-row-list">
-              {THEME_FONTS.map((f) => (
-                <button
-                  key={f.id}
-                  type="button"
-                  className={`lp-row${currentFontId === f.id ? " active" : ""}`}
-                  onClick={() => {
-                    // Preserve current color selection; only change font.
-                    const preset = THEME_PRESETS.find((p) => p.id === currentThemeId) ?? THEME_PRESETS[0]!;
-                    onApplyTheme?.({ brand: preset.brand, accent: preset.accent, fontStack: f.stack });
-                  }}
-                  style={{ fontFamily: f.stack }}
-                >
-                  <span className="lp-row-icon"><i className="fa-solid fa-font" aria-hidden /></span>
-                  <span className="lp-row-label">{f.label}</span>
-                  {currentFontId === f.id && (
-                    <i className="fa-solid fa-check" style={{ color: "var(--fig-accent)", fontSize: 10 }} aria-hidden />
-                  )}
-                </button>
-              ))}
-            </div>
+            {FONT_CATEGORIES.map((cat) => {
+              const fonts = THEME_FONTS.filter((f) => f.category === cat.key);
+              if (fonts.length === 0) return null;
+              return (
+                <div key={cat.key} className="lp-font-group">
+                  <div className="lp-font-group-label">{cat.label}</div>
+                  <div className="lp-row-list">
+                    {fonts.map((f) => (
+                      <button
+                        key={f.id}
+                        type="button"
+                        className={`lp-row${currentFontId === f.id ? " active" : ""}`}
+                        onClick={() => {
+                          // Preserve current color selection; only change font.
+                          const preset = THEME_PRESETS.find((p) => p.id === currentThemeId) ?? THEME_PRESETS[0]!;
+                          onApplyTheme?.({ brand: preset.brand, accent: preset.accent, fontStack: f.stack });
+                        }}
+                        style={{ fontFamily: f.stack }}
+                        title={`${f.label} · ${f.english}`}
+                      >
+                        <span className="lp-row-icon"><i className="fa-solid fa-font" aria-hidden /></span>
+                        <span className="lp-row-label">{f.label}</span>
+                        {currentFontId === f.id && (
+                          <i className="fa-solid fa-check" style={{ color: "var(--fig-accent)", fontSize: 10 }} aria-hidden />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </section>
 
           <div className="lp-empty-sub" style={{ padding: "0 14px 14px" }}>

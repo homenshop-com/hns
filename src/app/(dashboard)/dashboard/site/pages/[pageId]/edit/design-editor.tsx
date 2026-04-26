@@ -20,6 +20,7 @@ import {
 } from "@/lib/scene";
 // Sprint 9k — section preset library for LeftPalette "섹션 블록" list.
 import { SECTION_PRESETS } from "./components/section-library";
+import { findFontIdByStack } from "./components/font-catalog";
 
 const TiptapModal = lazy(() => import("./tiptap-modal"));
 // LayerPanel is rendered by InspectorPanel's "레이어" tab; no direct
@@ -2647,14 +2648,8 @@ export default function DesignEditor({
     if (matched) setCurrentThemeId(matched);
 
     if (tokens.fontStack) {
-      const matchedFont = [
-        ["pretendard", "Pretendard"],
-        ["inter", "Inter"],
-        ["noto", "Noto Sans KR"],
-        ["serif", "Noto Serif KR"],
-        ["mono", "JetBrains Mono"],
-      ].find(([, marker]) => tokens.fontStack!.includes(marker));
-      if (matchedFont) setCurrentFontId(matchedFont[0]!);
+      const id = findFontIdByStack(tokens.fontStack);
+      if (id) setCurrentFontId(id);
     }
   }
 

@@ -22,6 +22,7 @@ import {
   readImgFromInnerHtml,
 } from "../store/editor-store";
 import type { BoxLayer, ImageLayer, Layer, LayerId, LayerInteraction, LayerStyle } from "@/lib/scene";
+import { FONT_CATALOG, FONT_CATEGORIES, type FontDef } from "./font-catalog";
 
 const LayerPanel = lazy(() => import("./LayerPanel"));
 
@@ -662,11 +663,10 @@ function TypographySection({ layer }: { layer: Layer }) {
   return (
     <Section title="타이포그래피">
       <div className="ins-prop-row">
-        <TextField
+        <FontPickerField
           label="폰트"
           value={s.fontFamily ?? ""}
-          placeholder="Pretendard"
-          onCommit={(v) => setStyle(layer.id, { fontFamily: v })}
+          onChange={(v) => setStyle(layer.id, { fontFamily: v })}
         />
       </div>
       <div className="ins-prop-row">
@@ -1076,6 +1076,125 @@ function TextField({
           }
         }}
       />
+    </div>
+  );
+}
+
+/**
+ * FontPickerField — typography font selector with live previews.
+ *
+ * Backed by the shared font-catalog so the inspector matches the 테마 tab.
+ * The trigger shows the current selection rendered in its own face; the
+ * popover groups fonts by category (고딕 / 명조 / 디스플레이 / 손글씨 /
+ * 고정폭) and each row previews itself in the target font so users can
+ * recognise styles at a glance.
+ *
+ * `value` is the raw CSS `font-family` string stored on the layer. We
+ * reverse-look it up against catalog markers to highlight the active row;
+ * unknown values still display their string verbatim in the trigger so
+ * legacy inline styles aren't lost.
+ */
+function FontPickerField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange(value: string): void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const activeFont: FontDef | null = useMemo(() => {
+    if (!value) return null;
+    return FONT_CATALOG.find((f) => value.includes(f.marker)) ?? null;
+  }, [value]);
+
+  // Close popover on outside click / Escape.
+  useEffect(() => {
+    if (!open) return;
+    const onDocDown = (e: MouseEvent) => {
+      if (!ref.current) return;
+      if (!ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onDocDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const triggerLabel = activeFont ? activeFont.label : value || "기본";
+  const triggerStyle = activeFont
+    ? { fontFamily: activeFont.stack }
+    : value
+      ? { fontFamily: value }
+      : undefined;
+
+  return (
+    <div className="ins-prop wide ins-font-picker" ref={ref}>
+      <label>{label}</label>
+      <button
+        type="button"
+        className={`ins-font-trigger${open ? " open" : ""}`}
+        onClick={() => setOpen((v) => !v)}
+        title={value || "기본 폰트"}
+        style={triggerStyle}
+      >
+        <span className="ins-font-trigger-label">{triggerLabel}</span>
+        <i className="fa-solid fa-chevron-down" aria-hidden />
+      </button>
+      {open && (
+        <div className="ins-font-popover" role="listbox">
+          <button
+            type="button"
+            className={`ins-font-option${!value ? " active" : ""}`}
+            onClick={() => {
+              onChange("");
+              setOpen(false);
+            }}
+          >
+            <span className="ins-font-option-label">기본 (사이트 폰트)</span>
+          </button>
+          {FONT_CATEGORIES.map((cat) => {
+            const fonts = FONT_CATALOG.filter((f) => f.category === cat.key);
+            if (fonts.length === 0) return null;
+            return (
+              <div key={cat.key} className="ins-font-group">
+                <div className="ins-font-group-label">{cat.label}</div>
+                {fonts.map((f) => {
+                  const active = activeFont?.id === f.id;
+                  return (
+                    <button
+                      key={f.id}
+                      type="button"
+                      role="option"
+                      aria-selected={active}
+                      className={`ins-font-option${active ? " active" : ""}`}
+                      onClick={() => {
+                        onChange(f.stack);
+                        setOpen(false);
+                      }}
+                      style={{ fontFamily: f.stack }}
+                      title={`${f.label} · ${f.english}`}
+                    >
+                      <span className="ins-font-option-label">{f.label}</span>
+                      <span className="ins-font-option-sample">가나다 Aa 123</span>
+                      {active && (
+                        <i className="fa-solid fa-check" aria-hidden />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
