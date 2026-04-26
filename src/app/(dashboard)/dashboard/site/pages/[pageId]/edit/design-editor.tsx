@@ -939,6 +939,32 @@ export default function DesignEditor({
         saveContent();
         return;
       }
+      // Cmd/Ctrl+D — duplicate selected layer(s). Browsers' default
+      // for Cmd+D is "bookmark this page", which is intercepted here.
+      if ((e.ctrlKey || e.metaKey) && (e.key === "d" || e.key === "D")) {
+        // Skip when typing in inputs / contenteditable so users editing
+        // text can still use any custom Cmd+D in their workflow.
+        const ae = document.activeElement as HTMLElement | null;
+        if (ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA" || ae.isContentEditable)) {
+          return;
+        }
+        if (!editorV2Enabled) return;
+        e.preventDefault();
+        const ms = multiSelectedRef.current;
+        const ids = ms.size > 0 ? Array.from(ms) : selectedElId ? [selectedElId] : [];
+        if (ids.length === 0) return;
+        const store = useEditorStore.getState();
+        let lastNewId: string | null = null;
+        for (const id of ids) {
+          const newId = store.duplicateLayer(id, { dx: 16, dy: 16 });
+          if (newId) lastNewId = newId;
+        }
+        if (lastNewId) {
+          store.select(lastNewId);
+          setSelectedElId(lastNewId);
+        }
+        return;
+      }
       if (!selectedElId || editingTextId || document.querySelector("[data-tiptap-modal]")) return;
 
       const el = document.getElementById(selectedElId);

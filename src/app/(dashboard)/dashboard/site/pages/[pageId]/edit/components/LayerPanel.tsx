@@ -254,6 +254,8 @@ export function LayerPanel() {
   const ungroupAction = useEditorStore((s) => s.ungroup);
   const removeAction = useEditorStore((s) => s.remove);
   const explodeAction = useEditorStore((s) => s.explodeBox);
+  const duplicateAction = useEditorStore((s) => s.duplicateLayer);
+  const selectAction = useEditorStore((s) => s.select);
 
   // Initially expand only the root so the user sees the top level.
   const [expanded, setExpanded] = useState<Set<LayerId>>(
@@ -326,6 +328,17 @@ export function LayerPanel() {
   const doExplode = () => {
     if (!selectedId) return;
     explodeAction(selectedId);
+  };
+  const doDuplicate = () => {
+    if (selectedIds.length === 0) return;
+    // Duplicate each selected layer in order, slightly offset so the
+    // copies are visible. Last new id becomes the primary selection.
+    let lastNewId: LayerId | null = null;
+    for (const id of selectedIds) {
+      const newId = duplicateAction(id, { dx: 16, dy: 16 });
+      if (newId) lastNewId = newId;
+    }
+    if (lastNewId) selectAction(lastNewId);
   };
 
   // Is the current selection a BoxLayer that could be exploded?
@@ -407,6 +420,14 @@ export function LayerPanel() {
             title="박스 분해 — 내부 요소를 개별 레이어로 승격"
           >
             분해
+          </button>
+          <button
+            type="button"
+            onClick={doDuplicate}
+            disabled={selectedIds.length === 0}
+            title="선택 레이어 복제 (Ctrl/Cmd+D)"
+          >
+            복제
           </button>
           <button
             type="button"
