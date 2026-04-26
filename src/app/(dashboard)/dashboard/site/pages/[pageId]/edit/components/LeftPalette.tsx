@@ -278,8 +278,8 @@ export default function LeftPalette({
       {/* Tabs */}
       <div className="lp-tabs" role="tablist">
         {([
-          ["insert",   "추가"],
           ["sections", "섹션"],
+          ["insert",   "추가"],
           ["assets",   "에셋"],
           ["theme",    "테마"],
           ["ai",       "AI"],
