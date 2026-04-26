@@ -27,6 +27,7 @@ import {
   GROUP_CLASS,
   hasTypedChildren,
   isSection,
+  serializeLayerHtml,
   type GroupLayer,
   type Layer,
   type LayerId,
@@ -393,6 +394,27 @@ export function applyStructure(
         childEl = ensureGroupWrapper(container, child);
       } else {
         childEl = findById(container, child.id);
+      }
+      // Materialize missing leaf elements via serializer. Happens after
+      // store actions like `duplicateLayer` / `pasteLayers` that add a
+      // new node to the scene without a matching DOM element. Without
+      // this, the layer panel shows the new layer but the canvas stays
+      // unchanged.
+      if (!childEl && child.type !== "group" && child.type !== "section") {
+        try {
+          const html = serializeLayerHtml(child);
+          if (html) {
+            const tmp = container.ownerDocument.createElement("div");
+            tmp.innerHTML = html;
+            const fresh = tmp.firstElementChild as HTMLElement | null;
+            if (fresh) {
+              domParent.appendChild(fresh);
+              childEl = fresh;
+            }
+          }
+        } catch {
+          // Defensive — if serialization fails, fall through to skip.
+        }
       }
       if (!childEl) continue;
 
