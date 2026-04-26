@@ -42,6 +42,75 @@ const FooterEditModal = lazy(() => import("./components/FooterEditModal"));
  *  as JSON so the user can paste into another tab of the same editor. */
 let v2Clipboard: unknown[] = [];
 
+const THEME_MARK_START = "/* HNS-THEME-TOKENS:START */";
+const THEME_MARK_END = "/* HNS-THEME-TOKENS:END */";
+const THEME_PRESETS = {
+  mint:     { brand: "#3ccf97", accent: "#5be5b3" },
+  ocean:    { brand: "#2563eb", accent: "#4a90d9" },
+  sunset:   { brand: "#e89a78", accent: "#f4b66a" },
+  berry:    { brand: "#b6267e", accent: "#ff8bb1" },
+  forest:   { brand: "#1f6f5c", accent: "#3ccf97" },
+  graphite: { brand: "#111827", accent: "#6b7280" },
+} as const;
+
+function cssManagedBlockRegex(start: string, end: string) {
+  return new RegExp(
+    start.replace(/[/*]/g, "\\$&") + "[\\s\\S]*?" + end.replace(/[/*]/g, "\\$&"),
+  );
+}
+
+function buildThemeCssBlock(tokens: { brand: string; accent: string; fontStack?: string }) {
+  const fontVar = tokens.fontStack ? `  --brand-font: ${tokens.fontStack};\n` : "";
+  const fontRules = tokens.fontStack
+    ? `
+:where(#hns_header, #hns_menu, #hns_body, #hns_footer, #de-canvas-inner) :where(*:not(i):not(.fa):not([class^="fa-"]):not([class*=" fa-"])) {
+  font-family: var(--brand-font) !important;
+}
+`
+    : "";
+
+  return `${THEME_MARK_START}
+:root {
+  --brand-color: ${tokens.brand};
+  --brand-accent: ${tokens.accent};
+${fontVar}}
+
+${fontRules}:where(#hns_body, #de-canvas-inner) :where(h1, h2, h3, h4, h5, h6, .title, .headline, .section-title, .sol-replacible-text h1, .sol-replacible-text h2, .sol-replacible-text h3) {
+  color: var(--brand-color) !important;
+}
+
+:where(#hns_body, #de-canvas-inner) :where(.badge, .tag, .eyebrow, [class*="badge"], [class*="tag"], [style*="border-radius"]) {
+  background-color: color-mix(in srgb, var(--brand-accent) 82%, white) !important;
+  border-color: var(--brand-accent) !important;
+}
+
+:where(#hns_body, #de-canvas-inner) :where(button, .btn, [class*="btn"], [class*="button"], a[style*="background"]) {
+  background-color: var(--brand-color) !important;
+  border-color: var(--brand-color) !important;
+  color: #fff !important;
+}
+
+:where(#hns_body, #de-canvas-inner) :where(a:not([style*="background"]):not([class*="btn"]):not([class*="button"])) {
+  color: var(--brand-color) !important;
+}
+${THEME_MARK_END}`;
+}
+
+function inferThemePresetId(brand: string, accent: string): string | null {
+  const entry = Object.entries(THEME_PRESETS).find(
+    ([, preset]) => preset.brand.toLowerCase() === brand.toLowerCase() && preset.accent.toLowerCase() === accent.toLowerCase(),
+  );
+  return entry?.[0] ?? null;
+}
+
+function parseThemeTokens(css: string) {
+  const block = css.match(cssManagedBlockRegex(THEME_MARK_START, THEME_MARK_END))?.[0] ?? css;
+  const brand = block.match(/--brand-color\s*:\s*([^;]+);/i)?.[1]?.trim();
+  const accent = block.match(/--brand-accent\s*:\s*([^;]+);/i)?.[1]?.trim();
+  const fontStack = block.match(/--brand-font\s*:\s*([^;]+);/i)?.[1]?.trim();
+  return { brand, accent, fontStack };
+}
+
 /* ─── Types ─── */
 export interface LayerData {
   id: string;
@@ -138,6 +207,16 @@ export default function DesignEditor({
   const [currentThemeId, setCurrentThemeId] = useState<string | null>(null);
   const [currentFontId, setCurrentFontId] = useState<string | null>(null);
   const [selectedElId, setSelectedElId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const parsed = parseThemeTokens(pageCss || "");
+    if (parsed.brand && parsed.accent) {
+      setCurrentThemeId(inferThemePresetId(parsed.brand, parsed.accent));
+    } else {
+      setCurrentThemeId(null);
+    }
+    setCurrentFontId(parsed.fontStack ? findFontIdByStack(parsed.fontStack) : null);
+  }, [pageCss, pageId]);
   // Legacy top-toolbar tabs (page/object/settings/position/AI) were merged
   // into the single-row App bar + left rail + right inspector in the
   // 2026-04-22 UI consolidation. The state variable is retained only for
@@ -2621,30 +2700,14 @@ export default function DesignEditor({
   }
 
   function applyTheme(tokens: { brand: string; accent: string; fontStack?: string }) {
-    const MARK_START = "/* HNS-THEME-TOKENS:START */";
-    const MARK_END = "/* HNS-THEME-TOKENS:END */";
-    const fontDecl = tokens.fontStack ? `  --brand-font: ${tokens.fontStack};\n` : "";
-    const block = `${MARK_START}\n:root {\n  --brand-color: ${tokens.brand};\n  --brand-accent: ${tokens.accent};\n${fontDecl}}\n${MARK_END}`;
+    const block = buildThemeCssBlock(tokens);
     const css = currentPageCss ?? "";
-    const re = new RegExp(
-      MARK_START.replace(/[/*]/g, "\\$&") + "[\\s\\S]*?" + MARK_END.replace(/[/*]/g, "\\$&"),
-    );
+    const re = cssManagedBlockRegex(THEME_MARK_START, THEME_MARK_END);
     const next = re.test(css) ? css.replace(re, block) : css + (css.trim() ? "\n\n" : "") + block + "\n";
     setCurrentPageCss(next);
 
     // Track which preset the user picked for the UI active-state.
-    const matched = ["mint", "ocean", "sunset", "berry", "forest", "graphite"].find((id) => {
-      const presets: Record<string, { brand: string; accent: string }> = {
-        mint:     { brand: "#3ccf97", accent: "#5be5b3" },
-        ocean:    { brand: "#2563eb", accent: "#4a90d9" },
-        sunset:   { brand: "#e89a78", accent: "#f4b66a" },
-        berry:    { brand: "#b6267e", accent: "#ff8bb1" },
-        forest:   { brand: "#1f6f5c", accent: "#3ccf97" },
-        graphite: { brand: "#111827", accent: "#6b7280" },
-      };
-      const p = presets[id];
-      return p && p.brand === tokens.brand && p.accent === tokens.accent;
-    });
+    const matched = inferThemePresetId(tokens.brand, tokens.accent);
     if (matched) setCurrentThemeId(matched);
 
     if (tokens.fontStack) {
@@ -4024,4 +4087,3 @@ function LanguagesSection({
     </div>
   );
 }
-
