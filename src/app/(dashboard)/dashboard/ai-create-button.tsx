@@ -74,7 +74,41 @@ export default function AICreateButton({ emailVerified, labels, renderAsCard }: 
   const [resending, setResending] = useState(false);
   const [resendMsg, setResendMsg] = useState("");
   const [insufficientCredits, setInsufficientCredits] = useState<{ required: number; balance: number } | null>(null);
+  // Attached promotional materials — flyers / brochures / PDFs that
+  // Claude Vision analyzes for brand name, services, prices, contact
+  // info, and uses as the source of truth for the generated homepage.
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const tickerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const MAX_ATTACHMENTS = 5;
+  const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024; // 10MB per file
+  const ACCEPTED_TYPES = "image/jpeg,image/png,image/gif,image/webp,application/pdf";
+
+  const onAddFiles = (files: FileList | null) => {
+    if (!files) return;
+    const incoming = Array.from(files);
+    const tooBig = incoming.find((f) => f.size > MAX_ATTACHMENT_SIZE);
+    if (tooBig) {
+      setError(`파일 크기 초과: ${tooBig.name} (최대 10MB)`);
+      return;
+    }
+    setAttachments((prev) => {
+      const next = [...prev];
+      for (const f of incoming) {
+        if (next.length >= MAX_ATTACHMENTS) break;
+        // Dedupe by name+size — typical re-pick of the same file.
+        if (!next.some((x) => x.name === f.name && x.size === f.size)) {
+          next.push(f);
+        }
+      }
+      return next;
+    });
+  };
+
+  const removeAttachment = (idx: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== idx));
+  };
 
   // Tick elapsed seconds while creating
   useEffect(() => {
@@ -174,16 +208,32 @@ export default function AICreateButton({ emailVerified, labels, renderAsCard }: 
 
     setCreating(true);
     try {
-      const res = await fetch("/api/sites/create-from-ai", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          shopId,
-          defaultLanguage: language,
-          siteTitle,
-          prompt,
-        }),
-      });
+      // Two paths: with attachments → multipart (Claude Vision can read
+      // images/PDFs directly); without → JSON (legacy text-only flow).
+      let res: Response;
+      if (attachments.length > 0) {
+        const fd = new FormData();
+        fd.append("shopId", shopId);
+        fd.append("defaultLanguage", language);
+        fd.append("siteTitle", siteTitle);
+        fd.append("prompt", prompt);
+        for (const f of attachments) fd.append("attachments", f);
+        res = await fetch("/api/sites/create-from-ai", {
+          method: "POST",
+          body: fd,
+        });
+      } else {
+        res = await fetch("/api/sites/create-from-ai", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            shopId,
+            defaultLanguage: language,
+            siteTitle,
+            prompt,
+          }),
+        });
+      }
       const data = await res.json();
       if (!res.ok) {
         if (res.status === 402 && data.code === "INSUFFICIENT_CREDITS") {
@@ -546,6 +596,146 @@ export default function AICreateButton({ emailVerified, labels, renderAsCard }: 
                   <span style={{ fontSize: 11, color: "#868e96", marginTop: 4, display: "block" }}>
                     {prompt.length}/2000
                   </span>
+                </div>
+
+                {/* Promotional material upload — flyers, brochures, PDFs.
+                    Claude Vision analyzes uploads for brand/service/price
+                    /contact info and uses them as source content. */}
+                <div className="tpl-modal-field" style={{ marginTop: 16, flexDirection: "column", alignItems: "stretch" }}>
+                  <label style={{ marginBottom: 6, display: "block" }}>
+                    홍보물 첨부 <span style={{ color: "#868e96", fontWeight: 400, fontSize: 12 }}>(선택 · 이미지·PDF, 최대 5개)</span>:
+                  </label>
+                  <div
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = "copy";
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      onAddFiles(e.dataTransfer.files);
+                    }}
+                    style={{
+                      border: "1.5px dashed #c9c9c9",
+                      borderRadius: 8,
+                      padding: "16px",
+                      textAlign: "center",
+                      background: "#fafafa",
+                      cursor: "pointer",
+                    }}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <i className="fa-solid fa-cloud-arrow-up" style={{ fontSize: 22, color: "#868e96" }} />
+                    <div style={{ marginTop: 6, fontSize: 13, color: "#495057" }}>
+                      전단지·브로셔·메뉴판 파일을 드래그하거나 클릭해서 추가
+                    </div>
+                    <div style={{ fontSize: 11, color: "#868e96", marginTop: 2 }}>
+                      JPG · PNG · GIF · WebP · PDF (각 10MB 이하)
+                    </div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      multiple
+                      accept={ACCEPTED_TYPES}
+                      style={{ display: "none" }}
+                      onChange={(e) => {
+                        onAddFiles(e.target.files);
+                        e.target.value = "";
+                      }}
+                      disabled={creating}
+                    />
+                  </div>
+                  {attachments.length > 0 && (
+                    <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 8 }}>
+                      {attachments.map((f, i) => {
+                        const isImage = f.type.startsWith("image/");
+                        const url = isImage ? URL.createObjectURL(f) : null;
+                        return (
+                          <div
+                            key={`${f.name}-${i}`}
+                            style={{
+                              position: "relative",
+                              padding: 6,
+                              border: "1px solid #e5e7eb",
+                              borderRadius: 6,
+                              background: "#fff",
+                            }}
+                          >
+                            {isImage && url ? (
+                              <img
+                                src={url}
+                                alt={f.name}
+                                onLoad={() => URL.revokeObjectURL(url)}
+                                style={{
+                                  width: "100%",
+                                  height: 80,
+                                  objectFit: "cover",
+                                  borderRadius: 4,
+                                  display: "block",
+                                }}
+                              />
+                            ) : (
+                              <div
+                                style={{
+                                  width: "100%",
+                                  height: 80,
+                                  background: "#f3f4f6",
+                                  borderRadius: 4,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  color: "#dc2626",
+                                  fontSize: 28,
+                                }}
+                              >
+                                <i className="fa-solid fa-file-pdf" />
+                              </div>
+                            )}
+                            <div
+                              title={f.name}
+                              style={{
+                                fontSize: 10,
+                                color: "#495057",
+                                marginTop: 4,
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                              }}
+                            >
+                              {f.name}
+                            </div>
+                            <div style={{ fontSize: 9, color: "#868e96" }}>
+                              {(f.size / 1024).toFixed(0)} KB
+                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeAttachment(i);
+                              }}
+                              disabled={creating}
+                              title="제거"
+                              style={{
+                                position: "absolute",
+                                top: 4,
+                                right: 4,
+                                width: 20,
+                                height: 20,
+                                padding: 0,
+                                background: "rgba(0,0,0,0.55)",
+                                color: "#fff",
+                                border: "none",
+                                borderRadius: "50%",
+                                cursor: "pointer",
+                                fontSize: 11,
+                              }}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
                 {error && <p className="tpl-modal-error">{error}</p>}

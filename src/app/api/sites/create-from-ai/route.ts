@@ -23,6 +23,33 @@ export const maxDuration = 180;
 
 const SYSTEM_PROMPT = `You are a senior web designer. Return the finished site by invoking the create_site tool. No prose.
 
+# Promotional materials (when the user attaches images / PDFs)
+The user may attach flyers, brochures, menu cards, business cards, or
+PDF marketing material along with the text prompt. Treat them as the
+PRIMARY source of truth — extract and incorporate:
+  - Brand / business name, slogan / tagline
+  - Service or product names, with prices and durations (e.g., "60분 79,000원")
+  - Phone numbers, address, email, business hours
+  - Booking / reservation links (네이버 예약, KakaoTalk, etc.)
+  - Photos / illustrations — describe them in alt text and choose
+    /api/img keywords that match the visual style (warm portraits,
+    minimalist product, etc.)
+  - Visual style cues — color palette, typography mood (luxury / wellness /
+    tech / friendly), photo treatment — translate into the design tokens
+Verbatim preservation: prices, phone numbers, official names, addresses
+must appear EXACTLY as on the source. Translate generic marketing prose
+into the user's defaultLanguage when needed, but do not paraphrase
+business-critical data.
+
+If the user prompt is short or vague, lean entirely on the attachments
+to determine site structure. Pages should organize the source content
+naturally (e.g., a clinic flyer → home / services / pricing / booking
+/ contact, a cafe menu → home / menu / about / location).
+
+Build the homepage AROUND the attached content rather than producing
+generic placeholders. The user uploaded these because they are the real
+business artifacts — honor them.
+
 # Hard structural rules (editor depends on these)
 - Exactly one page has slug "index". Other slugs: lowercase alphanumeric only.
 - bodyHtml is INNER HTML of <div id="hns_body"> — no wrapper.
@@ -336,11 +363,63 @@ export async function POST(request: Request) {
     );
   }
 
-  const body = await request.json();
-  const shopId = (body.shopId || "").toString().trim().toLowerCase();
-  const defaultLanguage = (body.defaultLanguage || "ko").toString();
-  const siteTitle = (body.siteTitle || "").toString().trim();
-  const prompt = (body.prompt || "").toString().trim();
+  // Two ingestion paths:
+  //   - JSON: legacy text-only flow
+  //   - multipart/form-data: text + attached promotional materials
+  //     (flyers / brochures / PDFs) → Claude Vision sees them too.
+  const contentType = request.headers.get("content-type") || "";
+  const isMultipart = contentType.startsWith("multipart/form-data");
+
+  let shopId = "";
+  let defaultLanguage = "ko";
+  let siteTitle = "";
+  let prompt = "";
+  type Attachment = { mediaType: string; data: string; name: string };
+  const attachments: Attachment[] = [];
+  // Anthropic API caps: ~5MB per image, ~32MB per document, max ~20
+  // images per request. We enforce conservatively.
+  const MAX_FILE_BYTES = 10 * 1024 * 1024;
+  const MAX_FILES = 5;
+  const ALLOWED_IMG = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
+  const ALLOWED_DOC = new Set(["application/pdf"]);
+
+  if (isMultipart) {
+    const fd = await request.formData();
+    shopId = ((fd.get("shopId") as string) ?? "").trim().toLowerCase();
+    defaultLanguage = ((fd.get("defaultLanguage") as string) ?? "ko").toString();
+    siteTitle = ((fd.get("siteTitle") as string) ?? "").trim();
+    prompt = ((fd.get("prompt") as string) ?? "").trim();
+    const fileEntries = fd.getAll("attachments");
+    for (const entry of fileEntries) {
+      if (!(entry instanceof File)) continue;
+      if (attachments.length >= MAX_FILES) break;
+      if (entry.size > MAX_FILE_BYTES) {
+        return NextResponse.json(
+          { error: `파일 크기 초과: ${entry.name} (최대 10MB)` },
+          { status: 400 },
+        );
+      }
+      const mt = (entry.type || "").toLowerCase();
+      if (!ALLOWED_IMG.has(mt) && !ALLOWED_DOC.has(mt)) {
+        return NextResponse.json(
+          { error: `허용되지 않는 파일 형식: ${entry.name}` },
+          { status: 400 },
+        );
+      }
+      const buf = Buffer.from(await entry.arrayBuffer());
+      attachments.push({
+        mediaType: mt,
+        data: buf.toString("base64"),
+        name: entry.name,
+      });
+    }
+  } else {
+    const body = await request.json();
+    shopId = (body.shopId || "").toString().trim().toLowerCase();
+    defaultLanguage = (body.defaultLanguage || "ko").toString();
+    siteTitle = (body.siteTitle || "").toString().trim();
+    prompt = (body.prompt || "").toString().trim();
+  }
 
   if (!shopId) {
     return NextResponse.json({ error: "shopId is required" }, { status: 400 });
@@ -403,16 +482,60 @@ export async function POST(request: Request) {
       .catch((e) => console.error("[credits] refund failed:", e));
   };
 
-  const userMessage = [
+  const attachNote =
+    attachments.length > 0
+      ? [
+          "",
+          `Attached promotional materials (${attachments.length}): ${attachments.map((a) => a.name).join(", ")}`,
+          "Extract and use the brand name, services, prices, contact info, address, business hours,",
+          "booking links and visual cues from the attached images / PDFs as the source of truth.",
+          "Preserve verbatim domain-specific content (prices, phone numbers, official names, addresses).",
+          "Translate generic copy into the user's defaultLanguage.",
+          "If the user prompt is short or generic, rely heavily on the attachments.",
+        ].join("\n")
+      : "";
+
+  const userMessageText = [
     `defaultLanguage: ${defaultLanguage}`,
     `shopId: ${shopId}`,
     `siteTitle: ${siteTitle}`,
+    attachNote,
     "",
     "User prompt:",
     prompt,
     "",
     "Output the JSON object now.",
   ].join("\n");
+
+  // Build the user message as a content array — text first, then any
+  // image/document blocks. Anthropic API spec:
+  //   { type: "image",    source: { type: "base64", media_type, data } }
+  //   { type: "document", source: { type: "base64", media_type: "application/pdf", data } }
+  type ContentBlock =
+    | { type: "text"; text: string }
+    | {
+        type: "image";
+        source: { type: "base64"; media_type: string; data: string };
+      }
+    | {
+        type: "document";
+        source: { type: "base64"; media_type: "application/pdf"; data: string };
+      };
+
+  const userContent: ContentBlock[] = [{ type: "text", text: userMessageText }];
+  for (const a of attachments) {
+    if (ALLOWED_IMG.has(a.mediaType)) {
+      userContent.push({
+        type: "image",
+        source: { type: "base64", media_type: a.mediaType, data: a.data },
+      });
+    } else if (a.mediaType === "application/pdf") {
+      userContent.push({
+        type: "document",
+        source: { type: "base64", media_type: "application/pdf", data: a.data },
+      });
+    }
+  }
 
   console.log("[create-from-ai] start", {
     shopId,
@@ -484,7 +607,7 @@ export async function POST(request: Request) {
             },
           ],
           tool_choice: { type: "tool", name: "create_site" },
-          messages: [{ role: "user", content: userMessage }],
+          messages: [{ role: "user", content: userContent }],
         }),
       });
 
