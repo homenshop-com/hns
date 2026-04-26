@@ -973,6 +973,82 @@ export default function DesignEditor({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [selectedElId, editingTextId, saveContent]);
 
+  /* ─── Clipboard image paste — replaces selected image dragable ──────
+   * When the user has an image dragable (or a box layer that contains
+   * an <img>) selected and presses Cmd/Ctrl+V with an image in the
+   * clipboard, upload + swap the src. Skips when the active element is
+   * a contenteditable (text edit takes priority).
+   */
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      // Don't intercept when user is typing into an input/textarea/contenteditable.
+      const ae = document.activeElement as HTMLElement | null;
+      if (ae) {
+        const tag = ae.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA") return;
+        if (ae.isContentEditable) return;
+      }
+      if (!selectedElId) return;
+      // Only proceed if the selected layer is an image, OR a box whose
+      // innerHtml contains an <img> (e.g., the Company Preview .frame
+      // pattern from the atomization session).
+      const el = document.getElementById(selectedElId);
+      if (!el) return;
+      const isImage = el.tagName === "IMG" || el.querySelector(":scope > img") !== null;
+      // Box-with-img: innerHtml has at least one <img> and the wrapper
+      // itself has dragable class.
+      const hasInnerImg = el.querySelector("img") !== null;
+      const isDragable = el.classList.contains("dragable");
+      if (!isDragable || !hasInnerImg) {
+        // Either the layer isn't an image-bearing dragable, or it's
+        // already in text-edit. Don't block other paste handlers.
+        return;
+      }
+
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      let imgFile: File | null = null;
+      for (const it of Array.from(items)) {
+        if (it.kind === "file" && it.type.startsWith("image/")) {
+          imgFile = it.getAsFile();
+          if (imgFile) break;
+        }
+      }
+      if (!imgFile) return;
+
+      e.preventDefault();
+      // Upload + apply via setImage so undo/redo + save serialize work.
+      void (async () => {
+        try {
+          const fd = new FormData();
+          fd.append("file", imgFile!);
+          fd.append("folder", "site-uploads");
+          fd.append("compress", "true");
+          if (siteId) fd.append("siteId", siteId);
+          const res = await fetch("/api/upload", { method: "POST", body: fd });
+          if (!res.ok) {
+            const j = (await res.json().catch(() => ({}))) as { error?: string };
+            throw new Error(j.error || `업로드 실패 (${res.status})`);
+          }
+          const { url } = (await res.json()) as { url?: string };
+          if (typeof url !== "string") return;
+          if (editorV2Enabled) {
+            useEditorStore.getState().setImage(selectedElId, { src: url });
+          } else {
+            // V1 fallback — patch DOM img directly.
+            const img = el.querySelector("img");
+            if (img) img.setAttribute("src", url);
+          }
+        } catch (err) {
+          console.error("[paste] image upload failed:", err);
+          alert(err instanceof Error ? err.message : "이미지 붙여넣기 실패");
+        }
+      })();
+    };
+    document.addEventListener("paste", onPaste);
+    return () => document.removeEventListener("paste", onPaste);
+  }, [selectedElId, siteId, editorV2Enabled]);
+
   /* ─── Helper: get canvas scale factor for touch coordinate compensation ─── */
   function getCanvasScale(): number {
     const canvasEl = canvasRef.current;
