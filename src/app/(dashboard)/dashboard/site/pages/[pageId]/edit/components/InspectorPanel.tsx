@@ -1104,18 +1104,50 @@ function FontPickerField({
   onChange(value: string): void;
 }) {
   const [open, setOpen] = useState(false);
+  // Anchor coords for the fixed-position popover — recomputed on open
+  // and on scroll/resize. We use `position: fixed` (instead of absolute
+  // inside `.ins-font-picker`) because the inspector's `.ins-scroll`
+  // ancestor has `overflow-y: auto`, which clips absolutely-positioned
+  // descendants to its scroll viewport. Fixed positioning + viewport
+  // coords escapes the clip.
+  const [anchor, setAnchor] = useState<{ left: number; top: number; width: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
   const activeFont: FontDef | null = useMemo(() => {
     if (!value) return null;
     return FONT_CATALOG.find((f) => value.includes(f.marker)) ?? null;
   }, [value]);
 
-  // Close popover on outside click / Escape.
+  // Recompute anchor coords when opening, plus when the user scrolls
+  // any ancestor (the inspector itself, the page) or resizes the window.
+  useEffect(() => {
+    if (!open) return;
+    const recompute = () => {
+      const el = triggerRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      setAnchor({ left: r.left, top: r.bottom + 4, width: r.width });
+    };
+    recompute();
+    window.addEventListener("scroll", recompute, true); // capture for nested scrollers
+    window.addEventListener("resize", recompute);
+    return () => {
+      window.removeEventListener("scroll", recompute, true);
+      window.removeEventListener("resize", recompute);
+    };
+  }, [open]);
+
+  // Close popover on outside click / Escape. The popover lives outside
+  // `ref` (it's a sibling fragment, not inside .ins-font-picker), so we
+  // also need to ignore clicks landing inside the popover element.
   useEffect(() => {
     if (!open) return;
     const onDocDown = (e: MouseEvent) => {
-      if (!ref.current) return;
-      if (!ref.current.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      if (ref.current?.contains(t)) return;
+      if (popoverRef.current?.contains(t)) return;
+      setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
@@ -1139,6 +1171,7 @@ function FontPickerField({
     <div className="ins-prop wide ins-font-picker" ref={ref}>
       <label>{label}</label>
       <button
+        ref={triggerRef}
         type="button"
         className={`ins-font-trigger${open ? " open" : ""}`}
         onClick={() => setOpen((v) => !v)}
@@ -1148,8 +1181,18 @@ function FontPickerField({
         <span className="ins-font-trigger-label">{triggerLabel}</span>
         <i className="fa-solid fa-chevron-down" aria-hidden />
       </button>
-      {open && (
-        <div className="ins-font-popover" role="listbox">
+      {open && anchor && (
+        <div
+          ref={popoverRef}
+          className="ins-font-popover"
+          role="listbox"
+          style={{
+            position: "fixed",
+            left: anchor.left,
+            top: anchor.top,
+            width: anchor.width,
+          }}
+        >
           <button
             type="button"
             className={`ins-font-option${!value ? " active" : ""}`}
