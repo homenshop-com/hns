@@ -67,28 +67,36 @@ function cssManagedBlockRegex(start: string, end: string) {
 
 /**
  * Build the managed `:root{...}` CSS block + element overrides for the
- * current theme tokens. Stronger than the previous version:
+ * current theme tokens. Selectors are emitted twice — once for the
+ * editor canvas (`#de-canvas-inner`) and once for the published page
+ * body (`#hns_body`) — so the same theme renders identically in
+ * preview and on the live site.
  *
- * - Selectors use `#de-canvas-inner` directly (specificity 1,0,0 + the
- *   `!important` flag) instead of `:where()` (0,0,0,0). `:where()` was
- *   chosen originally for "soft" overrides that templates could opt out
- *   of — but in practice templates rely on inline `style="color:#xxx"`
- *   which has 1,0,0,0 specificity, so `:where()` lost. Direct ID +
- *   `!important` wins against inline-without-important.
- * - Adds `--brand-surface` / `--brand-text` so backgrounds and body
- *   copy follow the theme — previous version only handled brand+accent.
- * - Targets the editor's atomic-layer text wrappers (`.dragable`
- *   followed by `.sol-replacible-text` content) which carry inline
- *   `color:` attributes — those are matched by attribute selectors so
- *   the theme actually visibly takes over the page.
+ * What changed in 2026-04-26 fix:
+ * - Dropped `[style*="border-radius"]` from the badge/pill rule. That
+ *   attribute selector matched ANY element with inline `border-radius`
+ *   — including user-added shapes (a circle has `border-radius:50%`),
+ *   so applying a theme would silently repaint every shape on the
+ *   page with the accent color. Visible symptom: red circle published
+ *   as a gray disc.
+ * - Dropped `a[style*="background"]` from the button rule (same kind
+ *   of overly-broad attribute match that grabbed unintended elements).
+ * - Now targets `#hns_body` too, so theme styling is consistent
+ *   between editor preview and the published page (previously the
+ *   theme appeared in the canvas only, then "vanished" on publish).
  */
 function buildThemeCssBlock(tokens: ThemeTokens) {
   const surface = tokens.surface ?? "#ffffff";
   const text = tokens.text ?? "#111827";
   const fontVar = tokens.fontStack ? `  --brand-font: ${tokens.fontStack};\n` : "";
+
+  // Helper — emit both editor and published-page-scoped selectors for
+  // a given inner pattern so a single rule applies in both contexts.
+  const dual = (inner: string) => `#de-canvas-inner ${inner}, #hns_body ${inner}`;
+
   const fontRules = tokens.fontStack
     ? `
-#de-canvas-inner *:not(i):not(.fa):not([class^="fa-"]):not([class*=" fa-"]) {
+${dual('*:not(i):not(.fa):not([class^="fa-"]):not([class*=" fa-"])')} {
   font-family: var(--brand-font) !important;
 }
 `
@@ -104,7 +112,8 @@ ${fontVar}}
 
 /* Page surface — the canvas root carries the surface tone so sections
    without their own background pick it up. */
-#de-canvas-inner {
+#de-canvas-inner,
+#hns_body {
   background-color: var(--brand-surface) !important;
   color: var(--brand-text) !important;
 }
@@ -112,68 +121,72 @@ ${fontVar}}
 /* Body copy — paragraphs and generic text blocks follow --brand-text.
    Headings & buttons get their own color rules below, which override
    this via cascade order. */
-#de-canvas-inner p,
-#de-canvas-inner li,
-#de-canvas-inner span:not([style*="color"]),
-#de-canvas-inner div:not([style*="color"]):not([style*="background"]) {
+${dual('p')},
+${dual('li')},
+${dual('span:not([style*="color"])')},
+${dual('div:not([style*="color"]):not([style*="background"])')} {
   color: var(--brand-text);
 }
 
 /* Headings & first-class titles → brand color. Includes both real
    semantic tags and the editor's text-layer naming patterns. */
-#de-canvas-inner h1,
-#de-canvas-inner h2,
-#de-canvas-inner h3,
-#de-canvas-inner h4,
-#de-canvas-inner h5,
-#de-canvas-inner h6,
-#de-canvas-inner .title,
-#de-canvas-inner .headline,
-#de-canvas-inner .section-title,
-#de-canvas-inner [class*="-title"],
-#de-canvas-inner [class*="-heading"],
-#de-canvas-inner .sol-replacible-text h1,
-#de-canvas-inner .sol-replacible-text h2,
-#de-canvas-inner .sol-replacible-text h3 {
+${dual('h1')},
+${dual('h2')},
+${dual('h3')},
+${dual('h4')},
+${dual('h5')},
+${dual('h6')},
+${dual('.title')},
+${dual('.headline')},
+${dual('.section-title')},
+${dual('[class*="-title"]')},
+${dual('[class*="-heading"]')},
+${dual('.sol-replacible-text h1')},
+${dual('.sol-replacible-text h2')},
+${dual('.sol-replacible-text h3')} {
   color: var(--brand-color) !important;
 }
 
-/* Badges / pills / tags pick up the accent color as a soft tint. */
-#de-canvas-inner .badge,
-#de-canvas-inner .tag,
-#de-canvas-inner .eyebrow,
-#de-canvas-inner [class*="badge"],
-#de-canvas-inner [class*="tag"],
-#de-canvas-inner [class*="pill"],
-#de-canvas-inner [class*="chip"] {
+/* Badges / pills / tags pick up the accent color as a soft tint. NOTE
+   we deliberately do NOT include [style*="border-radius"] here — that
+   would also match user-added shapes (circles have radius:50%) and
+   repaint them with the accent color. Class-only selectors are safer. */
+${dual('.badge')},
+${dual('.tag')},
+${dual('.eyebrow')},
+${dual('[class*="badge"]')},
+${dual('[class*="eyebrow"]')},
+${dual('[class*="-pill"]')},
+${dual('[class*="-chip"]')} {
   background-color: color-mix(in srgb, var(--brand-accent) 18%, var(--brand-surface)) !important;
   border-color: var(--brand-accent) !important;
   color: color-mix(in srgb, var(--brand-color) 80%, black) !important;
 }
 
-/* Buttons & button-like links — fill with brand. */
-#de-canvas-inner button,
-#de-canvas-inner .btn,
-#de-canvas-inner [class*="btn-primary"],
-#de-canvas-inner [class*="button-primary"],
-#de-canvas-inner a[style*="background"] {
+/* Buttons & button-like links — fill with brand. Class-anchored only;
+   no [style*="background"] attribute match, which would otherwise grab
+   any link a user has manually styled. */
+${dual('button')},
+${dual('.btn')},
+${dual('[class*="btn-primary"]')},
+${dual('[class*="button-primary"]')},
+${dual('[class*="btn-gold"]')} {
   background-color: var(--brand-color) !important;
   border-color: var(--brand-color) !important;
   color: #ffffff !important;
 }
 
 /* Secondary buttons (outlined) — accent border. */
-#de-canvas-inner [class*="btn-secondary"],
-#de-canvas-inner [class*="button-secondary"],
-#de-canvas-inner [class*="btn-outline"] {
+${dual('[class*="btn-secondary"]')},
+${dual('[class*="button-secondary"]')},
+${dual('[class*="btn-outline"]')} {
   background-color: transparent !important;
   border-color: var(--brand-accent) !important;
   color: var(--brand-color) !important;
 }
 
-/* Plain links — brand color. Excludes button-styled and inline-bg links
-   handled above. */
-#de-canvas-inner a:not([style*="background"]):not([class*="btn"]):not([class*="button"]) {
+/* Plain links — brand color. Excludes button-styled links handled above. */
+${dual('a:not([class*="btn"]):not([class*="button"])')} {
   color: var(--brand-color) !important;
 }
 ${fontRules}${THEME_MARK_END}`;
@@ -291,13 +304,40 @@ export default function DesignEditor({
   const [selectedElId, setSelectedElId] = useState<string | null>(null);
 
   useEffect(() => {
-    const parsed = parseThemeTokens(pageCss || "");
+    const css = pageCss || "";
+    const parsed = parseThemeTokens(css);
     if (parsed.brand && parsed.accent) {
       setCurrentThemeId(inferThemePresetId(parsed.brand, parsed.accent));
     } else {
       setCurrentThemeId(null);
     }
     setCurrentFontId(parsed.fontStack ? findFontIdByStack(parsed.fontStack) : null);
+
+    /* Legacy theme-block migration (2026-04-26 fix) ────────────────
+     * Older blocks used `:where(...)` selectors and the broken
+     * `[style*="border-radius"]` attribute matcher that repainted every
+     * shape on the page with the accent color (red circle → gray
+     * disc). Detect those tells and rewrite the block in-place using
+     * the current builder. The user just needs to save once for the
+     * cleaned CSS to land on disk and reach the published page. */
+    const blockMatch = css.match(cssManagedBlockRegex(THEME_MARK_START, THEME_MARK_END));
+    if (blockMatch && parsed.brand && parsed.accent) {
+      const block = blockMatch[0];
+      const isLegacy =
+        block.includes('[style*="border-radius"]') ||
+        block.includes(':where(#hns_body') ||
+        block.includes('a[style*="background"]');
+      if (isLegacy) {
+        const rebuilt = buildThemeCssBlock({
+          brand: parsed.brand,
+          accent: parsed.accent,
+          surface: parsed.surface,
+          text: parsed.text,
+          fontStack: parsed.fontStack,
+        });
+        setCurrentPageCss(css.replace(cssManagedBlockRegex(THEME_MARK_START, THEME_MARK_END), rebuilt));
+      }
+    }
   }, [pageCss, pageId]);
   // Legacy top-toolbar tabs (page/object/settings/position/AI) were merged
   // into the single-row App bar + left rail + right inspector in the
