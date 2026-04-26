@@ -30,6 +30,7 @@ import {
   type GroupLayer,
   type Layer,
   type LayerId,
+  type LayerStyle,
   type SceneGraph,
 } from "@/lib/scene";
 import { printTransform, printTransformOrigin } from "@/lib/scene/parse-transform";
@@ -223,25 +224,56 @@ const INHERITABLE_PROPS: Array<[keyof import("@/lib/scene").LayerStyle, string]>
 
 function scrubDescendantTypography(el: HTMLElement, layer: Layer) {
   const s = layer.style ?? {};
-  // Only scrub props the user actually set on this layer.
-  const toScrub = INHERITABLE_PROPS.filter(([key]) => {
+
+  // Bucket each inheritable prop as either "user-set" (push !important
+  // onto descendants) or "user-cleared" (strip from descendants so the
+  // template / parent cascade re-takes over).
+  const setProps: Array<[keyof LayerStyle, string]> = [];
+  const clearProps: Array<[keyof LayerStyle, string]> = [];
+  for (const [key, css] of INHERITABLE_PROPS) {
     const v = s[key];
-    return v != null && v !== "";
-  });
-  if (toScrub.length === 0) return;
-  // querySelectorAll includes all descendants (not the element itself).
-  const descendants = el.querySelectorAll<HTMLElement>("[style]");
-  for (const d of descendants) {
+    if (v != null && v !== "") setProps.push([key, css]);
+    else clearProps.push([key, css]);
+  }
+
+  // 1) Strip stale inline declarations on descendants for ALL inheritable
+  //    props. Either the user just set a new value (we'll push it below)
+  //    or cleared it (descendant inline must go so cascade re-takes).
+  const styled = el.querySelectorAll<HTMLElement>("[style]");
+  for (const d of styled) {
     let style = d.getAttribute("style");
     if (!style) continue;
     let changed = false;
-    for (const [, css] of toScrub) {
+    for (const [, css] of INHERITABLE_PROPS) {
       const next = stripInlineDecl(style, css);
       if (next !== style) { style = next; changed = true; }
     }
     if (changed) {
       if (style) d.setAttribute("style", style);
       else d.removeAttribute("style");
+    }
+  }
+
+  // 2) Push the user's typography onto every text-bearing descendant
+  //    as `!important` inline. Without this, AI-generated cssText
+  //    (e.g., `.hero h1 { color: #fff }`) keeps winning the cascade
+  //    even though the user just set "글자색 #BB7777" in the Inspector.
+  //    Inline `!important` beats any class-selector rule short of
+  //    another `!important` (which AI rarely emits).
+  if (setProps.length === 0 && clearProps.length === 0) return;
+  const textTags = el.querySelectorAll<HTMLElement>(
+    "h1, h2, h3, h4, h5, h6, p, span, a, li, td, th, label, blockquote, small, strong, em",
+  );
+  for (const t of textTags) {
+    // Clear props the user reset (in case they were !important inline).
+    for (const [, css] of clearProps) {
+      t.style.removeProperty(css);
+    }
+    // Push the user's set values with !important.
+    for (const [key, css] of setProps) {
+      const v = s[key];
+      if (v == null || v === "") continue;
+      t.style.setProperty(css, String(v), "important");
     }
   }
 }

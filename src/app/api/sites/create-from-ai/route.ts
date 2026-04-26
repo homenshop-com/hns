@@ -277,6 +277,21 @@ Typical home page skeleton:
   [A hero] → [C "about / why us"] → [B 3-col features] → [C "process / how it works"]
   → [B stats or testimonials row] → [A CTA band]
 
+# Editor friendliness (the user will tweak typography after generation)
+- Put typography color/size/family rules on the dragable WRAPPER's class,
+  NOT on inner heading tags. The Inspector lets users change "글자색"
+  and "글자크기" on a text dragable; if the color rule lives on
+  ".hero h1 { color: #fff }" it beats the user's inline change. Prefer
+  ".hero .obj-title { color: #fff }" (or pull color via "var(--text-on-hero)")
+  so the Inspector edit applies cleanly via inheritance.
+- For dark hero overlays where the heading must stay white, that's still
+  a wrapper concern — color the wrapper, not the h1: e.g.
+    .hero #obj_title_hero { color: #fff; }
+  (Targeting the dragable's id is fine — the editor never strips inline
+  styles from the wrapper itself.)
+- Avoid "color: white !important" etc. — leaves nothing for the user to
+  override.
+
 # Design quality bar (follow these — quality is what matters)
 - **Design tokens** at :root — color-primary/accent/bg/surface/text/muted/border, font-heading/body, radius-sm/md/lg, shadow-sm/md/lg, space scale (8pt rhythm), container 1200px.
 - **Palette** fits the brand mood: cafe→warm neutrals+terracotta+deep green; tech→indigo+near-black; wellness→sage+cream; luxury→black+gold+ivory; medical→deep blue+white.
