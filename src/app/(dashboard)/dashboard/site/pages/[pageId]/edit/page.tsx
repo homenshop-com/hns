@@ -43,7 +43,15 @@ export default async function EditPagePage({ params }: EditPageProps) {
         select: { isResponsive: true },
       })
     : null;
-  const isResponsiveTemplate = !!sourceTemplate?.isResponsive;
+  // Responsive determination — three signals (any one wins):
+  //   1. Source template flagged isResponsive (Agency/Plus Academy/HomeBuilder)
+  //   2. Site.cssText carries the modern-template marker (AI-generated
+  //      sites are stamped with this on creation; legacy migrations are not)
+  //   3. (future) explicit Site.isResponsive column
+  // Falsey case = legacy fix-coord templates (jeune-au, ybsurplus, etc.)
+  const cssTextStr = site.cssText ?? "";
+  const cssMarkerResponsive = cssTextStr.includes("/* HNS-MODERN-TEMPLATE */");
+  const isResponsiveTemplate = !!sourceTemplate?.isResponsive || cssMarkerResponsive;
   const siteLanguages = (site as typeof site & { languages?: string[] }).languages || ["ko"];
   // Use the page's language if it's in configured languages, otherwise fall back to default
   const currentLang = siteLanguages.includes(currentPage.lang)

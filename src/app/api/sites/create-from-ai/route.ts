@@ -279,7 +279,20 @@ Typical home page skeleton:
     Use 1-3 specific words, lowercase, joined with "+". NEVER use picsum.photos or other random placeholders.
     Hero 1920×1080, cards 600×400, team portraits 400×400. Use orientation-appropriate dimensions.
 - **Header**: brand + inline nav, sticky w/ shadow + backdrop-filter. Menu underline-on-hover via pseudo-element.
+    EDITOR-FRIENDLY HEADER MARKUP (REQUIRED — the design editor's "헤더 편집" modal looks for these):
+    - Wrap the brand area with id="hns_h_logo" OR class="logo" so the logo-replace flow (canvas ↻ button + modal upload)
+      can find it. Example: <a id="hns_h_logo" href="/"><img src="..." alt="브랜드" /></a>
+      For text-only brands: <a id="hns_h_logo" href="/"><span class="brand-mark">H</span><span class="brand-name">홈샵</span></a>
+    - Put navigation in <nav> directly inside <header>. Each <a href="/{slug}">{label}</a> at top level.
+      The MenuManagerModal regenerates these links from Pages metadata; keep the first <a>'s class
+      (and any <span class="num">01</span> pattern) consistent so syncHeaderNavToMenu can clone it.
 - **Footer**: 4 columns (About/Links/Contact/Social), dark bg, light text, small copyright row.
+    EDITOR-FRIENDLY FOOTER MARKUP (the design editor's "푸터 편집" modal auto-extracts these):
+    - Use <img> for any brand logo / social icons / certification marks (NOT background-image — the modal lists imgs).
+    - Use <a href="..."> for every link (sitemap, social, legal). Modal lists each <a> with editable label/href/target.
+    - Use <span> / <p> for text content (copyright, taglines, address). TreeWalker extracts visible text nodes.
+    - Wrap social icons inside their <a> as <a href="https://..." target="_blank"><img src="..." alt="..." /></a>
+      so label-edit preserves the icon (modal replaces only the first text node).
 - **Responsive**: @media (max-width:768px) stack menu, collapse grids to 1 col, touch targets ≥44px.
 - **A11y**: WCAG AA contrast, alt on every img, focus outlines 2px var(--color-primary).
 
@@ -589,6 +602,19 @@ export async function POST(request: Request) {
   });
 
   try {
+    // Stamp the cssText with the modern-template marker so the editor
+    // treats the AI-generated site as responsive (atomic-flow inserts,
+    // hidden mobile/desktop toggle, etc.). Without it, AI sites end up
+    // in legacy "fix" mode where new objects drop with absolute coords
+    // — which breaks the AI's flex/grid section CSS.
+    const MODERN_MARKER = "/* HNS-MODERN-TEMPLATE */";
+    let stampedCss = (aiResult.cssText || "").trim();
+    if (stampedCss && !stampedCss.includes(MODERN_MARKER)) {
+      stampedCss = `${MODERN_MARKER}\n${stampedCss}`;
+    } else if (!stampedCss) {
+      stampedCss = MODERN_MARKER;
+    }
+
     const site = await prisma.site.create({
       data: {
         userId: session.user.id,
@@ -601,7 +627,7 @@ export async function POST(request: Request) {
         headerHtml: aiResult.headerHtml || null,
         menuHtml: aiResult.menuHtml || null,
         footerHtml: aiResult.footerHtml || null,
-        cssText: aiResult.cssText || null,
+        cssText: stampedCss,
         ...freeSiteDefaults(),
         pages: { create: pageData },
       },
