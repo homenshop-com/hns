@@ -1902,6 +1902,95 @@ body:has(.inspector-rail) .de-canvas-wrapper {
   background: rgba(91, 229, 179, 0.08);
 }
 
+/* ─── 섹션 tab — 헤더 / 본문 / 푸터 3-zone layout (2026-04-26) ───── */
+.lp-section-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* allow inner scroll area to shrink */
+}
+.lp-pinned-frame {
+  flex: 0 0 auto;
+  padding: 8px 10px;
+  background: var(--fig-bg-1);
+}
+.lp-pinned-frame.top {
+  border-bottom: 1px solid var(--fig-line-1);
+}
+.lp-pinned-frame.bottom {
+  border-top: 1px solid var(--fig-line-1);
+}
+.lp-frame-btn { transition: background 0.12s, border-color 0.12s; }
+.lp-frame-btn:hover { background: var(--fig-bg-3) !important; }
+
+/* Middle zone — body sections list. Scrolls when content overflows. */
+.lp-section-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 6px 0 8px;
+}
+.lp-section-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 12px 8px;
+  position: sticky;
+  top: 0;
+  background: linear-gradient(to bottom, var(--fig-bg-0) 75%, transparent);
+  z-index: 1;
+}
+.lp-section-list-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--fig-text-1);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.lp-section-list-title i { color: var(--fig-text-3); font-size: 11px; }
+.lp-section-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: var(--fig-bg-3);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--fig-text-2);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.lp-section-add-btn {
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: var(--fig-accent, #2a79ff);
+  color: #0b1220;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.12s, transform 0.12s;
+}
+.lp-section-add-btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
+.lp-section-add-btn i { font-size: 9px; }
+.lp-section-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 /* ─── LeftPalette — AI tab ────────────────────────────────────────── */
 .lp-ai {
   display: flex;

@@ -986,102 +986,54 @@ function SectionsTab({
     useEditorStore.getState().remove(id);
   };
 
+  /* Layout: 헤더 → 본문 섹션(스크롤) → 푸터, top-down 페이지 흐름과
+   * 1:1 매칭. 헤더/푸터는 flex-shrink:0 으로 양 끝에 고정, 본문 섹션
+   * 리스트만 flex:1 + overflow-y:auto 라 섹션이 많아져도 헤더·푸터
+   * 진입점은 항상 보임. */
   return (
-    <div className="lp-scroll">
-      {/* Pinned site-frame items — header + footer. These are not part
-          of scene.root.children; they live in Site.headerHtml /
-          Site.footerHtml and need their own dedicated editors. Showing
-          them here keeps every "page section" entry-point in one tab. */}
-      {(onOpenHeaderEdit || onOpenFooterEdit) && (
-        <section className="lp-section" style={{ borderBottom: "1px solid #2a2d3a", paddingBottom: 8 }}>
-          <h4>
-            사이트 영역
-            <i className="fa-solid fa-window-maximize lp-chev" aria-hidden />
-          </h4>
-          <div style={{ padding: "0 6px", display: "flex", flexDirection: "column", gap: 6 }}>
-            {onOpenHeaderEdit && (
-              <button
-                type="button"
-                onClick={onOpenHeaderEdit}
-                style={frameRowBtn}
-              >
-                <span style={{ ...frameRowIcon, background: "#2a79ff" }}>
-                  <i className="fa-solid fa-window-maximize" />
-                </span>
-                <span style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600 }}>헤더 편집</div>
-                  <div style={{ fontSize: 10, color: "#888", marginTop: 2 }}>
-                    로고 · 메뉴 · 텍스트 · 언어 · 스타일
-                  </div>
-                </span>
-                <i className="fa-solid fa-chevron-right" style={{ color: "#666", fontSize: 11 }} />
-              </button>
-            )}
-            {onOpenFooterEdit && (
-              <button
-                type="button"
-                onClick={onOpenFooterEdit}
-                style={frameRowBtn}
-              >
-                <span style={{ ...frameRowIcon, background: "#7a5af8", transform: "rotate(180deg)" }}>
-                  <i className="fa-solid fa-window-maximize" />
-                </span>
-                <span style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600 }}>푸터 편집</div>
-                  <div style={{ fontSize: 10, color: "#888", marginTop: 2 }}>
-                    이미지 · 텍스트 · 링크 · 스타일
-                  </div>
-                </span>
-                <i className="fa-solid fa-chevron-right" style={{ color: "#666", fontSize: 11 }} />
-              </button>
-            )}
-          </div>
-        </section>
+    <div className="lp-section-tab">
+      {/* ── 상단 고정: 헤더 편집 ─────────────────────────────────── */}
+      {onOpenHeaderEdit && (
+        <div className="lp-pinned-frame top">
+          <button type="button" onClick={onOpenHeaderEdit} className="lp-frame-btn header" style={frameRowBtn}>
+            <span style={{ ...frameRowIcon, background: "#2a79ff" }}>
+              <i className="fa-solid fa-window-maximize" />
+            </span>
+            <span style={{ flex: 1 }}>
+              <div style={{ fontWeight: 600 }}>헤더 편집</div>
+              <div style={{ fontSize: 10, color: "#888", marginTop: 2 }}>
+                로고 · 메뉴 · 텍스트 · 언어 · 스타일
+              </div>
+            </span>
+            <i className="fa-solid fa-chevron-right" style={{ color: "#666", fontSize: 11 }} />
+          </button>
+        </div>
       )}
 
-      <section className="lp-section">
-        <h4>
-          섹션 (페이지 슬라이드)
-          <i className="fa-solid fa-layer-group lp-chev" aria-hidden />
-        </h4>
-        <div style={{ padding: "0 10px 8px" }}>
+      {/* ── 가운데 스크롤: 본문 섹션 리스트 ─────────────────────── */}
+      <div className="lp-section-scroll">
+        <div className="lp-section-list-head">
+          <div className="lp-section-list-title">
+            <i className="fa-solid fa-layer-group" aria-hidden /> 본문 섹션
+            {sections.length > 0 && (
+              <span className="lp-section-count">{sections.length}</span>
+            )}
+          </div>
           <button
             type="button"
             onClick={onAddSectionClick}
-            style={{
-              width: "100%",
-              padding: "8px 10px",
-              background: "var(--fig-accent, #2a79ff)",
-              color: "#fff",
-              border: "none",
-              borderRadius: 6,
-              cursor: "pointer",
-              fontSize: 12,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6,
-            }}
+            className="lp-section-add-btn"
+            title="새 섹션 추가"
           >
-            <i className="fa-solid fa-plus" /> 새 섹션 추가
+            <i className="fa-solid fa-plus" /> 추가
           </button>
         </div>
-        {sections.length === 0 && (
-          <div className="lp-empty-sub" style={{ padding: "0 14px 14px" }}>
-            아직 섹션이 없습니다. "새 섹션 추가" 버튼으로 시작하세요.
+        {sections.length === 0 ? (
+          <div className="lp-empty-sub" style={{ padding: "12px 14px 14px" }}>
+            아직 섹션이 없습니다. 위 &ldquo;추가&rdquo; 버튼으로 시작하세요.
           </div>
-        )}
-        {sections.length > 0 && (
-          <ol
-            style={{
-              listStyle: "none",
-              margin: 0,
-              padding: "0 6px 12px",
-              display: "flex",
-              flexDirection: "column",
-              gap: 4,
-            }}
-          >
+        ) : (
+          <ol className="lp-section-list">
             {sections.map((s, i) => (
               <SectionRow
                 key={s.id}
@@ -1100,7 +1052,6 @@ function SectionsTab({
                 onDragOverRow={(e) => {
                   e.preventDefault();
                   if (!draggingId || draggingId === s.id) return;
-                  // Decide above vs below based on cursor Y vs row mid.
                   const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
                   const above = e.clientY < r.top + r.height / 2;
                   setDragOverIdx(above ? i : i + 1);
@@ -1114,7 +1065,6 @@ function SectionsTab({
                       (c) => c.id === draggingId,
                     ) ?? -1;
                   let toIdx = dragOverIdx;
-                  // moveLayer expects index in the post-removal child list.
                   if (toIdx > fromIdx) toIdx -= 1;
                   if (fromIdx >= 0 && toIdx !== fromIdx) {
                     useEditorStore.getState().moveLayer(draggingId, root.id, toIdx);
@@ -1130,7 +1080,25 @@ function SectionsTab({
             ))}
           </ol>
         )}
-      </section>
+      </div>
+
+      {/* ── 하단 고정: 푸터 편집 ─────────────────────────────────── */}
+      {onOpenFooterEdit && (
+        <div className="lp-pinned-frame bottom">
+          <button type="button" onClick={onOpenFooterEdit} className="lp-frame-btn footer" style={frameRowBtn}>
+            <span style={{ ...frameRowIcon, background: "#7a5af8", transform: "rotate(180deg)" }}>
+              <i className="fa-solid fa-window-maximize" />
+            </span>
+            <span style={{ flex: 1 }}>
+              <div style={{ fontWeight: 600 }}>푸터 편집</div>
+              <div style={{ fontSize: 10, color: "#888", marginTop: 2 }}>
+                이미지 · 텍스트 · 링크 · 스타일
+              </div>
+            </span>
+            <i className="fa-solid fa-chevron-right" style={{ color: "#666", fontSize: 11 }} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
