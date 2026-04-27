@@ -3,14 +3,11 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import SignOutButton from "../sign-out-button";
-import ImpersonationBanner from "@/components/ImpersonationBanner";
 import AddDomainForm from "./add-domain-form";
 import ProvisionSslButton from "./provision-ssl-button";
 import DeleteDomainForm from "./delete-domain-form";
-import { DashboardIconSprite, Icon } from "../dashboard-icons";
-import SupportUnreadIndicator from "../support-unread-indicator";
-import "../dashboard-v2.css";
+import DashboardShell from "../dashboard-shell";
+import { Icon } from "../dashboard-icons";
 import "../site/[siteId]/manage/manage-v2.css";
 import "./domains-v2.css";
 
@@ -112,147 +109,17 @@ export default async function DashboardDomainsPage({ searchParams }: DomainsPage
     ? pickThumb(sidebarSite.shopId)
     : ["#60667e", "#8a91a8", "#fff", "—"];
 
+  const tDash = await getTranslations("dashboard");
+
   return (
-    <>
-      <ImpersonationBanner />
-      <DashboardIconSprite />
-      <div className="dv2-app">
-        {/* ───── SIDEBAR ───── */}
-        <aside className="dv2-side">
-          <Link href="/dashboard" className="dv2-brand" title="대시보드로"><div className="dv2-brand-mark">h</div><div className="dv2-brand-name">home<span className="ns">Nshop</span></div></Link>
-
-          {sidebarSite && (
-            <Link
-              href={
-                filteredSite
-                  ? `/dashboard/site/settings?id=${sidebarSite.id}`
-                  : "/dashboard"
-              }
-              className="mv2-site-switcher"
-              title={filteredSite ? "사이트 설정으로" : "홈페이지 선택"}
-            >
-              <div
-                className="thumb"
-                style={{
-                  background: `linear-gradient(135deg, ${thumbFrom}, ${thumbTo})`,
-                  color: thumbColor,
-                }}
-              >
-                <span className="live" />
-                {thumbLabel}
-              </div>
-              <div className="ss-info">
-                <div className="ss-name">
-                  {filteredSite ? sidebarSite.name : `전체 사이트 (${userSites.length})`}
-                </div>
-                <div className="ss-url">
-                  {filteredSite ? `home.homenshop.com/${sidebarSite.shopId}` : "모든 도메인 보기"}
-                </div>
-              </div>
-              <div className="ss-chev">
-                <Icon id="i-chev-down" size={14} />
-              </div>
-            </Link>
-          )}
-
-          <div className="dv2-side-section">
-            <div className="dv2-side-label">사이트 관리</div>
-            <nav className="dv2-nav">
-              <Link href="/dashboard">
-                <span className="ic"><Icon id="i-home" /></span>
-                <span className="label">대시보드</span>
-              </Link>
-              {sidebarSite && (
-                <>
-                  <Link href={`/dashboard/site/${sidebarSite.id}/manage`}>
-                    <span className="ic"><Icon id="i-database" /></span>
-                    <span className="label">데이터 관리</span>
-                  </Link>
-                  <Link href={`/dashboard/site/settings?id=${sidebarSite.id}`}>
-                    <span className="ic"><Icon id="i-info" /></span>
-                    <span className="label">기본정보 관리</span>
-                  </Link>
-                </>
-              )}
-              <Link
-                className="active"
-                href={filteredSite ? `/dashboard/domains?siteId=${filteredSite.id}` : "/dashboard/domains"}
-              >
-                <span className="ic"><Icon id="i-globe" /></span>
-                <span className="label">도메인 관리</span>
-                {totalCount > 0 && <span className="badge">{totalCount}</span>}
-              </Link>
-            </nav>
-          </div>
-
-          <div className="dv2-side-section">
-            <div className="dv2-side-label">계정</div>
-            <nav className="dv2-nav">
-              <Link href="/dashboard/credits">
-                <span className="ic"><Icon id="i-credit" /></span>
-                <span className="label">결제 · 크레딧</span>
-              </Link>
-              <Link href="/dashboard/profile">
-                <span className="ic"><Icon id="i-user" /></span>
-                <span className="label">관리자 정보</span>
-              </Link>
-              <Link href="/dashboard/support"><span className="ic"><Icon id="i-chat" /></span><span className="label">도움말 · 지원</span><SupportUnreadIndicator variant="count" /></Link>
-            </nav>
-          </div>
-
-          <div className="dv2-side-footer">
-            <div className="dv2-coin-card">
-              <div className="row">
-                <div className="ball">C</div>
-                <div>
-                  <div className="num">
-                    {credits.toLocaleString()} <span style={{ fontSize: 11, fontWeight: 600 }}>coin</span>
-                  </div>
-                  <div className="cap">AI 제작 · 편집에 사용</div>
-                </div>
-              </div>
-              <Link className="go" href="/dashboard/credits">
-                충전하기 <Icon id="i-chev-right" size={12} />
-              </Link>
-            </div>
-          </div>
-        </aside>
-
-        {/* ───── MAIN ───── */}
-        <div className="dv2-main">
-          <div className="dv2-topbar">
-            <div className="dv2-crumbs">
-              <Link href="/dashboard">대시보드</Link>
-              <span className="sep">/</span>
-              {filteredSite && (
-                <>
-                  <Link href={`/dashboard/site/settings?id=${filteredSite.id}`}>
-                    {filteredSite.name}
-                  </Link>
-                  <span className="sep">/</span>
-                </>
-              )}
-              <span className="cur">도메인 관리</span>
-            </div>
-            <div className="dv2-spacer" />
-            <div className="dv2-topbar-actions">
-              <Link className="dv2-coin-pill" href="/dashboard/credits" title="크레딧 잔액">
-                <span className="ball">C</span>
-                <span>{credits.toLocaleString()}</span>
-                <span className="c">coin</span>
-              </Link>
-              <Link href="/dashboard/profile" className="dv2-user" style={{ textDecoration: "none" }}>
-                <div>
-                  <div className="name">{displayName}</div>
-                  <div className="role">Owner</div>
-                </div>
-                <div className="dv2-avatar">{initialsFrom(displayName)}</div>
-              </Link>
-              <SignOutButton />
-            </div>
-          </div>
-
-          <div className="dv2-content">
+    <DashboardShell
+      active="domains"
+      breadcrumbs={[
+        { label: tDash("breadcrumbHome"), href: "/dashboard" },
+        ...(filteredSite ? [{ label: filteredSite.name, href: `/dashboard/site/settings?id=${filteredSite.id}` }] : []),
+        { label: tDash("navDomains") },
+      ]}
+    >
             {/* Page head */}
             <div className="dm2-page-head">
               <div className="dm2-title-wrap">
@@ -476,10 +343,7 @@ export default async function DashboardDomainsPage({ searchParams }: DomainsPage
                 availableSites={effectiveSiteId ? [] : userSites}
               />
             </div>
-          </div>
-        </div>
-      </div>
-    </>
+    </DashboardShell>
   );
 }
 

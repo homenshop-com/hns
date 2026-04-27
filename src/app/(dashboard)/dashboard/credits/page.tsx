@@ -9,14 +9,11 @@ import {
   CREDIT_COSTS,
   CREDIT_PACKS,
 } from "@/lib/credits";
-import SignOutButton from "../sign-out-button";
-import ImpersonationBanner from "@/components/ImpersonationBanner";
 import BuyPackButton from "./buy-pack-button";
 import FaqList from "./faq-list";
 import TransactionFilter, { type CreditTxRow } from "./transaction-filter";
-import { DashboardIconSprite, Icon } from "../dashboard-icons";
-import SupportUnreadIndicator from "../support-unread-indicator";
-import "../dashboard-v2.css";
+import DashboardShell from "../dashboard-shell";
+import { Icon } from "../dashboard-icons";
 import "./credits-v2.css";
 
 export const metadata = { title: "AI 크레딧 — homeNshop" };
@@ -198,86 +195,17 @@ export default async function CreditsPage() {
     },
   };
 
+  const tDash = await getTranslations("dashboard");
+
   return (
-    <>
-      <ImpersonationBanner />
-      <DashboardIconSprite />
-      <div className="dv2-app">
-        {/* ───── SIDEBAR ───── */}
-        <aside className="dv2-side">
-          <Link href="/dashboard" className="dv2-brand" title="대시보드로"><div className="dv2-brand-mark">h</div><div className="dv2-brand-name">home<span className="ns">Nshop</span></div></Link>
-
-          <div className="dv2-side-section">
-            <div className="dv2-side-label">사이트 관리</div>
-            <nav className="dv2-nav">
-              <Link href="/dashboard">
-                <span className="ic"><Icon id="i-home" /></span>
-                <span className="label">대시보드</span>
-              </Link>
-              <Link href="/dashboard/domains">
-                <span className="ic"><Icon id="i-globe" /></span>
-                <span className="label">도메인 관리</span>
-              </Link>
-            </nav>
-          </div>
-
-          <div className="dv2-side-section">
-            <div className="dv2-side-label">계정</div>
-            <nav className="dv2-nav">
-              <Link className="active" href="/dashboard/credits">
-                <span className="ic"><Icon id="i-coin" /></span>
-                <span className="label">AI 크레딧</span>
-                <span className={coinPillClass}>{balance.toLocaleString()} C</span>
-              </Link>
-              <Link href="/dashboard/profile">
-                <span className="ic"><Icon id="i-user" /></span>
-                <span className="label">관리자 정보</span>
-              </Link>
-              <Link href="/dashboard/support"><span className="ic"><Icon id="i-chat" /></span><span className="label">도움말 · 지원</span><SupportUnreadIndicator variant="count" /></Link>
-            </nav>
-          </div>
-
-          <div className="dv2-side-footer">
-            <div className="dv2-coin-card">
-              <div className="row">
-                <div className="ball">C</div>
-                <div>
-                  <div className="num">
-                    {balance.toLocaleString()} <span style={{ fontSize: 11, fontWeight: 600 }}>coin</span>
-                  </div>
-                  <div className="cap">AI 제작 · 편집에 사용</div>
-                </div>
-              </div>
-              <a className="go" href="#packages">
-                지금 충전하기 <Icon id="i-chev-right" size={12} />
-              </a>
-            </div>
-          </div>
-        </aside>
-
-        {/* ───── MAIN ───── */}
-        <div className="dv2-main">
-          <div className="dv2-topbar">
-            <div className="dv2-crumbs">
-              <Link href="/dashboard">대시보드</Link>
-              <span className="sep">/</span>
-              <span className="cur">AI 크레딧</span>
-            </div>
-            <div className="dv2-spacer" />
-            <div className="dv2-topbar-actions">
-              <Link href="/dashboard/profile" className="dv2-user" style={{ textDecoration: "none" }}>
-                <div>
-                  <div className="name">{displayName}</div>
-                  <div className="role">Owner</div>
-                </div>
-                <div className="dv2-avatar">{initialsFrom(displayName)}</div>
-              </Link>
-              <SignOutButton />
-            </div>
-          </div>
-
-          <div className="dv2-content">
-            <Link href="/dashboard" className="cr2-back">
+    <DashboardShell
+      active="credits"
+      breadcrumbs={[
+        { label: tDash("breadcrumbHome"), href: "/dashboard" },
+        { label: tDash("navCredits") },
+      ]}
+    >
+      <Link href="/dashboard" className="cr2-back">
               <Icon id="i-chev-left" size={14} /> {t("creditBackToDashboard")}
             </Link>
 
@@ -502,9 +430,6 @@ export default async function CreditsPage() {
               </div>
               <FaqList items={faqItems} defaultOpen={1} />
             </section>
-          </div>
-        </div>
-      </div>
-    </>
+    </DashboardShell>
   );
 }

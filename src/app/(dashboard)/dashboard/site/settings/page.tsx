@@ -11,6 +11,7 @@ import DeleteSiteButton from "./delete-site-button";
 import SitemapRefreshButton from "./sitemap-refresh-button";
 import CopyButton from "./copy-button";
 import { DashboardIconSprite, Icon } from "../../dashboard-icons";
+import DashboardShell from "../../dashboard-shell";
 import SupportUnreadIndicator from "../../support-unread-indicator";
 import { resolveExpiresAt, FREE_TRIAL_DAYS } from "@/lib/site-expiration";
 import "../../dashboard-v2.css";
@@ -158,135 +159,17 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
   const gscConnected = Boolean(site.googleVerification);
   const seoConnectedCount = (gaConnected ? 1 : 0) + (gscConnected ? 1 : 0);
 
+  const tDash = await getTranslations("dashboard");
+
   return (
-    <>
-      <ImpersonationBanner />
-      <DashboardIconSprite />
-      <div className="dv2-app">
-        {/* ───── SIDEBAR ───── */}
-        <aside className="dv2-side">
-          <Link href="/dashboard" className="dv2-brand" title="대시보드로"><div className="dv2-brand-mark">h</div><div className="dv2-brand-name">home<span className="ns">Nshop</span></div></Link>
-
-          <Link href="/dashboard" className="mv2-site-switcher" title="홈페이지 전환">
-            <div
-              className="thumb"
-              style={{
-                background: `linear-gradient(135deg, ${thumbFrom}, ${thumbTo})`,
-                color: thumbColor,
-              }}
-            >
-              <span className="live" />
-              {thumbLabel}
-            </div>
-            <div className="ss-info">
-              <div className="ss-name">{siteName}</div>
-              <div className="ss-url">{activeDomain ? activeDomain.domain : `home.homenshop.com/${site.shopId}`}</div>
-            </div>
-            <div className="ss-chev">
-              <Icon id="i-chev-down" size={14} />
-            </div>
-          </Link>
-
-          <nav className="dv2-nav">
-            <Link href="/dashboard">
-              <span className="ic"><Icon id="i-home" /></span>
-              <span className="label">대시보드</span>
-            </Link>
-            <Link href={homePage ? `/dashboard/site/pages/${homePage.id}/edit` : "/dashboard/site/pages"}>
-              <span className="ic"><Icon id="i-palette" /></span>
-              <span className="label">디자인 관리</span>
-            </Link>
-            <Link href={`/dashboard/site/${site.id}/manage`}>
-              <span className="ic"><Icon id="i-database" /></span>
-              <span className="label">데이터 관리</span>
-            </Link>
-            <Link className="active" href={`/dashboard/site/settings?id=${site.id}`}>
-              <span className="ic"><Icon id="i-info" /></span>
-              <span className="label">기본정보 관리</span>
-            </Link>
-            <a className="soon" aria-disabled="true">
-              <span className="ic"><Icon id="i-analytics" /></span>
-              <span className="label">통계 · 분석</span>
-              <span className="soon-tag">SOON</span>
-            </a>
-          </nav>
-
-          <div className="dv2-side-section">
-            <div className="dv2-side-label">계정</div>
-            <nav className="dv2-nav">
-              <Link href="/dashboard/credits">
-                <span className="ic"><Icon id="i-credit" /></span>
-                <span className="label">결제 · 크레딧</span>
-              </Link>
-              <Link href="/dashboard/profile">
-                <span className="ic"><Icon id="i-user" /></span>
-                <span className="label">관리자 정보</span>
-              </Link>
-              <Link href="/dashboard/support"><span className="ic"><Icon id="i-chat" /></span><span className="label">도움말 · 지원</span><SupportUnreadIndicator variant="count" /></Link>
-            </nav>
-          </div>
-
-          <div className="dv2-side-footer">
-            <div className="dv2-coin-card">
-              <div className="row">
-                <div className="ball">C</div>
-                <div>
-                  <div className="num">
-                    {credits.toLocaleString()} <span style={{ fontSize: 11, fontWeight: 600 }}>coin</span>
-                  </div>
-                  <div className="cap">AI 제작 · 편집에 사용</div>
-                </div>
-              </div>
-              <Link className="go" href="/dashboard/credits">
-                충전하기 <Icon id="i-chev-right" size={12} />
-              </Link>
-            </div>
-          </div>
-        </aside>
-
-        {/* ───── MAIN ───── */}
-        <div className="dv2-main">
-          {/* Topbar */}
-          <div className="dv2-topbar">
-            <div className="dv2-crumbs">
-              <Link href="/dashboard">대시보드</Link>
-              <span className="sep">/</span>
-              <Link href={`/dashboard/site/settings?id=${site.id}`}>{siteName}</Link>
-              <span className="sep">/</span>
-              <span className="cur">기본정보 관리</span>
-            </div>
-            <div className="dv2-spacer" />
-            <div className="dv2-topbar-actions">
-              <Link className="dv2-coin-pill" href="/dashboard/credits" title="크레딧 잔액">
-                <span className="ball">C</span>
-                <span>{credits.toLocaleString()}</span>
-                <span className="c">coin</span>
-              </Link>
-              <Link href="/dashboard/profile" className="dv2-user" style={{ textDecoration: "none" }}>
-                <div>
-                  <div className="name">{displayName}</div>
-                  <div className="role">Owner</div>
-                </div>
-                <div className="dv2-avatar">{initialsFrom(displayName)}</div>
-              </Link>
-              <SignOutButton />
-            </div>
-          </div>
-
-          {/* Screen tabs */}
-          <div className="mv2-screen-tabs">
-            <Link className="mv2-st" href={`/dashboard/site/${site.id}/manage`}>
-              <Icon id="i-database" size={15} /> 데이터 관리
-            </Link>
-            <Link className="mv2-st on" href={`/dashboard/site/settings?id=${site.id}`}>
-              <Icon id="i-info" size={15} /> 기본정보 관리
-            </Link>
-            <Link className="mv2-st" href="/dashboard/profile">
-              <Icon id="i-user" size={15} /> 관리자 정보
-            </Link>
-          </div>
-
-          <div className="dv2-content">
+    <DashboardShell
+      active="sites"
+      breadcrumbs={[
+        { label: tDash("breadcrumbHome"), href: "/dashboard" },
+        { label: siteName, href: `/dashboard/site/settings?id=${site.id}` },
+        { label: t("pageTitle") },
+      ]}
+    >
             {/* URL banner */}
             <div className="mv2-url-banner">
               <div className="mv2-url-left">
@@ -636,9 +519,6 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                 </div>
               </section>
             </div>
-          </div>
-        </div>
-      </div>
-    </>
+    </DashboardShell>
   );
 }

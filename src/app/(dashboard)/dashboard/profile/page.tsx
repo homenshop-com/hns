@@ -3,16 +3,13 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import SignOutButton from "../sign-out-button";
-import ImpersonationBanner from "@/components/ImpersonationBanner";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ProfileForm from "./profile-form";
 import PasswordForm from "./password-form";
 import DeleteAccount from "./delete-account";
-import { DashboardIconSprite, Icon } from "../dashboard-icons";
-import SupportUnreadIndicator from "../support-unread-indicator";
+import DashboardShell from "../dashboard-shell";
+import { Icon } from "../dashboard-icons";
 import { getBalance } from "@/lib/credits";
-import "../dashboard-v2.css";
 import "./profile-v2.css";
 
 const SITE_THUMB_GRADS: Record<string, [string, string, string, string]> = {
@@ -72,7 +69,10 @@ export default async function ProfilePage() {
 
   const credits = await getBalance(user.id);
 
-  const t = await getTranslations("profile");
+  const [t, tDash] = await Promise.all([
+    getTranslations("profile"),
+    getTranslations("dashboard"),
+  ]);
   const displayName = user.name || user.email.split("@")[0];
   const avatarLetter = (user.name || user.email)[0].toUpperCase();
   const years = yearsSince(new Date(user.createdAt));
@@ -82,95 +82,14 @@ export default async function ProfilePage() {
   const primarySite = user.sites[0];
 
   return (
-    <>
-      <ImpersonationBanner />
-      <DashboardIconSprite />
-      <div className="dv2-app">
-        {/* ───── SIDEBAR ───── */}
-        <aside className="dv2-side">
-          <Link href="/dashboard" className="dv2-brand" title="대시보드로"><div className="dv2-brand-mark">h</div><div className="dv2-brand-name">home<span className="ns">Nshop</span></div></Link>
-
-          <div className="dv2-side-section">
-            <div className="dv2-side-label">사이트 관리</div>
-            <nav className="dv2-nav">
-              <Link href="/dashboard">
-                <span className="ic"><Icon id="i-home" /></span>
-                <span className="label">대시보드</span>
-              </Link>
-              {primarySite && (
-                <Link href={`/dashboard/site/settings?id=${primarySite.id}`}>
-                  <span className="ic"><Icon id="i-info" /></span>
-                  <span className="label">기본정보 관리</span>
-                </Link>
-              )}
-              <Link href="/dashboard/domains">
-                <span className="ic"><Icon id="i-globe" /></span>
-                <span className="label">도메인 관리</span>
-              </Link>
-            </nav>
-          </div>
-
-          <div className="dv2-side-section">
-            <div className="dv2-side-label">계정</div>
-            <nav className="dv2-nav">
-              <Link href="/dashboard/credits">
-                <span className="ic"><Icon id="i-credit" /></span>
-                <span className="label">AI 크레딧</span>
-              </Link>
-              <Link className="active" href="/dashboard/profile">
-                <span className="ic"><Icon id="i-user" /></span>
-                <span className="label">관리자 정보</span>
-              </Link>
-              <Link href="/dashboard/support"><span className="ic"><Icon id="i-chat" /></span><span className="label">도움말 · 지원</span><SupportUnreadIndicator variant="count" /></Link>
-            </nav>
-          </div>
-
-          <div className="dv2-side-footer">
-            <div className="dv2-coin-card">
-              <div className="row">
-                <div className="ball">C</div>
-                <div>
-                  <div className="num">
-                    {credits.toLocaleString()} <span style={{ fontSize: 11, fontWeight: 600 }}>coin</span>
-                  </div>
-                  <div className="cap">AI 제작 · 편집에 사용</div>
-                </div>
-              </div>
-              <Link className="go" href="/dashboard/credits">
-                충전하기 <Icon id="i-chev-right" size={12} />
-              </Link>
-            </div>
-          </div>
-        </aside>
-
-        {/* ───── MAIN ───── */}
-        <div className="dv2-main">
-          <div className="dv2-topbar">
-            <div className="dv2-crumbs">
-              <Link href="/dashboard">대시보드</Link>
-              <span className="sep">/</span>
-              <span className="cur">관리자 정보</span>
-            </div>
-            <div className="dv2-spacer" />
-            <div className="dv2-topbar-actions">
-              <Link className="dv2-coin-pill" href="/dashboard/credits" title="크레딧 잔액">
-                <span className="ball">C</span>
-                <span>{credits.toLocaleString()}</span>
-                <span className="c">coin</span>
-              </Link>
-              <Link href="/dashboard/profile" className="dv2-user" style={{ textDecoration: "none" }}>
-                <div>
-                  <div className="name">{displayName}</div>
-                  <div className="role">Owner</div>
-                </div>
-                <div className="dv2-avatar">{initialsFrom(displayName)}</div>
-              </Link>
-              <SignOutButton />
-            </div>
-          </div>
-
-          <div className="dv2-content">
-            <Link href="/dashboard" className="pv2-back">
+    <DashboardShell
+      active="profile"
+      breadcrumbs={[
+        { label: tDash("breadcrumbHome"), href: "/dashboard" },
+        { label: tDash("navProfile") },
+      ]}
+    >
+      <Link href="/dashboard" className="pv2-back">
               <Icon id="i-chev-left" size={14} /> {t("backToDashboard")}
             </Link>
 
@@ -370,9 +289,6 @@ export default async function ProfilePage() {
                 }}
               />
             )}
-          </div>
-        </div>
-      </div>
-    </>
+    </DashboardShell>
   );
 }
