@@ -90,9 +90,9 @@ export default async function DashboardShell({
               <span className="ic"><Icon id="i-home" /></span>
               <span className="label">관리자 메인</span>
             </Link>
-            <Link className={cls("sites")} href="/dashboard/site/pages">
+            <Link className={cls("sites")} href="/dashboard/sites">
               <span className="ic"><Icon id="i-grid" /></span>
-              <span className="label">내 홈페이지</span>
+              <span className="label">내 홈페이지/쇼핑몰</span>
               {badges?.sites != null && badges.sites > 0 && (
                 <span className="badge">{badges.sites}</span>
               )}

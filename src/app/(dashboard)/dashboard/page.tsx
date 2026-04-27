@@ -461,9 +461,9 @@ export default async function DashboardPage() {
               <span className="ic"><Icon id="i-home" /></span>
               <span className="label">관리자 메인</span>
             </Link>
-            <Link href="/dashboard">
+            <Link href="/dashboard/sites">
               <span className="ic"><Icon id="i-grid" /></span>
-              <span className="label">내 홈페이지</span>
+              <span className="label">내 홈페이지/쇼핑몰</span>
               {sites.length > 0 && <span className="badge">{sites.length}</span>}
             </Link>
             <a className="soon" aria-disabled="true">
