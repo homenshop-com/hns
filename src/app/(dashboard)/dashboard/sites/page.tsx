@@ -1,9 +1,12 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/db";
 import DashboardShell from "../dashboard-shell";
 import { Icon } from "../dashboard-icons";
+import AICreateButton from "../ai-create-button";
+import { getSettingBool } from "@/lib/settings";
 import {
   daysUntilExpiry,
   isSiteExpired,
@@ -60,7 +63,23 @@ export default async function SitesPage() {
   const session = await auth();
   if (!session) redirect("/login");
 
-  const [sites, integrationCount, activeIntegrationCount] = await Promise.all([
+  const [
+    currentUser,
+    emailVerificationEnabled,
+    t,
+    tTpl,
+    sites,
+    integrationCount,
+    activeIntegrationCount,
+    allSiteTemplates,
+  ] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { emailVerified: true, email: true },
+    }),
+    getSettingBool("emailVerificationEnabled"),
+    getTranslations("dashboard"),
+    getTranslations("templates"),
     prisma.site.findMany({
       where: { userId: session.user.id, isTemplateStorage: false },
       include: {
@@ -76,7 +95,44 @@ export default async function SitesPage() {
     prisma.marketplaceIntegration.count({
       where: { userId: session.user.id, status: "ACTIVE" },
     }),
+    prisma.template.count({ where: { isPublic: true } }),
   ]);
+
+  const aiLabels = {
+    btnNewSiteAI: t("btnNewSiteAI"),
+    aiModalTitle: t("aiModalTitle"),
+    aiNotice1: t("aiNotice1"),
+    aiNotice2: t("aiNotice2"),
+    defaultLanguage: tTpl("defaultLanguage"),
+    subdomainSetup: tTpl("subdomainSetup"),
+    subdomainPrefix: tTpl("subdomainPrefix"),
+    subdomainHint: tTpl("subdomainHint"),
+    aiSiteTitle: t("aiSiteTitle"),
+    aiSiteTitlePlaceholder: t("aiSiteTitlePlaceholder"),
+    aiPrompt: t("aiPrompt"),
+    aiPromptPlaceholder: t("aiPromptPlaceholder"),
+    aiGenerate: t("aiGenerate"),
+    aiGenerating: t("aiGenerating"),
+    langKo: tTpl("langKo"),
+    langEn: tTpl("langEn"),
+    langZhCn: tTpl("langZhCn"),
+    langJa: tTpl("langJa"),
+    langZhTw: tTpl("langZhTw"),
+    langEs: tTpl("langEs"),
+    errorShopIdRequired: tTpl("errorShopIdRequired"),
+    errorShopIdFormat: tTpl("errorShopIdFormat"),
+    errorShopIdTaken: tTpl("errorShopIdTaken"),
+    errorSiteTitleRequired: t("errorSiteTitleRequired"),
+    errorPromptRequired: t("errorPromptRequired"),
+    emailVerifyRequired: tTpl("emailVerifyRequired"),
+    emailVerifyMessage: tTpl("emailVerifyMessage"),
+    emailVerifyResend: tTpl("emailVerifyResend"),
+    emailVerifySent: tTpl("emailVerifySent"),
+  };
+  const isEmailVerifiedForAI =
+    !emailVerificationEnabled ||
+    !!currentUser?.emailVerified ||
+    currentUser?.email === "demo@demo.com";
 
   const byPlan = {
     all: sites.length,
@@ -108,6 +164,33 @@ export default async function SitesPage() {
           <button className="dv2-chip">유료계정 <span className="n">{byPlan.pro}</span></button>
           <button className="dv2-chip">만료계정 <span className="n">{byPlan.expired}</span></button>
         </div>
+      </div>
+
+      {/* Quick actions — moved here from main dashboard */}
+      <div className="dv2-quick">
+        <AICreateButton emailVerified={isEmailVerifiedForAI} labels={aiLabels} renderAsCard />
+        <Link className="dv2-action tpl" href="/dashboard/templates">
+          <div className="ai-bg" /><div className="glow" />
+          <div className="inner">
+            <div className="ic"><Icon id="i-template" size={22} style={{ color: "#fff" }} /></div>
+            <div className="text">
+              <div className="ttl">템플릿 기반 제작 <span className="tag">{allSiteTemplates}+</span></div>
+              <div className="desc">업종별 검증된 디자인으로 시작</div>
+            </div>
+            <div className="arr"><Icon id="i-arr-right" size={20} /></div>
+          </div>
+        </Link>
+        <Link className="dv2-action order" href="/dashboard/orders">
+          <div className="ai-bg" /><div className="glow" />
+          <div className="inner">
+            <div className="ic"><Icon id="i-handshake" size={22} style={{ color: "#fff" }} /></div>
+            <div className="text">
+              <div className="ttl">주문제작 의뢰 <span className="tag">PRO</span></div>
+              <div className="desc">전문 디자이너 1:1 매칭</div>
+            </div>
+            <div className="arr"><Icon id="i-arr-right" size={20} /></div>
+          </div>
+        </Link>
       </div>
 
       <section className="dv2-panel">

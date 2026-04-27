@@ -8,7 +8,6 @@ import SignOutButton from "./sign-out-button";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ImpersonationBanner from "@/components/ImpersonationBanner";
 import EmailVerifyBanner from "./email-verify-banner";
-import AICreateButton from "./ai-create-button";
 import { getSettingBool } from "@/lib/settings";
 import "./dashboard-v2.css";
 import { DashboardIconSprite, Icon } from "./dashboard-icons";
@@ -88,54 +87,17 @@ export default async function DashboardPage() {
   const session = await auth();
   if (!session) redirect("/login");
 
-  const [currentUser, emailVerificationEnabled, t, tTpl] = await Promise.all([
+  const [currentUser, emailVerificationEnabled, t] = await Promise.all([
     prisma.user.findUnique({
       where: { id: session.user.id },
       select: { emailVerified: true, email: true, credits: true, name: true },
     }),
     getSettingBool("emailVerificationEnabled"),
     getTranslations("dashboard"),
-    getTranslations("templates"),
   ]);
 
   const credits = currentUser?.credits ?? 0;
   const displayName = currentUser?.name || (currentUser?.email?.split("@")[0] ?? "게스트");
-
-  const aiLabels = {
-    btnNewSiteAI: t("btnNewSiteAI"),
-    aiModalTitle: t("aiModalTitle"),
-    aiNotice1: t("aiNotice1"),
-    aiNotice2: t("aiNotice2"),
-    defaultLanguage: tTpl("defaultLanguage"),
-    subdomainSetup: tTpl("subdomainSetup"),
-    subdomainPrefix: tTpl("subdomainPrefix"),
-    subdomainHint: tTpl("subdomainHint"),
-    aiSiteTitle: t("aiSiteTitle"),
-    aiSiteTitlePlaceholder: t("aiSiteTitlePlaceholder"),
-    aiPrompt: t("aiPrompt"),
-    aiPromptPlaceholder: t("aiPromptPlaceholder"),
-    aiGenerate: t("aiGenerate"),
-    aiGenerating: t("aiGenerating"),
-    langKo: tTpl("langKo"),
-    langEn: tTpl("langEn"),
-    langZhCn: tTpl("langZhCn"),
-    langJa: tTpl("langJa"),
-    langZhTw: tTpl("langZhTw"),
-    langEs: tTpl("langEs"),
-    errorShopIdRequired: tTpl("errorShopIdRequired"),
-    errorShopIdFormat: tTpl("errorShopIdFormat"),
-    errorShopIdTaken: tTpl("errorShopIdTaken"),
-    errorSiteTitleRequired: t("errorSiteTitleRequired"),
-    errorPromptRequired: t("errorPromptRequired"),
-    emailVerifyRequired: tTpl("emailVerifyRequired"),
-    emailVerifyMessage: tTpl("emailVerifyMessage"),
-    emailVerifyResend: tTpl("emailVerifyResend"),
-    emailVerifySent: tTpl("emailVerifySent"),
-  };
-  const isEmailVerifiedForAI =
-    !emailVerificationEnabled ||
-    !!currentUser?.emailVerified ||
-    currentUser?.email === "demo@demo.com";
 
   const sites = await prisma.site.findMany({
     where: { userId: session.user.id, isTemplateStorage: false },
@@ -158,7 +120,14 @@ export default async function DashboardPage() {
   const prevMonthStart = new Date(monthStart);
   prevMonthStart.setMonth(prevMonthStart.getMonth() - 1);
 
-  const [newOrders, prevOrders, recentOrders, unreadInquiries, recentPosts, allSiteTemplates] = await Promise.all([
+  const [
+    newOrders,
+    prevOrders,
+    recentOrders,
+    unreadInquiries,
+    recentInquiries,
+    recentBookings,
+  ] = await Promise.all([
     prisma.order.findMany({
       where: {
         userId: session.user.id,
@@ -180,6 +149,7 @@ export default async function DashboardPage() {
       take: 5,
       select: {
         id: true, orderNumber: true, totalAmount: true, status: true, createdAt: true, shippingName: true,
+        channel: true,
       },
     }),
     siteIds.length
@@ -191,21 +161,46 @@ export default async function DashboardPage() {
           },
         })
       : Promise.resolve(0),
+    /* 최근 문의 — legacyId 13 (견적문의) + 카테고리명에 "문의" 포함하는 게시글 */
     siteIds.length
       ? prisma.boardPost.findMany({
           where: {
             siteId: { in: siteIds },
             parentId: null,
+            OR: [
+              { category: { legacyId: 13 } },
+              { category: { name: { contains: "문의" } } },
+              { category: { name: { contains: "Inquiry", mode: "insensitive" } } },
+            ],
           },
           orderBy: { createdAt: "desc" },
-          take: 3,
+          take: 5,
           select: {
-            legacyId: true, title: true, createdAt: true, siteId: true,
-            category: { select: { name: true, legacyId: true } },
+            legacyId: true, title: true, createdAt: true, siteId: true, author: true,
+            category: { select: { id: true, name: true } },
           },
         })
       : Promise.resolve([]),
-    prisma.template.count({ where: { isPublic: true } }),
+    /* 최근 예약 — 카테고리명에 "예약" / "booking" / "reservation" 포함 */
+    siteIds.length
+      ? prisma.boardPost.findMany({
+          where: {
+            siteId: { in: siteIds },
+            parentId: null,
+            OR: [
+              { category: { name: { contains: "예약" } } },
+              { category: { name: { contains: "booking", mode: "insensitive" } } },
+              { category: { name: { contains: "reservation", mode: "insensitive" } } },
+            ],
+          },
+          orderBy: { createdAt: "desc" },
+          take: 5,
+          select: {
+            legacyId: true, title: true, createdAt: true, siteId: true, author: true,
+            category: { select: { id: true, name: true } },
+          },
+        })
+      : Promise.resolve([]),
   ]);
 
   const newOrderCount = newOrders.length;
@@ -235,75 +230,8 @@ export default async function DashboardPage() {
   const expiredTrial = expiredAll.filter((s) => isFreePlan(s.accountType));
   const expiredPaid = expiredAll.filter((s) => !isFreePlan(s.accountType));
 
-  /* ── Derive activity feed: merge orders + board posts by date desc ── */
-  type Activity = { kind: "order" | "board" | "edit"; when: Date; node: React.ReactNode };
-  const activities: Activity[] = [];
-  for (const o of recentOrders) {
-    activities.push({
-      kind: "order",
-      when: o.createdAt,
-      node: (
-        <>
-          <div className="dv2-a-title">
-            새 주문 도착 · <b>{formatKRW(o.totalAmount)}</b>
-            {o.shippingName ? ` · ${o.shippingName}` : ""}
-          </div>
-          <div className="dv2-a-sub">
-            <span className="t">{koreanTimeAgo(o.createdAt)}</span>
-            <span>·</span>
-            <span className="mono">#{o.orderNumber}</span>
-          </div>
-        </>
-      ),
-    });
-  }
+  // Lookup map used by the booking/inquiry list panels for site name.
   const siteById = new Map(sites.map((s) => [s.id, s]));
-  for (const p of recentPosts) {
-    const s = siteById.get(p.siteId);
-    activities.push({
-      kind: "board",
-      when: p.createdAt,
-      node: (
-        <>
-          <div className="dv2-a-title">
-            <b>{s?.name || s?.shopId || "(사이트)"}</b>에 새 글
-            {p.category?.name ? ` · ${p.category.name}` : ""}
-            {": "}{p.title?.slice(0, 40) || "(제목 없음)"}
-          </div>
-          <div className="dv2-a-sub">
-            <span className="t">{koreanTimeAgo(p.createdAt)}</span>
-          </div>
-        </>
-      ),
-    });
-  }
-  // Recent site edits (pages updatedAt)
-  for (const s of sites.slice(0, 3)) {
-    const lastPage = s.pages.reduce<{ updatedAt: Date } | null>((acc, p) => {
-      if (!acc) return p;
-      return p.updatedAt > acc.updatedAt ? p : acc;
-    }, null);
-    if (lastPage) {
-      activities.push({
-        kind: "edit",
-        when: lastPage.updatedAt,
-        node: (
-          <>
-            <div className="dv2-a-title">
-              <b>{s.name || s.shopId}</b> 페이지 수정
-            </div>
-            <div className="dv2-a-sub">
-              <span className="t">{koreanTimeAgo(lastPage.updatedAt)}</span>
-              <span>·</span>
-              <span className="mono">@{s.shopId}</span>
-            </div>
-          </>
-        ),
-      });
-    }
-  }
-  activities.sort((a, b) => b.when.getTime() - a.when.getTime());
-  const topActivities = activities.slice(0, 6);
 
   return (
     <>
@@ -586,33 +514,6 @@ export default async function DashboardPage() {
               </div>
             </div>
 
-            {/* Quick actions */}
-            <div className="dv2-quick">
-              <AICreateButton emailVerified={isEmailVerifiedForAI} labels={aiLabels} renderAsCard />
-              <Link className="dv2-action tpl" href="/dashboard/templates">
-                <div className="ai-bg" /><div className="glow" />
-                <div className="inner">
-                  <div className="ic"><Icon id="i-template" size={22} style={{ color: "#fff" }} /></div>
-                  <div className="text">
-                    <div className="ttl">템플릿 기반 제작 <span className="tag">{allSiteTemplates}+</span></div>
-                    <div className="desc">업종별 검증된 디자인으로 시작</div>
-                  </div>
-                  <div className="arr"><Icon id="i-arr-right" size={20} /></div>
-                </div>
-              </Link>
-              <Link className="dv2-action order" href="/dashboard/orders">
-                <div className="ai-bg" /><div className="glow" />
-                <div className="inner">
-                  <div className="ic"><Icon id="i-handshake" size={22} style={{ color: "#fff" }} /></div>
-                  <div className="text">
-                    <div className="ttl">주문제작 의뢰 <span className="tag">PRO</span></div>
-                    <div className="desc">전문 디자이너 1:1 매칭</div>
-                  </div>
-                  <div className="arr"><Icon id="i-arr-right" size={20} /></div>
-                </div>
-              </Link>
-            </div>
-
             {/* Stats */}
             <div className="dv2-stats">
               <div className="dv2-stat">
@@ -819,71 +720,187 @@ export default async function DashboardPage() {
               )}
             </section>
 
-            {/* Bottom grid */}
+            {/* 주문 / 예약 / 문의 — 3-column list panels */}
             {sites.length > 0 && (
-              <div className="dv2-bottom">
-                <section className="dv2-panel dv2-activity">
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+                  gap: 16,
+                }}
+              >
+                {/* 최근 주문 */}
+                <section className="dv2-panel">
                   <div className="dv2-panel-head">
-                    <h2>최근 활동</h2>
+                    <h2>
+                      <Icon id="i-bag" size={14} /> 최근 주문
+                      <span className="count">{recentOrders.length}</span>
+                    </h2>
                     <div className="tools">
                       <Link href="/dashboard/orders" style={{ color: "var(--brand)", fontSize: 12, fontWeight: 600 }}>
                         모두 보기 →
                       </Link>
                     </div>
                   </div>
-                  <div className="a-list">
-                    {topActivities.length === 0 ? (
-                      <div className="dv2-empty">
-                        <div className="d">아직 활동 내역이 없습니다</div>
-                      </div>
-                    ) : (
-                      topActivities.map((a, i) => (
-                        <div key={i} className="dv2-a-item">
-                          <div
-                            className={`dv2-a-ic ${a.kind === "order" ? "order" : a.kind === "board" ? "board" : "edit"}`}
-                          >
-                            <Icon
-                              id={a.kind === "order" ? "i-bag" : a.kind === "board" ? "i-mail" : "i-edit"}
-                              size={15}
-                            />
+                  {recentOrders.length === 0 ? (
+                    <div className="dv2-empty">
+                      <div className="d">최근 주문이 없습니다</div>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column" }}>
+                      {recentOrders.map((o) => (
+                        <Link
+                          key={o.id}
+                          href={`/dashboard/orders/${o.id}`}
+                          style={{
+                            padding: "12px 20px",
+                            borderTop: "1px solid var(--line-2)",
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            gap: 10,
+                            textDecoration: "none",
+                            color: "var(--ink-0)",
+                          }}
+                        >
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 600, fontSize: 13 }}>
+                              {formatKRW(o.totalAmount)}
+                              {o.shippingName ? ` · ${o.shippingName}` : ""}
+                            </div>
+                            <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 2 }}>
+                              {koreanTimeAgo(o.createdAt)} · #{o.orderNumber}
+                            </div>
                           </div>
-                          <div className="dv2-a-main">{a.node}</div>
-                        </div>
-                      ))
-                    )}
-                  </div>
+                          <Icon id="i-chev-right" size={14} />
+                        </Link>
+                      ))}
+                    </div>
+                  )}
                 </section>
 
+                {/* 최근 예약 */}
                 <section className="dv2-panel">
                   <div className="dv2-panel-head">
-                    <h2>추천 · 다음 단계</h2>
+                    <h2>
+                      <Icon id="i-clock" size={14} /> 최근 예약
+                      <span className="count">{recentBookings.length}</span>
+                    </h2>
+                    <div className="tools">
+                      <Link href="/dashboard/boards" style={{ color: "var(--brand)", fontSize: 12, fontWeight: 600 }}>
+                        모두 보기 →
+                      </Link>
+                    </div>
                   </div>
-                  <div className="dv2-tips">
-                    <Link href="/dashboard/templates" className="dv2-tip">
-                      <div className="ic"><Icon id="i-sparkle" size={16} /></div>
-                      <div style={{ flex: 1 }}>
-                        <div className="tt">AI로 새 홈페이지 만들기</div>
-                        <div className="sub">몇 문장만 입력하면 5분 만에 완성 · 50 코인</div>
-                      </div>
-                      <div className="go"><Icon id="i-chev-right" size={16} /></div>
-                    </Link>
-                    <Link href="/dashboard/domains" className="dv2-tip t2">
-                      <div className="ic"><Icon id="i-globe" size={16} /></div>
-                      <div style={{ flex: 1 }}>
-                        <div className="tt">커스텀 도메인 연결하기</div>
-                        <div className="sub">내 도메인으로 전문성 UP · SSL 자동 발급 무료</div>
-                      </div>
-                      <div className="go"><Icon id="i-chev-right" size={16} /></div>
-                    </Link>
-                    <Link href="/dashboard/credits" className="dv2-tip t3">
-                      <div className="ic"><Icon id="i-credit" size={16} /></div>
-                      <div style={{ flex: 1 }}>
-                        <div className="tt">크레딧 충전하고 AI 편집 이어가기</div>
-                        <div className="sub">현재 {credits.toLocaleString()}C 보유 · 스타터 팩 100C ₩5,500</div>
-                      </div>
-                      <div className="go"><Icon id="i-chev-right" size={16} /></div>
-                    </Link>
+                  {recentBookings.length === 0 ? (
+                    <div className="dv2-empty">
+                      <div className="d">예약 내역이 없습니다</div>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column" }}>
+                      {recentBookings.map((p) => {
+                        const s = siteById.get(p.siteId);
+                        return (
+                          <Link
+                            key={`${p.siteId}-${p.legacyId}`}
+                            href={p.category ? `/dashboard/boards/${p.category.id}` : "/dashboard/boards"}
+                            style={{
+                              padding: "12px 20px",
+                              borderTop: "1px solid var(--line-2)",
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              gap: 10,
+                              textDecoration: "none",
+                              color: "var(--ink-0)",
+                            }}
+                          >
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div
+                                style={{
+                                  fontWeight: 600,
+                                  fontSize: 13,
+                                  whiteSpace: "nowrap",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                }}
+                              >
+                                {p.title || "(제목 없음)"}
+                              </div>
+                              <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 2 }}>
+                                {koreanTimeAgo(p.createdAt)}
+                                {p.author ? ` · ${p.author}` : ""}
+                                {s ? ` · ${s.name || s.shopId}` : ""}
+                              </div>
+                            </div>
+                            <Icon id="i-chev-right" size={14} />
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </section>
+
+                {/* 최근 문의 */}
+                <section className="dv2-panel">
+                  <div className="dv2-panel-head">
+                    <h2>
+                      <Icon id="i-mail" size={14} /> 최근 문의
+                      <span className="count">{recentInquiries.length}</span>
+                    </h2>
+                    <div className="tools">
+                      <Link href="/dashboard/boards" style={{ color: "var(--brand)", fontSize: 12, fontWeight: 600 }}>
+                        모두 보기 →
+                      </Link>
+                    </div>
                   </div>
+                  {recentInquiries.length === 0 ? (
+                    <div className="dv2-empty">
+                      <div className="d">문의 내역이 없습니다</div>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column" }}>
+                      {recentInquiries.map((p) => {
+                        const s = siteById.get(p.siteId);
+                        return (
+                          <Link
+                            key={`${p.siteId}-${p.legacyId}`}
+                            href={p.category ? `/dashboard/boards/${p.category.id}` : "/dashboard/boards"}
+                            style={{
+                              padding: "12px 20px",
+                              borderTop: "1px solid var(--line-2)",
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              gap: 10,
+                              textDecoration: "none",
+                              color: "var(--ink-0)",
+                            }}
+                          >
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div
+                                style={{
+                                  fontWeight: 600,
+                                  fontSize: 13,
+                                  whiteSpace: "nowrap",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                }}
+                              >
+                                {p.title || "(제목 없음)"}
+                              </div>
+                              <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 2 }}>
+                                {koreanTimeAgo(p.createdAt)}
+                                {p.author ? ` · ${p.author}` : ""}
+                                {s ? ` · ${s.name || s.shopId}` : ""}
+                              </div>
+                            </div>
+                            <Icon id="i-chev-right" size={14} />
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
                 </section>
               </div>
             )}
