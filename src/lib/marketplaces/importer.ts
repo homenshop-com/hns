@@ -20,8 +20,12 @@ import type { NormalizedOrder } from "./types";
  */
 
 export interface ImportContext {
-  siteId: string;
+  /// Owner of the integration. Required.
   userId: string;
+  /// Optional site association — null for standalone marketplace
+  /// integrations not tied to a specific homenshop site. Imported
+  /// orders will have Order.siteId mirror this value.
+  siteId: string | null;
   channel: OrderChannel;
   /// MarketplaceIntegration.id — required for marketplace imports.
   integrationId: string;
@@ -80,6 +84,7 @@ async function resolveCustomer(
     }
     const created = await prisma.customer.create({
       data: {
+        userId: ctx.userId,
         siteId: ctx.siteId,
         channel: ctx.channel,
         integrationId: ctx.integrationId,
@@ -101,6 +106,7 @@ async function resolveCustomer(
   }
   const created = await prisma.customer.create({
     data: {
+      userId: ctx.userId,
       siteId: ctx.siteId,
       channel: ctx.channel,
       integrationId: ctx.integrationId,

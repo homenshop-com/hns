@@ -45,7 +45,13 @@ export async function POST(request: NextRequest) {
   // back to decrypting credentials if displayName is empty.
   const candidates = await prisma.marketplaceIntegration.findMany({
     where: { channel: "SHOPIFY", status: "ACTIVE" },
-    include: { site: { select: { userId: true } } },
+    select: {
+      id: true,
+      userId: true,
+      siteId: true,
+      displayName: true,
+      credentials: true,
+    },
   });
 
   type ShopifyCreds = { shop: string };
@@ -104,8 +110,8 @@ export async function POST(request: NextRequest) {
 
   await importOrder(
     {
+      userId: matched.userId,
       siteId: matched.siteId,
-      userId: matched.site.userId,
       channel: "SHOPIFY",
       integrationId: matched.id,
     },

@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
 
   const integration = await prisma.marketplaceIntegration.findUnique({
     where: { id: integrationId },
-    include: { site: { select: { id: true } } },
+    select: { id: true, channel: true, userId: true, siteId: true },
   });
   if (!integration || integration.channel !== "SHOPIFY") {
     return NextResponse.json({ error: "Integration not found" }, { status: 404 });
@@ -77,6 +77,6 @@ export async function GET(request: NextRequest) {
   });
 
   return NextResponse.redirect(
-    `${request.nextUrl.origin}/dashboard/integrations?siteId=${integration.siteId}&connected=shopify`,
+    `${request.nextUrl.origin}/dashboard/integrations?connected=shopify`,
   );
 }

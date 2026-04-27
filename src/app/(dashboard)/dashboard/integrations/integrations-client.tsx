@@ -12,104 +12,221 @@ interface Adapter {
   implemented: boolean;
 }
 
-export interface SiteIntegration {
+interface SiteOption {
+  id: string;
+  name: string;
+  shopId: string;
+}
+
+interface Integration {
   id: string;
   channel: Channel;
   label: string;
   displayName: string | null;
+  siteId: string | null;
+  siteName: string | null;
+  siteShopId: string | null;
   status: "DISCONNECTED" | "ACTIVE" | "ERROR" | "PAUSED";
   lastSyncAt: string | null;
   lastError: string | null;
 }
 
-const STATUS_BADGE: Record<SiteIntegration["status"], { label: string; bg: string; fg: string }> = {
+const CHANNEL_DESCRIPTIONS: Record<Channel, string> = {
+  SHOPIFY: "Shopify 스토어 OAuth 연결, 주문 자동 동기화",
+  COUPANG: "쿠팡 Wing 오픈마켓 API 키 등록",
+  AMAZON: "Amazon SP-API LWA OAuth + IAM 연결",
+  QOO10: "Qoo10 QSM API 키 등록 (KR/JP/SG)",
+  RAKUTEN: "Rakuten Ichiba RMS WebService 연결",
+  TIKTOKSHOP: "TikTok Shop Open Platform OAuth",
+};
+
+const CHANNEL_LOGO_BG: Record<Channel, string> = {
+  SHOPIFY: "#5fa44b",
+  COUPANG: "#e62e2e",
+  AMAZON: "#232f3e",
+  QOO10: "#e91e63",
+  RAKUTEN: "#bf0000",
+  TIKTOKSHOP: "#000000",
+};
+
+const STATUS_BADGE: Record<Integration["status"], { label: string; bg: string; fg: string }> = {
   ACTIVE: { label: "연결됨", bg: "#dcfce7", fg: "#166534" },
   ERROR: { label: "오류", bg: "#fee2e2", fg: "#991b1b" },
   PAUSED: { label: "일시정지", bg: "#fef3c7", fg: "#92400e" },
   DISCONNECTED: { label: "미연결", bg: "#f1f5f9", fg: "#64748b" },
 };
 
-const CHANNEL_BADGE_BG: Record<Channel, string> = {
-  SHOPIFY: "#dcfce7",
-  COUPANG: "#fee2e2",
-  AMAZON: "#fef3c7",
-  QOO10: "#fce7f3",
-  RAKUTEN: "#dbeafe",
-  TIKTOKSHOP: "#f3e8ff",
-};
-const CHANNEL_BADGE_FG: Record<Channel, string> = {
-  SHOPIFY: "#166534",
-  COUPANG: "#991b1b",
-  AMAZON: "#92400e",
-  QOO10: "#9d174d",
-  RAKUTEN: "#1e40af",
-  TIKTOKSHOP: "#6b21a8",
-};
-
-const CHANNEL_LABELS: Record<Channel, string> = {
-  SHOPIFY: "Shopify",
-  COUPANG: "쿠팡",
-  AMAZON: "Amazon",
-  QOO10: "Qoo10",
-  RAKUTEN: "Rakuten",
-  TIKTOKSHOP: "TikTok",
-};
-
-interface SiteChannelsProps {
-  siteId: string;
-  integrations: SiteIntegration[];
-  adapters: Adapter[];
-}
-
-export default function SiteChannelsClient({
-  siteId,
-  integrations,
+export default function IntegrationsClient({
+  sites,
   adapters,
-}: SiteChannelsProps) {
+  integrations,
+}: {
+  sites: SiteOption[];
+  adapters: Adapter[];
+  integrations: Integration[];
+}) {
   const router = useRouter();
-  const [modal, setModal] = useState<{
+  const [modalState, setModalState] = useState<{
     channel: Channel;
     integrationId?: string;
   } | null>(null);
-  const [showAddMenu, setShowAddMenu] = useState(false);
+
+  const byChannel = new Map<Channel, Integration[]>();
+  for (const integ of integrations) {
+    const list = byChannel.get(integ.channel) ?? [];
+    list.push(integ);
+    byChannel.set(integ.channel, list);
+  }
 
   return (
-    <div className="dv2-channels">
-      {/* Existing marketplace integrations */}
-      {integrations.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          {integrations.map((integ) => {
-            const badge = STATUS_BADGE[integ.status];
-            const adapter = adapters.find((a) => a.channel === integ.channel);
+    <>
+      <section className="dv2-panel">
+        <div className="dv2-panel-head">
+          <h2>
+            연결 가능한 마켓플레이스
+            <span className="count">{adapters.length}개</span>
+          </h2>
+        </div>
+        <div style={{ padding: 18, display: "flex", flexDirection: "column", gap: 18 }}>
+          {adapters.map((a) => {
+            const accounts = byChannel.get(a.channel) ?? [];
+            return (
+              <ChannelGroup
+                key={a.channel}
+                adapter={a}
+                accounts={accounts}
+                onConnect={() => setModalState({ channel: a.channel })}
+                onEdit={(id) => setModalState({ channel: a.channel, integrationId: id })}
+                onDelete={async (id, label) => {
+                  if (!confirm(`"${label}" 계정 연동을 끊을까요?`)) return;
+                  const r = await fetch(`/api/integrations?integrationId=${id}`, {
+                    method: "DELETE",
+                  });
+                  if (r.ok) router.refresh();
+                }}
+              />
+            );
+          })}
+        </div>
+      </section>
+
+      {modalState && (
+        <ConnectModal
+          sites={sites}
+          channel={modalState.channel}
+          integrationId={modalState.integrationId}
+          existing={
+            modalState.integrationId
+              ? integrations.find((i) => i.id === modalState.integrationId) ?? null
+              : null
+          }
+          adapter={adapters.find((a) => a.channel === modalState.channel)!}
+          onClose={() => setModalState(null)}
+          onSaved={() => {
+            setModalState(null);
+            router.refresh();
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+function ChannelGroup({
+  adapter,
+  accounts,
+  onConnect,
+  onEdit,
+  onDelete,
+}: {
+  adapter: Adapter;
+  accounts: Integration[];
+  onConnect: () => void;
+  onEdit: (id: string) => void;
+  onDelete: (id: string, label: string) => void;
+}) {
+  return (
+    <div style={{ border: "1px solid var(--line)", borderRadius: 12, background: "#fff" }}>
+      <div
+        style={{
+          padding: "14px 16px",
+          borderBottom: accounts.length > 0 ? "1px solid var(--line-2)" : "none",
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+        }}
+      >
+        <div
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 8,
+            background: CHANNEL_LOGO_BG[adapter.channel],
+            color: "#fff",
+            display: "grid",
+            placeItems: "center",
+            fontWeight: 700,
+            fontSize: 15,
+            flexShrink: 0,
+          }}
+        >
+          {adapter.displayName.slice(0, 1)}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ fontWeight: 700, fontSize: 14 }}>{adapter.displayName}</div>
+            {!adapter.implemented && (
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 600,
+                  padding: "1px 6px",
+                  borderRadius: 8,
+                  background: "#fef3c7",
+                  color: "#92400e",
+                }}
+              >
+                준비중
+              </span>
+            )}
+            <span style={{ fontSize: 11, color: "var(--ink-3)" }}>
+              {accounts.length > 0 ? `· ${accounts.length}개 계정` : "· 미연결"}
+            </span>
+          </div>
+          <div style={{ fontSize: 12, color: "var(--ink-2)", marginTop: 2 }}>
+            {CHANNEL_DESCRIPTIONS[adapter.channel]}
+          </div>
+        </div>
+        <button
+          type="button"
+          className="dv2-row-btn primary"
+          onClick={onConnect}
+          disabled={!adapter.implemented && accounts.length === 0}
+          style={!adapter.implemented && accounts.length === 0 ? { opacity: 0.6, cursor: "not-allowed" } : undefined}
+          title={!adapter.implemented ? "추후 출시 예정 — 키 등록만 미리 가능" : "이 마켓플레이스에 새 셀러 계정 연결"}
+        >
+          + 계정 추가
+        </button>
+      </div>
+
+      {accounts.length > 0 && (
+        <div>
+          {accounts.map((a, idx) => {
+            const badge = STATUS_BADGE[a.status];
             return (
               <div
-                key={integ.id}
+                key={a.id}
                 style={{
+                  padding: "12px 16px",
+                  borderTop: idx > 0 ? "1px solid var(--line-2)" : undefined,
                   display: "flex",
                   alignItems: "center",
                   gap: 12,
-                  padding: "10px 16px",
-                  borderTop: "1px solid var(--line-2)",
                 }}
               >
-                <span
-                  style={{
-                    display: "inline-block",
-                    padding: "2px 10px",
-                    fontSize: 11,
-                    fontWeight: 600,
-                    borderRadius: 10,
-                    background: CHANNEL_BADGE_BG[integ.channel],
-                    color: CHANNEL_BADGE_FG[integ.channel],
-                    minWidth: 60,
-                    textAlign: "center",
-                  }}
-                >
-                  {CHANNEL_LABELS[integ.channel]}
-                </span>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontWeight: 600, fontSize: 13 }}>{integ.label}</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2, flexWrap: "wrap" }}>
+                    <div style={{ fontWeight: 600, fontSize: 13 }}>{a.label}</div>
                     <span
                       style={{
                         fontSize: 10,
@@ -122,37 +239,29 @@ export default function SiteChannelsClient({
                     >
                       {badge.label}
                     </span>
-                    {adapter && !adapter.implemented && (
+                    {a.siteId && a.siteName && (
                       <span
                         style={{
                           fontSize: 10,
                           fontWeight: 600,
                           padding: "1px 6px",
                           borderRadius: 8,
-                          background: "#fef3c7",
-                          color: "#92400e",
+                          background: "#eaefff",
+                          color: "#2545e0",
                         }}
+                        title={`연결된 홈앤샵 사이트: @${a.siteShopId}`}
                       >
-                        준비중
+                        🔗 {a.siteName}
                       </span>
                     )}
                   </div>
-                  <div
-                    style={{
-                      fontSize: 11,
-                      color: "var(--ink-3)",
-                      marginTop: 2,
-                      display: "flex",
-                      gap: 10,
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    {integ.displayName && <span>{integ.displayName}</span>}
-                    {integ.lastSyncAt && (
-                      <span>최근 동기화: {new Date(integ.lastSyncAt).toLocaleString("ko-KR")}</span>
+                  <div style={{ fontSize: 11, color: "var(--ink-3)", display: "flex", gap: 10, flexWrap: "wrap" }}>
+                    {a.displayName && <span>{a.displayName}</span>}
+                    {a.lastSyncAt && (
+                      <span>최근 동기화: {new Date(a.lastSyncAt).toLocaleString("ko-KR")}</span>
                     )}
                   </div>
-                  {integ.lastError && (
+                  {a.lastError && (
                     <div
                       style={{
                         marginTop: 6,
@@ -163,28 +272,18 @@ export default function SiteChannelsClient({
                         borderRadius: 6,
                       }}
                     >
-                      {integ.lastError.slice(0, 200)}
+                      {a.lastError.slice(0, 200)}
                     </div>
                   )}
                 </div>
-                <button
-                  type="button"
-                  className="dv2-row-btn"
-                  onClick={() => setModal({ channel: integ.channel, integrationId: integ.id })}
-                >
+                <button type="button" className="dv2-row-btn" onClick={() => onEdit(a.id)}>
                   재연결
                 </button>
                 <button
                   type="button"
                   className="dv2-row-btn"
                   style={{ color: "#dc2626" }}
-                  onClick={async () => {
-                    if (!confirm(`"${integ.label}" 연동을 끊을까요?`)) return;
-                    const r = await fetch(`/api/integrations?integrationId=${integ.id}`, {
-                      method: "DELETE",
-                    });
-                    if (r.ok) router.refresh();
-                  }}
+                  onClick={() => onDelete(a.id, a.label)}
                 >
                   연결 끊기
                 </button>
@@ -193,125 +292,15 @@ export default function SiteChannelsClient({
           })}
         </div>
       )}
-
-      {/* + 마켓플레이스 추가 dropdown */}
-      <div
-        style={{
-          padding: "12px 16px",
-          borderTop: "1px solid var(--line-2)",
-          background: "#fafbfd",
-          position: "relative",
-        }}
-      >
-        <button
-          type="button"
-          className="dv2-row-btn"
-          onClick={() => setShowAddMenu((v) => !v)}
-          style={{ fontSize: 12 }}
-        >
-          + 마켓플레이스 계정 연결 ▾
-        </button>
-        {showAddMenu && (
-          <div
-            style={{
-              position: "absolute",
-              top: "100%",
-              left: 16,
-              zIndex: 20,
-              background: "#fff",
-              border: "1px solid var(--line)",
-              borderRadius: 8,
-              boxShadow: "var(--shadow-md)",
-              marginTop: 4,
-              minWidth: 240,
-              overflow: "hidden",
-            }}
-          >
-            {adapters.map((a) => (
-              <button
-                key={a.channel}
-                type="button"
-                onClick={() => {
-                  setShowAddMenu(false);
-                  setModal({ channel: a.channel });
-                }}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: "10px 14px",
-                  width: "100%",
-                  border: "none",
-                  background: "transparent",
-                  textAlign: "left",
-                  cursor: "pointer",
-                  fontSize: 13,
-                  borderBottom: "1px solid var(--line-2)",
-                }}
-                onMouseOver={(e) => (e.currentTarget.style.background = "#f2f4fa")}
-                onMouseOut={(e) => (e.currentTarget.style.background = "transparent")}
-              >
-                <span
-                  style={{
-                    display: "inline-block",
-                    padding: "1px 8px",
-                    fontSize: 10,
-                    fontWeight: 600,
-                    borderRadius: 8,
-                    background: CHANNEL_BADGE_BG[a.channel],
-                    color: CHANNEL_BADGE_FG[a.channel],
-                  }}
-                >
-                  {CHANNEL_LABELS[a.channel]}
-                </span>
-                <span style={{ flex: 1 }}>{a.displayName}</span>
-                {!a.implemented && (
-                  <span
-                    style={{
-                      fontSize: 10,
-                      fontWeight: 600,
-                      padding: "1px 6px",
-                      borderRadius: 8,
-                      background: "#fef3c7",
-                      color: "#92400e",
-                    }}
-                  >
-                    준비중
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {modal && (
-        <ConnectModal
-          siteId={siteId}
-          channel={modal.channel}
-          integrationId={modal.integrationId}
-          existing={
-            modal.integrationId
-              ? integrations.find((i) => i.id === modal.integrationId) ?? null
-              : null
-          }
-          adapter={adapters.find((a) => a.channel === modal.channel)!}
-          onClose={() => setModal(null)}
-          onSaved={() => {
-            setModal(null);
-            router.refresh();
-          }}
-        />
-      )}
     </div>
   );
 }
 
 interface ConnectModalProps {
-  siteId: string;
+  sites: SiteOption[];
   channel: Channel;
   integrationId?: string;
-  existing: SiteIntegration | null;
+  existing: Integration | null;
   adapter: Adapter;
   onClose: () => void;
   onSaved: () => void;
@@ -367,7 +356,7 @@ const CHANNEL_FIELDS: Record<Channel, FieldDef[]> = {
 };
 
 function ConnectModal({
-  siteId,
+  sites,
   channel,
   integrationId,
   existing,
@@ -376,6 +365,7 @@ function ConnectModal({
   onSaved,
 }: ConnectModalProps) {
   const [label, setLabel] = useState(existing?.label ?? "");
+  const [siteId, setSiteId] = useState<string>(existing?.siteId ?? "");
   const [values, setValues] = useState<Record<string, string>>(
     existing?.displayName ? { shop: existing.displayName } : {},
   );
@@ -404,7 +394,12 @@ function ConnectModal({
         const r = await fetch("/api/integrations/shopify/install", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ siteId, label: label.trim(), shop, integrationId }),
+          body: JSON.stringify({
+            label: label.trim(),
+            shop,
+            integrationId,
+            siteId: siteId || null,
+          }),
         });
         const data = await r.json();
         if (!r.ok || !data.url) {
@@ -419,11 +414,11 @@ function ConnectModal({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          siteId,
           channel,
           label: label.trim(),
           credentials: values,
           integrationId,
+          siteId: siteId || null,
         }),
       });
       const data = await r.json();
@@ -503,6 +498,39 @@ function ConnectModal({
               같은 마켓플레이스에 여러 셀러 계정을 연결할 때 구분하기 위한 이름입니다.
             </div>
           </label>
+
+          {sites.length > 0 && (
+            <label style={{ display: "block" }}>
+              <span style={{ display: "block", fontSize: 12, color: "var(--ink-2)", marginBottom: 4 }}>
+                홈앤샵 사이트 연결 (선택)
+              </span>
+              <select
+                value={siteId}
+                onChange={(e) => setSiteId(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "8px 10px",
+                  fontSize: 13,
+                  border: "1px solid var(--line)",
+                  borderRadius: 6,
+                  outline: "none",
+                  background: "#fff",
+                }}
+              >
+                <option value="">— 연결 안 함 (독립 마켓플레이스) —</option>
+                {sites.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name || s.shopId} (@{s.shopId})
+                  </option>
+                ))}
+              </select>
+              <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 3 }}>
+                특정 홈앤샵 사이트와 연결하면 재고/고객 데이터를 함께 관리할 수 있습니다.
+                선택하지 않으면 독립 마켓플레이스로 동작합니다.
+              </div>
+            </label>
+          )}
+
           {fields.map((f) => (
             <label key={f.key} style={{ display: "block" }}>
               <span style={{ display: "block", fontSize: 12, color: "var(--ink-2)", marginBottom: 4 }}>

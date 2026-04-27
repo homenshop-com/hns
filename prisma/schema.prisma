@@ -87,6 +87,11 @@ model User {
   templates           Template[]
   creditTransactions  CreditTransaction[]
   supportThread       SupportThread?
+  /// Marketplace integrations are owned at the User level — not tied to a
+  /// specific homenshop site. A seller can connect Coupang/Shopify/etc
+  /// independently of any individual storefront they may also operate.
+  marketplaceIntegrations MarketplaceIntegration[]
+  customers           Customer[]
 
   @@index([email])
   @@index([shopId])
@@ -466,19 +471,23 @@ model OrderItem {
 // Customers (separated from shipping info on Order)
 // ============================================
 
-/// Repeat-customer entity. Created on first order from a given email/phone
-/// per site. Splits buyer identity from per-order shipping data so analytics
-/// and CS workflows can group orders by customer without scanning shipping
-/// strings. Marketplace-imported orders also resolve to Customer when
-/// possible (marketplaces give us the buyer's email/handle).
+/// Repeat-customer entity. Splits buyer identity from per-order shipping
+/// data so analytics and CS workflows can group orders by customer without
+/// scanning shipping strings. Marketplace-imported orders resolve to
+/// Customer when possible (marketplaces give us the buyer's email/handle).
 ///
-/// Scoped by integrationId for marketplace customers — two different
-/// seller accounts on Qoo10 can legitimately have the same buyer login id
-/// (the buyer is the same person, but business-wise we treat each seller
-/// account's customer base as independent for CS/loyalty/analytics).
+/// Scoped at User level (siteId is optional — marketplace customers may
+/// have no homenshop site association). Marketplace customers are further
+/// scoped by integrationId, so two seller accounts on Qoo10 can have
+/// separate customer bases even for the same buyer login id.
 model Customer {
   id            String  @id @default(cuid())
-  siteId        String
+  /// Owner — required. Marketplace customers always belong to one user
+  /// regardless of whether they're tied to a homenshop site.
+  userId        String
+  /// Optional homenshop site association. Null for marketplace-only
+  /// customers (no homenshop site involved).
+  siteId        String?
   /// Channel where this customer first appeared. STOREFRONT for native
   /// orders, marketplace value for imported orders.
   channel       OrderChannel @default(STOREFRONT)
@@ -497,7 +506,8 @@ model Customer {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  site        Site                    @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  user        User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  site        Site?                   @relation(fields: [siteId], references: [id], onDelete: SetNull)
   integration MarketplaceIntegration? @relation(fields: [integrationId], references: [id], onDelete: SetNull)
   orders      Order[]
 
@@ -505,6 +515,7 @@ model Customer {
   /// STOREFRONT customers (integrationId null) skip this index — they're
   /// matched best-effort by email/phone in the importer.
   @@unique([integrationId, externalId], name: "integrationId_externalId")
+  @@index([userId])
   @@index([siteId])
   @@index([integrationId])
   @@index([email])
@@ -515,16 +526,27 @@ model Customer {
 // Marketplace integration & product mapping
 // ============================================
 
-/// Per-site connection to an external marketplace. Multiple rows per
-/// (site, channel) ARE allowed — sellers commonly run several seller
-/// accounts on the same marketplace (e.g. one Qoo10 account for beauty
-/// products, another for food). Each row represents one account, with
-/// its own credentials, label, and order stream.
+/// Marketplace integration — owned by a User, NOT a Site.
+///
+/// A seller may run a Coupang/Shopify/etc account that's completely
+/// independent of any homenshop site they have. So MarketplaceIntegration
+/// is scoped at User level. The optional `siteId` lets the seller
+/// associate an integration with a specific homenshop site for unified
+/// inventory/customer management — but it's not required.
+///
+/// Multiple rows per (user, channel) ARE allowed — sellers commonly run
+/// several seller accounts on the same marketplace (e.g. one Qoo10 account
+/// for beauty products, another for food). Each row represents one
+/// account, with its own credentials, label, and order stream.
 ///
 /// Credentials are AES-256-GCM encrypted JSON blobs (see src/lib/secrets.ts).
 model MarketplaceIntegration {
   id          String           @id @default(cuid())
-  siteId      String
+  /// Owner of the integration. Required.
+  userId      String
+  /// Optional association with a homenshop site (for inventory/customer
+  /// linking). Null = standalone marketplace, no homenshop site involved.
+  siteId      String?
   channel     OrderChannel
   /// Human-readable label set by the seller to distinguish multiple
   /// accounts on the same marketplace ("뷰티 계정", "식품 계정" etc.).
@@ -550,11 +572,13 @@ model MarketplaceIntegration {
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
-  site      Site                    @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  user      User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  site      Site?                   @relation(fields: [siteId], references: [id], onDelete: SetNull)
   orders    Order[]
   customers Customer[]
   productMappings ProductChannelMapping[]
 
+  @@index([userId, channel])
   @@index([siteId, channel])
   @@index([channel])
   @@index([status])

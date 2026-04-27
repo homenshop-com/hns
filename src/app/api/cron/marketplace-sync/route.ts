@@ -41,12 +41,19 @@ export async function GET(request: NextRequest) {
 
   const integrations = await prisma.marketplaceIntegration.findMany({
     where: { status: "ACTIVE" },
-    include: { site: { select: { userId: true } } },
+    select: {
+      id: true,
+      userId: true,
+      siteId: true,
+      channel: true,
+      lastSyncAt: true,
+      credentials: true,
+    },
   });
 
   const results: Array<{
     integrationId: string;
-    siteId: string;
+    siteId: string | null;
     channel: string;
     imported?: number;
     updated?: number;
@@ -76,8 +83,8 @@ export async function GET(request: NextRequest) {
       const { orders, cursor } = await adapter.listOrdersSince(creds, sinceMs);
       const summary = await importOrders(
         {
+          userId: integ.userId,
           siteId: integ.siteId,
-          userId: integ.site.userId,
           channel: integ.channel,
           integrationId: integ.id,
         },

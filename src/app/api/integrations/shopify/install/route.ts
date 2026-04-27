@@ -6,24 +6,19 @@ import { encryptJson } from "@/lib/secrets";
 /**
  * POST /api/integrations/shopify/install
  *
- * Body: { siteId, label, shop, integrationId? }
+ * Body: { label, shop, integrationId?, siteId? }
  *   integrationId: optional — when re-authing an existing integration.
+ *   siteId: optional — associate with a homenshop site for unified
+ *     inventory/customer management. Pure marketplace setups skip this.
  *
  * Returns: { url, integrationId }
  *
- * Multi-account flow:
- *   1. Create (or reuse) a placeholder MarketplaceIntegration row with
- *      status=DISCONNECTED, encrypted-empty credentials, the seller's
- *      label. This gives us an integrationId we can round-trip through
- *      the OAuth `state` param.
- *   2. Build the install URL with state=siteId=<id>:integrationId=<id>.
+ * Multi-account flow (user-scoped):
+ *   1. Create (or reuse) a placeholder MarketplaceIntegration row owned by
+ *      the calling user, with status=DISCONNECTED and the user's label.
+ *   2. Build the install URL with state=integrationId=<id>.
  *   3. After Shopify approves, the callback handler updates that
  *      specific integration row with the access token.
- *
- * Why not create-on-callback: the seller's label needs to be persisted
- * before the redirect, otherwise we'd lose it during the round-trip.
- * We could pass it through `state`, but state has size limits and the
- * label is user-supplied so it could be arbitrary text.
  */
 export async function POST(request: NextRequest) {
   const session = await auth();
@@ -32,15 +27,15 @@ export async function POST(request: NextRequest) {
   }
 
   const body = (await request.json()) as {
-    siteId?: string;
     label?: string;
     shop?: string;
     integrationId?: string;
+    siteId?: string | null;
   };
-  const { siteId, label, shop, integrationId } = body;
-  if (!siteId || !shop || !label?.trim()) {
+  const { label, shop, integrationId, siteId } = body;
+  if (!shop || !label?.trim()) {
     return NextResponse.json(
-      { error: "siteId, label, shop required" },
+      { error: "label, shop required" },
       { status: 400 },
     );
   }
@@ -57,12 +52,15 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const site = await prisma.site.findFirst({
-    where: { id: siteId, userId: session.user.id },
-    select: { id: true },
-  });
-  if (!site) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  // Validate site ownership if a site association was specified.
+  if (siteId) {
+    const site = await prisma.site.findFirst({
+      where: { id: siteId, userId: session.user.id },
+      select: { id: true },
+    });
+    if (!site) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
   }
 
   const apiKey = process.env.SHOPIFY_API_KEY;
@@ -73,29 +71,32 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Create or reuse the placeholder integration row.
   let placeholderId: string;
   if (integrationId) {
     const existing = await prisma.marketplaceIntegration.findUnique({
       where: { id: integrationId },
-      include: { site: { select: { userId: true } } },
+      select: { userId: true },
     });
-    if (!existing || existing.site.userId !== session.user.id) {
+    if (!existing || existing.userId !== session.user.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     await prisma.marketplaceIntegration.update({
       where: { id: integrationId },
-      data: { label: label.trim(), displayName: normalizedShop },
+      data: {
+        label: label.trim(),
+        displayName: normalizedShop,
+        siteId: siteId ?? null,
+      },
     });
     placeholderId = integrationId;
   } else {
     const created = await prisma.marketplaceIntegration.create({
       data: {
-        siteId,
+        userId: session.user.id,
+        siteId: siteId ?? null,
         channel: "SHOPIFY",
         label: label.trim(),
         displayName: normalizedShop,
-        // Encrypt an empty placeholder so the column is never raw-empty.
         credentials: encryptJson({ pending: true }),
         status: "DISCONNECTED",
       },

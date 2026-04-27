@@ -7,17 +7,18 @@ import type { OrderChannel } from "@/generated/prisma/client";
 import type { MarketplaceCredentials } from "@/lib/marketplaces/types";
 
 /**
- * Marketplace integration management — multi-account aware.
+ * Marketplace integration management — user-scoped, multi-account.
  *
- * GET    /api/integrations?siteId=...        — list ALL integrations
- *                                               for the site (multiple per
- *                                               channel allowed)
- * POST   /api/integrations                   — create new account
- *   body: { siteId, channel, label, credentials, integrationId? }
- *   if integrationId is set, updates that one (re-auth / key rotation)
+ * GET    /api/integrations                   — list ALL integrations
+ *                                               for the current user
+ * POST   /api/integrations                   — create / update an integration
+ *   body: { channel, label, credentials, integrationId?, siteId? }
+ *     siteId is optional — links the integration to a specific homenshop
+ *     site for inventory/customer association, but is not required.
+ *     integrationId is optional — when present, updates that row.
  * DELETE /api/integrations?integrationId=... — remove an integration
  *
- * Authorization: caller must own the site (Site.userId === session.user.id).
+ * Authorization: caller must own the integration / site referenced.
  */
 
 const VALID_CHANNELS: OrderChannel[] = [
@@ -41,9 +42,9 @@ async function assertSiteOwner(siteId: string, userId: string) {
 async function assertIntegrationOwner(integrationId: string, userId: string) {
   const integ = await prisma.marketplaceIntegration.findUnique({
     where: { id: integrationId },
-    include: { site: { select: { userId: true } } },
+    select: { userId: true, channel: true, siteId: true, id: true },
   });
-  if (!integ || integ.site.userId !== userId) throw new Error("FORBIDDEN");
+  if (!integ || integ.userId !== userId) throw new Error("FORBIDDEN");
   return integ;
 }
 
@@ -52,29 +53,26 @@ export async function GET(request: NextRequest) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  // Optional: filter by siteId if caller wants only those associated
+  // with a specific site. Default returns all user-owned integrations.
   const siteId = request.nextUrl.searchParams.get("siteId");
-  if (!siteId) {
-    return NextResponse.json({ error: "siteId required" }, { status: 400 });
-  }
-  try {
-    await assertSiteOwner(siteId, session.user.id);
-  } catch {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
+  const where = siteId
+    ? { userId: session.user.id, siteId }
+    : { userId: session.user.id };
   const integrations = await prisma.marketplaceIntegration.findMany({
-    where: { siteId },
+    where,
     select: {
       id: true,
       channel: true,
       label: true,
       displayName: true,
+      siteId: true,
+      site: { select: { name: true, shopId: true } },
       status: true,
       lastSyncAt: true,
       lastError: true,
       createdAt: true,
       updatedAt: true,
-      // Never expose credentials over the API.
     },
     orderBy: [{ channel: "asc" }, { createdAt: "asc" }],
   });
@@ -87,18 +85,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const body = (await request.json()) as {
-    siteId?: string;
     channel?: string;
     label?: string;
     credentials?: MarketplaceCredentials;
-    /// If provided, updates the existing row (re-auth / key rotation).
-    /// Otherwise creates a new row — multiple per channel are allowed.
     integrationId?: string;
+    siteId?: string | null;
   };
-  const { siteId, channel, label, credentials, integrationId } = body;
-  if (!siteId || !channel || !credentials || !label?.trim()) {
+  const { channel, label, credentials, integrationId, siteId } = body;
+  if (!channel || !credentials || !label?.trim()) {
     return NextResponse.json(
-      { error: "siteId, channel, label, credentials required" },
+      { error: "channel, label, credentials required" },
       { status: 400 },
     );
   }
@@ -106,12 +102,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid channel" }, { status: 400 });
   }
   try {
-    await assertSiteOwner(siteId, session.user.id);
+    if (siteId) await assertSiteOwner(siteId, session.user.id);
     if (integrationId) {
       const existing = await assertIntegrationOwner(integrationId, session.user.id);
-      if (existing.siteId !== siteId || existing.channel !== channel) {
+      if (existing.channel !== channel) {
         return NextResponse.json(
-          { error: "integrationId mismatch with siteId/channel" },
+          { error: "channel mismatch with integrationId" },
           { status: 400 },
         );
       }
@@ -125,8 +121,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "No adapter" }, { status: 400 });
   }
 
-  // Validate credentials against the live API before persisting.
-  // For stub adapters we still allow saving so the seller can pre-fill keys.
   const verify = adapter.implemented
     ? await adapter.verifyCredentials(credentials)
     : { ok: false, message: "adapter not implemented" };
@@ -138,6 +132,7 @@ export async function POST(request: NextRequest) {
       where: { id: integrationId },
       data: {
         label: label.trim(),
+        siteId: siteId ?? null,
         credentials: encryptJson(credentials),
         status,
         lastError: verify.ok ? null : verify.message ?? "verification failed",
@@ -147,7 +142,8 @@ export async function POST(request: NextRequest) {
   }
   const created = await prisma.marketplaceIntegration.create({
     data: {
-      siteId,
+      userId: session.user.id,
+      siteId: siteId ?? null,
       channel: channel as OrderChannel,
       label: label.trim(),
       credentials: encryptJson(credentials),
