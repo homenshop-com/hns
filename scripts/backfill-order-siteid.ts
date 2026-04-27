@@ -7,7 +7,7 @@
  * reference). Prisma 7 generates TypeScript-only client; .mjs can't
  * import it without tsx, so the canonical script is .ts.
  */
-import { PrismaClient } from "../src/generated/prisma";
+import { PrismaClient } from "../src/generated/prisma/client";
 
 const prisma = new PrismaClient();
 
