@@ -21,7 +21,8 @@ export type DashboardNavKey =
   | "support"
   | "templates"
   | "search"
-  | "products";
+  | "products"
+  | "integrations";
 
 export interface DashboardCrumb {
   label: string;
@@ -118,6 +119,10 @@ export default async function DashboardShell({
             <Link className={cls("domains")} href="/dashboard/domains">
               <span className="ic"><Icon id="i-globe" /></span>
               <span className="label">도메인 관리</span>
+            </Link>
+            <Link className={cls("integrations")} href="/dashboard/integrations">
+              <span className="ic"><Icon id="i-link" /></span>
+              <span className="label">마켓플레이스 연동</span>
             </Link>
           </nav>
 

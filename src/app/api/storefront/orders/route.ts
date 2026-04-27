@@ -150,6 +150,8 @@ export async function POST(request: NextRequest) {
       return tx.order.create({
         data: {
           userId: site.userId,
+          siteId: site.id,
+          channel: "STOREFRONT",
           orderNumber,
           totalAmount,
           shippingName,

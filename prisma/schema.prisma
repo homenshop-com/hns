@@ -164,16 +164,19 @@ model Site {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
-  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  pages             Page[]
-  products          Product[]
-  boardCategories   BoardCategory[]
-  boardPosts        BoardPost[]
-  boardPlugins      BoardPlugin[]
-  productCategories ProductCategory[]
-  productPlugins    ProductPlugin[]
-  domains           Domain[]
-  hmfTranslations   SiteHmf[]
+  user                    User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pages                   Page[]
+  products                Product[]
+  boardCategories         BoardCategory[]
+  boardPosts              BoardPost[]
+  boardPlugins            BoardPlugin[]
+  productCategories       ProductCategory[]
+  productPlugins          ProductPlugin[]
+  domains                 Domain[]
+  hmfTranslations         SiteHmf[]
+  orders                  Order[]
+  customers               Customer[]
+  marketplaceIntegrations MarketplaceIntegration[]
 
   @@index([userId])
   @@index([isTemplateStorage])
@@ -248,8 +251,9 @@ model Product {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
-  site       Site        @relation(fields: [siteId], references: [id], onDelete: Cascade)
-  orderItems OrderItem[]
+  site            Site                    @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  orderItems      OrderItem[]
+  channelMappings ProductChannelMapping[]
 
   @@unique([siteId, legacyId])
   @@index([siteId])
@@ -265,6 +269,9 @@ enum ProductStatus {
 model Order {
   id            String      @id @default(cuid())
   userId        String
+  /// Site this order belongs to. Null for CREDIT_PACK / SUBSCRIPTION
+  /// (which are platform-level purchases not tied to a specific storefront).
+  siteId        String?
   orderNumber   String      @unique
   totalAmount   Int
   status        OrderStatus @default(PENDING)
@@ -272,6 +279,18 @@ model Order {
   /// CREDIT_PACK = AI credit top-up; on PAID → grants credits.packSize credits.
   /// SUBSCRIPTION = paid site plan (1yr/2yr/3yr); on PAID → extends Site.expiresAt.
   orderType     OrderType   @default(PRODUCT)
+  /// Source channel — STOREFRONT for orders placed on a homenshop site,
+  /// or one of the marketplace enums for orders synced from external platforms.
+  channel       OrderChannel @default(STOREFRONT)
+  /// External marketplace's order ID (Coupang's orderSheetCode, Shopify's
+  /// order id, etc.). Combined with channel, must be unique to dedupe syncs.
+  externalOrderId String?
+  /// Raw JSON snapshot of the external marketplace's order response, kept
+  /// for audit/debugging and for replaying mappers when normalizers change.
+  externalRawJson Json?
+  /// Optional Customer reference (separates buyer identity from shipping
+  /// info, enables repeat-customer analytics, GDPR-clean PII separation).
+  customerId    String?
   /// For CREDIT_PACK orders: number of credits purchased.
   creditAmount  Int?
   /// For SUBSCRIPTION orders: number of months to extend the linked site.
@@ -288,12 +307,18 @@ model Order {
   updatedAt     DateTime    @updatedAt
 
   user               User                @relation(fields: [userId], references: [id])
+  site               Site?               @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  customer           Customer?           @relation(fields: [customerId], references: [id], onDelete: SetNull)
   items              OrderItem[]
   creditTransactions CreditTransaction[]
 
+  @@unique([channel, externalOrderId], name: "channel_externalOrderId")
   @@index([userId])
+  @@index([siteId])
   @@index([orderNumber])
   @@index([orderType])
+  @@index([channel])
+  @@index([customerId])
 }
 
 enum OrderStatus {
@@ -309,6 +334,20 @@ enum OrderType {
   PRODUCT
   CREDIT_PACK
   SUBSCRIPTION
+}
+
+/// Channel (sales source) for an Order.
+/// STOREFRONT = customer ordered directly from a homenshop-published site.
+/// Other values represent orders synced FROM external marketplaces; the
+/// adapter that imported the order sets this and writes externalOrderId.
+enum OrderChannel {
+  STOREFRONT
+  SHOPIFY
+  COUPANG
+  AMAZON
+  QOO10
+  RAKUTEN
+  TIKTOKSHOP
 }
 
 // ============================================
@@ -391,16 +430,130 @@ model ImageCache {
 }
 
 model OrderItem {
-  id        String @id @default(cuid())
+  id        String  @id @default(cuid())
   orderId   String
-  productId String
+  /// Internal product reference. Null when the OrderItem represents a
+  /// marketplace SKU that has not been mapped to a homenshop Product yet
+  /// (we still want to import the order; mapping can happen later).
+  productId String?
+  /// External marketplace SKU/item identifier (Coupang's vendorItemId,
+  /// Shopify's variant_id, etc.). Set for marketplace orders; null for
+  /// native storefront orders that have a productId.
+  externalSku String?
+  /// Display name captured at import time so the UI is readable even if
+  /// the seller hasn't mapped the SKU to a Product yet.
+  externalName String?
   quantity  Int
   price     Int
 
-  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id])
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id])
 
   @@index([orderId])
+  @@index([productId])
+  @@index([externalSku])
+}
+
+// ============================================
+// Customers (separated from shipping info on Order)
+// ============================================
+
+/// Repeat-customer entity. Created on first order from a given email/phone
+/// per site. Splits buyer identity from per-order shipping data so analytics
+/// and CS workflows can group orders by customer without scanning shipping
+/// strings. Marketplace-imported orders also resolve to Customer when
+/// possible (marketplaces give us the buyer's email/handle).
+model Customer {
+  id          String  @id @default(cuid())
+  siteId      String
+  /// Channel where this customer first appeared. STOREFRONT for native
+  /// orders, marketplace value for imported orders.
+  channel     OrderChannel @default(STOREFRONT)
+  /// Marketplace's buyer identifier (Coupang buyer login id, etc.).
+  /// Null for STOREFRONT customers identified by email/phone only.
+  externalId  String?
+  email       String?
+  phone       String?
+  name        String?
+  /// Free-form metadata bag (loyalty tier, marketplace VIP flag, etc.).
+  meta        Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  site   Site    @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  orders Order[]
+
+  @@unique([siteId, channel, externalId], name: "siteId_channel_externalId")
+  @@index([siteId])
+  @@index([email])
+  @@index([phone])
+}
+
+// ============================================
+// Marketplace integration & product mapping
+// ============================================
+
+/// Per-site connection to an external marketplace. One row per (site,
+/// channel) — a single site can connect to all 6 marketplaces. Credentials
+/// are AES-256-GCM encrypted JSON blobs (see src/lib/crypto.ts) since
+/// marketplaces vary wildly in their auth shape (OAuth tokens, API key
+/// pairs, refresh tokens, vendor IDs, etc.).
+model MarketplaceIntegration {
+  id          String           @id @default(cuid())
+  siteId      String
+  channel     OrderChannel
+  /// Encrypted JSON: marketplace-specific credentials (access token,
+  /// refresh token, vendorId, secret, etc.). Decrypted via decryptJson()
+  /// only at the moment of API call — never logged.
+  credentials String           @db.Text
+  status      IntegrationStatus @default(DISCONNECTED)
+  /// Last successful sync poll (or webhook receive). Drives the cron's
+  /// "sync since X" cursor for marketplaces that lack push webhooks.
+  lastSyncAt  DateTime?
+  /// Most recent error string from a failed sync, surfaced in the
+  /// integrations dashboard so the seller can act on token expiry etc.
+  lastError   String?          @db.Text
+  /// Marketplace-specific config (region, currency, fulfilment policy).
+  config      Json?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@unique([siteId, channel], name: "siteId_channel")
+  @@index([channel])
+  @@index([status])
+}
+
+enum IntegrationStatus {
+  DISCONNECTED
+  ACTIVE
+  ERROR
+  PAUSED
+}
+
+/// Maps a homenshop Product to one or more external marketplace SKUs.
+/// One Product can be listed on multiple channels with different SKUs;
+/// one external SKU maps to exactly one Product per channel.
+model ProductChannelMapping {
+  id                String       @id @default(cuid())
+  productId         String
+  channel           OrderChannel
+  /// External SKU as it appears in marketplace order items.
+  externalSku       String
+  /// External product/listing ID (separate from SKU on marketplaces that
+  /// distinguish, e.g. Shopify product_id vs variant_id).
+  externalProductId String?
+  /// Last time inventory/price was pushed to the marketplace.
+  lastSyncedAt      DateTime?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([channel, externalSku], name: "channel_externalSku")
+  @@unique([productId, channel], name: "productId_channel")
+  @@index([productId])
 }
 
 // ============================================

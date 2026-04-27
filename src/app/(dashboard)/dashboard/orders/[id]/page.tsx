@@ -206,7 +206,7 @@ export default async function DashboardOrderDetailPage({
                     className="border-b border-zinc-100 last:border-0 dark:border-zinc-800"
                   >
                     <td className="px-6 py-4 font-medium">
-                      {item.product.name}
+                      {item.product?.name ?? item.externalName ?? "(미매핑 SKU)"}
                     </td>
                     <td className="px-6 py-4 text-right whitespace-nowrap">
                       {item.price.toLocaleString("ko-KR")}원

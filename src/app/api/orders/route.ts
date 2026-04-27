@@ -191,7 +191,7 @@ export async function POST(request: NextRequest) {
 
   // Send order confirmation email (fire-and-forget)
   const emailItems = order.items.map((item) => ({
-    name: item.product.name,
+    name: item.product?.name ?? item.externalName ?? "(상품)",
     quantity: item.quantity,
     price: item.price,
   }));

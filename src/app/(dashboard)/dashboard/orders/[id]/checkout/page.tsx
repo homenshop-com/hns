@@ -47,7 +47,7 @@ export default async function CheckoutPage({
     shippingAddr: order.shippingAddr,
     items: order.items.map((item) => ({
       id: item.id,
-      productName: item.product.name,
+      productName: item.product?.name ?? item.externalName ?? "(미매핑 SKU)",
       quantity: item.quantity,
       price: item.price,
     })),
