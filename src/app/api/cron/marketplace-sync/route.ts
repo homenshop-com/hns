@@ -79,6 +79,7 @@ export async function GET(request: NextRequest) {
           siteId: integ.siteId,
           userId: integ.site.userId,
           channel: integ.channel,
+          integrationId: integ.id,
         },
         orders,
       );

@@ -60,7 +60,7 @@ const CHANNEL_BADGE_FG: Record<OrderChannel, string> = {
 export default async function DashboardOrdersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ siteId?: string; channel?: string; status?: string }>;
+  searchParams: Promise<{ siteId?: string; channel?: string; status?: string; integrationId?: string }>;
 }) {
   const session = await auth();
   if (!session) {
@@ -71,12 +71,26 @@ export default async function DashboardOrdersPage({
   const filterSiteId = sp.siteId || "";
   const filterChannel = sp.channel || "";
   const filterStatus = sp.status || "";
+  const filterIntegrationId = sp.integrationId || "";
 
   // List of user's sites for the site filter chip group.
   const sites = await prisma.site.findMany({
     where: { userId: session.user.id, isTemplateStorage: false },
     select: { id: true, name: true, shopId: true },
     orderBy: { createdAt: "asc" },
+  });
+
+  // List of user's marketplace integrations for the per-account filter chip.
+  const userIntegrations = await prisma.marketplaceIntegration.findMany({
+    where: { site: { userId: session.user.id } },
+    select: {
+      id: true,
+      siteId: true,
+      channel: true,
+      label: true,
+      displayName: true,
+    },
+    orderBy: [{ channel: "asc" }, { createdAt: "asc" }],
   });
 
   const where: Prisma.OrderWhereInput = { userId: session.user.id };
@@ -87,6 +101,7 @@ export default async function DashboardOrdersPage({
   if (filterStatus && filterStatus !== "ALL") {
     where.status = filterStatus as OrderStatus;
   }
+  if (filterIntegrationId) where.integrationId = filterIntegrationId;
 
   const orders = await prisma.order.findMany({
     where,
@@ -94,6 +109,7 @@ export default async function DashboardOrdersPage({
     take: 200,
     include: {
       site: { select: { id: true, name: true, shopId: true } },
+      integration: { select: { id: true, label: true, displayName: true } },
       items: {
         include: {
           product: {
@@ -118,6 +134,7 @@ export default async function DashboardOrdersPage({
     if (filterSiteId) params.set("siteId", filterSiteId);
     if (filterChannel) params.set("channel", filterChannel);
     if (filterStatus) params.set("status", filterStatus);
+    if (filterIntegrationId) params.set("integrationId", filterIntegrationId);
     for (const [k, v] of Object.entries(overrides)) {
       if (v === undefined || v === "") params.delete(k);
       else params.set(k, v);
@@ -125,6 +142,17 @@ export default async function DashboardOrdersPage({
     const s = params.toString();
     return s ? `?${s}` : "";
   }
+
+  // Filter integrations to those matching the active site/channel filter.
+  // (The chip strip should only show accounts that could realistically
+  // appear in the current view.)
+  const visibleIntegrations = userIntegrations.filter((i) => {
+    if (filterSiteId && i.siteId !== filterSiteId) return false;
+    if (filterChannel && filterChannel !== "ALL" && filterChannel !== "STOREFRONT" && i.channel !== filterChannel) {
+      return false;
+    }
+    return true;
+  });
 
   return (
     <DashboardShell
@@ -168,8 +196,8 @@ export default async function DashboardOrdersPage({
       )}
 
       {/* Channel filter */}
-      <div className="dv2-chip-group" style={{ marginBottom: 16, display: "flex", flexWrap: "wrap" }}>
-        <Link href={`/dashboard/orders${qs({ channel: undefined })}`}
+      <div className="dv2-chip-group" style={{ marginBottom: 12, display: "flex", flexWrap: "wrap" }}>
+        <Link href={`/dashboard/orders${qs({ channel: undefined, integrationId: undefined })}`}
               className={`dv2-chip${!filterChannel ? " on" : ""}`}>
           전체 채널 <span className="n">{totalAcrossAllChannels}</span>
         </Link>
@@ -179,7 +207,7 @@ export default async function DashboardOrdersPage({
           return (
             <Link
               key={c}
-              href={`/dashboard/orders${qs({ channel: c })}`}
+              href={`/dashboard/orders${qs({ channel: c, integrationId: undefined })}`}
               className={`dv2-chip${filterChannel === c ? " on" : ""}`}
             >
               {CHANNEL_LABELS[c]} <span className="n">{n}</span>
@@ -187,6 +215,28 @@ export default async function DashboardOrdersPage({
           );
         })}
       </div>
+
+      {/* Integration (per-account) filter — shown when there's at least one
+          marketplace account and a channel filter is active or the user has
+          multiple accounts on any channel. */}
+      {visibleIntegrations.length > 0 && (
+        <div className="dv2-chip-group" style={{ marginBottom: 16, display: "flex", flexWrap: "wrap" }}>
+          <Link href={`/dashboard/orders${qs({ integrationId: undefined })}`}
+                className={`dv2-chip${!filterIntegrationId ? " on" : ""}`}>
+            전체 계정
+          </Link>
+          {visibleIntegrations.map((i) => (
+            <Link
+              key={i.id}
+              href={`/dashboard/orders${qs({ integrationId: i.id })}`}
+              className={`dv2-chip${filterIntegrationId === i.id ? " on" : ""}`}
+              title={i.displayName ?? undefined}
+            >
+              {CHANNEL_LABELS[i.channel]} · {i.label}
+            </Link>
+          ))}
+        </div>
+      )}
 
       {orders.length === 0 ? (
         <section className="dv2-panel">
@@ -250,9 +300,15 @@ export default async function DashboardOrdersPage({
                           background: CHANNEL_BADGE_BG[order.channel],
                           color: CHANNEL_BADGE_FG[order.channel],
                         }}
+                        title={order.integration?.displayName ?? undefined}
                       >
                         {channelLabel}
                       </span>
+                      {order.integration && (
+                        <div style={{ fontSize: 10, color: "var(--ink-3)", marginTop: 2 }}>
+                          {order.integration.label}
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400 text-xs">
                       {order.site ? (

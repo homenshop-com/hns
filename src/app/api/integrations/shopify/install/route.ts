@@ -1,16 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { encryptJson } from "@/lib/secrets";
 
 /**
  * POST /api/integrations/shopify/install
  *
- * Body: { siteId, shop }
- * Returns: { url } — the Shopify OAuth install URL the client should redirect to.
+ * Body: { siteId, label, shop, integrationId? }
+ *   integrationId: optional — when re-authing an existing integration.
  *
- * Why a server endpoint (vs building the URL in the client): SHOPIFY_API_KEY
- * lives in env (not exposed to the browser), and we want to validate that
- * the caller actually owns the site before sending them through OAuth.
+ * Returns: { url, integrationId }
+ *
+ * Multi-account flow:
+ *   1. Create (or reuse) a placeholder MarketplaceIntegration row with
+ *      status=DISCONNECTED, encrypted-empty credentials, the seller's
+ *      label. This gives us an integrationId we can round-trip through
+ *      the OAuth `state` param.
+ *   2. Build the install URL with state=siteId=<id>:integrationId=<id>.
+ *   3. After Shopify approves, the callback handler updates that
+ *      specific integration row with the access token.
+ *
+ * Why not create-on-callback: the seller's label needs to be persisted
+ * before the redirect, otherwise we'd lose it during the round-trip.
+ * We could pass it through `state`, but state has size limits and the
+ * label is user-supplied so it could be arbitrary text.
  */
 export async function POST(request: NextRequest) {
   const session = await auth();
@@ -18,16 +31,25 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = (await request.json()) as { siteId?: string; shop?: string };
-  const { siteId, shop } = body;
-  if (!siteId || !shop) {
-    return NextResponse.json({ error: "siteId, shop required" }, { status: 400 });
+  const body = (await request.json()) as {
+    siteId?: string;
+    label?: string;
+    shop?: string;
+    integrationId?: string;
+  };
+  const { siteId, label, shop, integrationId } = body;
+  if (!siteId || !shop || !label?.trim()) {
+    return NextResponse.json(
+      { error: "siteId, label, shop required" },
+      { status: 400 },
+    );
   }
 
   // Allow either "yourstore.myshopify.com" or "yourstore" — normalize.
-  const normalizedShop = shop.toLowerCase().trim().endsWith(".myshopify.com")
-    ? shop.toLowerCase().trim()
-    : `${shop.toLowerCase().trim()}.myshopify.com`;
+  const trimmed = shop.toLowerCase().trim();
+  const normalizedShop = trimmed.endsWith(".myshopify.com")
+    ? trimmed
+    : `${trimmed}.myshopify.com`;
   if (!/^[a-z0-9-]+\.myshopify\.com$/.test(normalizedShop)) {
     return NextResponse.json(
       { error: "Invalid shop domain" },
@@ -51,9 +73,39 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Create or reuse the placeholder integration row.
+  let placeholderId: string;
+  if (integrationId) {
+    const existing = await prisma.marketplaceIntegration.findUnique({
+      where: { id: integrationId },
+      include: { site: { select: { userId: true } } },
+    });
+    if (!existing || existing.site.userId !== session.user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    await prisma.marketplaceIntegration.update({
+      where: { id: integrationId },
+      data: { label: label.trim(), displayName: normalizedShop },
+    });
+    placeholderId = integrationId;
+  } else {
+    const created = await prisma.marketplaceIntegration.create({
+      data: {
+        siteId,
+        channel: "SHOPIFY",
+        label: label.trim(),
+        displayName: normalizedShop,
+        // Encrypt an empty placeholder so the column is never raw-empty.
+        credentials: encryptJson({ pending: true }),
+        status: "DISCONNECTED",
+      },
+    });
+    placeholderId = created.id;
+  }
+
   const scopes = process.env.SHOPIFY_SCOPES || "read_orders,read_products";
   const redirectUri = `${request.nextUrl.origin}/api/integrations/shopify/callback`;
-  const state = encodeURIComponent(`siteId=${siteId}`);
+  const state = encodeURIComponent(`integrationId=${placeholderId}`);
   const url =
     `https://${normalizedShop}/admin/oauth/authorize` +
     `?client_id=${apiKey}` +
@@ -62,5 +114,5 @@ export async function POST(request: NextRequest) {
     `&state=${state}` +
     `&grant_options[]=`;
 
-  return NextResponse.json({ url });
+  return NextResponse.json({ url, integrationId: placeholderId });
 }

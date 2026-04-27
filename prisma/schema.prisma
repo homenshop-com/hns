@@ -282,8 +282,12 @@ model Order {
   /// Source channel — STOREFRONT for orders placed on a homenshop site,
   /// or one of the marketplace enums for orders synced from external platforms.
   channel       OrderChannel @default(STOREFRONT)
+  /// FK to the MarketplaceIntegration this order was imported through.
+  /// Null for STOREFRONT orders. Multiple integrations of the same channel
+  /// can exist (multi-account), so dedupe is scoped by integrationId.
+  integrationId String?
   /// External marketplace's order ID (Coupang's orderSheetCode, Shopify's
-  /// order id, etc.). Combined with channel, must be unique to dedupe syncs.
+  /// order id, etc.). Combined with integrationId, must be unique to dedupe.
   externalOrderId String?
   /// Raw JSON snapshot of the external marketplace's order response, kept
   /// for audit/debugging and for replaying mappers when normalizers change.
@@ -308,13 +312,17 @@ model Order {
 
   user               User                @relation(fields: [userId], references: [id])
   site               Site?               @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  integration        MarketplaceIntegration? @relation(fields: [integrationId], references: [id], onDelete: SetNull)
   customer           Customer?           @relation(fields: [customerId], references: [id], onDelete: SetNull)
   items              OrderItem[]
   creditTransactions CreditTransaction[]
 
-  @@unique([channel, externalOrderId], name: "channel_externalOrderId")
+  /// Dedupe within a marketplace account, not across the whole channel —
+  /// two different Shopify shops can legitimately produce the same order id.
+  @@unique([integrationId, externalOrderId], name: "integrationId_externalOrderId")
   @@index([userId])
   @@index([siteId])
+  @@index([integrationId])
   @@index([orderNumber])
   @@index([orderType])
   @@index([channel])
@@ -463,28 +471,42 @@ model OrderItem {
 /// and CS workflows can group orders by customer without scanning shipping
 /// strings. Marketplace-imported orders also resolve to Customer when
 /// possible (marketplaces give us the buyer's email/handle).
+///
+/// Scoped by integrationId for marketplace customers — two different
+/// seller accounts on Qoo10 can legitimately have the same buyer login id
+/// (the buyer is the same person, but business-wise we treat each seller
+/// account's customer base as independent for CS/loyalty/analytics).
 model Customer {
-  id          String  @id @default(cuid())
-  siteId      String
+  id            String  @id @default(cuid())
+  siteId        String
   /// Channel where this customer first appeared. STOREFRONT for native
   /// orders, marketplace value for imported orders.
-  channel     OrderChannel @default(STOREFRONT)
+  channel       OrderChannel @default(STOREFRONT)
+  /// FK to MarketplaceIntegration. Null for STOREFRONT customers.
+  /// Two integrations of the same channel get separate Customer rows
+  /// even for the same buyer (each seller account = independent base).
+  integrationId String?
   /// Marketplace's buyer identifier (Coupang buyer login id, etc.).
   /// Null for STOREFRONT customers identified by email/phone only.
-  externalId  String?
-  email       String?
-  phone       String?
-  name        String?
+  externalId    String?
+  email         String?
+  phone         String?
+  name          String?
   /// Free-form metadata bag (loyalty tier, marketplace VIP flag, etc.).
-  meta        Json?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  meta          Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  site   Site    @relation(fields: [siteId], references: [id], onDelete: Cascade)
-  orders Order[]
+  site        Site                    @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  integration MarketplaceIntegration? @relation(fields: [integrationId], references: [id], onDelete: SetNull)
+  orders      Order[]
 
-  @@unique([siteId, channel, externalId], name: "siteId_channel_externalId")
+  /// Marketplace-side dedupe: one customer per (integration, externalId).
+  /// STOREFRONT customers (integrationId null) skip this index — they're
+  /// matched best-effort by email/phone in the importer.
+  @@unique([integrationId, externalId], name: "integrationId_externalId")
   @@index([siteId])
+  @@index([integrationId])
   @@index([email])
   @@index([phone])
 }
@@ -493,15 +515,25 @@ model Customer {
 // Marketplace integration & product mapping
 // ============================================
 
-/// Per-site connection to an external marketplace. One row per (site,
-/// channel) — a single site can connect to all 6 marketplaces. Credentials
-/// are AES-256-GCM encrypted JSON blobs (see src/lib/crypto.ts) since
-/// marketplaces vary wildly in their auth shape (OAuth tokens, API key
-/// pairs, refresh tokens, vendor IDs, etc.).
+/// Per-site connection to an external marketplace. Multiple rows per
+/// (site, channel) ARE allowed — sellers commonly run several seller
+/// accounts on the same marketplace (e.g. one Qoo10 account for beauty
+/// products, another for food). Each row represents one account, with
+/// its own credentials, label, and order stream.
+///
+/// Credentials are AES-256-GCM encrypted JSON blobs (see src/lib/secrets.ts).
 model MarketplaceIntegration {
   id          String           @id @default(cuid())
   siteId      String
   channel     OrderChannel
+  /// Human-readable label set by the seller to distinguish multiple
+  /// accounts on the same marketplace ("뷰티 계정", "식품 계정" etc.).
+  /// Required — UI prompts for it on every connect/edit.
+  label       String
+  /// Adapter-supplied display name (Shopify shop URL, Coupang vendor name).
+  /// Useful when the human label is empty or duplicated. Set during OAuth
+  /// callback / verifyCredentials, not by the user.
+  displayName String?
   /// Encrypted JSON: marketplace-specific credentials (access token,
   /// refresh token, vendorId, secret, etc.). Decrypted via decryptJson()
   /// only at the moment of API call — never logged.
@@ -518,9 +550,12 @@ model MarketplaceIntegration {
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
-  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  site      Site                    @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  orders    Order[]
+  customers Customer[]
+  productMappings ProductChannelMapping[]
 
-  @@unique([siteId, channel], name: "siteId_channel")
+  @@index([siteId, channel])
   @@index([channel])
   @@index([status])
 }
@@ -532,12 +567,20 @@ enum IntegrationStatus {
   PAUSED
 }
 
-/// Maps a homenshop Product to one or more external marketplace SKUs.
-/// One Product can be listed on multiple channels with different SKUs;
-/// one external SKU maps to exactly one Product per channel.
+/// Maps a homenshop Product to a marketplace SKU per integration.
+///
+/// Scoped by integrationId because the same internal Product can be
+/// listed on multiple seller accounts (e.g. one product sold via two
+/// Qoo10 stores) with different SKUs. The same SKU could even legitimately
+/// appear in two different seller accounts on the same marketplace and
+/// refer to different products (vendor-specific SKU spaces).
 model ProductChannelMapping {
   id                String       @id @default(cuid())
   productId         String
+  /// FK to MarketplaceIntegration. Each (product, integration) pair has
+  /// at most one mapping; one product can have many mappings (one per
+  /// connected account).
+  integrationId     String
   channel           OrderChannel
   /// External SKU as it appears in marketplace order items.
   externalSku       String
@@ -549,11 +592,14 @@ model ProductChannelMapping {
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product     Product                @relation(fields: [productId], references: [id], onDelete: Cascade)
+  integration MarketplaceIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
 
-  @@unique([channel, externalSku], name: "channel_externalSku")
-  @@unique([productId, channel], name: "productId_channel")
+  @@unique([integrationId, externalSku], name: "integrationId_externalSku")
+  @@unique([productId, integrationId], name: "productId_integrationId")
   @@index([productId])
+  @@index([integrationId])
+  @@index([channel])
 }
 
 // ============================================

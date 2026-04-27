@@ -6,9 +6,12 @@ import type { NormalizedOrder } from "./types";
  * Persist a NormalizedOrder produced by a marketplace adapter.
  *
  * Responsibilities (kept out of adapters so logic is uniform):
- *   - Idempotent upsert on (channel, externalOrderId) — re-running a
- *     sync that returns the same order won't create duplicates.
- *   - Resolve buyer → Customer row (create if first time seen).
+ *   - Idempotent upsert on (integrationId, externalOrderId) — re-running
+ *     a sync that returns the same order won't create duplicates. Scoped
+ *     by integrationId so two seller accounts on the same marketplace
+ *     don't collide (different shops can produce identical order IDs).
+ *   - Resolve buyer → Customer row (create if first time seen, scoped by
+ *     integration).
  *   - Resolve external SKU → internal Product via ProductChannelMapping
  *     (best-effort; null productId is allowed so unmapped items still
  *     import and the seller can map later).
@@ -20,6 +23,8 @@ export interface ImportContext {
   siteId: string;
   userId: string;
   channel: OrderChannel;
+  /// MarketplaceIntegration.id — required for marketplace imports.
+  integrationId: string;
 }
 
 export interface ImportSummary {
@@ -49,9 +54,8 @@ async function resolveCustomer(
   if (customer.externalId) {
     const existing = await prisma.customer.findUnique({
       where: {
-        siteId_channel_externalId: {
-          siteId: ctx.siteId,
-          channel: ctx.channel,
+        integrationId_externalId: {
+          integrationId: ctx.integrationId,
           externalId: customer.externalId,
         },
       },
@@ -78,6 +82,7 @@ async function resolveCustomer(
       data: {
         siteId: ctx.siteId,
         channel: ctx.channel,
+        integrationId: ctx.integrationId,
         externalId: customer.externalId,
         email: customer.email ?? null,
         phone: customer.phone ?? null,
@@ -87,10 +92,10 @@ async function resolveCustomer(
     return created.id;
   }
 
-  // No external ID — best-effort match by email then phone within this site+channel.
+  // No external ID — best-effort match by email then phone within this integration.
   if (customer.email) {
     const existing = await prisma.customer.findFirst({
-      where: { siteId: ctx.siteId, channel: ctx.channel, email: customer.email },
+      where: { integrationId: ctx.integrationId, email: customer.email },
     });
     if (existing) return existing.id;
   }
@@ -98,6 +103,7 @@ async function resolveCustomer(
     data: {
       siteId: ctx.siteId,
       channel: ctx.channel,
+      integrationId: ctx.integrationId,
       email: customer.email ?? null,
       phone: customer.phone ?? null,
       name: customer.name ?? null,
@@ -107,12 +113,12 @@ async function resolveCustomer(
 }
 
 async function resolveProductIds(
-  channel: OrderChannel,
+  integrationId: string,
   externalSkus: string[],
 ): Promise<Map<string, string>> {
   if (externalSkus.length === 0) return new Map();
   const mappings = await prisma.productChannelMapping.findMany({
-    where: { channel, externalSku: { in: externalSkus } },
+    where: { integrationId, externalSku: { in: externalSkus } },
     select: { externalSku: true, productId: true },
   });
   return new Map(mappings.map((m) => [m.externalSku, m.productId]));
@@ -123,14 +129,14 @@ export async function importOrder(
   order: NormalizedOrder,
 ): Promise<"imported" | "updated"> {
   const productMap = await resolveProductIds(
-    ctx.channel,
+    ctx.integrationId,
     order.items.map((i) => i.externalSku).filter(Boolean),
   );
 
   const existing = await prisma.order.findUnique({
     where: {
-      channel_externalOrderId: {
-        channel: ctx.channel,
+      integrationId_externalOrderId: {
+        integrationId: ctx.integrationId,
         externalOrderId: order.externalOrderId,
       },
     },
@@ -161,6 +167,7 @@ export async function importOrder(
       userId: ctx.userId,
       siteId: ctx.siteId,
       channel: ctx.channel,
+      integrationId: ctx.integrationId,
       externalOrderId: order.externalOrderId,
       externalRawJson: order.raw as object,
       orderNumber: generateOrderNumber(ctx.channel, order.externalOrderId),

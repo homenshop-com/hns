@@ -7,10 +7,14 @@ import type { OrderChannel } from "@/generated/prisma/client";
 import type { MarketplaceCredentials } from "@/lib/marketplaces/types";
 
 /**
- * Marketplace integration management.
+ * Marketplace integration management — multi-account aware.
  *
- * GET    /api/integrations?siteId=...        — list integrations for the site
- * POST   /api/integrations                   — create / replace credentials
+ * GET    /api/integrations?siteId=...        — list ALL integrations
+ *                                               for the site (multiple per
+ *                                               channel allowed)
+ * POST   /api/integrations                   — create new account
+ *   body: { siteId, channel, label, credentials, integrationId? }
+ *   if integrationId is set, updates that one (re-auth / key rotation)
  * DELETE /api/integrations?integrationId=... — remove an integration
  *
  * Authorization: caller must own the site (Site.userId === session.user.id).
@@ -34,6 +38,15 @@ async function assertSiteOwner(siteId: string, userId: string) {
   return site;
 }
 
+async function assertIntegrationOwner(integrationId: string, userId: string) {
+  const integ = await prisma.marketplaceIntegration.findUnique({
+    where: { id: integrationId },
+    include: { site: { select: { userId: true } } },
+  });
+  if (!integ || integ.site.userId !== userId) throw new Error("FORBIDDEN");
+  return integ;
+}
+
 export async function GET(request: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -54,6 +67,8 @@ export async function GET(request: NextRequest) {
     select: {
       id: true,
       channel: true,
+      label: true,
+      displayName: true,
       status: true,
       lastSyncAt: true,
       lastError: true,
@@ -61,6 +76,7 @@ export async function GET(request: NextRequest) {
       updatedAt: true,
       // Never expose credentials over the API.
     },
+    orderBy: [{ channel: "asc" }, { createdAt: "asc" }],
   });
   return NextResponse.json({ integrations });
 }
@@ -73,12 +89,16 @@ export async function POST(request: NextRequest) {
   const body = (await request.json()) as {
     siteId?: string;
     channel?: string;
+    label?: string;
     credentials?: MarketplaceCredentials;
+    /// If provided, updates the existing row (re-auth / key rotation).
+    /// Otherwise creates a new row — multiple per channel are allowed.
+    integrationId?: string;
   };
-  const { siteId, channel, credentials } = body;
-  if (!siteId || !channel || !credentials) {
+  const { siteId, channel, label, credentials, integrationId } = body;
+  if (!siteId || !channel || !credentials || !label?.trim()) {
     return NextResponse.json(
-      { error: "siteId, channel, credentials required" },
+      { error: "siteId, channel, label, credentials required" },
       { status: 400 },
     );
   }
@@ -87,6 +107,15 @@ export async function POST(request: NextRequest) {
   }
   try {
     await assertSiteOwner(siteId, session.user.id);
+    if (integrationId) {
+      const existing = await assertIntegrationOwner(integrationId, session.user.id);
+      if (existing.siteId !== siteId || existing.channel !== channel) {
+        return NextResponse.json(
+          { error: "integrationId mismatch with siteId/channel" },
+          { status: 400 },
+        );
+      }
+    }
   } catch {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
@@ -97,39 +126,41 @@ export async function POST(request: NextRequest) {
   }
 
   // Validate credentials against the live API before persisting.
-  // For stub adapters (implemented:false) we still allow saving so the
-  // seller can pre-fill keys; status stays DISCONNECTED until the adapter
-  // is implemented.
+  // For stub adapters we still allow saving so the seller can pre-fill keys.
   const verify = adapter.implemented
     ? await adapter.verifyCredentials(credentials)
     : { ok: false, message: "adapter not implemented" };
 
   const status = verify.ok ? "ACTIVE" : (adapter.implemented ? "ERROR" : "DISCONNECTED");
 
-  const existing = await prisma.marketplaceIntegration.findUnique({
-    where: { siteId_channel: { siteId, channel: channel as OrderChannel } },
-  });
-  if (existing) {
+  if (integrationId) {
     await prisma.marketplaceIntegration.update({
-      where: { id: existing.id },
+      where: { id: integrationId },
       data: {
+        label: label.trim(),
         credentials: encryptJson(credentials),
         status,
         lastError: verify.ok ? null : verify.message ?? "verification failed",
       },
     });
-  } else {
-    await prisma.marketplaceIntegration.create({
-      data: {
-        siteId,
-        channel: channel as OrderChannel,
-        credentials: encryptJson(credentials),
-        status,
-        lastError: verify.ok ? null : verify.message ?? null,
-      },
-    });
+    return NextResponse.json({ ok: true, integrationId, status, message: verify.message });
   }
-  return NextResponse.json({ ok: true, status, message: verify.message });
+  const created = await prisma.marketplaceIntegration.create({
+    data: {
+      siteId,
+      channel: channel as OrderChannel,
+      label: label.trim(),
+      credentials: encryptJson(credentials),
+      status,
+      lastError: verify.ok ? null : verify.message ?? null,
+    },
+  });
+  return NextResponse.json({
+    ok: true,
+    integrationId: created.id,
+    status,
+    message: verify.message,
+  });
 }
 
 export async function DELETE(request: NextRequest) {
@@ -141,11 +172,9 @@ export async function DELETE(request: NextRequest) {
   if (!integrationId) {
     return NextResponse.json({ error: "integrationId required" }, { status: 400 });
   }
-  const integration = await prisma.marketplaceIntegration.findUnique({
-    where: { id: integrationId },
-    include: { site: { select: { userId: true } } },
-  });
-  if (!integration || integration.site.userId !== session.user.id) {
+  try {
+    await assertIntegrationOwner(integrationId, session.user.id);
+  } catch {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   await prisma.marketplaceIntegration.delete({ where: { id: integrationId } });

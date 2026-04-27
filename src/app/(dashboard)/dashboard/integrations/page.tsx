@@ -57,15 +57,15 @@ export default async function IntegrationsPage({
     select: {
       id: true,
       channel: true,
+      label: true,
+      displayName: true,
       status: true,
       lastSyncAt: true,
       lastError: true,
     },
+    orderBy: [{ channel: "asc" }, { createdAt: "asc" }],
   });
 
-  // listAdapters() filters out STOREFRONT, but TS can't narrow that.
-  // Cast through unknown so the client component's Exclude<...,"STOREFRONT">
-  // type lines up.
   type ConnectableChannel = Exclude<OrderChannel, "STOREFRONT">;
   const adapters = listAdapters().map((a) => ({
     channel: a.channel as ConnectableChannel,
@@ -85,8 +85,9 @@ export default async function IntegrationsPage({
         <div>
           <h1 className="dv2-page-title">마켓플레이스 연동</h1>
           <div className="dv2-page-sub">
-            외부 쇼핑몰의 주문을 한 곳에서 관리하세요. 연결된 마켓의 주문은
-            자동으로 <Link href="/dashboard/orders" style={{ color: "var(--brand)" }}>주문 관리</Link>에 합쳐집니다.
+            외부 쇼핑몰의 주문을 한 곳에서 관리하세요. 한 마켓플레이스에 여러 셀러
+            계정(예: 뷰티 / 식품)을 동시에 연결할 수 있고, 모든 주문은 자동으로{" "}
+            <Link href="/dashboard/orders" style={{ color: "var(--brand)" }}>주문 관리</Link>에 합쳐집니다.
           </div>
         </div>
       </div>
@@ -118,6 +119,8 @@ export default async function IntegrationsPage({
           .map((i) => ({
             id: i.id,
             channel: i.channel,
+            label: i.label,
+            displayName: i.displayName,
             status: i.status,
             lastSyncAt: i.lastSyncAt?.toISOString() ?? null,
             lastError: i.lastError,

@@ -1,18 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/db";
+import { decryptJson } from "@/lib/secrets";
 import { importOrder } from "@/lib/marketplaces/importer";
 
 /**
  * Shopify webhook receiver — orders/create, orders/updated, orders/cancelled.
  *
+ * Multi-account aware: a single webhook URL serves all connected Shopify
+ * shops for all sites. We look up the right integration by matching the
+ * x-shopify-shop-domain header to a stored shop in any SHOPIFY-channel
+ * MarketplaceIntegration row.
+ *
  * Webhook setup (one-time per shop): see src/lib/marketplaces/shopify.ts
  * comments. Shopify signs each payload with HMAC-SHA256 keyed by the app's
  * shared secret; we verify before doing anything.
- *
- * Topic-agnostic body shape — we just normalize and upsert via importOrder.
- * The same handler covers create / updated / cancelled because the dedupe
- * key is (channel, externalOrderId).
  */
 
 export const dynamic = "force-dynamic";
@@ -38,44 +40,42 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Missing shop domain" }, { status: 400 });
   }
 
-  // Look up which siteId/userId this Shopify shop is connected to. We
-  // store the shop domain in the encrypted credentials, so we have to
-  // search by channel and decrypt. Optimization: index by storing the
-  // shop domain in MarketplaceIntegration.config (plain) too. Here we
-  // do a simple findFirst by channel + match in code.
-  const integrations = await prisma.marketplaceIntegration.findMany({
+  // Fast path: match by displayName (we set this to the shop domain on
+  // OAuth callback, so it's already indexed by the lookup query). Falls
+  // back to decrypting credentials if displayName is empty.
+  const candidates = await prisma.marketplaceIntegration.findMany({
     where: { channel: "SHOPIFY", status: "ACTIVE" },
     include: { site: { select: { userId: true } } },
   });
 
-  // Shop domain is also embedded in the credentials; rather than decrypt all,
-  // we rely on Shopify webhooks always including the shop in body too.
-  const orderJson = JSON.parse(rawBody);
-  // The webhook body for Order topics has no shop_domain, but the header does.
-  // We try to match an integration whose credentials shop matches the header.
-  // For simplicity we decrypt all SHOPIFY-channel integrations and pick one.
-  const { decryptJson } = await import("@/lib/secrets");
   type ShopifyCreds = { shop: string };
-  let matched: typeof integrations[number] | null = null;
-  for (const integ of integrations) {
-    try {
-      const creds = decryptJson<ShopifyCreds>(integ.credentials);
-      if (creds.shop?.toLowerCase() === shopDomain.toLowerCase()) {
-        matched = integ;
-        break;
-      }
-    } catch {
-      // skip malformed credentials
+  let matched: typeof candidates[number] | null = null;
+  for (const integ of candidates) {
+    if (integ.displayName?.toLowerCase() === shopDomain.toLowerCase()) {
+      matched = integ;
+      break;
     }
   }
   if (!matched) {
-    // Webhook arrived for a shop we're no longer connected to — accept silently.
+    // displayName fallback: scan via decryption (older integrations).
+    for (const integ of candidates) {
+      try {
+        const creds = decryptJson<ShopifyCreds>(integ.credentials);
+        if (creds.shop?.toLowerCase() === shopDomain.toLowerCase()) {
+          matched = integ;
+          break;
+        }
+      } catch {
+        // skip malformed
+      }
+    }
+  }
+  if (!matched) {
+    // Webhook for a shop we're no longer connected to — accept silently.
     return NextResponse.json({ ok: true, ignored: true });
   }
 
-  // Reuse the adapter's normalizer by re-importing one order through the
-  // shared listOrdersSince path is overkill; instead inline the mapping
-  // here using the same shape. Keep this in sync with shopify.ts.
+  const orderJson = JSON.parse(rawBody);
   const raw = orderJson as {
     id: number;
     name: string;
@@ -107,6 +107,7 @@ export async function POST(request: NextRequest) {
       siteId: matched.siteId,
       userId: matched.site.userId,
       channel: "SHOPIFY",
+      integrationId: matched.id,
     },
     {
       externalOrderId: String(raw.id),
