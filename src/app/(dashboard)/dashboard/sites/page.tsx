@@ -4,17 +4,14 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import DashboardShell from "../dashboard-shell";
 import { Icon } from "../dashboard-icons";
+import SiteChannelsClient, { type SiteIntegration } from "./site-channels-client";
+import { listAdapters } from "@/lib/marketplaces/registry";
 import {
   daysUntilExpiry,
   isSiteExpired,
   shouldShowExpirationWarning,
 } from "@/lib/site-expiration";
-
-/* ────────────────────────────────────────────────────────────────
- * Helpers (mirror of /dashboard/page.tsx — extracted intentionally
- * because this page is the dedicated "내 홈페이지/쇼핑몰" account list,
- * separate from the dashboard home that bundles KPIs + activity feed.)
- * ──────────────────────────────────────────────────────────────── */
+import type { OrderChannel } from "@/generated/prisma/client";
 
 const PLAN_TAG: Record<string, { cls: string; label: string }> = {
   "0": { cls: "free", label: "무료계정" },
@@ -37,11 +34,9 @@ function hashString(s: string): number {
   for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
   return Math.abs(h);
 }
-
 function pickGradient(seed: string): [string, string] {
   return THUMB_GRADIENTS[hashString(seed) % THUMB_GRADIENTS.length];
 }
-
 function initialsFrom(s: string): string {
   const trimmed = s.trim();
   if (!trimmed) return "?";
@@ -50,7 +45,6 @@ function initialsFrom(s: string): string {
   if (/^[A-Za-z0-9]+$/.test(clean)) return clean.slice(0, 2).toUpperCase();
   return clean.slice(0, 2);
 }
-
 function koreanTimeAgo(date: Date | null | undefined): string {
   if (!date) return "—";
   const diff = Date.now() - new Date(date).getTime();
@@ -65,7 +59,7 @@ function koreanTimeAgo(date: Date | null | undefined): string {
   return `${dt.getFullYear()}.${String(dt.getMonth() + 1).padStart(2, "0")}.${String(dt.getDate()).padStart(2, "0")}`;
 }
 
-export default async function SitesAccountListPage() {
+export default async function SitesPage() {
   const session = await auth();
   if (!session) redirect("/login");
 
@@ -78,15 +72,50 @@ export default async function SitesAccountListPage() {
         orderBy: { sortOrder: "asc" },
       },
     },
-    orderBy: { updatedAt: "desc" },
+    orderBy: { createdAt: "asc" },
   });
 
-  const byPlan = {
-    all: sites.length,
-    free: sites.filter((s) => s.accountType === "0").length,
-    pro: sites.filter((s) => s.accountType === "1").length,
-    expired: sites.filter((s) => isSiteExpired(s)).length,
-  };
+  const integrations = await prisma.marketplaceIntegration.findMany({
+    where: { siteId: { in: sites.map((s) => s.id) } },
+    select: {
+      id: true,
+      siteId: true,
+      channel: true,
+      label: true,
+      displayName: true,
+      status: true,
+      lastSyncAt: true,
+      lastError: true,
+    },
+    orderBy: [{ channel: "asc" }, { createdAt: "asc" }],
+  });
+
+  type ConnectableChannel = Exclude<OrderChannel, "STOREFRONT">;
+  const adapters = listAdapters().map((a) => ({
+    channel: a.channel as ConnectableChannel,
+    displayName: a.displayName,
+    implemented: a.implemented,
+  }));
+
+  // Group integrations by site for fast lookup.
+  const integrationsBySite = new Map<string, SiteIntegration[]>();
+  for (const i of integrations) {
+    if (i.channel === "STOREFRONT") continue;
+    const list = integrationsBySite.get(i.siteId) ?? [];
+    list.push({
+      id: i.id,
+      channel: i.channel as ConnectableChannel,
+      label: i.label,
+      displayName: i.displayName,
+      status: i.status,
+      lastSyncAt: i.lastSyncAt?.toISOString() ?? null,
+      lastError: i.lastError,
+    });
+    integrationsBySite.set(i.siteId, list);
+  }
+
+  const totalIntegrations = integrations.length;
+  const activeIntegrations = integrations.filter((i) => i.status === "ACTIVE").length;
 
   return (
     <DashboardShell
@@ -101,35 +130,15 @@ export default async function SitesAccountListPage() {
         <div>
           <h1 className="dv2-page-title">내 홈페이지/쇼핑몰</h1>
           <div className="dv2-page-sub">
-            현재 <b>{sites.length}개</b>의 계정을 관리 중입니다. 각 계정마다 디자인,
-            상품 데이터, 도메인, 마켓플레이스 연동을 독립적으로 설정할 수 있습니다.
+            보유한 <b>{sites.length}개</b>의 사이트와 연결된{" "}
+            <b>{totalIntegrations}개</b>의 마켓플레이스 계정 ({activeIntegrations}개 활성)을
+            한 화면에서 관리합니다.
           </div>
-        </div>
-        <div className="dv2-chip-group">
-          <button className="dv2-chip on">전체 <span className="n">{byPlan.all}</span></button>
-          <button className="dv2-chip">무료계정 <span className="n">{byPlan.free}</span></button>
-          <button className="dv2-chip">유료계정 <span className="n">{byPlan.pro}</span></button>
-          <button className="dv2-chip">만료계정 <span className="n">{byPlan.expired}</span></button>
         </div>
       </div>
 
-      <section className="dv2-panel">
-        <div className="dv2-panel-head">
-          <h2>
-            홈페이지 계정
-            <span className="count">{sites.length} / {Math.max(sites.length, 5)}</span>
-          </h2>
-          <div className="tools">
-            <Link href="/dashboard/domains" className="dv2-tool-btn">
-              <Icon id="i-globe" size={14} /> 도메인
-            </Link>
-            <Link href="/dashboard/integrations" className="dv2-tool-btn">
-              <Icon id="i-link" size={14} /> 마켓플레이스 연동
-            </Link>
-          </div>
-        </div>
-
-        {sites.length === 0 ? (
+      {sites.length === 0 ? (
+        <section className="dv2-panel">
           <div className="dv2-empty">
             <div className="t">아직 홈페이지/쇼핑몰이 없습니다</div>
             <div className="d">AI로 5분 만에 만들거나, 120+ 템플릿 중 선택하세요.</div>
@@ -137,76 +146,73 @@ export default async function SitesAccountListPage() {
               템플릿 둘러보기 <Icon id="i-chev-right" size={12} />
             </Link>
           </div>
-        ) : (
-          <>
-            <div className="dv2-site-thead">
-              <div>홈페이지</div>
-              <div>플랜</div>
-              <div>페이지</div>
-              <div>마지막 수정</div>
-              <div className="right col-stat">홈페이지 관리</div>
-              <div />
-            </div>
+        </section>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {sites.map((s) => {
+            const plan = PLAN_TAG[s.accountType] || PLAN_TAG["0"];
+            const isExpired = isSiteExpired(s);
+            const remainingDays = daysUntilExpiry(s);
+            const warnExpiry = shouldShowExpirationWarning(s);
+            const [gradA, gradB] = pickGradient(s.shopId);
+            const initials = initialsFrom(s.name || s.shopId);
+            const homePage =
+              s.pages.find((p) => p.isHome && p.lang === s.defaultLanguage) ||
+              s.pages.find((p) => p.isHome) ||
+              s.pages[0];
+            const lastModified = s.pages.reduce<Date>(
+              (acc, p) => (p.updatedAt > acc ? p.updatedAt : acc),
+              s.updatedAt,
+            );
+            const activeDomain = s.domains[0];
+            const publicUrl = activeDomain
+              ? `https://${activeDomain.domain}`
+              : `https://home.homenshop.com/${s.shopId}/`;
+            const publicLabel = activeDomain
+              ? activeDomain.domain
+              : `home.homenshop.com/${s.shopId}`;
 
-            <div className="dv2-site-list">
-              {sites.map((s) => {
-                const plan = PLAN_TAG[s.accountType] || PLAN_TAG["0"];
-                const isExpired = isSiteExpired(s);
-                const remainingDays = daysUntilExpiry(s);
-                const warnExpiry = shouldShowExpirationWarning(s);
-                const [gradA, gradB] = pickGradient(s.shopId);
-                const initials = initialsFrom(s.name || s.shopId);
-                const homePage =
-                  s.pages.find((p) => p.isHome && p.lang === s.defaultLanguage) ||
-                  s.pages.find((p) => p.isHome) ||
-                  s.pages[0];
-                const lastModified = s.pages.reduce<Date>(
-                  (acc, p) => (p.updatedAt > acc ? p.updatedAt : acc),
-                  s.updatedAt,
-                );
-                const activeDomain = s.domains[0];
-                const publicUrl = activeDomain
-                  ? `https://${activeDomain.domain}`
-                  : `https://home.homenshop.com/${s.shopId}/`;
-                const publicLabel = activeDomain
-                  ? activeDomain.domain
-                  : `home.homenshop.com/${s.shopId}`;
+            const siteIntegrations = integrationsBySite.get(s.id) ?? [];
 
-                return (
-                  <div key={s.id} className="dv2-site-row">
-                    <div className="dv2-site-main">
-                      <div
-                        className="dv2-site-thumb"
-                        style={{ background: `linear-gradient(135deg, ${gradA}, ${gradB})` }}
-                      >
-                        {isExpired ? <span className="paused" /> : <span className="live" />}
-                        {initials}
-                      </div>
-                      <div className="dv2-site-info">
-                        <div className="dv2-site-name">{s.name || s.shopId}</div>
-                        <div className="dv2-site-meta">
-                          <span className="handle">@{s.shopId}</span>
-                          <span className="dot" />
-                          <a className="url" href={publicUrl} target="_blank" rel="noopener noreferrer">
-                            {publicLabel}
-                          </a>
-                          {!activeDomain && (
-                            <>
-                              <span className="dot" />
-                              <span className="warn">⚠ 커스텀 도메인 미연결</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div>
+            return (
+              <section key={s.id} className="dv2-panel">
+                {/* Site header */}
+                <div
+                  style={{
+                    padding: "16px 20px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 14,
+                    borderBottom: "1px solid var(--line-2)",
+                  }}
+                >
+                  <div
+                    className="dv2-site-thumb"
+                    style={{
+                      background: `linear-gradient(135deg, ${gradA}, ${gradB})`,
+                      width: 44,
+                      height: 44,
+                      borderRadius: 10,
+                      color: "#fff",
+                      display: "grid",
+                      placeItems: "center",
+                      fontWeight: 700,
+                      fontSize: 15,
+                      flexShrink: 0,
+                      position: "relative",
+                    }}
+                  >
+                    {isExpired ? <span className="paused" /> : <span className="live" />}
+                    {initials}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      <span style={{ fontSize: 16, fontWeight: 700 }}>{s.name || s.shopId}</span>
                       <span className={`dv2-plan-tag ${plan.cls}`}>{plan.label}</span>
                       {s.accountType === "0" && remainingDays !== null && (
                         <span
-                          className="dv2-expiry-chip"
                           style={{
                             display: "inline-block",
-                            marginLeft: 6,
                             padding: "2px 8px",
                             borderRadius: 10,
                             fontSize: 11,
@@ -232,45 +238,106 @@ export default async function SitesAccountListPage() {
                         </span>
                       )}
                     </div>
-                    <div className="dv2-stat-mini">
-                      <span className="n">{s.pages.length}</span>
-                      <span className="muted"> 페이지</span>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        color: "var(--ink-3)",
+                        marginTop: 4,
+                        display: "flex",
+                        gap: 8,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <span>@{s.shopId}</span>
+                      <span>·</span>
+                      <a href={publicUrl} target="_blank" rel="noopener noreferrer" style={{ color: "var(--brand)" }}>
+                        {publicLabel}
+                      </a>
+                      <span>·</span>
+                      <span>{s.pages.length} 페이지</span>
+                      <span>·</span>
+                      <span>최근 수정 {koreanTimeAgo(lastModified)}</span>
+                      {!activeDomain && (
+                        <>
+                          <span>·</span>
+                          <span style={{ color: "#b45309" }}>⚠ 커스텀 도메인 미연결</span>
+                        </>
+                      )}
                     </div>
-                    <div className="dv2-since">
-                      {koreanTimeAgo(lastModified)}
-                      <span className="d">{s.defaultLanguage.toUpperCase()}</span>
-                    </div>
-                    <div className="dv2-row-actions col-stat">
-                      <Link
-                        href={homePage ? `/dashboard/site/pages/${homePage.id}/edit` : "/dashboard/site/pages"}
-                        className="dv2-row-btn primary"
-                      >
-                        <Icon id="i-palette" size={13} /> 디자인
-                      </Link>
-                      <Link href={`/dashboard/site/${s.id}/manage`} className="dv2-row-btn">
-                        <Icon id="i-database" size={13} /> 데이터
-                      </Link>
-                      <Link href={`/dashboard/site/settings?id=${s.id}`} className="dv2-row-btn">
-                        <Icon id="i-info" size={13} /> 기본정보
-                      </Link>
-                    </div>
-                    <Link href={`/dashboard/site/settings?id=${s.id}`} className="dv2-kebab">
-                      <Icon id="i-more" size={16} />
-                    </Link>
                   </div>
-                );
-              })}
-
-              <Link href="/dashboard/templates" className="dv2-site-row add">
-                <div className="dv2-add-inner">
-                  <span className="plus"><Icon id="i-plus" size={14} /></span>
-                  새 홈페이지/쇼핑몰 추가하기
                 </div>
-              </Link>
-            </div>
-          </>
-        )}
-      </section>
+
+                {/* Native (STOREFRONT) channel row */}
+                <div
+                  style={{
+                    padding: "12px 16px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                  }}
+                >
+                  <span
+                    style={{
+                      display: "inline-block",
+                      padding: "2px 10px",
+                      fontSize: 11,
+                      fontWeight: 600,
+                      borderRadius: 10,
+                      background: "#eaefff",
+                      color: "#2545e0",
+                      minWidth: 60,
+                      textAlign: "center",
+                    }}
+                  >
+                    내 사이트
+                  </span>
+                  <div style={{ flex: 1, fontSize: 13, fontWeight: 600 }}>홈페이지 / 쇼핑몰</div>
+                  <Link
+                    href={homePage ? `/dashboard/site/pages/${homePage.id}/edit` : "/dashboard/site/pages"}
+                    className="dv2-row-btn primary"
+                  >
+                    <Icon id="i-palette" size={13} /> 디자인
+                  </Link>
+                  <Link href={`/dashboard/site/${s.id}/manage`} className="dv2-row-btn">
+                    <Icon id="i-database" size={13} /> 데이터
+                  </Link>
+                  <Link href={`/dashboard/site/settings?id=${s.id}`} className="dv2-row-btn">
+                    <Icon id="i-info" size={13} /> 기본정보
+                  </Link>
+                  <Link href="/dashboard/domains" className="dv2-row-btn">
+                    <Icon id="i-globe" size={13} /> 도메인
+                  </Link>
+                </div>
+
+                {/* Marketplace integrations + add new */}
+                <SiteChannelsClient
+                  siteId={s.id}
+                  integrations={siteIntegrations}
+                  adapters={adapters}
+                />
+              </section>
+            );
+          })}
+
+          <Link
+            href="/dashboard/templates"
+            className="dv2-site-row add"
+            style={{
+              padding: "20px",
+              border: "2px dashed var(--line)",
+              borderRadius: 14,
+              textAlign: "center",
+              color: "var(--ink-2)",
+              textDecoration: "none",
+              display: "block",
+            }}
+          >
+            <span style={{ fontSize: 14, fontWeight: 600 }}>
+              <Icon id="i-plus" size={14} /> 새 홈페이지/쇼핑몰 추가하기
+            </span>
+          </Link>
+        </div>
+      )}
     </DashboardShell>
   );
 }
