@@ -4,7 +4,6 @@ import { prisma } from "@/lib/db";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import SignOutButton from "../../sign-out-button";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ImpersonationBanner from "@/components/ImpersonationBanner";
 import EditSiteForm from "../edit-site-form";
 import LanguageGridV2 from "./language-grid-v2";
@@ -263,9 +262,6 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                 <span>{credits.toLocaleString()}</span>
                 <span className="c">coin</span>
               </Link>
-              <div className="dv2-lang">
-                <LanguageSwitcher />
-              </div>
               <Link href="/dashboard/profile" className="dv2-user" style={{ textDecoration: "none" }}>
                 <div>
                   <div className="name">{displayName}</div>

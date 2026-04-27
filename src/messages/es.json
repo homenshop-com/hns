@@ -729,7 +729,10 @@
     "deleteAccountWrongPassword": "Contraseña incorrecta.",
     "deleteAccountBtn": "Eliminar cuenta",
     "deleteAccountDeleting": "Eliminando...",
-    "deleteAccountCancel": "Cancelar"
+    "deleteAccountCancel": "Cancelar",
+    "languageSection": "Idioma / Language",
+    "languageHint": "Selecciona el idioma del panel de administración. La configuración se sincroniza en todos tus dispositivos.",
+    "languageAutoDetected": "Detectado automáticamente desde la configuración de tu navegador."
   },
   "boardsPage": {
     "title": "Gestión de tableros",

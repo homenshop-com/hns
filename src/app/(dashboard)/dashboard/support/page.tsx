@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import SignOutButton from "../sign-out-button";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ImpersonationBanner from "@/components/ImpersonationBanner";
 import { DashboardIconSprite, Icon } from "../dashboard-icons";
 import SupportChat from "./support-chat";
@@ -104,9 +103,6 @@ export default async function SupportPage() {
             </div>
             <div className="dv2-spacer" />
             <div className="dv2-topbar-actions">
-              <div className="dv2-lang">
-                <LanguageSwitcher />
-              </div>
               <Link href="/dashboard/profile" className="dv2-user" style={{ textDecoration: "none" }}>
                 <div>
                   <div className="name">{displayName}</div>

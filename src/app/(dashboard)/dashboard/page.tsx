@@ -5,7 +5,6 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/db";
 import SignOutButton from "./sign-out-button";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ImpersonationBanner from "@/components/ImpersonationBanner";
 import EmailVerifyBanner from "./email-verify-banner";
 import { getSettingBool } from "@/lib/settings";
@@ -483,9 +482,6 @@ export default async function DashboardPage() {
                 <Icon id="i-chat" size={17} />
                 <SupportUnreadIndicator variant="dot" />
               </Link>
-              <div className="dv2-lang">
-                <LanguageSwitcher />
-              </div>
               <Link href="/dashboard/profile" className="dv2-user" style={{ textDecoration: "none" }}>
                 <div>
                   <div className="name">{displayName}</div>

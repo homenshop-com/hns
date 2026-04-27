@@ -76,6 +76,11 @@ model User {
   credits       Int       @default(0)
   /// Timestamp of last monthly auto-grant (for paid plans). Null = never granted.
   lastMonthlyGrantAt DateTime?
+  /// Persistent UI language preference. Synced with the NEXT_LOCALE cookie:
+  /// when the user changes language while logged in we update both. On
+  /// login we mirror this back to the cookie so the choice follows the
+  /// user across devices/browsers. Null until first explicit selection.
+  preferredLanguage String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 

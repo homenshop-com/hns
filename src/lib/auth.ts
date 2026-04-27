@@ -108,15 +108,29 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           name: user.name,
           role: user.role,
           shopId: user.shopId ?? undefined,
+          preferredLanguage: user.preferredLanguage ?? undefined,
         };
       },
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.role = user.role;
         token.shopId = user.shopId;
+        // Surface preferredLanguage so middleware can sync NEXT_LOCALE
+        // cookie across devices without a DB hit per request.
+        token.preferredLanguage = user.preferredLanguage;
+      }
+      // When the user updates their language via /api/user/language we
+      // also call session.update() to refresh this token. The trigger is
+      // "update" and the new value comes through `session` arg.
+      if (trigger === "update" && token.sub) {
+        const fresh = await prisma.user.findUnique({
+          where: { id: token.sub },
+          select: { preferredLanguage: true },
+        });
+        token.preferredLanguage = fresh?.preferredLanguage ?? undefined;
       }
       return token;
     },
@@ -125,6 +139,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.id = token.sub!;
         session.user.role = token.role as string;
         session.user.shopId = token.shopId as string;
+        session.user.preferredLanguage = token.preferredLanguage as string | undefined;
       }
       return session;
     },

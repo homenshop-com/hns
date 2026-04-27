@@ -438,7 +438,10 @@
     "deleteAccountWrongPassword": "密碼不正確。",
     "deleteAccountBtn": "註銷帳號",
     "deleteAccountDeleting": "處理中...",
-    "deleteAccountCancel": "取消"
+    "deleteAccountCancel": "取消",
+    "languageSection": "語言 / Language",
+    "languageHint": "選擇管理員後台使用的語言。設定將在所有裝置上保持一致。",
+    "languageAutoDetected": "根據瀏覽器設定自動偵測的語言。"
   },
   "boardsPage": {
     "title": "公佈欄管理",

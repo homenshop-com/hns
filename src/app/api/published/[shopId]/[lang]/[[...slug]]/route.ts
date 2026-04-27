@@ -812,16 +812,78 @@ export async function GET(
   // Build language switcher HTML
   const siteLanguages = (site as any).languages as string[] | undefined;
   let langSwitcherHtml = "";
+  let langBannerHtml = "";
   if (siteLanguages && siteLanguages.length > 1) {
-    const langNames: Record<string, string> = { ko: "한국어", en: "English", ja: "日本語", "zh-cn": "中文", es: "Español" };
-    const options = siteLanguages.map((l) => {
-      const selected = l === lang ? " selected" : "";
-      return `<option value="${l}"${selected}>${langNames[l] || l}</option>`;
-    }).join("");
-    langSwitcherHtml = `<div style="position:absolute;top:6px;right:10px;z-index:10000;">
-      <label style="font-size:11px;color:#999;">Language</label>
-      <select onchange="var l=this.value;var p=window.location.pathname;var m=p.match(/^\\/(ko|en|ja)\\//);if(m){window.location.href='/'+l+p.substring(m[0].length-1);}else{var m2=p.match(/^\\/[^\\/]+\\/(ko|en|ja)\\//);if(m2){window.location.href=p.replace(m2[0],'/'+p.split('/')[1]+'/'+l+'/');}else{window.location.href='/'+l+'/index.html';}}" style="font-size:11px;padding:2px 4px;">${options}</select>
-    </div>`;
+    const langNames: Record<string, string> = {
+      ko: "한국어",
+      en: "English",
+      ja: "日本語",
+      "zh-cn": "中文 (简)",
+      "zh-tw": "中文 (繁)",
+      es: "Español",
+    };
+    const switchScript = `(function(l){var p=window.location.pathname;var m=p.match(/^\\/(ko|en|ja|zh-cn|zh-tw|es)\\//);if(m){window.location.href='/'+l+p.substring(m[0].length-1);}else{var m2=p.match(/^\\/[^\\/]+\\/(ko|en|ja|zh-cn|zh-tw|es)\\//);if(m2){window.location.href=p.replace(m2[0],'/'+p.split('/')[1]+'/'+l+'/');}else{window.location.href='/'+l+'/index.html';}})`;
+    const options = siteLanguages
+      .map((l) => {
+        const selected = l === lang ? " selected" : "";
+        return `<option value="${l}"${selected}>${langNames[l] || l}</option>`;
+      })
+      .join("");
+    // Footer-positioned switcher (modern SaaS pattern). Replaces the
+    // previous top-right floating select.
+    langSwitcherHtml = `<div style="text-align:center;padding:16px 0;font-size:12px;color:#888;">
+  <label for="hns-lang-switch" style="margin-right:8px;">🌐</label>
+  <select id="hns-lang-switch" onchange="${switchScript}(this.value)" style="font-size:12px;padding:4px 8px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer;">${options}</select>
+</div>`;
+
+    // First-visit banner — if the user's browser language differs from
+    // the page's language AND they haven't dismissed the banner, offer
+    // to switch. Cookie 'hns_lang_banner_dismissed' lasts 30 days. The
+    // detection runs client-side so it works for static-cached pages.
+    const langLabels: Record<string, { switchTo: string; dismiss: string; suggestion: string }> = {
+      ko: { switchTo: "한국어로 보기", dismiss: "닫기", suggestion: "한국어로 보시겠어요?" },
+      en: { switchTo: "Switch to English", dismiss: "Dismiss", suggestion: "View this site in English?" },
+      ja: { switchTo: "日本語で表示", dismiss: "閉じる", suggestion: "日本語で表示しますか?" },
+      "zh-cn": { switchTo: "切换至中文", dismiss: "关闭", suggestion: "用中文查看?" },
+      "zh-tw": { switchTo: "切換至中文", dismiss: "關閉", suggestion: "用中文查看?" },
+      es: { switchTo: "Cambiar a español", dismiss: "Cerrar", suggestion: "¿Ver en español?" },
+    };
+    const labelsJson = JSON.stringify(langLabels);
+    const sitelangsJson = JSON.stringify(siteLanguages);
+    langBannerHtml = `<script>(function(){
+      try {
+        var current = ${JSON.stringify(lang)};
+        var siteLangs = ${sitelangsJson};
+        var labels = ${labelsJson};
+        if (document.cookie.indexOf('hns_lang_banner_dismissed=1') !== -1) return;
+        // Pick the user's preferred language that's actually offered.
+        var browserLangs = (navigator.languages || [navigator.language || 'en']).map(function(s){return s.toLowerCase();});
+        var pick = null;
+        for (var i=0;i<browserLangs.length;i++){
+          var b = browserLangs[i];
+          if (siteLangs.indexOf(b) !== -1){ pick = b; break; }
+          var pre = b.split('-')[0];
+          if (siteLangs.indexOf(pre) !== -1){ pick = pre; break; }
+          if ((b === 'zh-hans' || b === 'zh') && siteLangs.indexOf('zh-cn') !== -1){ pick = 'zh-cn'; break; }
+          if (b === 'zh-hant' && siteLangs.indexOf('zh-tw') !== -1){ pick = 'zh-tw'; break; }
+        }
+        if (!pick || pick === current) return;
+        var lbl = labels[pick] || labels.en;
+        var bar = document.createElement('div');
+        bar.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#0f1226;color:#fff;padding:10px 16px;font-size:13px;z-index:99999;display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;box-shadow:0 2px 8px rgba(0,0,0,0.2);font-family:system-ui,-apple-system,sans-serif;';
+        bar.innerHTML = '<span>' + lbl.suggestion + '</span>' +
+          '<button type="button" id="hns-lang-banner-yes" style="background:#3b5bff;color:#fff;border:0;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">' + lbl.switchTo + '</button>' +
+          '<button type="button" id="hns-lang-banner-no" style="background:transparent;color:#aab;border:1px solid #444;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;">' + lbl.dismiss + '</button>';
+        document.body.appendChild(bar);
+        document.getElementById('hns-lang-banner-yes').onclick = function(){
+          ${switchScript}(pick);
+        };
+        document.getElementById('hns-lang-banner-no').onclick = function(){
+          document.cookie = 'hns_lang_banner_dismissed=1;path=/;max-age=' + (60*60*24*30) + ';SameSite=Lax';
+          bar.parentNode.removeChild(bar);
+        };
+      } catch(e) {}
+    })();</script>`;
   }
 
   // Rewrite asset URLs in HTML sections
@@ -1326,12 +1388,12 @@ export async function GET(
 </head>
 <body>
   <div id="v_home_dft" class="c_v_home_dft">
-    ${langSwitcherHtml}
     <div id="hns_header">${cleanedHeaderHtml}${menuHtml}</div>
     <div id="hns_menu"></div>
     <div id="hns_body">${boardSectionHtml}</div>
-    <div id="hns_footer">${cleanedFooterHtml}</div>
+    <div id="hns_footer">${cleanedFooterHtml}${langSwitcherHtml}</div>
   </div>
+  ${langBannerHtml}
   <script>(function(){
     var hdr=document.getElementById('hns_header');
     if(!hdr)return;

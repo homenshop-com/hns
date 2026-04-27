@@ -4,8 +4,8 @@ import { prisma } from "@/lib/db";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import SignOutButton from "../sign-out-button";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ImpersonationBanner from "@/components/ImpersonationBanner";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ProfileForm from "./profile-form";
 import PasswordForm from "./password-form";
 import DeleteAccount from "./delete-account";
@@ -158,9 +158,6 @@ export default async function ProfilePage() {
                 <span>{credits.toLocaleString()}</span>
                 <span className="c">coin</span>
               </Link>
-              <div className="dv2-lang">
-                <LanguageSwitcher />
-              </div>
               <Link href="/dashboard/profile" className="dv2-user" style={{ textDecoration: "none" }}>
                 <div>
                   <div className="name">{displayName}</div>
@@ -271,6 +268,26 @@ export default async function ProfilePage() {
                 />
               </section>
             </div>
+
+            {/* 언어 / Language — moved here from the dashboard topbar.
+                Set once per account; follows the user across devices via
+                User.preferredLanguage and the JWT-driven middleware sync. */}
+            <section className="pv2-panel">
+              <div className="pv2-panel-head">
+                <h2>
+                  <svg width={15} height={15} style={{ color: "#3b5bff" }}>
+                    <use href="#i-globe" />
+                  </svg>
+                  {t("languageSection")}
+                </h2>
+              </div>
+              <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 8 }}>
+                <LanguageSwitcher />
+                <div style={{ fontSize: 12, color: "var(--ink-3)" }}>
+                  {t("languageHint")}
+                </div>
+              </div>
+            </section>
 
             {/* 보유 사이트 */}
             <section className="pv2-panel">

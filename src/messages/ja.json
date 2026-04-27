@@ -438,7 +438,10 @@
     "deleteAccountWrongPassword": "パスワードが正しくありません。",
     "deleteAccountBtn": "退会する",
     "deleteAccountDeleting": "処理中...",
-    "deleteAccountCancel": "キャンセル"
+    "deleteAccountCancel": "キャンセル",
+    "languageSection": "言語 / Language",
+    "languageHint": "管理者画面で使用する言語を選択します。すべての端末で同じ言語が適用されます。",
+    "languageAutoDetected": "ブラウザの設定から自動検出された言語です。"
   },
   "boardsPage": {
     "title": "掲示板管理",

@@ -4,7 +4,6 @@ import { prisma } from "@/lib/db";
 import { getBalance } from "@/lib/credits";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ImpersonationBanner from "@/components/ImpersonationBanner";
 import SignOutButton from "./sign-out-button";
 import SupportUnreadIndicator from "./support-unread-indicator";
@@ -214,9 +213,6 @@ export default async function DashboardShell({
                 <Icon id="i-chat" size={17} />
                 <SupportUnreadIndicator variant="dot" />
               </Link>
-              <div className="dv2-lang">
-                <LanguageSwitcher />
-              </div>
               <Link
                 href="/dashboard/profile"
                 className="dv2-user"

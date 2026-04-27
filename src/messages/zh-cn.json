@@ -438,7 +438,10 @@
     "deleteAccountWrongPassword": "密码不正确。",
     "deleteAccountBtn": "注销账号",
     "deleteAccountDeleting": "处理中...",
-    "deleteAccountCancel": "取消"
+    "deleteAccountCancel": "取消",
+    "languageSection": "语言 / Language",
+    "languageHint": "选择管理员后台使用的语言。设置将在所有设备上保持一致。",
+    "languageAutoDetected": "根据浏览器设置自动检测的语言。"
   },
   "boardsPage": {
     "title": "公告板管理",

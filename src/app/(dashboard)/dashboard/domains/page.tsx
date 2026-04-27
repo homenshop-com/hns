@@ -4,7 +4,6 @@ import { prisma } from "@/lib/db";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import SignOutButton from "../sign-out-button";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ImpersonationBanner from "@/components/ImpersonationBanner";
 import AddDomainForm from "./add-domain-form";
 import ProvisionSslButton from "./provision-ssl-button";
@@ -242,9 +241,6 @@ export default async function DashboardDomainsPage({ searchParams }: DomainsPage
                 <span>{credits.toLocaleString()}</span>
                 <span className="c">coin</span>
               </Link>
-              <div className="dv2-lang">
-                <LanguageSwitcher />
-              </div>
               <Link href="/dashboard/profile" className="dv2-user" style={{ textDecoration: "none" }}>
                 <div>
                   <div className="name">{displayName}</div>

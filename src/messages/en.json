@@ -438,7 +438,10 @@
     "deleteAccountWrongPassword": "Incorrect password.",
     "deleteAccountBtn": "Delete Account",
     "deleteAccountDeleting": "Deleting...",
-    "deleteAccountCancel": "Cancel"
+    "deleteAccountCancel": "Cancel",
+    "languageSection": "Language",
+    "languageHint": "Choose the language for the admin dashboard. The setting follows you across all devices.",
+    "languageAutoDetected": "Auto-detected from your browser language settings."
   },
   "boardsPage": {
     "title": "Board Management",

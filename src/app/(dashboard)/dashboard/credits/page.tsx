@@ -10,7 +10,6 @@ import {
   CREDIT_PACKS,
 } from "@/lib/credits";
 import SignOutButton from "../sign-out-button";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ImpersonationBanner from "@/components/ImpersonationBanner";
 import BuyPackButton from "./buy-pack-button";
 import FaqList from "./faq-list";
@@ -266,9 +265,6 @@ export default async function CreditsPage() {
             </div>
             <div className="dv2-spacer" />
             <div className="dv2-topbar-actions">
-              <div className="dv2-lang">
-                <LanguageSwitcher />
-              </div>
               <Link href="/dashboard/profile" className="dv2-user" style={{ textDecoration: "none" }}>
                 <div>
                   <div className="name">{displayName}</div>
