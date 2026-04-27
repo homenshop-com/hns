@@ -21,7 +21,9 @@
 
 // Note: scripts run via Node, not Next/TS. We use the @prisma/client package
 // (not the per-project generated dir) because tsx isn't required here.
-import { PrismaClient } from "@prisma/client";
+// @prisma/client is CJS-shipped, so use default-import + destructure.
+import pkg from "@prisma/client";
+const { PrismaClient } = pkg;
 
 const prisma = new PrismaClient();
 
