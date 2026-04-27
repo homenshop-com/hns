@@ -1,29 +1,13 @@
-#!/usr/bin/env node
 /**
  * Backfill Order.siteId from OrderItem.product.siteId.
  *
- * Why: Phase 1 of the unified order management overhaul added siteId to
- * Order. Existing PRODUCT orders predate the column. We can recover it
- * because every OrderItem has a productId, and every Product has a siteId.
+ * Run on server: npx tsx scripts/backfill-order-siteid.ts
  *
- * Strategy:
- *   - For each PRODUCT order with siteId == null, look at its OrderItems.
- *   - All items in one order should belong to the same site (validated at
- *     creation time in /api/storefront/orders), so we take the first item's
- *     product.siteId and set it on the order.
- *   - Orders with no items (orphaned) are skipped and logged.
- *
- * CREDIT_PACK and SUBSCRIPTION orders are platform-level and stay siteId
- * null by design (subscriptionSiteId is the right pointer for SUBSCRIPTION).
- *
- * Run: node scripts/backfill-order-siteid.mjs
+ * See header comment in scripts/backfill-order-siteid.mjs (kept for
+ * reference). Prisma 7 generates TypeScript-only client; .mjs can't
+ * import it without tsx, so the canonical script is .ts.
  */
-
-// Note: scripts run via Node, not Next/TS. We use the @prisma/client package
-// (not the per-project generated dir) because tsx isn't required here.
-// @prisma/client is CJS-shipped, so use default-import + destructure.
-import pkg from "@prisma/client";
-const { PrismaClient } = pkg;
+import { PrismaClient } from "../src/generated/prisma";
 
 const prisma = new PrismaClient();
 
