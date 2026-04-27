@@ -2,17 +2,18 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import OrderActions from "./order-actions";
 import DashboardShell from "../dashboard-shell";
 import type { OrderChannel, OrderStatus, Prisma } from "@/generated/prisma/client";
 
-const STATUS_LABELS: Record<string, string> = {
-  PENDING: "결제대기",
-  PAID: "결제완료",
-  SHIPPING: "배송중",
-  DELIVERED: "배송완료",
-  CANCELLED: "취소",
-  REFUNDED: "환불",
+const STATUS_KEYS: Record<OrderStatus, string> = {
+  PENDING: "statusLabelPending",
+  PAID: "statusLabelPaid",
+  SHIPPING: "statusLabelShipping",
+  DELIVERED: "statusLabelDelivered",
+  CANCELLED: "statusLabelCancelled",
+  REFUNDED: "statusLabelRefunded",
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -28,14 +29,14 @@ const STATUS_COLORS: Record<string, string> = {
     "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
 };
 
-const CHANNEL_LABELS: Record<OrderChannel, string> = {
-  STOREFRONT: "내 사이트",
-  SHOPIFY: "Shopify",
-  COUPANG: "쿠팡",
-  AMAZON: "Amazon",
-  QOO10: "Qoo10",
-  RAKUTEN: "Rakuten",
-  TIKTOKSHOP: "TikTok",
+const CHANNEL_KEYS: Record<OrderChannel, string> = {
+  STOREFRONT: "channelStorefront",
+  SHOPIFY: "channelShopify",
+  COUPANG: "channelCoupang",
+  AMAZON: "channelAmazon",
+  QOO10: "channelQoo10",
+  RAKUTEN: "channelRakuten",
+  TIKTOKSHOP: "channelTiktokshop",
 };
 
 const CHANNEL_BADGE_BG: Record<OrderChannel, string> = {
@@ -72,6 +73,11 @@ export default async function DashboardOrdersPage({
   const filterChannel = sp.channel || "";
   const filterStatus = sp.status || "";
   const filterIntegrationId = sp.integrationId || "";
+
+  const [t, td] = await Promise.all([
+    getTranslations("orders"),
+    getTranslations("dashboard"),
+  ]);
 
   // List of user's sites for the site filter chip group.
   const sites = await prisma.site.findMany({
@@ -158,20 +164,21 @@ export default async function DashboardOrdersPage({
     <DashboardShell
       active="orders"
       breadcrumbs={[
-        { label: "홈", href: "/dashboard" },
-        { label: "주문 관리" },
+        { label: td("breadcrumbHome"), href: "/dashboard" },
+        { label: t("title") },
       ]}
     >
       <div className="dv2-page-head">
         <div>
-          <h1 className="dv2-page-title">주문 관리</h1>
+          <h1 className="dv2-page-title">{t("title")}</h1>
           <div className="dv2-page-sub">
-            모든 사이트 + 외부 마켓플레이스의 주문을 한 곳에서 확인합니다.
-            총 <b>{orders.length}건</b> 표시 중 · 마켓플레이스 연결은{" "}
+            {t("subtitle")}{" "}
+            {t("totalDisplaying", { count: orders.length })}
+            {t("subtitleSuffix")}
             <Link href="/dashboard/integrations" style={{ color: "var(--brand)" }}>
-              연동 관리
-            </Link>{" "}
-            에서.
+              {t("integrationsLink")}
+            </Link>
+            {t("subtitleTail")}
           </div>
         </div>
       </div>
@@ -181,7 +188,7 @@ export default async function DashboardOrdersPage({
         <div className="dv2-chip-group" style={{ marginBottom: 12, display: "flex" }}>
           <Link href={`/dashboard/orders${qs({ siteId: undefined })}`}
                 className={`dv2-chip${!filterSiteId ? " on" : ""}`}>
-            전체 사이트
+            {t("chipAllSites")}
           </Link>
           {sites.map((s) => (
             <Link
@@ -199,7 +206,7 @@ export default async function DashboardOrdersPage({
       <div className="dv2-chip-group" style={{ marginBottom: 12, display: "flex", flexWrap: "wrap" }}>
         <Link href={`/dashboard/orders${qs({ channel: undefined, integrationId: undefined })}`}
               className={`dv2-chip${!filterChannel ? " on" : ""}`}>
-          전체 채널 <span className="n">{totalAcrossAllChannels}</span>
+          {t("chipAllChannels")} <span className="n">{totalAcrossAllChannels}</span>
         </Link>
         {(["STOREFRONT", "SHOPIFY", "COUPANG", "AMAZON", "QOO10", "RAKUTEN", "TIKTOKSHOP"] as OrderChannel[]).map((c) => {
           const n = countByChannel.get(c) ?? 0;
@@ -210,7 +217,7 @@ export default async function DashboardOrdersPage({
               href={`/dashboard/orders${qs({ channel: c, integrationId: undefined })}`}
               className={`dv2-chip${filterChannel === c ? " on" : ""}`}
             >
-              {CHANNEL_LABELS[c]} <span className="n">{n}</span>
+              {t(CHANNEL_KEYS[c])} <span className="n">{n}</span>
             </Link>
           );
         })}
@@ -223,7 +230,7 @@ export default async function DashboardOrdersPage({
         <div className="dv2-chip-group" style={{ marginBottom: 16, display: "flex", flexWrap: "wrap" }}>
           <Link href={`/dashboard/orders${qs({ integrationId: undefined })}`}
                 className={`dv2-chip${!filterIntegrationId ? " on" : ""}`}>
-            전체 계정
+            {t("chipAllAccounts")}
           </Link>
           {visibleIntegrations.map((i) => (
             <Link
@@ -232,7 +239,7 @@ export default async function DashboardOrdersPage({
               className={`dv2-chip${filterIntegrationId === i.id ? " on" : ""}`}
               title={i.displayName ?? undefined}
             >
-              {CHANNEL_LABELS[i.channel]} · {i.label}
+              {t(CHANNEL_KEYS[i.channel])} · {i.label}
             </Link>
           ))}
         </div>
@@ -241,11 +248,11 @@ export default async function DashboardOrdersPage({
       {orders.length === 0 ? (
         <section className="dv2-panel">
           <div className="dv2-empty">
-            <div className="t">주문 내역이 없습니다</div>
+            <div className="t">{t("emptyTitle")}</div>
             <div className="d">
               {filterSiteId || filterChannel
-                ? "필터를 해제하면 더 많은 주문이 보일 수 있습니다."
-                : "내 사이트에서 첫 주문을 받거나, 외부 마켓플레이스를 연결하세요."}
+                ? t("emptyFiltered")
+                : t("emptyDefault")}
             </div>
           </div>
         </section>
@@ -254,27 +261,27 @@ export default async function DashboardOrdersPage({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-zinc-200 dark:border-zinc-800">
-                <th className="px-4 py-3 text-left font-medium text-zinc-500 dark:text-zinc-400">주문번호</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-500 dark:text-zinc-400">채널</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-500 dark:text-zinc-400">사이트</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-500 dark:text-zinc-400">상품</th>
-                <th className="px-4 py-3 text-right font-medium text-zinc-500 dark:text-zinc-400">결제금액</th>
-                <th className="px-4 py-3 text-center font-medium text-zinc-500 dark:text-zinc-400">상태</th>
-                <th className="px-4 py-3 text-right font-medium text-zinc-500 dark:text-zinc-400">주문일</th>
-                <th className="px-4 py-3 text-right font-medium text-zinc-500 dark:text-zinc-400">관리</th>
+                <th className="px-4 py-3 text-left font-medium text-zinc-500 dark:text-zinc-400">{t("orderNumber")}</th>
+                <th className="px-4 py-3 text-left font-medium text-zinc-500 dark:text-zinc-400">{t("colChannel")}</th>
+                <th className="px-4 py-3 text-left font-medium text-zinc-500 dark:text-zinc-400">{t("colSite")}</th>
+                <th className="px-4 py-3 text-left font-medium text-zinc-500 dark:text-zinc-400">{t("colProduct")}</th>
+                <th className="px-4 py-3 text-right font-medium text-zinc-500 dark:text-zinc-400">{t("colTotal")}</th>
+                <th className="px-4 py-3 text-center font-medium text-zinc-500 dark:text-zinc-400">{t("status")}</th>
+                <th className="px-4 py-3 text-right font-medium text-zinc-500 dark:text-zinc-400">{t("orderDate")}</th>
+                <th className="px-4 py-3 text-right font-medium text-zinc-500 dark:text-zinc-400">{t("colActions")}</th>
               </tr>
             </thead>
             <tbody>
               {orders.map((order) => {
-                const channelLabel = CHANNEL_LABELS[order.channel];
+                const channelLabel = t(CHANNEL_KEYS[order.channel]);
                 const itemDescription =
                   order.orderType === "CREDIT_PACK"
-                    ? `크레딧 팩 · ${order.creditAmount?.toLocaleString() ?? "?"} C`
+                    ? t("creditPackOrderItem", { amount: order.creditAmount?.toLocaleString() ?? "?" })
                     : order.orderType === "SUBSCRIPTION"
-                      ? `호스팅 연장 · ${order.subscriptionMonths ?? "?"}개월`
+                      ? t("subscriptionOrderItem", { months: order.subscriptionMonths ?? "?" })
                       : order.items.length > 0
-                        ? (order.items[0].product?.name ?? order.items[0].externalName ?? "(미매핑 SKU)") +
-                          (order.items.length > 1 ? ` 외 ${order.items.length - 1}건` : "")
+                        ? (order.items[0].product?.name ?? order.items[0].externalName ?? t("unmappedSku")) +
+                          (order.items.length > 1 ? t("orderPlusOthers", { n: order.items.length - 1 }) : "")
                         : "-";
                 return (
                   <tr
@@ -319,17 +326,17 @@ export default async function DashboardOrdersPage({
                     </td>
                     <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400 text-xs">{itemDescription}</td>
                     <td className="px-4 py-3 text-right whitespace-nowrap font-medium">
-                      {order.totalAmount.toLocaleString("ko-KR")}원
+                      {order.totalAmount.toLocaleString()}
                     </td>
                     <td className="px-4 py-3 text-center">
                       <span
                         className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_COLORS[order.status] ?? ""}`}
                       >
-                        {STATUS_LABELS[order.status] ?? order.status}
+                        {t(STATUS_KEYS[order.status])}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right text-zinc-500 dark:text-zinc-400 whitespace-nowrap text-xs">
-                      {new Date(order.createdAt).toLocaleDateString("ko-KR")}
+                      {new Date(order.createdAt).toLocaleDateString()}
                     </td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
                       <OrderActions

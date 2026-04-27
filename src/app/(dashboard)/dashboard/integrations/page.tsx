@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/db";
 import DashboardShell from "../dashboard-shell";
 import IntegrationsClient from "./integrations-client";
@@ -18,7 +19,9 @@ export default async function IntegrationsPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
-  const [integrations, sites] = await Promise.all([
+  const [t, td, integrations, sites] = await Promise.all([
+    getTranslations("integrations"),
+    getTranslations("dashboard"),
     prisma.marketplaceIntegration.findMany({
       where: { userId: session.user.id },
       select: {
@@ -50,22 +53,70 @@ export default async function IntegrationsPage() {
 
   const totalActive = integrations.filter((i) => i.status === "ACTIVE").length;
 
+  // Translation strings passed down to the client component (next-intl
+  // doesn't auto-bridge to a non-NextIntlClientProvider'd client comp,
+  // so we hand the strings as labels prop to keep things explicit).
+  const labels = {
+    panelTitle: t("panelTitle"),
+    panelCount: t("panelCount", { count: adapters.length }),
+    soonBadge: t("soonBadge"),
+    soonHint: t("soonHint"),
+    accountsCount: (n: number) => t("accountsCount", { count: n }),
+    noAccounts: t("noAccounts"),
+    btnAddAccount: t("btnAddAccount"),
+    btnAddAccountTooltip: t("btnAddAccountTooltip"),
+    btnReconnect: t("btnReconnect"),
+    btnDisconnect: t("btnDisconnect"),
+    confirmDisconnect: (label: string) => t("confirmDisconnect", { label }),
+    statusActive: t("statusActive"),
+    statusError: t("statusError"),
+    statusPaused: t("statusPaused"),
+    statusDisconnected: t("statusDisconnected"),
+    lastSyncLabel: (time: string) => t("lastSyncLabel", { time }),
+    modalTitleConnect: (name: string) => t("modalTitleConnect", { name }),
+    modalTitleReconnect: (name: string) => t("modalTitleReconnect", { name }),
+    modalSoonNotice: t("modalSoonNotice"),
+    fieldLabel: t("fieldLabel"),
+    fieldLabelPlaceholder: t("fieldLabelPlaceholder"),
+    fieldLabelHint: t("fieldLabelHint"),
+    fieldLabelRequired: t("fieldLabelRequired"),
+    fieldSiteLink: t("fieldSiteLink"),
+    fieldSiteLinkNone: t("fieldSiteLinkNone"),
+    fieldSiteLinkHint: t("fieldSiteLinkHint"),
+    fieldShopDomain: t("fieldShopDomain"),
+    fieldShopDomainPlaceholder: t("fieldShopDomainPlaceholder"),
+    fieldShopDomainHint: t("fieldShopDomainHint"),
+    fieldShopDomainRequired: t("fieldShopDomainRequired"),
+    btnSave: t("btnSave"),
+    btnSaving: t("btnSaving"),
+    btnGotoShopify: t("btnGotoShopify"),
+    btnCancel: t("btnCancel"),
+    errorOAuthUrl: t("errorOAuthUrl"),
+    errorSaveFailed: t("errorSaveFailed"),
+    descSHOPIFY: t("channelDescriptionShopify"),
+    descCOUPANG: t("channelDescriptionCoupang"),
+    descAMAZON: t("channelDescriptionAmazon"),
+    descQOO10: t("channelDescriptionQoo10"),
+    descRAKUTEN: t("channelDescriptionRakuten"),
+    descTIKTOKSHOP: t("channelDescriptionTiktokshop"),
+  };
+
   return (
     <DashboardShell
       active="integrations"
       breadcrumbs={[
-        { label: "홈", href: "/dashboard" },
-        { label: "마켓플레이스 연동" },
+        { label: td("breadcrumbHome"), href: "/dashboard" },
+        { label: t("title") },
       ]}
     >
       <div className="dv2-page-head">
         <div>
-          <h1 className="dv2-page-title">마켓플레이스 연동</h1>
+          <h1 className="dv2-page-title">{t("title")}</h1>
           <div className="dv2-page-sub">
-            외부 쇼핑몰의 주문을 한 곳에서 관리하세요. 한 마켓플레이스에 여러 셀러
-            계정(예: 뷰티 / 식품)을 동시에 연결할 수 있고, 모든 주문은{" "}
-            <a href="/dashboard/orders" style={{ color: "var(--brand)" }}>주문 관리</a>에 합쳐집니다.
-            현재 <b>{integrations.length}개</b> 계정 연결 ({totalActive}개 활성).
+            {t("subtitle")}
+            <a href="/dashboard/orders" style={{ color: "var(--brand)" }}>{t("subtitleOrdersLink")}</a>
+            {t("subtitleTail")}{" "}
+            {t("subtitleStats", { count: integrations.length, active: totalActive })}
           </div>
         </div>
       </div>
@@ -73,6 +124,7 @@ export default async function IntegrationsPage() {
       <IntegrationsClient
         sites={sites}
         adapters={adapters}
+        labels={labels}
         integrations={integrations
           .filter((i): i is typeof i & { channel: ConnectableChannel } => i.channel !== "STOREFRONT")
           .map((i) => ({

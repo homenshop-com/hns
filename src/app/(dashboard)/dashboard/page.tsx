@@ -22,11 +22,11 @@ import {
  * Helpers
  * ──────────────────────────────────────────────────────────────── */
 
-const PLAN_TAG: Record<string, { cls: string; label: string }> = {
-  "0": { cls: "free", label: "무료계정" },
-  "1": { cls: "pro", label: "유료계정" },
-  "2": { cls: "test", label: "테스트" },
-  "9": { cls: "expired", label: "만료" },
+const PLAN_TAG: Record<string, { cls: string; key: "planFree" | "planPaid" | "planTest" | "planExpired" }> = {
+  "0": { cls: "free", key: "planFree" },
+  "1": { cls: "pro", key: "planPaid" },
+  "2": { cls: "test", key: "planTest" },
+  "9": { cls: "expired", key: "planExpired" },
 };
 
 const THUMB_GRADIENTS = [
@@ -59,16 +59,18 @@ function initialsFrom(s: string): string {
   return clean.slice(0, 2);
 }
 
-function koreanTimeAgo(date: Date | null | undefined): string {
+type TimeAgoT = (key: string, values?: Record<string, string | number>) => string;
+
+function timeAgo(t: TimeAgoT, date: Date | null | undefined): string {
   if (!date) return "—";
   const diff = Date.now() - new Date(date).getTime();
   const min = Math.floor(diff / 60000);
-  if (min < 1) return "방금 전";
-  if (min < 60) return `${min}분 전`;
+  if (min < 1) return t("timeAgoJustNow");
+  if (min < 60) return t("timeAgoMin", { n: min });
   const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}시간 전`;
+  if (hr < 24) return t("timeAgoHr", { n: hr });
   const d = Math.floor(hr / 24);
-  if (d < 7) return `${d}일 전`;
+  if (d < 7) return t("timeAgoDay", { n: d });
   const dt = new Date(date);
   return `${dt.getFullYear()}.${String(dt.getMonth() + 1).padStart(2, "0")}.${String(dt.getDate()).padStart(2, "0")}`;
 }
@@ -97,7 +99,7 @@ export default async function DashboardPage() {
   ]);
 
   const credits = currentUser?.credits ?? 0;
-  const displayName = currentUser?.name || (currentUser?.email?.split("@")[0] ?? "게스트");
+  const displayName = currentUser?.name || (currentUser?.email?.split("@")[0] ?? "Guest");
 
   const sites = await prisma.site.findMany({
     where: { userId: session.user.id, isTemplateStorage: false },
@@ -387,46 +389,50 @@ export default async function DashboardPage() {
           <nav className="dv2-nav">
             <Link className="active" href="/dashboard">
               <span className="ic"><Icon id="i-home" /></span>
-              <span className="label">관리자 메인</span>
+              <span className="label">{t("navAdminMain")}</span>
             </Link>
             <Link href="/dashboard/sites">
               <span className="ic"><Icon id="i-grid" /></span>
-              <span className="label">내 홈페이지/쇼핑몰</span>
+              <span className="label">{t("navMySites")}</span>
               {sites.length > 0 && <span className="badge">{sites.length}</span>}
             </Link>
             <a className="soon" aria-disabled="true">
               <span className="ic"><Icon id="i-analytics" /></span>
-              <span className="label">통계 · 분석</span>
-              <span className="soon-tag">SOON</span>
+              <span className="label">{t("navAnalytics")}</span>
+              <span className="soon-tag">{t("navSoonTag")}</span>
             </a>
             <Link href="/dashboard/orders">
               <span className="ic"><Icon id="i-bag" /></span>
-              <span className="label">주문 관리</span>
+              <span className="label">{t("navOrders")}</span>
               {newOrderCount > 0 && <span className="badge g">{newOrderCount}</span>}
             </Link>
             <Link href="/dashboard/boards">
               <span className="ic"><Icon id="i-mail" /></span>
-              <span className="label">문의 · 예약</span>
+              <span className="label">{t("navBoards")}</span>
               {unreadInquiries > 0 && <span className="badge">{unreadInquiries}</span>}
             </Link>
             <Link href="/dashboard/domains">
               <span className="ic"><Icon id="i-globe" /></span>
-              <span className="label">도메인 관리</span>
+              <span className="label">{t("navDomains")}</span>
+            </Link>
+            <Link href="/dashboard/integrations">
+              <span className="ic"><Icon id="i-link" /></span>
+              <span className="label">{t("navIntegrations")}</span>
             </Link>
           </nav>
 
           <div className="dv2-side-section">
-            <div className="dv2-side-label">계정</div>
+            <div className="dv2-side-label">{t("navSectionAccount")}</div>
             <nav className="dv2-nav">
               <Link href="/dashboard/credits">
                 <span className="ic"><Icon id="i-credit" /></span>
-                <span className="label">결제 · 크레딧</span>
+                <span className="label">{t("navCredits")}</span>
               </Link>
               <Link href="/dashboard/profile">
                 <span className="ic"><Icon id="i-settings" /></span>
-                <span className="label">관리자 정보</span>
+                <span className="label">{t("navProfile")}</span>
               </Link>
-              <Link href="/dashboard/support"><span className="ic"><Icon id="i-chat" /></span><span className="label">도움말 · 지원</span><SupportUnreadIndicator variant="count" /></Link>
+              <Link href="/dashboard/support"><span className="ic"><Icon id="i-chat" /></span><span className="label">{t("navSupport")}</span><SupportUnreadIndicator variant="count" /></Link>
             </nav>
           </div>
 
@@ -436,13 +442,13 @@ export default async function DashboardPage() {
                 <div className="ball">C</div>
                 <div>
                   <div className="num">
-                    {credits.toLocaleString()} <span style={{ fontSize: 11, fontWeight: 600 }}>coin</span>
+                    {credits.toLocaleString()} <span style={{ fontSize: 11, fontWeight: 600 }}>{t("coinLabel")}</span>
                   </div>
-                  <div className="cap">AI 제작에 사용 가능</div>
+                  <div className="cap">{t("coinUsableForAI")}</div>
                 </div>
               </div>
               <Link className="go" href="/dashboard/credits">
-                충전하기 <Icon id="i-chev-right" size={12} />
+                {t("coinRecharge")} <Icon id="i-chev-right" size={12} />
               </Link>
             </div>
           </div>
@@ -453,13 +459,13 @@ export default async function DashboardPage() {
           {/* Topbar */}
           <div className="dv2-topbar">
             <div className="dv2-crumbs">
-              <span>홈</span>
+              <span>{t("breadcrumbHome")}</span>
               <span className="sep">/</span>
-              <span className="cur">관리자 메인</span>
+              <span className="cur">{t("navAdminMain")}</span>
             </div>
             <Link href="/dashboard/search" className="dv2-search" style={{ textDecoration: "none" }}>
               <Icon id="i-search" size={16} />
-              <input placeholder="홈페이지, 주문, 고객 검색…" readOnly />
+              <input placeholder={t("topbarSearch")} readOnly />
               <span className="kbd">⌘K</span>
             </Link>
             <div className="dv2-spacer" />
@@ -483,7 +489,7 @@ export default async function DashboardPage() {
               <Link href="/dashboard/profile" className="dv2-user" style={{ textDecoration: "none" }}>
                 <div>
                   <div className="name">{displayName}</div>
-                  <div className="role">Owner</div>
+                  <div className="role">{t("topbarRoleOwner")}</div>
                 </div>
                 <div className="dv2-avatar">{initialsFrom(displayName)}</div>
               </Link>
@@ -496,63 +502,61 @@ export default async function DashboardPage() {
             {/* Page head */}
             <div className="dv2-page-head">
               <div>
-                <h1 className="dv2-page-title">관리자 메인</h1>
+                <h1 className="dv2-page-title">{t("navAdminMain")}</h1>
                 <div className="dv2-page-sub">
-                  안녕하세요, <b>{displayName}</b>님 ·{" "}
-                  {sites.length > 0 ? (
-                    <>현재 <b>{sites.length}개</b>의 홈페이지를 관리 중입니다.</>
-                  ) : (
-                    <>첫 홈페이지를 만들어 보세요.</>
-                  )}
+                  {t("mainGreetingHello", { name: displayName })} ·{" "}
+                  {sites.length > 0
+                    ? t("mainGreetingHasSites", { count: sites.length })
+                    : t("mainGreetingEmpty")}
                 </div>
               </div>
               <div className="dv2-chip-group">
-                <button className="dv2-chip on">전체 <span className="n">{byPlan.all}</span></button>
-                <button className="dv2-chip">무료계정 <span className="n">{byPlan.free}</span></button>
-                <button className="dv2-chip">유료계정 <span className="n">{byPlan.pro}</span></button>
-                <button className="dv2-chip">만료계정 <span className="n">{byPlan.expired}</span></button>
+                <button className="dv2-chip on">{t("filterAll")} <span className="n">{byPlan.all}</span></button>
+                <button className="dv2-chip">{t("filterFree")} <span className="n">{byPlan.free}</span></button>
+                <button className="dv2-chip">{t("filterPaid")} <span className="n">{byPlan.pro}</span></button>
+                <button className="dv2-chip">{t("filterExpired")} <span className="n">{byPlan.expired}</span></button>
               </div>
             </div>
 
             {/* Stats */}
             <div className="dv2-stats">
               <div className="dv2-stat">
-                <div className="lbl"><Icon id="i-users" size={12} /> 관리 홈페이지</div>
-                <div className="val">{sites.length}<span className="unit">개</span></div>
+                <div className="lbl"><Icon id="i-users" size={12} /> {t("statManagedSites")}</div>
+                <div className="val">{sites.length}<span className="unit">{t("statManagedSitesUnit")}</span></div>
                 <div className="foot">
                   <span style={{ color: "var(--ink-3)" }}>
-                    유료 {byPlan.pro} · 무료 {byPlan.free}
+                    {t("statManagedSitesFoot", { paid: byPlan.pro, free: byPlan.free })}
                   </span>
                 </div>
               </div>
               <div className="dv2-stat">
-                <div className="lbl"><Icon id="i-bag" size={12} /> 이번 달 신규 주문</div>
-                <div className="val">{newOrderCount}<span className="unit">건</span></div>
+                <div className="lbl"><Icon id="i-bag" size={12} /> {t("statNewOrders")}</div>
+                <div className="val">{newOrderCount}<span className="unit">{t("statNewOrdersUnit")}</span></div>
                 <div className="foot">
                   {orderDelta > 0 ? (
-                    <><span className="up">▲ {orderDelta}건</span><span style={{ color: "var(--ink-3)" }}>지난 달 대비</span></>
+                    <><span className="up">{t("statDeltaUp", { n: orderDelta })}</span><span style={{ color: "var(--ink-3)" }}>{t("statVsPrevMonth")}</span></>
                   ) : orderDelta < 0 ? (
-                    <><span className="dn">▼ {Math.abs(orderDelta)}건</span><span style={{ color: "var(--ink-3)" }}>지난 달 대비</span></>
+                    <><span className="dn">{t("statDeltaDown", { n: Math.abs(orderDelta) })}</span><span style={{ color: "var(--ink-3)" }}>{t("statVsPrevMonth")}</span></>
                   ) : (
-                    <span style={{ color: "var(--ink-3)" }}>지난 달 동일</span>
+                    <span style={{ color: "var(--ink-3)" }}>{t("statDeltaSame")}</span>
                   )}
                 </div>
               </div>
               <div className="dv2-stat">
-                <div className="lbl"><Icon id="i-mail" size={12} /> 견적 문의</div>
-                <div className="val">{unreadInquiries}<span className="unit">개</span></div>
+                <div className="lbl"><Icon id="i-mail" size={12} /> {t("statInquiries")}</div>
+                <div className="val">{unreadInquiries}<span className="unit">{t("statInquiriesUnit")}</span></div>
                 <div className="foot">
                   <span style={{ color: "var(--ink-3)" }}>
-                    {unreadInquiries > 0 ? "확인이 필요합니다" : "모두 확인됨"}
+                    {unreadInquiries > 0 ? t("statInquiriesNeedCheck") : t("statInquiriesAllSeen")}
                   </span>
                 </div>
               </div>
               <div className="dv2-stat">
-                <div className="lbl"><Icon id="i-credit" size={12} /> 이번 달 매출</div>
+                <div className="lbl"><Icon id="i-credit" size={12} /> {t("statRevenue")}</div>
                 <div className="val">{monthRevenue > 0 ? formatKRW(monthRevenue) : "—"}</div>
                 <div className="foot">
                   <span style={{ color: "var(--ink-3)" }}>
-                    {sites.length > 0 ? `${sites.length}개 홈페이지 합산` : "홈페이지 추가 후 집계"}
+                    {sites.length > 0 ? t("statRevenueFoot", { count: sites.length }) : t("statRevenueEmpty")}
                   </span>
                 </div>
               </div>
@@ -562,32 +566,32 @@ export default async function DashboardPage() {
             <section className="dv2-panel">
               <div className="dv2-panel-head">
                 <h2>
-                  홈페이지 계정
-                  <span className="count">{sites.length} / {Math.max(sites.length, 5)}</span>
+                  {t("panelHomepageAccounts")}
+                  <span className="count">{t("panelHomepageAccountsCount", { count: sites.length, total: Math.max(sites.length, 5) })}</span>
                 </h2>
                 <div className="tools">
                   <Link href="/dashboard/domains" className="dv2-tool-btn">
-                    <Icon id="i-globe" size={14} /> 도메인
+                    <Icon id="i-globe" size={14} /> {t("btnDomainsTool")}
                   </Link>
                 </div>
               </div>
 
               {sites.length === 0 ? (
                 <div className="dv2-empty">
-                  <div className="t">아직 홈페이지가 없습니다</div>
-                  <div className="d">AI로 5분 만에 만들거나, 120+ 템플릿 중 선택하세요.</div>
+                  <div className="t">{t("sitesEmptyTitle")}</div>
+                  <div className="d">{t("sitesEmptyDesc")}</div>
                   <Link href="/dashboard/templates" className="dv2-row-btn primary">
-                    템플릿 둘러보기 <Icon id="i-chev-right" size={12} />
+                    {t("sitesBrowseTemplates")} <Icon id="i-chev-right" size={12} />
                   </Link>
                 </div>
               ) : (
                 <>
                   <div className="dv2-site-thead">
-                    <div>홈페이지</div>
-                    <div>플랜</div>
-                    <div>페이지</div>
-                    <div>마지막 수정</div>
-                    <div className="right col-stat">홈페이지 관리</div>
+                    <div>{t("siteColHomepage")}</div>
+                    <div>{t("siteColPlan")}</div>
+                    <div>{t("siteColPages")}</div>
+                    <div>{t("siteColLastModified")}</div>
+                    <div className="right col-stat">{t("siteColManage")}</div>
                     <div />
                   </div>
 
@@ -640,14 +644,14 @@ export default async function DashboardPage() {
                                 {!activeDomain && (
                                   <>
                                     <span className="dot" />
-                                    <span className="warn">⚠ 커스텀 도메인 미연결</span>
+                                    <span className="warn">{t("siteWarnNoCustomDomain")}</span>
                                   </>
                                 )}
                               </div>
                             </div>
                           </div>
                           <div>
-                            <span className={`dv2-plan-tag ${plan.cls}`}>{plan.label}</span>
+                            <span className={`dv2-plan-tag ${plan.cls}`}>{t(plan.key)}</span>
                             {s.accountType === "0" && remainingDays !== null && (
                               <span
                                 className="dv2-expiry-chip"
@@ -669,22 +673,22 @@ export default async function DashboardPage() {
                                       ? "#92400e"
                                       : "#64748b",
                                 }}
-                                title={`만료일: ${s.expiresAt ? new Date(s.expiresAt).toLocaleDateString("ko-KR") : "-"}`}
+                                title={t("siteExpiryDateTooltip", { date: s.expiresAt ? new Date(s.expiresAt).toLocaleDateString() : "-" })}
                               >
                                 {isExpired
-                                  ? "만료됨"
+                                  ? t("siteExpiryExpired")
                                   : remainingDays === 0
-                                    ? "오늘 만료"
-                                    : `${remainingDays}일 남음`}
+                                    ? t("siteExpiryToday")
+                                    : t("siteExpiryDaysLeft", { days: remainingDays })}
                               </span>
                             )}
                           </div>
                           <div className="dv2-stat-mini">
                             <span className="n">{s.pages.length}</span>
-                            <span className="muted"> 페이지</span>
+                            <span className="muted"> {t("siteColPagesUnit")}</span>
                           </div>
                           <div className="dv2-since">
-                            {koreanTimeAgo(lastModified)}
+                            {timeAgo(t, lastModified)}
                             <span className="d">{s.defaultLanguage.toUpperCase()}</span>
                           </div>
                           <div className="dv2-row-actions col-stat">
@@ -692,13 +696,13 @@ export default async function DashboardPage() {
                               href={homePage ? `/dashboard/site/pages/${homePage.id}/edit` : "/dashboard/site/pages"}
                               className="dv2-row-btn primary"
                             >
-                              <Icon id="i-palette" size={13} /> 디자인
+                              <Icon id="i-palette" size={13} /> {t("btnDesign")}
                             </Link>
                             <Link href={`/dashboard/site/${s.id}/manage`} className="dv2-row-btn">
-                              <Icon id="i-database" size={13} /> 데이터
+                              <Icon id="i-database" size={13} /> {t("btnData")}
                             </Link>
                             <Link href={`/dashboard/site/settings?id=${s.id}`} className="dv2-row-btn">
-                              <Icon id="i-info" size={13} /> 기본정보
+                              <Icon id="i-info" size={13} /> {t("btnInfo")}
                             </Link>
                           </div>
                           <Link href={`/dashboard/site/settings?id=${s.id}`} className="dv2-kebab">
@@ -712,7 +716,7 @@ export default async function DashboardPage() {
                     <Link href="/dashboard/templates" className="dv2-site-row add">
                       <div className="dv2-add-inner">
                         <span className="plus"><Icon id="i-plus" size={14} /></span>
-                        새 홈페이지 추가하기
+                        {t("sitesAddNew")}
                       </div>
                     </Link>
                   </div>
@@ -733,18 +737,18 @@ export default async function DashboardPage() {
                 <section className="dv2-panel">
                   <div className="dv2-panel-head">
                     <h2>
-                      <Icon id="i-bag" size={14} /> 최근 주문
+                      <Icon id="i-bag" size={14} /> {t("panelRecentOrders")}
                       <span className="count">{recentOrders.length}</span>
                     </h2>
                     <div className="tools">
                       <Link href="/dashboard/orders" style={{ color: "var(--brand)", fontSize: 12, fontWeight: 600 }}>
-                        모두 보기 →
+                        {t("seeAll")}
                       </Link>
                     </div>
                   </div>
                   {recentOrders.length === 0 ? (
                     <div className="dv2-empty">
-                      <div className="d">최근 주문이 없습니다</div>
+                      <div className="d">{t("panelRecentOrdersEmpty")}</div>
                     </div>
                   ) : (
                     <div style={{ display: "flex", flexDirection: "column" }}>
@@ -769,7 +773,7 @@ export default async function DashboardPage() {
                               {o.shippingName ? ` · ${o.shippingName}` : ""}
                             </div>
                             <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 2 }}>
-                              {koreanTimeAgo(o.createdAt)} · #{o.orderNumber}
+                              {timeAgo(t, o.createdAt)} · #{o.orderNumber}
                             </div>
                           </div>
                           <Icon id="i-chev-right" size={14} />
@@ -783,18 +787,18 @@ export default async function DashboardPage() {
                 <section className="dv2-panel">
                   <div className="dv2-panel-head">
                     <h2>
-                      <Icon id="i-clock" size={14} /> 최근 예약
+                      <Icon id="i-clock" size={14} /> {t("panelRecentBookings")}
                       <span className="count">{recentBookings.length}</span>
                     </h2>
                     <div className="tools">
                       <Link href="/dashboard/boards" style={{ color: "var(--brand)", fontSize: 12, fontWeight: 600 }}>
-                        모두 보기 →
+                        {t("seeAll")}
                       </Link>
                     </div>
                   </div>
                   {recentBookings.length === 0 ? (
                     <div className="dv2-empty">
-                      <div className="d">예약 내역이 없습니다</div>
+                      <div className="d">{t("panelRecentBookingsEmpty")}</div>
                     </div>
                   ) : (
                     <div style={{ display: "flex", flexDirection: "column" }}>
@@ -828,7 +832,7 @@ export default async function DashboardPage() {
                                 {p.title || "(제목 없음)"}
                               </div>
                               <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 2 }}>
-                                {koreanTimeAgo(p.createdAt)}
+                                {timeAgo(t, p.createdAt)}
                                 {p.author ? ` · ${p.author}` : ""}
                                 {s ? ` · ${s.name || s.shopId}` : ""}
                               </div>
@@ -845,18 +849,18 @@ export default async function DashboardPage() {
                 <section className="dv2-panel">
                   <div className="dv2-panel-head">
                     <h2>
-                      <Icon id="i-mail" size={14} /> 최근 문의
+                      <Icon id="i-mail" size={14} /> {t("panelRecentInquiries")}
                       <span className="count">{recentInquiries.length}</span>
                     </h2>
                     <div className="tools">
                       <Link href="/dashboard/boards" style={{ color: "var(--brand)", fontSize: 12, fontWeight: 600 }}>
-                        모두 보기 →
+                        {t("seeAll")}
                       </Link>
                     </div>
                   </div>
                   {recentInquiries.length === 0 ? (
                     <div className="dv2-empty">
-                      <div className="d">문의 내역이 없습니다</div>
+                      <div className="d">{t("panelRecentInquiriesEmpty")}</div>
                     </div>
                   ) : (
                     <div style={{ display: "flex", flexDirection: "column" }}>
@@ -890,7 +894,7 @@ export default async function DashboardPage() {
                                 {p.title || "(제목 없음)"}
                               </div>
                               <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 2 }}>
-                                {koreanTimeAgo(p.createdAt)}
+                                {timeAgo(t, p.createdAt)}
                                 {p.author ? ` · ${p.author}` : ""}
                                 {s ? ` · ${s.name || s.shopId}` : ""}
                               </div>

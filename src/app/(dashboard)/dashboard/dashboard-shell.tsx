@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getBalance } from "@/lib/credits";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ImpersonationBanner from "@/components/ImpersonationBanner";
 import SignOutButton from "./sign-out-button";
@@ -60,15 +61,16 @@ export default async function DashboardShell({
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
-  const [user, credits] = await Promise.all([
+  const [user, credits, t] = await Promise.all([
     prisma.user.findUnique({
       where: { id: session.user.id },
       select: { name: true, email: true },
     }),
     getBalance(session.user.id),
+    getTranslations("dashboard"),
   ]);
 
-  const displayName = user?.name || user?.email?.split("@")[0] || "게스트";
+  const displayName = user?.name || user?.email?.split("@")[0] || "Guest";
   const cls = (key: DashboardNavKey) => (active === key ? "active" : undefined);
 
   return (
@@ -88,58 +90,58 @@ export default async function DashboardShell({
           <nav className="dv2-nav">
             <Link className={cls("home")} href="/dashboard">
               <span className="ic"><Icon id="i-home" /></span>
-              <span className="label">관리자 메인</span>
+              <span className="label">{t("navAdminMain")}</span>
             </Link>
             <Link className={cls("sites")} href="/dashboard/sites">
               <span className="ic"><Icon id="i-grid" /></span>
-              <span className="label">내 홈페이지/쇼핑몰</span>
+              <span className="label">{t("navMySites")}</span>
               {badges?.sites != null && badges.sites > 0 && (
                 <span className="badge">{badges.sites}</span>
               )}
             </Link>
             <a className="soon" aria-disabled="true">
               <span className="ic"><Icon id="i-analytics" /></span>
-              <span className="label">통계 · 분석</span>
-              <span className="soon-tag">SOON</span>
+              <span className="label">{t("navAnalytics")}</span>
+              <span className="soon-tag">{t("navSoonTag")}</span>
             </a>
             <Link className={cls("orders")} href="/dashboard/orders">
               <span className="ic"><Icon id="i-bag" /></span>
-              <span className="label">주문 관리</span>
+              <span className="label">{t("navOrders")}</span>
               {badges?.orders != null && badges.orders > 0 && (
                 <span className="badge g">{badges.orders}</span>
               )}
             </Link>
             <Link className={cls("boards")} href="/dashboard/boards">
               <span className="ic"><Icon id="i-mail" /></span>
-              <span className="label">문의 · 예약</span>
+              <span className="label">{t("navBoards")}</span>
               {badges?.inquiries != null && badges.inquiries > 0 && (
                 <span className="badge">{badges.inquiries}</span>
               )}
             </Link>
             <Link className={cls("domains")} href="/dashboard/domains">
               <span className="ic"><Icon id="i-globe" /></span>
-              <span className="label">도메인 관리</span>
+              <span className="label">{t("navDomains")}</span>
             </Link>
             <Link className={cls("integrations")} href="/dashboard/integrations">
               <span className="ic"><Icon id="i-link" /></span>
-              <span className="label">마켓플레이스 연동</span>
+              <span className="label">{t("navIntegrations")}</span>
             </Link>
           </nav>
 
           <div className="dv2-side-section">
-            <div className="dv2-side-label">계정</div>
+            <div className="dv2-side-label">{t("navSectionAccount")}</div>
             <nav className="dv2-nav">
               <Link className={cls("credits")} href="/dashboard/credits">
                 <span className="ic"><Icon id="i-credit" /></span>
-                <span className="label">결제 · 크레딧</span>
+                <span className="label">{t("navCredits")}</span>
               </Link>
               <Link className={cls("profile")} href="/dashboard/profile">
                 <span className="ic"><Icon id="i-settings" /></span>
-                <span className="label">관리자 정보</span>
+                <span className="label">{t("navProfile")}</span>
               </Link>
               <Link className={cls("support")} href="/dashboard/support">
                 <span className="ic"><Icon id="i-chat" /></span>
-                <span className="label">도움말 · 지원</span>
+                <span className="label">{t("navSupport")}</span>
                 <SupportUnreadIndicator variant="count" />
               </Link>
             </nav>
@@ -152,13 +154,13 @@ export default async function DashboardShell({
                 <div>
                   <div className="num">
                     {credits.toLocaleString()}{" "}
-                    <span style={{ fontSize: 11, fontWeight: 600 }}>coin</span>
+                    <span style={{ fontSize: 11, fontWeight: 600 }}>{t("coinLabel")}</span>
                   </div>
-                  <div className="cap">AI 제작에 사용 가능</div>
+                  <div className="cap">{t("coinUsableForAI")}</div>
                 </div>
               </div>
               <Link className="go" href="/dashboard/credits">
-                충전하기 <Icon id="i-chev-right" size={12} />
+                {t("coinRecharge")} <Icon id="i-chev-right" size={12} />
               </Link>
             </div>
           </div>
@@ -188,7 +190,7 @@ export default async function DashboardShell({
                 style={{ textDecoration: "none" }}
               >
                 <Icon id="i-search" size={16} />
-                <input placeholder="홈페이지, 주문, 고객 검색…" readOnly />
+                <input placeholder={t("topbarSearch")} readOnly />
                 <span className="kbd">⌘K</span>
               </Link>
             )}
@@ -222,7 +224,7 @@ export default async function DashboardShell({
               >
                 <div>
                   <div className="name">{displayName}</div>
-                  <div className="role">Owner</div>
+                  <div className="role">{t("topbarRoleOwner")}</div>
                 </div>
                 <div className="dv2-avatar">{initialsFrom(displayName)}</div>
               </Link>

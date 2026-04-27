@@ -13,11 +13,11 @@ import {
   shouldShowExpirationWarning,
 } from "@/lib/site-expiration";
 
-const PLAN_TAG: Record<string, { cls: string; label: string }> = {
-  "0": { cls: "free", label: "무료계정" },
-  "1": { cls: "pro", label: "유료계정" },
-  "2": { cls: "test", label: "테스트" },
-  "9": { cls: "expired", label: "만료" },
+const PLAN_TAG: Record<string, { cls: string; key: "planFree" | "planPaid" | "planTest" | "planExpired" }> = {
+  "0": { cls: "free", key: "planFree" },
+  "1": { cls: "pro", key: "planPaid" },
+  "2": { cls: "test", key: "planTest" },
+  "9": { cls: "expired", key: "planExpired" },
 };
 
 const THUMB_GRADIENTS: [string, string][] = [
@@ -45,16 +45,18 @@ function initialsFrom(s: string): string {
   if (/^[A-Za-z0-9]+$/.test(clean)) return clean.slice(0, 2).toUpperCase();
   return clean.slice(0, 2);
 }
-function koreanTimeAgo(date: Date | null | undefined): string {
+type TimeAgoT = (key: string, values?: Record<string, string | number>) => string;
+
+function timeAgo(t: TimeAgoT, date: Date | null | undefined): string {
   if (!date) return "—";
   const diff = Date.now() - new Date(date).getTime();
   const min = Math.floor(diff / 60000);
-  if (min < 1) return "방금 전";
-  if (min < 60) return `${min}분 전`;
+  if (min < 1) return t("timeAgoJustNow");
+  if (min < 60) return t("timeAgoMin", { n: min });
   const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}시간 전`;
+  if (hr < 24) return t("timeAgoHr", { n: hr });
   const d = Math.floor(hr / 24);
-  if (d < 7) return `${d}일 전`;
+  if (d < 7) return t("timeAgoDay", { n: d });
   const dt = new Date(date);
   return `${dt.getFullYear()}.${String(dt.getMonth() + 1).padStart(2, "0")}.${String(dt.getDate()).padStart(2, "0")}`;
 }
@@ -145,24 +147,23 @@ export default async function SitesPage() {
     <DashboardShell
       active="sites"
       breadcrumbs={[
-        { label: "홈", href: "/dashboard" },
-        { label: "내 홈페이지/쇼핑몰" },
+        { label: t("breadcrumbHome"), href: "/dashboard" },
+        { label: t("sitesPageTitle") },
       ]}
       badges={{ sites: sites.length }}
     >
       <div className="dv2-page-head">
         <div>
-          <h1 className="dv2-page-title">내 홈페이지/쇼핑몰</h1>
+          <h1 className="dv2-page-title">{t("sitesPageTitle")}</h1>
           <div className="dv2-page-sub">
-            현재 <b>{sites.length}개</b>의 홈앤샵 계정을 관리 중입니다. 각 계정마다 디자인,
-            상품 데이터, 도메인을 독립적으로 설정할 수 있습니다.
+            {t("sitesPageSubtitle", { count: sites.length })}
           </div>
         </div>
         <div className="dv2-chip-group">
-          <button className="dv2-chip on">전체 <span className="n">{byPlan.all}</span></button>
-          <button className="dv2-chip">무료계정 <span className="n">{byPlan.free}</span></button>
-          <button className="dv2-chip">유료계정 <span className="n">{byPlan.pro}</span></button>
-          <button className="dv2-chip">만료계정 <span className="n">{byPlan.expired}</span></button>
+          <button className="dv2-chip on">{t("filterAll")} <span className="n">{byPlan.all}</span></button>
+          <button className="dv2-chip">{t("filterFree")} <span className="n">{byPlan.free}</span></button>
+          <button className="dv2-chip">{t("filterPaid")} <span className="n">{byPlan.pro}</span></button>
+          <button className="dv2-chip">{t("filterExpired")} <span className="n">{byPlan.expired}</span></button>
         </div>
       </div>
 
@@ -174,8 +175,8 @@ export default async function SitesPage() {
           <div className="inner">
             <div className="ic"><Icon id="i-template" size={22} style={{ color: "#fff" }} /></div>
             <div className="text">
-              <div className="ttl">템플릿 기반 제작 <span className="tag">{allSiteTemplates}+</span></div>
-              <div className="desc">업종별 검증된 디자인으로 시작</div>
+              <div className="ttl">{t("btnNewSite")} <span className="tag">{allSiteTemplates}+</span></div>
+              <div className="desc">{tTpl("breadcrumbTemplates")}</div>
             </div>
             <div className="arr"><Icon id="i-arr-right" size={20} /></div>
           </div>
@@ -185,8 +186,8 @@ export default async function SitesPage() {
           <div className="inner">
             <div className="ic"><Icon id="i-handshake" size={22} style={{ color: "#fff" }} /></div>
             <div className="text">
-              <div className="ttl">주문제작 의뢰 <span className="tag">PRO</span></div>
-              <div className="desc">전문 디자이너 1:1 매칭</div>
+              <div className="ttl">{t("btnCustomOrder")} <span className="tag">PRO</span></div>
+              <div className="desc">1:1</div>
             </div>
             <div className="arr"><Icon id="i-arr-right" size={20} /></div>
           </div>
@@ -196,32 +197,32 @@ export default async function SitesPage() {
       <section className="dv2-panel">
         <div className="dv2-panel-head">
           <h2>
-            홈페이지 계정
-            <span className="count">{sites.length} / {Math.max(sites.length, 5)}</span>
+            {t("panelHomepageAccounts")}
+            <span className="count">{t("panelHomepageAccountsCount", { count: sites.length, total: Math.max(sites.length, 5) })}</span>
           </h2>
           <div className="tools">
             <Link href="/dashboard/domains" className="dv2-tool-btn">
-              <Icon id="i-globe" size={14} /> 도메인
+              <Icon id="i-globe" size={14} /> {t("btnDomainsTool")}
             </Link>
           </div>
         </div>
 
         {sites.length === 0 ? (
           <div className="dv2-empty">
-            <div className="t">아직 홈페이지/쇼핑몰이 없습니다</div>
-            <div className="d">AI로 5분 만에 만들거나, 120+ 템플릿 중 선택하세요.</div>
+            <div className="t">{t("sitesEmptyTitle")}</div>
+            <div className="d">{t("sitesEmptyDesc")}</div>
             <Link href="/dashboard/templates" className="dv2-row-btn primary">
-              템플릿 둘러보기 <Icon id="i-chev-right" size={12} />
+              {t("sitesBrowseTemplates")} <Icon id="i-chev-right" size={12} />
             </Link>
           </div>
         ) : (
           <>
             <div className="dv2-site-thead">
-              <div>홈페이지</div>
-              <div>플랜</div>
-              <div>페이지</div>
-              <div>마지막 수정</div>
-              <div className="right col-stat">홈페이지 관리</div>
+              <div>{t("siteColHomepage")}</div>
+              <div>{t("siteColPlan")}</div>
+              <div>{t("siteColPages")}</div>
+              <div>{t("siteColLastModified")}</div>
+              <div className="right col-stat">{t("siteColManage")}</div>
               <div />
             </div>
 
@@ -270,14 +271,14 @@ export default async function SitesPage() {
                           {!activeDomain && (
                             <>
                               <span className="dot" />
-                              <span className="warn">⚠ 커스텀 도메인 미연결</span>
+                              <span className="warn">{t("siteWarnNoCustomDomain")}</span>
                             </>
                           )}
                         </div>
                       </div>
                     </div>
                     <div>
-                      <span className={`dv2-plan-tag ${plan.cls}`}>{plan.label}</span>
+                      <span className={`dv2-plan-tag ${plan.cls}`}>{t(plan.key)}</span>
                       {s.accountType === "0" && remainingDays !== null && (
                         <span
                           className="dv2-expiry-chip"
@@ -299,22 +300,22 @@ export default async function SitesPage() {
                                 ? "#92400e"
                                 : "#64748b",
                           }}
-                          title={`만료일: ${s.expiresAt ? new Date(s.expiresAt).toLocaleDateString("ko-KR") : "-"}`}
+                          title={t("siteExpiryDateTooltip", { date: s.expiresAt ? new Date(s.expiresAt).toLocaleDateString() : "-" })}
                         >
                           {isExpired
-                            ? "만료됨"
+                            ? t("siteExpiryExpired")
                             : remainingDays === 0
-                              ? "오늘 만료"
-                              : `${remainingDays}일 남음`}
+                              ? t("siteExpiryToday")
+                              : t("siteExpiryDaysLeft", { days: remainingDays })}
                         </span>
                       )}
                     </div>
                     <div className="dv2-stat-mini">
                       <span className="n">{s.pages.length}</span>
-                      <span className="muted"> 페이지</span>
+                      <span className="muted"> {t("siteColPagesUnit")}</span>
                     </div>
                     <div className="dv2-since">
-                      {koreanTimeAgo(lastModified)}
+                      {timeAgo(t, lastModified)}
                       <span className="d">{s.defaultLanguage.toUpperCase()}</span>
                     </div>
                     <div className="dv2-row-actions col-stat">
@@ -322,13 +323,13 @@ export default async function SitesPage() {
                         href={homePage ? `/dashboard/site/pages/${homePage.id}/edit` : "/dashboard/site/pages"}
                         className="dv2-row-btn primary"
                       >
-                        <Icon id="i-palette" size={13} /> 디자인
+                        <Icon id="i-palette" size={13} /> {t("btnDesign")}
                       </Link>
                       <Link href={`/dashboard/site/${s.id}/manage`} className="dv2-row-btn">
-                        <Icon id="i-database" size={13} /> 데이터
+                        <Icon id="i-database" size={13} /> {t("btnData")}
                       </Link>
                       <Link href={`/dashboard/site/settings?id=${s.id}`} className="dv2-row-btn">
-                        <Icon id="i-info" size={13} /> 기본정보
+                        <Icon id="i-info" size={13} /> {t("btnInfo")}
                       </Link>
                     </div>
                     <Link href={`/dashboard/site/settings?id=${s.id}`} className="dv2-kebab">
@@ -341,7 +342,7 @@ export default async function SitesPage() {
               <Link href="/dashboard/templates" className="dv2-site-row add">
                 <div className="dv2-add-inner">
                   <span className="plus"><Icon id="i-plus" size={14} /></span>
-                  새 홈페이지/쇼핑몰 추가하기
+                  {t("sitesAddNew")}
                 </div>
               </Link>
             </div>
@@ -353,22 +354,21 @@ export default async function SitesPage() {
       <section className="dv2-panel" style={{ marginTop: 16 }}>
         <div className="dv2-panel-head">
           <h2>
-            마켓플레이스 연동
-            <span className="count">{integrationCount}개 ({activeIntegrationCount}개 활성)</span>
+            {t("panelMarketplaceIntegrations")}
+            <span className="count">{t("panelMarketplaceCount", { count: integrationCount, active: activeIntegrationCount })}</span>
           </h2>
           <div className="tools">
             <Link href="/dashboard/integrations" className="dv2-tool-btn">
-              <Icon id="i-link" size={14} /> 관리하기
+              <Icon id="i-link" size={14} /> {t("panelMarketplaceManage")}
             </Link>
           </div>
         </div>
         <div style={{ padding: "16px 20px", color: "var(--ink-2)", fontSize: 13, lineHeight: 1.6 }}>
-          홈앤샵 사이트와 별개로 외부 쇼핑몰(Shopify, 쿠팡, Amazon, Qoo10, Rakuten, TikTok Shop)에서
-          판매 중인 셀러 계정을 연결해 주문을 한 곳에서 관리할 수 있습니다. 마켓 계정 추가/관리는{" "}
+          {t("panelMarketplaceDesc")}
           <Link href="/dashboard/integrations" style={{ color: "var(--brand)", fontWeight: 600 }}>
-            마켓플레이스 연동 페이지
+            {t("panelMarketplaceLinkText")}
           </Link>
-          에서 진행합니다.
+          {t("panelMarketplaceDescTail")}
         </div>
       </section>
     </DashboardShell>

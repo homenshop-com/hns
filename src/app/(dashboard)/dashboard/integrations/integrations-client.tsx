@@ -31,14 +31,50 @@ interface Integration {
   lastError: string | null;
 }
 
-const CHANNEL_DESCRIPTIONS: Record<Channel, string> = {
-  SHOPIFY: "Shopify 스토어 OAuth 연결, 주문 자동 동기화",
-  COUPANG: "쿠팡 Wing 오픈마켓 API 키 등록",
-  AMAZON: "Amazon SP-API LWA OAuth + IAM 연결",
-  QOO10: "Qoo10 QSM API 키 등록 (KR/JP/SG)",
-  RAKUTEN: "Rakuten Ichiba RMS WebService 연결",
-  TIKTOKSHOP: "TikTok Shop Open Platform OAuth",
-};
+export interface IntegrationsLabels {
+  panelTitle: string;
+  panelCount: string;
+  soonBadge: string;
+  soonHint: string;
+  accountsCount: (n: number) => string;
+  noAccounts: string;
+  btnAddAccount: string;
+  btnAddAccountTooltip: string;
+  btnReconnect: string;
+  btnDisconnect: string;
+  confirmDisconnect: (label: string) => string;
+  statusActive: string;
+  statusError: string;
+  statusPaused: string;
+  statusDisconnected: string;
+  lastSyncLabel: (time: string) => string;
+  modalTitleConnect: (name: string) => string;
+  modalTitleReconnect: (name: string) => string;
+  modalSoonNotice: string;
+  fieldLabel: string;
+  fieldLabelPlaceholder: string;
+  fieldLabelHint: string;
+  fieldLabelRequired: string;
+  fieldSiteLink: string;
+  fieldSiteLinkNone: string;
+  fieldSiteLinkHint: string;
+  fieldShopDomain: string;
+  fieldShopDomainPlaceholder: string;
+  fieldShopDomainHint: string;
+  fieldShopDomainRequired: string;
+  btnSave: string;
+  btnSaving: string;
+  btnGotoShopify: string;
+  btnCancel: string;
+  errorOAuthUrl: string;
+  errorSaveFailed: string;
+  descSHOPIFY: string;
+  descCOUPANG: string;
+  descAMAZON: string;
+  descQOO10: string;
+  descRAKUTEN: string;
+  descTIKTOKSHOP: string;
+}
 
 const CHANNEL_LOGO_BG: Record<Channel, string> = {
   SHOPIFY: "#5fa44b",
@@ -49,21 +85,43 @@ const CHANNEL_LOGO_BG: Record<Channel, string> = {
   TIKTOKSHOP: "#000000",
 };
 
-const STATUS_BADGE: Record<Integration["status"], { label: string; bg: string; fg: string }> = {
-  ACTIVE: { label: "연결됨", bg: "#dcfce7", fg: "#166534" },
-  ERROR: { label: "오류", bg: "#fee2e2", fg: "#991b1b" },
-  PAUSED: { label: "일시정지", bg: "#fef3c7", fg: "#92400e" },
-  DISCONNECTED: { label: "미연결", bg: "#f1f5f9", fg: "#64748b" },
+const STATUS_BG: Record<Integration["status"], { bg: string; fg: string }> = {
+  ACTIVE: { bg: "#dcfce7", fg: "#166534" },
+  ERROR: { bg: "#fee2e2", fg: "#991b1b" },
+  PAUSED: { bg: "#fef3c7", fg: "#92400e" },
+  DISCONNECTED: { bg: "#f1f5f9", fg: "#64748b" },
 };
+
+function statusLabel(status: Integration["status"], labels: IntegrationsLabels): string {
+  switch (status) {
+    case "ACTIVE": return labels.statusActive;
+    case "ERROR": return labels.statusError;
+    case "PAUSED": return labels.statusPaused;
+    case "DISCONNECTED": return labels.statusDisconnected;
+  }
+}
+
+function channelDesc(channel: Channel, labels: IntegrationsLabels): string {
+  switch (channel) {
+    case "SHOPIFY": return labels.descSHOPIFY;
+    case "COUPANG": return labels.descCOUPANG;
+    case "AMAZON": return labels.descAMAZON;
+    case "QOO10": return labels.descQOO10;
+    case "RAKUTEN": return labels.descRAKUTEN;
+    case "TIKTOKSHOP": return labels.descTIKTOKSHOP;
+  }
+}
 
 export default function IntegrationsClient({
   sites,
   adapters,
   integrations,
+  labels,
 }: {
   sites: SiteOption[];
   adapters: Adapter[];
   integrations: Integration[];
+  labels: IntegrationsLabels;
 }) {
   const router = useRouter();
   const [modalState, setModalState] = useState<{
@@ -83,8 +141,8 @@ export default function IntegrationsClient({
       <section className="dv2-panel">
         <div className="dv2-panel-head">
           <h2>
-            연결 가능한 마켓플레이스
-            <span className="count">{adapters.length}개</span>
+            {labels.panelTitle}
+            <span className="count">{labels.panelCount}</span>
           </h2>
         </div>
         <div style={{ padding: 18, display: "flex", flexDirection: "column", gap: 18 }}>
@@ -95,10 +153,11 @@ export default function IntegrationsClient({
                 key={a.channel}
                 adapter={a}
                 accounts={accounts}
+                labels={labels}
                 onConnect={() => setModalState({ channel: a.channel })}
                 onEdit={(id) => setModalState({ channel: a.channel, integrationId: id })}
                 onDelete={async (id, label) => {
-                  if (!confirm(`"${label}" 계정 연동을 끊을까요?`)) return;
+                  if (!confirm(labels.confirmDisconnect(label))) return;
                   const r = await fetch(`/api/integrations?integrationId=${id}`, {
                     method: "DELETE",
                   });
@@ -121,6 +180,7 @@ export default function IntegrationsClient({
               : null
           }
           adapter={adapters.find((a) => a.channel === modalState.channel)!}
+          labels={labels}
           onClose={() => setModalState(null)}
           onSaved={() => {
             setModalState(null);
@@ -135,12 +195,14 @@ export default function IntegrationsClient({
 function ChannelGroup({
   adapter,
   accounts,
+  labels,
   onConnect,
   onEdit,
   onDelete,
 }: {
   adapter: Adapter;
   accounts: Integration[];
+  labels: IntegrationsLabels;
   onConnect: () => void;
   onEdit: (id: string) => void;
   onDelete: (id: string, label: string) => void;
@@ -186,15 +248,15 @@ function ChannelGroup({
                   color: "#92400e",
                 }}
               >
-                준비중
+                {labels.soonBadge}
               </span>
             )}
             <span style={{ fontSize: 11, color: "var(--ink-3)" }}>
-              {accounts.length > 0 ? `· ${accounts.length}개 계정` : "· 미연결"}
+              {accounts.length > 0 ? labels.accountsCount(accounts.length) : labels.noAccounts}
             </span>
           </div>
           <div style={{ fontSize: 12, color: "var(--ink-2)", marginTop: 2 }}>
-            {CHANNEL_DESCRIPTIONS[adapter.channel]}
+            {channelDesc(adapter.channel, labels)}
           </div>
         </div>
         <button
@@ -203,16 +265,16 @@ function ChannelGroup({
           onClick={onConnect}
           disabled={!adapter.implemented && accounts.length === 0}
           style={!adapter.implemented && accounts.length === 0 ? { opacity: 0.6, cursor: "not-allowed" } : undefined}
-          title={!adapter.implemented ? "추후 출시 예정 — 키 등록만 미리 가능" : "이 마켓플레이스에 새 셀러 계정 연결"}
+          title={!adapter.implemented ? labels.soonHint : labels.btnAddAccountTooltip}
         >
-          + 계정 추가
+          {labels.btnAddAccount}
         </button>
       </div>
 
       {accounts.length > 0 && (
         <div>
           {accounts.map((a, idx) => {
-            const badge = STATUS_BADGE[a.status];
+            const badge = STATUS_BG[a.status];
             return (
               <div
                 key={a.id}
@@ -237,7 +299,7 @@ function ChannelGroup({
                         color: badge.fg,
                       }}
                     >
-                      {badge.label}
+                      {statusLabel(a.status, labels)}
                     </span>
                     {a.siteId && a.siteName && (
                       <span
@@ -249,7 +311,7 @@ function ChannelGroup({
                           background: "#eaefff",
                           color: "#2545e0",
                         }}
-                        title={`연결된 홈앤샵 사이트: @${a.siteShopId}`}
+                        title={`@${a.siteShopId}`}
                       >
                         🔗 {a.siteName}
                       </span>
@@ -258,7 +320,7 @@ function ChannelGroup({
                   <div style={{ fontSize: 11, color: "var(--ink-3)", display: "flex", gap: 10, flexWrap: "wrap" }}>
                     {a.displayName && <span>{a.displayName}</span>}
                     {a.lastSyncAt && (
-                      <span>최근 동기화: {new Date(a.lastSyncAt).toLocaleString("ko-KR")}</span>
+                      <span>{labels.lastSyncLabel(new Date(a.lastSyncAt).toLocaleString())}</span>
                     )}
                   </div>
                   {a.lastError && (
@@ -277,7 +339,7 @@ function ChannelGroup({
                   )}
                 </div>
                 <button type="button" className="dv2-row-btn" onClick={() => onEdit(a.id)}>
-                  재연결
+                  {labels.btnReconnect}
                 </button>
                 <button
                   type="button"
@@ -285,7 +347,7 @@ function ChannelGroup({
                   style={{ color: "#dc2626" }}
                   onClick={() => onDelete(a.id, a.label)}
                 >
-                  연결 끊기
+                  {labels.btnDisconnect}
                 </button>
               </div>
             );
@@ -302,6 +364,7 @@ interface ConnectModalProps {
   integrationId?: string;
   existing: Integration | null;
   adapter: Adapter;
+  labels: IntegrationsLabels;
   onClose: () => void;
   onSaved: () => void;
 }
@@ -314,10 +377,11 @@ interface FieldDef {
   hint?: string;
 }
 
-const CHANNEL_FIELDS: Record<Channel, FieldDef[]> = {
-  SHOPIFY: [
-    { key: "shop", label: "Shop 도메인", placeholder: "yourstore.myshopify.com", hint: "Shopify 관리자 페이지 도메인" },
-  ],
+// Shopify shop field labels are sourced from the labels prop at runtime
+// (because the placeholder/hint differ per locale). All other marketplaces
+// use English API terms (Vendor ID, Access Key, etc.) which match each
+// vendor's own documentation regardless of UI locale.
+const CHANNEL_FIELDS_STATIC: Record<Exclude<Channel, "SHOPIFY">, FieldDef[]> = {
   COUPANG: [
     { key: "vendorId", label: "Vendor ID", placeholder: "A00012345" },
     { key: "accessKey", label: "Access Key", type: "password" },
@@ -361,6 +425,7 @@ function ConnectModal({
   integrationId,
   existing,
   adapter,
+  labels,
   onClose,
   onSaved,
 }: ConnectModalProps) {
@@ -372,14 +437,21 @@ function ConnectModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fields = CHANNEL_FIELDS[channel];
+  const fields: FieldDef[] = channel === "SHOPIFY"
+    ? [{
+        key: "shop",
+        label: labels.fieldShopDomain,
+        placeholder: labels.fieldShopDomainPlaceholder,
+        hint: labels.fieldShopDomainHint,
+      }]
+    : CHANNEL_FIELDS_STATIC[channel];
   const isOAuth = channel === "SHOPIFY";
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     if (!label.trim()) {
-      setError("계정 이름을 입력하세요. 예: 뷰티 계정 / 식품 계정");
+      setError(labels.fieldLabelRequired);
       return;
     }
     setSaving(true);
@@ -387,7 +459,7 @@ function ConnectModal({
       if (isOAuth && channel === "SHOPIFY") {
         const shop = values.shop?.trim();
         if (!shop) {
-          setError("Shop 도메인을 입력하세요.");
+          setError(labels.fieldShopDomainRequired);
           setSaving(false);
           return;
         }
@@ -403,7 +475,7 @@ function ConnectModal({
         });
         const data = await r.json();
         if (!r.ok || !data.url) {
-          setError(data.error || "OAuth 설치 URL 생성 실패");
+          setError(data.error || labels.errorOAuthUrl);
           setSaving(false);
           return;
         }
@@ -423,7 +495,7 @@ function ConnectModal({
       });
       const data = await r.json();
       if (!r.ok) {
-        setError(data.error || "저장 실패");
+        setError(data.error || labels.errorSaveFailed);
         setSaving(false);
         return;
       }
@@ -458,7 +530,9 @@ function ConnectModal({
         onClick={(e) => e.stopPropagation()}
       >
         <h3 style={{ margin: 0, fontSize: 18 }}>
-          {adapter.displayName} {existing ? "재연결" : "계정 연결"}
+          {existing
+            ? labels.modalTitleReconnect(adapter.displayName)
+            : labels.modalTitleConnect(adapter.displayName)}
         </h3>
         {!adapter.implemented && (
           <div
@@ -471,18 +545,18 @@ function ConnectModal({
               fontSize: 12,
             }}
           >
-            준비중인 어댑터입니다. 키만 미리 저장할 수 있으며, 실제 동기화는 정식 출시 후 자동 작동합니다.
+            {labels.modalSoonNotice}
           </div>
         )}
         <form onSubmit={submit} style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 12 }}>
           <label style={{ display: "block" }}>
             <span style={{ display: "block", fontSize: 12, color: "var(--ink-2)", marginBottom: 4 }}>
-              계정 이름 (라벨)
+              {labels.fieldLabel}
             </span>
             <input
               type="text"
               required
-              placeholder="예: 뷰티 계정 / 식품 계정 / 메인"
+              placeholder={labels.fieldLabelPlaceholder}
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               style={{
@@ -495,14 +569,14 @@ function ConnectModal({
               }}
             />
             <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 3 }}>
-              같은 마켓플레이스에 여러 셀러 계정을 연결할 때 구분하기 위한 이름입니다.
+              {labels.fieldLabelHint}
             </div>
           </label>
 
           {sites.length > 0 && (
             <label style={{ display: "block" }}>
               <span style={{ display: "block", fontSize: 12, color: "var(--ink-2)", marginBottom: 4 }}>
-                홈앤샵 사이트 연결 (선택)
+                {labels.fieldSiteLink}
               </span>
               <select
                 value={siteId}
@@ -517,7 +591,7 @@ function ConnectModal({
                   background: "#fff",
                 }}
               >
-                <option value="">— 연결 안 함 (독립 마켓플레이스) —</option>
+                <option value="">{labels.fieldSiteLinkNone}</option>
                 {sites.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name || s.shopId} (@{s.shopId})
@@ -525,8 +599,7 @@ function ConnectModal({
                 ))}
               </select>
               <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 3 }}>
-                특정 홈앤샵 사이트와 연결하면 재고/고객 데이터를 함께 관리할 수 있습니다.
-                선택하지 않으면 독립 마켓플레이스로 동작합니다.
+                {labels.fieldSiteLinkHint}
               </div>
             </label>
           )}
@@ -561,10 +634,10 @@ function ConnectModal({
           )}
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 4 }}>
             <button type="button" className="dv2-row-btn" onClick={onClose}>
-              취소
+              {labels.btnCancel}
             </button>
             <button type="submit" className="dv2-row-btn primary" disabled={saving}>
-              {saving ? "저장 중…" : isOAuth ? "Shopify로 이동" : "저장"}
+              {saving ? labels.btnSaving : isOAuth ? labels.btnGotoShopify : labels.btnSave}
             </button>
           </div>
         </form>
