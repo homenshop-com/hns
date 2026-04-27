@@ -19,7 +19,9 @@
  * Run: node scripts/backfill-order-siteid.mjs
  */
 
-import { PrismaClient } from "../src/generated/prisma/client/index.js";
+// Note: scripts run via Node, not Next/TS. We use the @prisma/client package
+// (not the per-project generated dir) because tsx isn't required here.
+import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
