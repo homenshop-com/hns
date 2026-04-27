@@ -2,9 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { searchProducts, searchPosts } from "@/lib/search";
-import { getTranslations } from "next-intl/server";
-import SignOutButton from "../sign-out-button";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
+import DashboardShell from "../dashboard-shell";
 import { parsePageParam } from "@/lib/pagination";
 
 type SearchType = "all" | "products" | "posts";
@@ -18,8 +16,6 @@ export default async function SearchPage({
   if (!session) {
     redirect("/login");
   }
-
-  const td = await getTranslations("dashboard");
 
   const resolvedParams = await searchParams;
   const q = resolvedParams.q || "";
@@ -63,23 +59,14 @@ export default async function SearchPage({
   ];
 
   return (
-    <div className="dash-page">
-      <header className="dash-header">
-        <div className="dash-header-inner">
-          <div style={{ display: "flex", alignItems: "center" }}>
-            <Link href="/dashboard" className="dash-logo">homeNshop</Link>
-            <span className="dash-logo-sub">{td("title")}</span>
-          </div>
-          <div className="dash-header-right">
-            <Link href="/dashboard" className="dash-header-btn">{td("dashboard")}</Link>
-            <Link href="/dashboard/profile" className="dash-header-btn">{td("memberInfo")}</Link>
-            <SignOutButton />
-            <LanguageSwitcher />
-          </div>
-        </div>
-      </header>
-
-      <main className="dash-main">
+    <DashboardShell
+      active="search"
+      breadcrumbs={[
+        { label: "홈", href: "/dashboard" },
+        { label: "검색" },
+      ]}
+    >
+      <div>
         <h2 className="mb-6 text-2xl font-bold">검색</h2>
 
         {/* Search form */}
@@ -303,8 +290,7 @@ export default async function SearchPage({
             <p className="mt-1 text-sm">상품, 게시글을 검색할 수 있습니다.</p>
           </div>
         )}
-      </main>
-      <footer className="dash-footer" />
-    </div>
+      </div>
+    </DashboardShell>
   );
 }

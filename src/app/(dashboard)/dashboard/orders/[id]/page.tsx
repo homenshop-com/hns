@@ -2,9 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
-import { getTranslations } from "next-intl/server";
-import SignOutButton from "../../sign-out-button";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
+import DashboardShell from "../../dashboard-shell";
 
 const STATUS_LABELS: Record<string, string> = {
   PENDING: "결제대기",
@@ -50,8 +48,6 @@ export default async function DashboardOrderDetailPage({
     redirect("/login");
   }
 
-  const td = await getTranslations("dashboard");
-
   const { id } = await params;
 
   const order = await prisma.order.findUnique({
@@ -81,23 +77,15 @@ export default async function DashboardOrderDetailPage({
       : null;
 
   return (
-    <div className="dash-page">
-      <header className="dash-header">
-        <div className="dash-header-inner">
-          <div style={{ display: "flex", alignItems: "center" }}>
-            <Link href="/dashboard" className="dash-logo">homeNshop</Link>
-            <span className="dash-logo-sub">{td("cards.orders")}</span>
-          </div>
-          <div className="dash-header-right">
-            <Link href="/dashboard" className="dash-header-btn">{td("dashboard")}</Link>
-            <Link href="/dashboard/profile" className="dash-header-btn">{td("memberInfo")}</Link>
-            <SignOutButton />
-            <LanguageSwitcher />
-          </div>
-        </div>
-      </header>
-
-      <main className="dash-main">
+    <DashboardShell
+      active="orders"
+      breadcrumbs={[
+        { label: "홈", href: "/dashboard" },
+        { label: "주문 관리", href: "/dashboard/orders" },
+        { label: order.orderNumber },
+      ]}
+    >
+      <div>
         <div className="mb-6">
           <Link
             href="/dashboard/orders"
@@ -334,9 +322,8 @@ export default async function DashboardOrderDetailPage({
             &larr; 주문 목록으로 돌아가기
           </Link>
         </div>
-      </main>
-      <footer className="dash-footer" />
-    </div>
+      </div>
+    </DashboardShell>
   );
 }
 

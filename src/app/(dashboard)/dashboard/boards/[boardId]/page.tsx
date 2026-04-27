@@ -2,9 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
-import { getTranslations } from "next-intl/server";
-import SignOutButton from "../../sign-out-button";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
+import DashboardShell from "../../dashboard-shell";
 import { parsePageParam } from "@/lib/pagination";
 
 const PAGE_SIZE = 10;
@@ -34,8 +32,6 @@ export default async function BoardPostsPage({
     notFound();
   }
 
-  const td = await getTranslations("dashboard");
-
   const [posts, totalCount] = await Promise.all([
     prisma.boardPost.findMany({
       where: { categoryId: boardId },
@@ -49,23 +45,15 @@ export default async function BoardPostsPage({
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   return (
-    <div className="dash-page">
-      <header className="dash-header">
-        <div className="dash-header-inner">
-          <div style={{ display: "flex", alignItems: "center" }}>
-            <Link href="/dashboard" className="dash-logo">homeNshop</Link>
-            <span className="dash-logo-sub">{board.name}</span>
-          </div>
-          <div className="dash-header-right">
-            <Link href="/dashboard" className="dash-header-btn">{td("dashboard")}</Link>
-            <Link href="/dashboard/profile" className="dash-header-btn">{td("memberInfo")}</Link>
-            <SignOutButton />
-            <LanguageSwitcher />
-          </div>
-        </div>
-      </header>
-
-      <main className="dash-main">
+    <DashboardShell
+      active="boards"
+      breadcrumbs={[
+        { label: "홈", href: "/dashboard" },
+        { label: "게시판", href: "/dashboard/boards" },
+        { label: board.name },
+      ]}
+    >
+      <div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
           <div>
             <div style={{ marginBottom: 8 }}>
@@ -135,13 +123,7 @@ export default async function BoardPostsPage({
             )}
           </div>
         )}
-      </main>
-
-      <footer className="dash-footer">
-        <div className="dash-footer-inner">
-          <p>&copy; {new Date().getFullYear()} homenshop.com. All rights reserved.</p>
-        </div>
-      </footer>
-    </div>
+      </div>
+    </DashboardShell>
   );
 }

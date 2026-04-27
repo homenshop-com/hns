@@ -3,8 +3,7 @@ import { prisma } from "@/lib/db";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import SignOutButton from "../../../../sign-out-button";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
+import DashboardShell from "../../../../dashboard-shell";
 import CommentSection from "./comment-section";
 
 export default async function PostDetailPage({
@@ -26,7 +25,6 @@ export default async function PostDetailPage({
 
   if (!post || !post.category || post.category.site.userId !== session.user.id) notFound();
 
-  const td = await getTranslations("dashboard");
   const tb = await getTranslations("boardsPage");
 
   await prisma.boardPost.update({
@@ -35,23 +33,16 @@ export default async function PostDetailPage({
   });
 
   return (
-    <div className="dash-page">
-      <header className="dash-header">
-        <div className="dash-header-inner">
-          <div style={{ display: "flex", alignItems: "center" }}>
-            <Link href="/dashboard" className="dash-logo">homeNshop</Link>
-            <span className="dash-logo-sub">{tb("viewPost")}</span>
-          </div>
-          <div className="dash-header-right">
-            <Link href="/dashboard" className="dash-header-btn">{td("dashboard")}</Link>
-            <Link href="/dashboard/profile" className="dash-header-btn">{td("memberInfo")}</Link>
-            <SignOutButton />
-            <LanguageSwitcher />
-          </div>
-        </div>
-      </header>
-
-      <main className="dash-main">
+    <DashboardShell
+      active="boards"
+      breadcrumbs={[
+        { label: "홈", href: "/dashboard" },
+        { label: "게시판", href: "/dashboard/boards" },
+        { label: post.category.name, href: `/dashboard/boards/${boardId}` },
+        { label: post.title },
+      ]}
+    >
+      <div>
         <div style={{ marginBottom: 16 }}>
           <Link href={`/dashboard/boards/${boardId}`} style={{ fontSize: 13, color: "#868e96", textDecoration: "none" }}>
             &larr; {tb("backToList")}
@@ -85,14 +76,8 @@ export default async function PostDetailPage({
 
         {/* Comments */}
         <CommentSection boardId={boardId} postId={postId} />
-      </main>
-
-      <footer className="dash-footer">
-        <div className="dash-footer-inner">
-          <p>&copy; {new Date().getFullYear()} homenshop.com. All rights reserved.</p>
-        </div>
-      </footer>
-    </div>
+      </div>
+    </DashboardShell>
   );
 }
 

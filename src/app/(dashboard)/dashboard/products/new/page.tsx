@@ -1,28 +1,18 @@
-"use client";
-
 import Link from "next/link";
-import { signOut } from "next-auth/react";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ProductForm from "../product-form";
+import DashboardShell from "../../dashboard-shell";
 
 export default function NewProductPage() {
   return (
-    <div className="dash-page">
-      <header className="dash-header">
-        <div className="dash-header-inner">
-          <div style={{ display: "flex", alignItems: "center" }}>
-            <Link href="/dashboard" className="dash-logo">homeNshop</Link>
-          </div>
-          <div className="dash-header-right">
-            <Link href="/dashboard" className="dash-header-btn">Dashboard</Link>
-            <Link href="/dashboard/profile" className="dash-header-btn">Profile</Link>
-            <button onClick={() => signOut({ callbackUrl: "/login" })} className="dash-header-btn">Logout</button>
-            <LanguageSwitcher />
-          </div>
-        </div>
-      </header>
-
-      <main className="dash-main">
+    <DashboardShell
+      active="products"
+      breadcrumbs={[
+        { label: "홈", href: "/dashboard" },
+        { label: "상품 관리", href: "/dashboard/products" },
+        { label: "상품 등록" },
+      ]}
+    >
+      <div>
         <div className="mb-6">
           <Link
             href="/dashboard/products"
@@ -35,7 +25,7 @@ export default function NewProductPage() {
         <h2 className="text-2xl font-bold mb-6">상품 등록</h2>
 
         <ProductForm mode="create" />
-      </main>
-    </div>
+      </div>
+    </DashboardShell>
   );
 }

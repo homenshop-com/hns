@@ -2,9 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { getTranslations } from "next-intl/server";
-import SignOutButton from "../../../../../sign-out-button";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
+import DashboardShell from "../../../../../dashboard-shell";
 import WebmasterForm from "./WebmasterForm";
 
 export default async function WebmasterConfigPage({
@@ -26,26 +24,16 @@ export default async function WebmasterConfigPage({
     redirect("/dashboard");
   }
 
-  const td = await getTranslations("dashboard");
-
   return (
-    <div className="dash-page">
-      <header className="dash-header">
-        <div className="dash-header-inner">
-          <div style={{ display: "flex", alignItems: "center" }}>
-            <Link href="/dashboard" className="dash-logo">homeNshop</Link>
-            <span className="dash-logo-sub">Google</span>
-          </div>
-          <div className="dash-header-right">
-            <Link href="/dashboard" className="dash-header-btn">{td("dashboard")}</Link>
-            <Link href="/dashboard/profile" className="dash-header-btn">{td("memberInfo")}</Link>
-            <SignOutButton />
-            <LanguageSwitcher />
-          </div>
-        </div>
-      </header>
-
-      <main className="dash-main">
+    <DashboardShell
+      active="sites"
+      breadcrumbs={[
+        { label: "홈", href: "/dashboard" },
+        { label: "데이타관리", href: `/dashboard/site/${siteId}/manage` },
+        { label: "Webmaster Tools" },
+      ]}
+    >
+      <div>
         <div style={{ marginBottom: 16 }}>
           <Link href={`/dashboard/site/${siteId}/manage`} style={{ fontSize: 13, color: "#868e96", textDecoration: "none" }}>
             &larr; 데이타관리
@@ -73,13 +61,7 @@ export default async function WebmasterConfigPage({
             </ol>
           </div>
         </div>
-      </main>
-
-      <footer className="dash-footer">
-        <div className="dash-footer-inner">
-          <p>&copy; {new Date().getFullYear()} homenshop.com. All rights reserved.</p>
-        </div>
-      </footer>
-    </div>
+      </div>
+    </DashboardShell>
   );
 }

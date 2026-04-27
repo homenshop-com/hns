@@ -3,8 +3,7 @@ import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import SignOutButton from "../sign-out-button";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
+import DashboardShell from "../dashboard-shell";
 import CreateBoardForm from "./create-board-form";
 
 export default async function BoardsPage() {
@@ -14,7 +13,6 @@ export default async function BoardsPage() {
   }
 
   const t = await getTranslations("boardsPage");
-  const td = await getTranslations("dashboard");
 
   const site = await prisma.site.findFirst({
     where: { userId: session.user.id, isTemplateStorage: false },
@@ -31,23 +29,14 @@ export default async function BoardsPage() {
     : [];
 
   return (
-    <div className="dash-page">
-      <header className="dash-header">
-        <div className="dash-header-inner">
-          <div style={{ display: "flex", alignItems: "center" }}>
-            <Link href="/dashboard" className="dash-logo">homeNshop</Link>
-            <span className="dash-logo-sub">{t("title")}</span>
-          </div>
-          <div className="dash-header-right">
-            <Link href="/dashboard" className="dash-header-btn">{td("dashboard")}</Link>
-            <Link href="/dashboard/profile" className="dash-header-btn">{td("memberInfo")}</Link>
-            <SignOutButton />
-            <LanguageSwitcher />
-          </div>
-        </div>
-      </header>
-
-      <main className="dash-main">
+    <DashboardShell
+      active="boards"
+      breadcrumbs={[
+        { label: "홈", href: "/dashboard" },
+        { label: t("title") },
+      ]}
+    >
+      <div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
           <h1 className="dash-title">{t("title")}</h1>
           <span style={{ fontSize: 13, color: "#868e96" }}>총 {boards.length}개의 게시판</span>
@@ -103,14 +92,8 @@ export default async function BoardsPage() {
         )}
 
         {site && <CreateBoardForm />}
-      </main>
-
-      <footer className="dash-footer">
-        <div className="dash-footer-inner">
-          <p>&copy; {new Date().getFullYear()} homenshop.com. All rights reserved.</p>
-        </div>
-      </footer>
-    </div>
+      </div>
+    </DashboardShell>
   );
 }
 

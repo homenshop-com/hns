@@ -3,9 +3,7 @@ import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Prisma } from "@/generated/prisma/client";
-import { getTranslations } from "next-intl/server";
-import SignOutButton from "../sign-out-button";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
+import DashboardShell from "../dashboard-shell";
 import { parsePageParam } from "@/lib/pagination";
 
 async function getCategoryMap(siteId: string): Promise<Record<string, string>> {
@@ -48,8 +46,6 @@ export default async function ProductsPage({
   if (!session) {
     redirect("/login");
   }
-
-  const td = await getTranslations("dashboard");
 
   const { q, page: pageStr, status, cat } = await searchParams;
   const currentPage = parsePageParam(pageStr);
@@ -111,23 +107,14 @@ export default async function ProductsPage({
   }
 
   return (
-    <div className="dash-page">
-      <header className="dash-header">
-        <div className="dash-header-inner">
-          <div style={{ display: "flex", alignItems: "center" }}>
-            <Link href="/dashboard" className="dash-logo">homeNshop</Link>
-            <span className="dash-logo-sub">{td("cards.products")}</span>
-          </div>
-          <div className="dash-header-right">
-            <Link href="/dashboard" className="dash-header-btn">{td("dashboard")}</Link>
-            <Link href="/dashboard/profile" className="dash-header-btn">{td("memberInfo")}</Link>
-            <SignOutButton />
-            <LanguageSwitcher />
-          </div>
-        </div>
-      </header>
-
-      <main className="dash-main">
+    <DashboardShell
+      active="products"
+      breadcrumbs={[
+        { label: "홈", href: "/dashboard" },
+        { label: "상품 관리" },
+      ]}
+    >
+      <div>
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-2xl font-bold">상품 관리</h2>
@@ -366,8 +353,7 @@ export default async function ProductsPage({
             &larr; 대시보드로 돌아가기
           </Link>
         </div>
-      </main>
-      <footer className="dash-footer" />
-    </div>
+      </div>
+    </DashboardShell>
   );
 }

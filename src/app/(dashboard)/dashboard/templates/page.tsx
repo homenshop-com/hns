@@ -3,8 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/db";
-import SignOutButton from "../sign-out-button";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
+import DashboardShell from "../dashboard-shell";
 import TemplateGallery from "./template-gallery";
 import { getSettingBool } from "@/lib/settings";
 
@@ -25,9 +24,7 @@ export default async function TemplatesPage({
 
   const isDemoAccount = currentUser?.email === "demo@demo.com";
 
-  const t = await getTranslations("dashboard");
   const tTpl = await getTranslations("templates");
-  const tFooter = await getTranslations("home");
 
   const params = await searchParams;
   const sort = params.sort || "newest";
@@ -92,37 +89,14 @@ export default async function TemplatesPage({
   });
 
   return (
-    <div className="dash-page">
-      {/* HEADER */}
-      <header className="dash-header">
-        <div className="dash-header-inner">
-          <div style={{ display: "flex", alignItems: "center" }}>
-            <Link href="/dashboard" className="dash-logo">
-              homeNshop
-            </Link>
-            <span className="dash-logo-sub">{t("title")}</span>
-          </div>
-          <div className="dash-header-right">
-            <Link href="/dashboard" className="dash-header-btn">
-              {t("dashboard")}
-            </Link>
-            <Link href="/dashboard/profile" className="dash-header-btn">
-              {t("memberInfo")}
-            </Link>
-            <SignOutButton />
-            <LanguageSwitcher />
-          </div>
-        </div>
-      </header>
-
-      {/* BREADCRUMB */}
-      <div className="dash-main">
-        <div className="tpl-breadcrumb">
-          <Link href="/dashboard">{tTpl("breadcrumbHome")}</Link>
-          <span className="sep">&gt;</span>
-          {tTpl("breadcrumbTemplates")}
-        </div>
-
+    <DashboardShell
+      active="templates"
+      breadcrumbs={[
+        { label: tTpl("breadcrumbHome"), href: "/dashboard" },
+        { label: tTpl("breadcrumbTemplates") },
+      ]}
+    >
+      <div>
         {/* TEMPLATE GALLERY */}
         <TemplateGallery
           templates={templates.map((t) => ({
@@ -203,27 +177,6 @@ export default async function TemplatesPage({
           }}
         />
       </div>
-
-      {/* FOOTER */}
-      <footer className="dash-footer">
-        <div className="dash-footer-inner">
-          <p>
-            &copy; {new Date().getFullYear()} homenshop.com. All rights
-            reserved.
-          </p>
-          <p>
-            {tFooter("footerCompany")} | {tFooter("footerBizNo")} |{" "}
-            {tFooter("footerCeo")}
-            <br />
-            {tFooter("footerAddress")} |{" "}
-            <Link href="/terms">{tFooter("footerTerms")}</Link> |{" "}
-            <Link href="/privacy">{tFooter("footerPrivacy")}</Link>
-            <br />
-            {tFooter("footerContact")}{" "}
-            <a href="mailto:help@homenshop.com">help@homenshop.com</a>
-          </p>
-        </div>
-      </footer>
-    </div>
+    </DashboardShell>
   );
 }
