@@ -361,9 +361,11 @@ const CHANNEL_FIELDS_STATIC: Record<Exclude<Channel, "SHOPIFY">, FieldDef[]> = {
     { key: "region", label: "Region", placeholder: "us-east-1" },
   ],
   QOO10: [
-    { key: "apiKey", label: "API Key", type: "password" },
-    { key: "apiSecret", label: "API Secret", type: "password" },
-    { key: "sellerId", label: "Seller ID" },
+    { key: "apiKey", label: "API Key", type: "password", hint: "QSM > 통합관리 > API Setup" },
+    { key: "userId", label: "Q account ID" },
+    { key: "password", label: "Q account Password", type: "password" },
+    { key: "region", label: "Region", placeholder: "JP", hint: "JP / KR / SG" },
+    { key: "sellerId", label: "Seller ID (선택)" },
   ],
   RAKUTEN: [
     { key: "serviceSecret", label: "Service Secret", type: "password" },

@@ -628,7 +628,7 @@
     "channelDescriptionShopify": "Shopify store OAuth, automatic order sync",
     "channelDescriptionCoupang": "Coupang Wing open marketplace API key registration",
     "channelDescriptionAmazon": "Amazon SP-API LWA OAuth + IAM connection",
-    "channelDescriptionQoo10": "Qoo10 QSM API key registration (KR/JP/SG)",
+    "channelDescriptionQoo10": "Qoo10 QSM API — order import + shipping sync (KR/JP/SG)",
     "channelDescriptionRakuten": "Rakuten Ichiba RMS WebService connection",
     "channelDescriptionTiktokshop": "TikTok Shop Open Platform OAuth"
   },

@@ -628,7 +628,7 @@
     "channelDescriptionShopify": "Shopify 스토어 OAuth 연결, 주문 자동 동기화",
     "channelDescriptionCoupang": "쿠팡 Wing 오픈마켓 API 키 등록",
     "channelDescriptionAmazon": "Amazon SP-API LWA OAuth + IAM 연결",
-    "channelDescriptionQoo10": "Qoo10 QSM API 키 등록 (KR/JP/SG)",
+    "channelDescriptionQoo10": "Qoo10 QSM API 키 등록 — 주문 수집 및 배송 정보 동기화 (KR/JP/SG)",
     "channelDescriptionRakuten": "Rakuten Ichiba RMS WebService 연결",
     "channelDescriptionTiktokshop": "TikTok Shop Open Platform OAuth"
   },

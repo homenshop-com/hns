@@ -628,7 +628,7 @@
     "channelDescriptionShopify": "Shopify商店OAuth連接，訂單自動同步",
     "channelDescriptionCoupang": "Coupang Wing 開放市場 API金鑰註冊",
     "channelDescriptionAmazon": "Amazon SP-API LWA OAuth + IAM 連接",
-    "channelDescriptionQoo10": "Qoo10 QSM API金鑰註冊 (KR/JP/SG)",
+    "channelDescriptionQoo10": "Qoo10 QSM API — 訂單匯入 + 配送同步 (KR/JP/SG)",
     "channelDescriptionRakuten": "Rakuten Ichiba RMS WebService 連接",
     "channelDescriptionTiktokshop": "TikTok Shop Open Platform OAuth"
   },
