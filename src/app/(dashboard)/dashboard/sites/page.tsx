@@ -149,6 +149,16 @@ export default async function SitesPage() {
     aiStyleLuxuryDesc: t("aiStyleLuxuryDesc"),
     aiStyleColorful: t("aiStyleColorful"),
     aiStyleColorfulDesc: t("aiStyleColorfulDesc"),
+    aiZipDivider: t("aiZipDivider"),
+    aiZipTitle: t("aiZipTitle"),
+    aiZipDesc: t("aiZipDesc"),
+    aiZipNamePlaceholder: t("aiZipNamePlaceholder"),
+    aiZipDropHint: t("aiZipDropHint"),
+    aiZipFileHint: t("aiZipFileHint"),
+    aiZipUpload: t("aiZipUpload"),
+    aiZipUploading: t("aiZipUploading"),
+    aiZipNameRequired: t("aiZipNameRequired"),
+    aiZipFileRequired: t("aiZipFileRequired"),
   };
   const isEmailVerifiedForAI =
     !emailVerificationEnabled ||

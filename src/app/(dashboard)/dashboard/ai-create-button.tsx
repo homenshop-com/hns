@@ -56,6 +56,16 @@ interface AICreateButtonProps {
     aiStyleLuxuryDesc: string;
     aiStyleColorful: string;
     aiStyleColorfulDesc: string;
+    aiZipDivider: string;
+    aiZipTitle: string;
+    aiZipDesc: string;
+    aiZipNamePlaceholder: string;
+    aiZipDropHint: string;
+    aiZipFileHint: string;
+    aiZipUpload: string;
+    aiZipUploading: string;
+    aiZipNameRequired: string;
+    aiZipFileRequired: string;
   };
 }
 
@@ -107,6 +117,11 @@ export default function AICreateButton({ emailVerified, labels, renderAsCard }: 
   const [attachments, setAttachments] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const tickerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [zipFile, setZipFile] = useState<File | null>(null);
+  const [zipName, setZipName] = useState("");
+  const [zipUploading, setZipUploading] = useState(false);
+  const [zipError, setZipError] = useState("");
+  const zipInputRef = useRef<HTMLInputElement | null>(null);
 
   const MAX_ATTACHMENTS = 5;
   const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024; // 10MB per file
@@ -211,6 +226,39 @@ export default function AICreateButton({ emailVerified, labels, renderAsCard }: 
       setResendMsg("Error");
     } finally {
       setResending(false);
+    }
+  }
+
+  async function handleZipUpload() {
+    setZipError("");
+    if (!zipName.trim()) {
+      setZipError(labels.aiZipNameRequired);
+      return;
+    }
+    if (!zipFile) {
+      setZipError(labels.aiZipFileRequired);
+      return;
+    }
+    setZipUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("name", zipName.trim());
+      fd.append("zip", zipFile);
+      const res = await fetch("/api/templates/from-claude-zip", {
+        method: "POST",
+        body: fd,
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setZipError(data.error || "Upload failed");
+        setZipUploading(false);
+        return;
+      }
+      router.push("/dashboard/templates?tab=my");
+      router.refresh();
+    } catch {
+      setZipError("Upload failed");
+      setZipUploading(false);
     }
   }
 
@@ -532,6 +580,116 @@ export default function AICreateButton({ emailVerified, labels, renderAsCard }: 
           color: #4338ca;
           background: #f3f4f6;
         }
+        .ai-zip-divider {
+          display: flex;
+          align-items: center;
+          margin: 24px 0 16px;
+          color: #9ca3af;
+          font-size: 12px;
+          font-weight: 500;
+        }
+        .ai-zip-divider::before,
+        .ai-zip-divider::after {
+          content: "";
+          flex: 1;
+          height: 1px;
+          background: #e5e7eb;
+        }
+        .ai-zip-divider span {
+          padding: 0 12px;
+        }
+        .ai-zip-section {
+          padding: 18px;
+          border: 1px solid #e0f2fe;
+          background: linear-gradient(135deg, #f0f9ff 0%, #ecfeff 100%);
+          border-radius: 12px;
+        }
+        .ai-zip-title {
+          font-size: 15px;
+          font-weight: 700;
+          color: #0e7490;
+          margin: 0 0 4px;
+        }
+        .ai-zip-desc {
+          font-size: 12.5px;
+          color: #5b6b7d;
+          margin: 0 0 12px;
+          line-height: 1.5;
+        }
+        .ai-zip-name-input {
+          width: 100%;
+          height: 36px;
+          padding: 0 12px;
+          font-size: 13.5px;
+          border: 1px solid #d4d4d8;
+          border-radius: 6px;
+          margin-bottom: 10px;
+          background: #fff;
+          font-family: inherit;
+        }
+        .ai-zip-drop {
+          border: 1.5px dashed #67e8f9;
+          background: #fff;
+          border-radius: 8px;
+          padding: 16px;
+          text-align: center;
+          cursor: pointer;
+          transition: all 0.18s;
+        }
+        .ai-zip-drop:hover {
+          background: #f0fdfa;
+          border-color: #06b6d4;
+        }
+        .ai-zip-drop-hint {
+          margin-top: 6px;
+          font-size: 13px;
+          color: #495057;
+        }
+        .ai-zip-file-hint {
+          font-size: 11px;
+          color: #868e96;
+          margin-top: 2px;
+        }
+        .ai-zip-file-info {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          text-align: left;
+        }
+        .ai-zip-file-info > i {
+          font-size: 28px;
+          color: #0891b2;
+          flex-shrink: 0;
+        }
+        .ai-zip-file-info > div {
+          flex: 1;
+          min-width: 0;
+        }
+        .ai-zip-file-name {
+          font-size: 13.5px;
+          font-weight: 600;
+          color: #0c4a6e;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .ai-zip-file-size {
+          font-size: 11px;
+          color: #6b7280;
+          margin-top: 2px;
+        }
+        .ai-zip-clear {
+          width: 24px;
+          height: 24px;
+          padding: 0;
+          background: rgba(0,0,0,0.55);
+          color: #fff;
+          border: none;
+          border-radius: 50%;
+          cursor: pointer;
+          font-size: 12px;
+          flex-shrink: 0;
+        }
       `}</style>
       {renderAsCard ? (
         <button
@@ -686,6 +844,106 @@ export default function AICreateButton({ emailVerified, labels, renderAsCard }: 
                     }}
                   >
                     {labels.aiStyleNext} →
+                  </button>
+                </div>
+
+                <div className="ai-zip-divider"><span>{labels.aiZipDivider}</span></div>
+
+                <div className="ai-zip-section">
+                  <h4 className="ai-zip-title">📦 {labels.aiZipTitle}</h4>
+                  <p className="ai-zip-desc">{labels.aiZipDesc}</p>
+
+                  <input
+                    type="text"
+                    value={zipName}
+                    onChange={(e) => {
+                      setZipName(e.target.value);
+                      setZipError("");
+                    }}
+                    placeholder={labels.aiZipNamePlaceholder}
+                    maxLength={80}
+                    disabled={zipUploading}
+                    className="ai-zip-name-input"
+                  />
+
+                  <div
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = "copy";
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const f = e.dataTransfer.files?.[0];
+                      if (f && f.name.toLowerCase().endsWith(".zip")) {
+                        setZipFile(f);
+                        if (!zipName) setZipName(f.name.replace(/\.zip$/i, ""));
+                      }
+                    }}
+                    onClick={() => zipInputRef.current?.click()}
+                    className="ai-zip-drop"
+                  >
+                    {zipFile ? (
+                      <div className="ai-zip-file-info">
+                        <i className="fa-solid fa-file-zipper" />
+                        <div>
+                          <div className="ai-zip-file-name">{zipFile.name}</div>
+                          <div className="ai-zip-file-size">
+                            {(zipFile.size / 1024 / 1024).toFixed(2)} MB
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setZipFile(null);
+                          }}
+                          disabled={zipUploading}
+                          className="ai-zip-clear"
+                          aria-label="제거"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <i className="fa-solid fa-cloud-arrow-up" style={{ fontSize: 22, color: "#868e96" }} />
+                        <div className="ai-zip-drop-hint">{labels.aiZipDropHint}</div>
+                        <div className="ai-zip-file-hint">{labels.aiZipFileHint}</div>
+                      </>
+                    )}
+                    <input
+                      ref={zipInputRef}
+                      type="file"
+                      accept=".zip,application/zip,application/x-zip-compressed"
+                      style={{ display: "none" }}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) {
+                          setZipFile(f);
+                          if (!zipName) setZipName(f.name.replace(/\.zip$/i, ""));
+                        }
+                        e.target.value = "";
+                      }}
+                      disabled={zipUploading}
+                    />
+                  </div>
+
+                  {zipError && <p className="tpl-modal-error" style={{ marginTop: 8 }}>{zipError}</p>}
+
+                  <button
+                    type="button"
+                    className="tpl-modal-create"
+                    onClick={handleZipUpload}
+                    disabled={zipUploading || !zipFile}
+                    style={{
+                      background: zipFile && !zipUploading
+                        ? "linear-gradient(135deg, #0891b2 0%, #0e7490 100%)"
+                        : "#9ca3af",
+                      marginTop: 12,
+                      opacity: zipUploading ? 0.7 : 1,
+                    }}
+                  >
+                    {zipUploading ? labels.aiZipUploading : `📦 ${labels.aiZipUpload}`}
                   </button>
                 </div>
               </div>
