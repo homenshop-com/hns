@@ -53,54 +53,6 @@ export default async function IntegrationsPage() {
 
   const totalActive = integrations.filter((i) => i.status === "ACTIVE").length;
 
-  // Translation strings passed down to the client component (next-intl
-  // doesn't auto-bridge to a non-NextIntlClientProvider'd client comp,
-  // so we hand the strings as labels prop to keep things explicit).
-  const labels = {
-    panelTitle: t("panelTitle"),
-    panelCount: t("panelCount", { count: adapters.length }),
-    soonBadge: t("soonBadge"),
-    soonHint: t("soonHint"),
-    accountsCount: (n: number) => t("accountsCount", { count: n }),
-    noAccounts: t("noAccounts"),
-    btnAddAccount: t("btnAddAccount"),
-    btnAddAccountTooltip: t("btnAddAccountTooltip"),
-    btnReconnect: t("btnReconnect"),
-    btnDisconnect: t("btnDisconnect"),
-    confirmDisconnect: (label: string) => t("confirmDisconnect", { label }),
-    statusActive: t("statusActive"),
-    statusError: t("statusError"),
-    statusPaused: t("statusPaused"),
-    statusDisconnected: t("statusDisconnected"),
-    lastSyncLabel: (time: string) => t("lastSyncLabel", { time }),
-    modalTitleConnect: (name: string) => t("modalTitleConnect", { name }),
-    modalTitleReconnect: (name: string) => t("modalTitleReconnect", { name }),
-    modalSoonNotice: t("modalSoonNotice"),
-    fieldLabel: t("fieldLabel"),
-    fieldLabelPlaceholder: t("fieldLabelPlaceholder"),
-    fieldLabelHint: t("fieldLabelHint"),
-    fieldLabelRequired: t("fieldLabelRequired"),
-    fieldSiteLink: t("fieldSiteLink"),
-    fieldSiteLinkNone: t("fieldSiteLinkNone"),
-    fieldSiteLinkHint: t("fieldSiteLinkHint"),
-    fieldShopDomain: t("fieldShopDomain"),
-    fieldShopDomainPlaceholder: t("fieldShopDomainPlaceholder"),
-    fieldShopDomainHint: t("fieldShopDomainHint"),
-    fieldShopDomainRequired: t("fieldShopDomainRequired"),
-    btnSave: t("btnSave"),
-    btnSaving: t("btnSaving"),
-    btnGotoShopify: t("btnGotoShopify"),
-    btnCancel: t("btnCancel"),
-    errorOAuthUrl: t("errorOAuthUrl"),
-    errorSaveFailed: t("errorSaveFailed"),
-    descSHOPIFY: t("channelDescriptionShopify"),
-    descCOUPANG: t("channelDescriptionCoupang"),
-    descAMAZON: t("channelDescriptionAmazon"),
-    descQOO10: t("channelDescriptionQoo10"),
-    descRAKUTEN: t("channelDescriptionRakuten"),
-    descTIKTOKSHOP: t("channelDescriptionTiktokshop"),
-  };
-
   return (
     <DashboardShell
       active="integrations"
@@ -124,7 +76,6 @@ export default async function IntegrationsPage() {
       <IntegrationsClient
         sites={sites}
         adapters={adapters}
-        labels={labels}
         integrations={integrations
           .filter((i): i is typeof i & { channel: ConnectableChannel } => i.channel !== "STOREFRONT")
           .map((i) => ({

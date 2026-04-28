@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import type { OrderChannel } from "@/generated/prisma/client";
 
 type Channel = Exclude<OrderChannel, "STOREFRONT">;
@@ -31,50 +32,10 @@ interface Integration {
   lastError: string | null;
 }
 
-export interface IntegrationsLabels {
-  panelTitle: string;
-  panelCount: string;
-  soonBadge: string;
-  soonHint: string;
-  accountsCount: (n: number) => string;
-  noAccounts: string;
-  btnAddAccount: string;
-  btnAddAccountTooltip: string;
-  btnReconnect: string;
-  btnDisconnect: string;
-  confirmDisconnect: (label: string) => string;
-  statusActive: string;
-  statusError: string;
-  statusPaused: string;
-  statusDisconnected: string;
-  lastSyncLabel: (time: string) => string;
-  modalTitleConnect: (name: string) => string;
-  modalTitleReconnect: (name: string) => string;
-  modalSoonNotice: string;
-  fieldLabel: string;
-  fieldLabelPlaceholder: string;
-  fieldLabelHint: string;
-  fieldLabelRequired: string;
-  fieldSiteLink: string;
-  fieldSiteLinkNone: string;
-  fieldSiteLinkHint: string;
-  fieldShopDomain: string;
-  fieldShopDomainPlaceholder: string;
-  fieldShopDomainHint: string;
-  fieldShopDomainRequired: string;
-  btnSave: string;
-  btnSaving: string;
-  btnGotoShopify: string;
-  btnCancel: string;
-  errorOAuthUrl: string;
-  errorSaveFailed: string;
-  descSHOPIFY: string;
-  descCOUPANG: string;
-  descAMAZON: string;
-  descQOO10: string;
-  descRAKUTEN: string;
-  descTIKTOKSHOP: string;
-}
+// Translations are pulled in directly via useTranslations("integrations").
+// (We don't pass them as a labels prop because Next.js disallows
+// passing functions across the server/client boundary, which next-intl's
+// ICU-style t() effectively is.)
 
 const CHANNEL_LOGO_BG: Record<Channel, string> = {
   SHOPIFY: "#5fa44b",
@@ -92,23 +53,25 @@ const STATUS_BG: Record<Integration["status"], { bg: string; fg: string }> = {
   DISCONNECTED: { bg: "#f1f5f9", fg: "#64748b" },
 };
 
-function statusLabel(status: Integration["status"], labels: IntegrationsLabels): string {
+type T = ReturnType<typeof useTranslations<"integrations">>;
+
+function statusKey(status: Integration["status"]): string {
   switch (status) {
-    case "ACTIVE": return labels.statusActive;
-    case "ERROR": return labels.statusError;
-    case "PAUSED": return labels.statusPaused;
-    case "DISCONNECTED": return labels.statusDisconnected;
+    case "ACTIVE": return "statusActive";
+    case "ERROR": return "statusError";
+    case "PAUSED": return "statusPaused";
+    case "DISCONNECTED": return "statusDisconnected";
   }
 }
 
-function channelDesc(channel: Channel, labels: IntegrationsLabels): string {
+function channelDescKey(channel: Channel): string {
   switch (channel) {
-    case "SHOPIFY": return labels.descSHOPIFY;
-    case "COUPANG": return labels.descCOUPANG;
-    case "AMAZON": return labels.descAMAZON;
-    case "QOO10": return labels.descQOO10;
-    case "RAKUTEN": return labels.descRAKUTEN;
-    case "TIKTOKSHOP": return labels.descTIKTOKSHOP;
+    case "SHOPIFY": return "channelDescriptionShopify";
+    case "COUPANG": return "channelDescriptionCoupang";
+    case "AMAZON": return "channelDescriptionAmazon";
+    case "QOO10": return "channelDescriptionQoo10";
+    case "RAKUTEN": return "channelDescriptionRakuten";
+    case "TIKTOKSHOP": return "channelDescriptionTiktokshop";
   }
 }
 
@@ -116,14 +79,13 @@ export default function IntegrationsClient({
   sites,
   adapters,
   integrations,
-  labels,
 }: {
   sites: SiteOption[];
   adapters: Adapter[];
   integrations: Integration[];
-  labels: IntegrationsLabels;
 }) {
   const router = useRouter();
+  const t = useTranslations("integrations");
   const [modalState, setModalState] = useState<{
     channel: Channel;
     integrationId?: string;
@@ -141,8 +103,8 @@ export default function IntegrationsClient({
       <section className="dv2-panel">
         <div className="dv2-panel-head">
           <h2>
-            {labels.panelTitle}
-            <span className="count">{labels.panelCount}</span>
+            {t("panelTitle")}
+            <span className="count">{t("panelCount", { count: adapters.length })}</span>
           </h2>
         </div>
         <div style={{ padding: 18, display: "flex", flexDirection: "column", gap: 18 }}>
@@ -153,11 +115,11 @@ export default function IntegrationsClient({
                 key={a.channel}
                 adapter={a}
                 accounts={accounts}
-                labels={labels}
+                t={t}
                 onConnect={() => setModalState({ channel: a.channel })}
                 onEdit={(id) => setModalState({ channel: a.channel, integrationId: id })}
                 onDelete={async (id, label) => {
-                  if (!confirm(labels.confirmDisconnect(label))) return;
+                  if (!confirm(t("confirmDisconnect", { label }))) return;
                   const r = await fetch(`/api/integrations?integrationId=${id}`, {
                     method: "DELETE",
                   });
@@ -180,7 +142,7 @@ export default function IntegrationsClient({
               : null
           }
           adapter={adapters.find((a) => a.channel === modalState.channel)!}
-          labels={labels}
+          t={t}
           onClose={() => setModalState(null)}
           onSaved={() => {
             setModalState(null);
@@ -195,14 +157,14 @@ export default function IntegrationsClient({
 function ChannelGroup({
   adapter,
   accounts,
-  labels,
+  t,
   onConnect,
   onEdit,
   onDelete,
 }: {
   adapter: Adapter;
   accounts: Integration[];
-  labels: IntegrationsLabels;
+  t: T;
   onConnect: () => void;
   onEdit: (id: string) => void;
   onDelete: (id: string, label: string) => void;
@@ -248,15 +210,15 @@ function ChannelGroup({
                   color: "#92400e",
                 }}
               >
-                {labels.soonBadge}
+                {t("soonBadge")}
               </span>
             )}
             <span style={{ fontSize: 11, color: "var(--ink-3)" }}>
-              {accounts.length > 0 ? labels.accountsCount(accounts.length) : labels.noAccounts}
+              {accounts.length > 0 ? t("accountsCount", { count: accounts.length }) : t("noAccounts")}
             </span>
           </div>
           <div style={{ fontSize: 12, color: "var(--ink-2)", marginTop: 2 }}>
-            {channelDesc(adapter.channel, labels)}
+            {t(channelDescKey(adapter.channel))}
           </div>
         </div>
         <button
@@ -265,9 +227,9 @@ function ChannelGroup({
           onClick={onConnect}
           disabled={!adapter.implemented && accounts.length === 0}
           style={!adapter.implemented && accounts.length === 0 ? { opacity: 0.6, cursor: "not-allowed" } : undefined}
-          title={!adapter.implemented ? labels.soonHint : labels.btnAddAccountTooltip}
+          title={!adapter.implemented ? t("soonHint") : t("btnAddAccountTooltip")}
         >
-          {labels.btnAddAccount}
+          {t("btnAddAccount")}
         </button>
       </div>
 
@@ -299,7 +261,7 @@ function ChannelGroup({
                         color: badge.fg,
                       }}
                     >
-                      {statusLabel(a.status, labels)}
+                      {t(statusKey(a.status))}
                     </span>
                     {a.siteId && a.siteName && (
                       <span
@@ -320,7 +282,7 @@ function ChannelGroup({
                   <div style={{ fontSize: 11, color: "var(--ink-3)", display: "flex", gap: 10, flexWrap: "wrap" }}>
                     {a.displayName && <span>{a.displayName}</span>}
                     {a.lastSyncAt && (
-                      <span>{labels.lastSyncLabel(new Date(a.lastSyncAt).toLocaleString())}</span>
+                      <span>{t("lastSyncLabel", { time: new Date(a.lastSyncAt).toLocaleString() })}</span>
                     )}
                   </div>
                   {a.lastError && (
@@ -339,7 +301,7 @@ function ChannelGroup({
                   )}
                 </div>
                 <button type="button" className="dv2-row-btn" onClick={() => onEdit(a.id)}>
-                  {labels.btnReconnect}
+                  {t("btnReconnect")}
                 </button>
                 <button
                   type="button"
@@ -347,7 +309,7 @@ function ChannelGroup({
                   style={{ color: "#dc2626" }}
                   onClick={() => onDelete(a.id, a.label)}
                 >
-                  {labels.btnDisconnect}
+                  {t("btnDisconnect")}
                 </button>
               </div>
             );
@@ -364,7 +326,7 @@ interface ConnectModalProps {
   integrationId?: string;
   existing: Integration | null;
   adapter: Adapter;
-  labels: IntegrationsLabels;
+  t: T;
   onClose: () => void;
   onSaved: () => void;
 }
@@ -425,7 +387,7 @@ function ConnectModal({
   integrationId,
   existing,
   adapter,
-  labels,
+  t,
   onClose,
   onSaved,
 }: ConnectModalProps) {
@@ -440,9 +402,9 @@ function ConnectModal({
   const fields: FieldDef[] = channel === "SHOPIFY"
     ? [{
         key: "shop",
-        label: labels.fieldShopDomain,
-        placeholder: labels.fieldShopDomainPlaceholder,
-        hint: labels.fieldShopDomainHint,
+        label: t("fieldShopDomain"),
+        placeholder: t("fieldShopDomainPlaceholder"),
+        hint: t("fieldShopDomainHint"),
       }]
     : CHANNEL_FIELDS_STATIC[channel];
   const isOAuth = channel === "SHOPIFY";
@@ -451,7 +413,7 @@ function ConnectModal({
     e.preventDefault();
     setError(null);
     if (!label.trim()) {
-      setError(labels.fieldLabelRequired);
+      setError(t("fieldLabelRequired"));
       return;
     }
     setSaving(true);
@@ -459,7 +421,7 @@ function ConnectModal({
       if (isOAuth && channel === "SHOPIFY") {
         const shop = values.shop?.trim();
         if (!shop) {
-          setError(labels.fieldShopDomainRequired);
+          setError(t("fieldShopDomainRequired"));
           setSaving(false);
           return;
         }
@@ -475,7 +437,7 @@ function ConnectModal({
         });
         const data = await r.json();
         if (!r.ok || !data.url) {
-          setError(data.error || labels.errorOAuthUrl);
+          setError(data.error || t("errorOAuthUrl"));
           setSaving(false);
           return;
         }
@@ -495,7 +457,7 @@ function ConnectModal({
       });
       const data = await r.json();
       if (!r.ok) {
-        setError(data.error || labels.errorSaveFailed);
+        setError(data.error || t("errorSaveFailed"));
         setSaving(false);
         return;
       }
@@ -531,8 +493,8 @@ function ConnectModal({
       >
         <h3 style={{ margin: 0, fontSize: 18 }}>
           {existing
-            ? labels.modalTitleReconnect(adapter.displayName)
-            : labels.modalTitleConnect(adapter.displayName)}
+            ? t("modalTitleReconnect", { name: adapter.displayName })
+            : t("modalTitleConnect", { name: adapter.displayName })}
         </h3>
         {!adapter.implemented && (
           <div
@@ -545,18 +507,18 @@ function ConnectModal({
               fontSize: 12,
             }}
           >
-            {labels.modalSoonNotice}
+            {t("modalSoonNotice")}
           </div>
         )}
         <form onSubmit={submit} style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 12 }}>
           <label style={{ display: "block" }}>
             <span style={{ display: "block", fontSize: 12, color: "var(--ink-2)", marginBottom: 4 }}>
-              {labels.fieldLabel}
+              {t("fieldLabel")}
             </span>
             <input
               type="text"
               required
-              placeholder={labels.fieldLabelPlaceholder}
+              placeholder={t("fieldLabelPlaceholder")}
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               style={{
@@ -569,14 +531,14 @@ function ConnectModal({
               }}
             />
             <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 3 }}>
-              {labels.fieldLabelHint}
+              {t("fieldLabelHint")}
             </div>
           </label>
 
           {sites.length > 0 && (
             <label style={{ display: "block" }}>
               <span style={{ display: "block", fontSize: 12, color: "var(--ink-2)", marginBottom: 4 }}>
-                {labels.fieldSiteLink}
+                {t("fieldSiteLink")}
               </span>
               <select
                 value={siteId}
@@ -591,7 +553,7 @@ function ConnectModal({
                   background: "#fff",
                 }}
               >
-                <option value="">{labels.fieldSiteLinkNone}</option>
+                <option value="">{t("fieldSiteLinkNone")}</option>
                 {sites.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name || s.shopId} (@{s.shopId})
@@ -599,7 +561,7 @@ function ConnectModal({
                 ))}
               </select>
               <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 3 }}>
-                {labels.fieldSiteLinkHint}
+                {t("fieldSiteLinkHint")}
               </div>
             </label>
           )}
@@ -634,10 +596,10 @@ function ConnectModal({
           )}
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 4 }}>
             <button type="button" className="dv2-row-btn" onClick={onClose}>
-              {labels.btnCancel}
+              {t("btnCancel")}
             </button>
             <button type="submit" className="dv2-row-btn primary" disabled={saving}>
-              {saving ? labels.btnSaving : isOAuth ? labels.btnGotoShopify : labels.btnSave}
+              {saving ? t("btnSaving") : isOAuth ? t("btnGotoShopify") : t("btnSave")}
             </button>
           </div>
         </form>
