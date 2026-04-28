@@ -7,6 +7,7 @@ import DashboardShell from "../dashboard-shell";
 import { Icon } from "../dashboard-icons";
 import AICreateButton from "../ai-create-button";
 import { getSettingBool } from "@/lib/settings";
+import { canAccessIntegrations } from "@/lib/feature-flags";
 import {
   daysUntilExpiry,
   isSiteExpired,
@@ -351,26 +352,28 @@ export default async function SitesPage() {
       </section>
 
       {/* 별도 섹션: 마켓플레이스 연동 요약 + 전용 페이지 링크 */}
-      <section className="dv2-panel" style={{ marginTop: 16 }}>
-        <div className="dv2-panel-head">
-          <h2>
-            {t("panelMarketplaceIntegrations")}
-            <span className="count">{t("panelMarketplaceCount", { count: integrationCount, active: activeIntegrationCount })}</span>
-          </h2>
-          <div className="tools">
-            <Link href="/dashboard/integrations" className="dv2-tool-btn">
-              <Icon id="i-link" size={14} /> {t("panelMarketplaceManage")}
-            </Link>
+      {canAccessIntegrations(currentUser?.email) && (
+        <section className="dv2-panel" style={{ marginTop: 16 }}>
+          <div className="dv2-panel-head">
+            <h2>
+              {t("panelMarketplaceIntegrations")}
+              <span className="count">{t("panelMarketplaceCount", { count: integrationCount, active: activeIntegrationCount })}</span>
+            </h2>
+            <div className="tools">
+              <Link href="/dashboard/integrations" className="dv2-tool-btn">
+                <Icon id="i-link" size={14} /> {t("panelMarketplaceManage")}
+              </Link>
+            </div>
           </div>
-        </div>
-        <div style={{ padding: "16px 20px", color: "var(--ink-2)", fontSize: 13, lineHeight: 1.6 }}>
-          {t("panelMarketplaceDesc")}
-          <Link href="/dashboard/integrations" style={{ color: "var(--brand)", fontWeight: 600 }}>
-            {t("panelMarketplaceLinkText")}
-          </Link>
-          {t("panelMarketplaceDescTail")}
-        </div>
-      </section>
+          <div style={{ padding: "16px 20px", color: "var(--ink-2)", fontSize: 13, lineHeight: 1.6 }}>
+            {t("panelMarketplaceDesc")}
+            <Link href="/dashboard/integrations" style={{ color: "var(--brand)", fontWeight: 600 }}>
+              {t("panelMarketplaceLinkText")}
+            </Link>
+            {t("panelMarketplaceDescTail")}
+          </div>
+        </section>
+      )}
     </DashboardShell>
   );
 }

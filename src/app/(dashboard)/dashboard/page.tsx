@@ -8,6 +8,7 @@ import SignOutButton from "./sign-out-button";
 import ImpersonationBanner from "@/components/ImpersonationBanner";
 import EmailVerifyBanner from "./email-verify-banner";
 import { getSettingBool } from "@/lib/settings";
+import { canAccessIntegrations } from "@/lib/feature-flags";
 import "./dashboard-v2.css";
 import { DashboardIconSprite, Icon } from "./dashboard-icons";
 import SupportUnreadIndicator from "./support-unread-indicator";
@@ -414,10 +415,12 @@ export default async function DashboardPage() {
               <span className="ic"><Icon id="i-globe" /></span>
               <span className="label">{t("navDomains")}</span>
             </Link>
-            <Link href="/dashboard/integrations">
-              <span className="ic"><Icon id="i-link" /></span>
-              <span className="label">{t("navIntegrations")}</span>
-            </Link>
+            {canAccessIntegrations(currentUser?.email) && (
+              <Link href="/dashboard/integrations">
+                <span className="ic"><Icon id="i-link" /></span>
+                <span className="label">{t("navIntegrations")}</span>
+              </Link>
+            )}
           </nav>
 
           <div className="dv2-side-section">

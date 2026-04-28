@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { encryptJson } from "@/lib/secrets";
 import { getAdapter } from "@/lib/marketplaces/registry";
+import { canAccessIntegrations } from "@/lib/feature-flags";
 import type { OrderChannel } from "@/generated/prisma/client";
 import type { MarketplaceCredentials } from "@/lib/marketplaces/types";
 
@@ -53,6 +54,9 @@ export async function GET(request: NextRequest) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  if (!canAccessIntegrations(session.user.email)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
   // Optional: filter by siteId if caller wants only those associated
   // with a specific site. Default returns all user-owned integrations.
   const siteId = request.nextUrl.searchParams.get("siteId");
@@ -98,6 +102,9 @@ async function postImpl(request: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!canAccessIntegrations(session.user.email)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const body = (await request.json()) as {
     channel?: string;
@@ -178,6 +185,9 @@ export async function DELETE(request: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!canAccessIntegrations(session.user.email)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const integrationId = request.nextUrl.searchParams.get("integrationId");
   if (!integrationId) {

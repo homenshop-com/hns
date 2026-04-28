@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import DashboardShell from "../dashboard-shell";
 import IntegrationsClient from "./integrations-client";
 import { listAdapters } from "@/lib/marketplaces/registry";
+import { canAccessIntegrations } from "@/lib/feature-flags";
 import type { OrderChannel } from "@/generated/prisma/client";
 
 /**
@@ -18,6 +19,11 @@ import type { OrderChannel } from "@/generated/prisma/client";
 export default async function IntegrationsPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
+
+  // Beta-staged: only allow-listed accounts may access this surface.
+  if (!canAccessIntegrations(session.user.email)) {
+    redirect("/dashboard");
+  }
 
   const [t, td, integrations, sites] = await Promise.all([
     getTranslations("integrations"),

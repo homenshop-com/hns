@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getBalance } from "@/lib/credits";
+import { canAccessIntegrations } from "@/lib/feature-flags";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import ImpersonationBanner from "@/components/ImpersonationBanner";
@@ -71,6 +72,7 @@ export default async function DashboardShell({
 
   const displayName = user?.name || user?.email?.split("@")[0] || "Guest";
   const cls = (key: DashboardNavKey) => (active === key ? "active" : undefined);
+  const showIntegrations = canAccessIntegrations(user?.email);
 
   return (
     <>
@@ -121,10 +123,12 @@ export default async function DashboardShell({
               <span className="ic"><Icon id="i-globe" /></span>
               <span className="label">{t("navDomains")}</span>
             </Link>
-            <Link className={cls("integrations")} href="/dashboard/integrations">
-              <span className="ic"><Icon id="i-link" /></span>
-              <span className="label">{t("navIntegrations")}</span>
-            </Link>
+            {showIntegrations && (
+              <Link className={cls("integrations")} href="/dashboard/integrations">
+                <span className="ic"><Icon id="i-link" /></span>
+                <span className="label">{t("navIntegrations")}</span>
+              </Link>
+            )}
           </nav>
 
           <div className="dv2-side-section">
