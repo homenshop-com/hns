@@ -19,6 +19,12 @@
   padding: 0 16px;
   height: 44px;
   flex-shrink: 0;
+  /* Defensive: ensure editor toolbar always stacks above any user-injected
+     canvas CSS. Claude Designs / Claude Code zip exports often include
+     `position: fixed/sticky` elements at z-index 100+ that would otherwise
+     overlay the toolbar and block clicks (저장 버튼이 작동하지 않음 증상). */
+  position: relative;
+  z-index: 10001;
 }
 .de-header-left {
   display: flex;
@@ -372,6 +378,12 @@
   justify-content: center;
   padding: 20px;
   background: #fff;
+  /* Isolate the canvas's stacking context — any user-injected CSS inside
+     (even z-index 9999) cannot paint over editor chrome (toolbar, panels,
+     modals). Combined with .de-header { z-index: 10001 } this guarantees
+     the toolbar stays clickable regardless of what the user uploaded. */
+  isolation: isolate;
+  position: relative;
 }
 .de-canvas {
   width: 1000px;
