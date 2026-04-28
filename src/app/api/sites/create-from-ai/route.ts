@@ -348,6 +348,73 @@ Typical home page skeleton:
 
 const SHOP_ID_REGEX = /^[a-z0-9][a-z0-9-]{4,12}[a-z0-9]$/;
 
+type DesignStyle =
+  | "auto"
+  | "minimal"
+  | "editorial"
+  | "organic"
+  | "luxury"
+  | "colorful";
+
+const DESIGN_STYLE_DIRECTIVES: Record<Exclude<DesignStyle, "auto">, string> = {
+  minimal: `
+# Selected design style: MINIMAL MODERN
+Commit to refined minimalism. The user picked this — execute it boldly, do not blend it with other styles.
+- Palette: near-monochromatic. White / off-white background (#fafafa or #ffffff), deep ink text (#0f172a or #111111), one restrained accent (slate-blue, charcoal, or sage). NO gradients on hero, NO multiple bright colors.
+- Typography: clean geometric sans only. @import Inter, Space Grotesk, or Manrope. Headings 600-700 weight, tight tracking (-0.025em). Body Inter 16/1.65. Generous type scale jumps.
+- Layout: massive whitespace. Section padding-block clamp(80px, 12vw, 160px). 1100-1200px container. Single-column hero with text-only or image+text split. NO 3-card decorative grid unless content demands it.
+- Polish: subtle 1px hairlines (border-color #e5e7eb), no shadows or very faint shadow-sm only. Buttons: outlined or solid black, sharp 4px radius. Images: minimal radius (4-8px), grayscale-leaning palette.
+- Hero pattern preference: Pattern A overlay with VERY subtle dark gradient, large heading + one-line subhead + single CTA. No card stacks.
+`.trim(),
+  editorial: `
+# Selected design style: EDITORIAL MAGAZINE
+Commit to a magazine / newspaper aesthetic. Bold display headings dominate the page.
+- Palette: monochrome black + white + cream (#fffaf0). One accent color used sparingly (rich red #c8102e, deep navy, or burnt orange).
+- Typography: REQUIRED display serif for headings — @import "Fraunces" or "Playfair Display" or "DM Serif Display". Hero h1 clamp(3rem, 6vw, 5rem), italic optional for emphasis. Body: serif (Source Serif 4, Lora) or pairing sans (Inter).
+- Layout: asymmetric magazine grids. Large pull quotes, oversized first-letter drop caps allowed, byline-style metadata under titles. Use CSS columns or asymmetric 2/3 + 1/3 splits, not equal 3-col grids.
+- Polish: thin top/bottom rules (1px solid #111) framing sections. Captions in tiny uppercase (font-size 11px, letter-spacing 0.15em). Black & white photography preferred — desaturate via filter: grayscale(15%) on hero images.
+- Hero pattern preference: Pattern A with massive serif headline, no image overlay tint, very high contrast.
+`.trim(),
+  organic: `
+# Selected design style: WARM & ORGANIC
+Commit to a warm, natural, friendly aesthetic. Rounded, hand-crafted feel.
+- Palette: earth + cream tones. Background cream/oat (#faf6ee or #f5ede1), deep moss/sage primary (#5b6f4a or #6b8e4e), terracotta/clay accent (#c97558 or #d97757), warm brown text (#3d2f24).
+- Typography: friendly serif for headings — @import "Fraunces" (loose tracking) or "Source Serif 4". Body: warm humanist sans (Nunito, Plus Jakarta Sans). Generous line-height 1.75 on body.
+- Layout: rounded corners everywhere (radius-md 16px, radius-lg 24px). Curved section dividers via SVG wave or border-radius on sections. Imagery shows natural textures (linen, wood, foliage, hands).
+- Polish: soft cream-colored cards on cream background, no harsh shadows — warm-tinted shadow-sm: 0 4px 16px rgba(120, 80, 40, 0.08). Buttons radius-full (pill-shaped), terracotta primary with subtle hover scale.
+- Hero pattern preference: Pattern C (split) with portrait-style image and warm overlay; OR Pattern A with cream gradient, dark moss heading.
+`.trim(),
+  luxury: `
+# Selected design style: LUXURY PREMIUM
+Commit to refined luxury. Black + gold + ivory. Restraint signals quality.
+- Palette: ivory background (#f8f5f0) or deep black (#0a0a0a) with high contrast. Antique gold accent (#c9a961 or #b8945f), never bright yellow. Charcoal text (#1a1a1a) on light, ivory text on dark.
+- Typography: classical serif for headings — @import "Cormorant Garamond" or "Playfair Display" (uppercase tracking 0.1em on subtitles). Body: light-weight serif (Cormorant 400) or refined sans (Lato 300). NEVER bold weights — use weight 300-500 and rely on size for hierarchy.
+- Layout: centered, symmetric, generous space. Section padding-block clamp(96px, 14vw, 180px). Thin gold hairlines (1px solid #c9a961) as section dividers. 1180px container.
+- Polish: gold-accent buttons (1px solid #c9a961, transparent bg, gold text → fills on hover). Cards: ivory bg with thin gold border, no rounded corners or radius-sm only (4px). Imagery: muted, high-contrast B&W or warm-toned product shots.
+- Hero pattern preference: Pattern A overlay with dark image + ivory headline + thin gold underline + minimal CTA.
+`.trim(),
+  colorful: `
+# Selected design style: VIBRANT COLORFUL
+Commit to playful, energetic, vibrant. Saturated colors and bold gradients.
+- Palette: vivid primary + secondary + tertiary. Examples: hot-pink #ec4899 + cobalt #2563eb + sun-yellow #facc15, OR coral #f97316 + teal #14b8a6 + plum #a855f7. Background can be off-white or pastel-tinted (#fef9c3, #fce7f3).
+- Typography: friendly geometric sans — @import "Plus Jakarta Sans", "DM Sans", or "Outfit". Headings 800 weight, slight letter-spacing -0.02em. Body Inter or DM Sans 500.
+- Layout: bold gradient backgrounds on hero & CTA bands (linear-gradient 135deg, primary → secondary). Rounded corners radius-lg 24px on cards/images. Playful shapes — blob SVGs in corners, oversized circular accents.
+- Polish: punchy buttons in solid bright colors, radius-full, bold hover scale 1.04. Cards: soft pastel bg with bright accent border or shadow tinted with color (e.g., shadow: 0 12px 32px rgba(236, 72, 153, 0.18)). Imagery: bright candid lifestyle shots, smiling people, vivid scenes.
+- Hero pattern preference: Pattern A overlay with full-bleed gradient + white headline + bright CTA; OR Pattern C split with playful illustration on one side.
+`.trim(),
+};
+
+function isDesignStyle(v: unknown): v is DesignStyle {
+  return (
+    v === "auto" ||
+    v === "minimal" ||
+    v === "editorial" ||
+    v === "organic" ||
+    v === "luxury" ||
+    v === "colorful"
+  );
+}
+
 interface AIPage {
   title: string;
   slug: string;
@@ -389,6 +456,7 @@ export async function POST(request: Request) {
   let defaultLanguage = "ko";
   let siteTitle = "";
   let prompt = "";
+  let designStyle: DesignStyle = "auto";
   type Attachment = { mediaType: string; data: string; name: string };
   const attachments: Attachment[] = [];
   // Anthropic API caps: ~5MB per image, ~32MB per document, max ~20
@@ -404,6 +472,8 @@ export async function POST(request: Request) {
     defaultLanguage = ((fd.get("defaultLanguage") as string) ?? "ko").toString();
     siteTitle = ((fd.get("siteTitle") as string) ?? "").trim();
     prompt = ((fd.get("prompt") as string) ?? "").trim();
+    const ds = (fd.get("designStyle") as string) ?? "";
+    if (isDesignStyle(ds)) designStyle = ds;
     const fileEntries = fd.getAll("attachments");
     for (const entry of fileEntries) {
       if (!(entry instanceof File)) continue;
@@ -434,6 +504,7 @@ export async function POST(request: Request) {
     defaultLanguage = (body.defaultLanguage || "ko").toString();
     siteTitle = (body.siteTitle || "").toString().trim();
     prompt = (body.prompt || "").toString().trim();
+    if (isDesignStyle(body.designStyle)) designStyle = body.designStyle;
   }
 
   if (!shopId) {
@@ -510,10 +581,15 @@ export async function POST(request: Request) {
         ].join("\n")
       : "";
 
+  const styleDirective =
+    designStyle !== "auto" ? `\n${DESIGN_STYLE_DIRECTIVES[designStyle]}\n` : "";
+
   const userMessageText = [
     `defaultLanguage: ${defaultLanguage}`,
     `shopId: ${shopId}`,
     `siteTitle: ${siteTitle}`,
+    `designStyle: ${designStyle}`,
+    styleDirective,
     attachNote,
     "",
     "User prompt:",
@@ -555,6 +631,7 @@ export async function POST(request: Request) {
   console.log("[create-from-ai] start", {
     shopId,
     defaultLanguage,
+    designStyle,
     titleLen: siteTitle.length,
     promptLen: prompt.length,
     model: CLAUDE_MODEL,

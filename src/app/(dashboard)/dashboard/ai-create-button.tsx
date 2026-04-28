@@ -38,8 +38,34 @@ interface AICreateButtonProps {
     emailVerifyMessage: string;
     emailVerifyResend: string;
     emailVerifySent: string;
+    aiStyleStep: string;
+    aiInfoStep: string;
+    aiStyleTitle: string;
+    aiStyleDesc: string;
+    aiStyleNext: string;
+    aiStyleBack: string;
+    aiStyleAuto: string;
+    aiStyleAutoDesc: string;
+    aiStyleMinimal: string;
+    aiStyleMinimalDesc: string;
+    aiStyleEditorial: string;
+    aiStyleEditorialDesc: string;
+    aiStyleOrganic: string;
+    aiStyleOrganicDesc: string;
+    aiStyleLuxury: string;
+    aiStyleLuxuryDesc: string;
+    aiStyleColorful: string;
+    aiStyleColorfulDesc: string;
   };
 }
+
+type DesignStyle =
+  | "auto"
+  | "minimal"
+  | "editorial"
+  | "organic"
+  | "luxury"
+  | "colorful";
 
 // Progress-stage messages shown while AI generates the site
 // Designed to cycle on a schedule that roughly matches real generation phases
@@ -63,7 +89,8 @@ function formatElapsed(sec: number): string {
 export default function AICreateButton({ emailVerified, labels, renderAsCard }: AICreateButtonProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [step, setStep] = useState<"form" | "verify">("form");
+  const [step, setStep] = useState<"style" | "form" | "verify">("style");
+  const [designStyle, setDesignStyle] = useState<DesignStyle>("auto");
   const [language, setLanguage] = useState("ko");
   const [shopId, setShopId] = useState("");
   const [siteTitle, setSiteTitle] = useState("");
@@ -154,7 +181,7 @@ export default function AICreateButton({ emailVerified, labels, renderAsCard }: 
     if (!emailVerified) {
       setStep("verify");
     } else {
-      setStep("form");
+      setStep("style");
     }
     setOpen(true);
   }
@@ -217,6 +244,7 @@ export default function AICreateButton({ emailVerified, labels, renderAsCard }: 
         fd.append("defaultLanguage", language);
         fd.append("siteTitle", siteTitle);
         fd.append("prompt", prompt);
+        fd.append("designStyle", designStyle);
         for (const f of attachments) fd.append("attachments", f);
         res = await fetch("/api/sites/create-from-ai", {
           method: "POST",
@@ -231,6 +259,7 @@ export default function AICreateButton({ emailVerified, labels, renderAsCard }: 
             defaultLanguage: language,
             siteTitle,
             prompt,
+            designStyle,
           }),
         });
       }
@@ -389,6 +418,120 @@ export default function AICreateButton({ emailVerified, labels, renderAsCard }: 
         @media (max-width: 540px) {
           .ai-progress-steps { grid-template-columns: 1fr; }
         }
+        .ai-step-indicator {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 12px;
+          font-size: 12px;
+          font-weight: 600;
+          color: #6b7280;
+        }
+        .ai-step-indicator .pill {
+          padding: 4px 10px;
+          border-radius: 999px;
+          background: #f3f4f6;
+          color: #6b7280;
+        }
+        .ai-step-indicator .pill.active {
+          background: linear-gradient(135deg, #7c3aed 0%, #4338ca 100%);
+          color: #fff;
+        }
+        .ai-step-indicator .pill.done {
+          background: #ede9fe;
+          color: #6b46c1;
+        }
+        .ai-style-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 12px;
+          margin: 16px 0 0;
+        }
+        @media (max-width: 720px) {
+          .ai-style-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 480px) {
+          .ai-style-grid { grid-template-columns: 1fr; }
+        }
+        .ai-style-card {
+          position: relative;
+          padding: 16px 14px;
+          border: 1.5px solid #e5e7eb;
+          border-radius: 12px;
+          background: #fff;
+          cursor: pointer;
+          text-align: left;
+          transition: all 0.18s ease;
+          font-family: inherit;
+        }
+        .ai-style-card:hover {
+          border-color: #c4b5fd;
+          background: #faf5ff;
+          transform: translateY(-1px);
+        }
+        .ai-style-card.selected {
+          border-color: #7c3aed;
+          background: linear-gradient(135deg, #faf5ff 0%, #f0f4ff 100%);
+          box-shadow: 0 4px 16px rgba(124, 58, 237, 0.14);
+        }
+        .ai-style-card .icon {
+          font-size: 26px;
+          line-height: 1;
+          margin-bottom: 8px;
+        }
+        .ai-style-card .label {
+          font-size: 14px;
+          font-weight: 700;
+          color: #1a1a2e;
+          margin-bottom: 4px;
+        }
+        .ai-style-card .desc {
+          font-size: 11.5px;
+          color: #6b7280;
+          line-height: 1.45;
+        }
+        .ai-style-card.selected .label {
+          color: #4338ca;
+        }
+        .ai-style-card .check {
+          position: absolute;
+          top: 10px;
+          right: 10px;
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          background: #7c3aed;
+          color: #fff;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 12px;
+          font-weight: 700;
+        }
+        .ai-style-actions {
+          display: flex;
+          justify-content: flex-end;
+          margin-top: 18px;
+        }
+        .ai-style-back-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 6px 12px;
+          margin-bottom: 8px;
+          font-size: 13px;
+          font-weight: 500;
+          color: #6b7280;
+          background: transparent;
+          border: none;
+          cursor: pointer;
+          border-radius: 6px;
+          font-family: inherit;
+        }
+        .ai-style-back-btn:hover {
+          color: #4338ca;
+          background: #f3f4f6;
+        }
       `}</style>
       {renderAsCard ? (
         <button
@@ -475,14 +618,14 @@ export default function AICreateButton({ emailVerified, labels, renderAsCard }: 
               </div>
             )}
 
-            {step === "form" && (
+            {step === "style" && (
               <div className="tpl-modal-setup">
                 <h3
                   style={{
                     fontSize: 18,
                     fontWeight: 700,
                     color: "#1a1a2e",
-                    margin: "0 0 16px",
+                    margin: "0 0 12px",
                     display: "flex",
                     alignItems: "center",
                     gap: 8,
@@ -490,6 +633,94 @@ export default function AICreateButton({ emailVerified, labels, renderAsCard }: 
                 >
                   ✨ {labels.aiModalTitle}
                 </h3>
+                <div className="ai-step-indicator">
+                  <span className="pill active">{labels.aiStyleStep}</span>
+                  <span className="pill">{labels.aiInfoStep}</span>
+                </div>
+                <h4
+                  style={{
+                    fontSize: 15,
+                    fontWeight: 700,
+                    color: "#1a1a2e",
+                    margin: "10px 0 4px",
+                  }}
+                >
+                  {labels.aiStyleTitle}
+                </h4>
+                <p style={{ fontSize: 13, color: "#6b7280", margin: 0, lineHeight: 1.5 }}>
+                  {labels.aiStyleDesc}
+                </p>
+                <div className="ai-style-grid">
+                  {(
+                    [
+                      { code: "auto", icon: "✨", label: labels.aiStyleAuto, desc: labels.aiStyleAutoDesc },
+                      { code: "minimal", icon: "🎯", label: labels.aiStyleMinimal, desc: labels.aiStyleMinimalDesc },
+                      { code: "editorial", icon: "📰", label: labels.aiStyleEditorial, desc: labels.aiStyleEditorialDesc },
+                      { code: "organic", icon: "🌿", label: labels.aiStyleOrganic, desc: labels.aiStyleOrganicDesc },
+                      { code: "luxury", icon: "💎", label: labels.aiStyleLuxury, desc: labels.aiStyleLuxuryDesc },
+                      { code: "colorful", icon: "🎨", label: labels.aiStyleColorful, desc: labels.aiStyleColorfulDesc },
+                    ] as { code: DesignStyle; icon: string; label: string; desc: string }[]
+                  ).map((s) => (
+                    <button
+                      key={s.code}
+                      type="button"
+                      onClick={() => setDesignStyle(s.code)}
+                      className={`ai-style-card${designStyle === s.code ? " selected" : ""}`}
+                      aria-pressed={designStyle === s.code}
+                    >
+                      <div className="icon">{s.icon}</div>
+                      <div className="label">{s.label}</div>
+                      <div className="desc">{s.desc}</div>
+                      {designStyle === s.code && <span className="check">✓</span>}
+                    </button>
+                  ))}
+                </div>
+                <div className="ai-style-actions">
+                  <button
+                    className="tpl-modal-create"
+                    onClick={() => setStep("form")}
+                    style={{
+                      background: "linear-gradient(135deg, #7c3aed 0%, #4338ca 100%)",
+                      width: "auto",
+                      minWidth: 140,
+                    }}
+                  >
+                    {labels.aiStyleNext} →
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {step === "form" && (
+              <div className="tpl-modal-setup">
+                <h3
+                  style={{
+                    fontSize: 18,
+                    fontWeight: 700,
+                    color: "#1a1a2e",
+                    margin: "0 0 12px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                  }}
+                >
+                  ✨ {labels.aiModalTitle}
+                </h3>
+
+                <div className="ai-step-indicator">
+                  <span className="pill done">{labels.aiStyleStep} ✓</span>
+                  <span className="pill active">{labels.aiInfoStep}</span>
+                </div>
+
+                {!creating && (
+                  <button
+                    type="button"
+                    className="ai-style-back-btn"
+                    onClick={() => setStep("style")}
+                  >
+                    ← {labels.aiStyleBack}
+                  </button>
+                )}
 
                 <div className="tpl-modal-notices">
                   <p>- {labels.aiNotice1}</p>
