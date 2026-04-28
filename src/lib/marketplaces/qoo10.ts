@@ -93,6 +93,40 @@ function cacheKey(creds: Qoo10Creds): string {
   return `${creds.region ?? "JP"}|${creds.apiKey}|${creds.userId}`;
 }
 
+/// Read the Qoo10 response as text first so we can surface useful error
+/// messages when the server returns empty/HTML/XML instead of JSON.
+async function readQoo10Response<T = unknown>(
+  res: Response,
+  endpoint: string,
+): Promise<T> {
+  const text = await res.text();
+  if (!text || text.length === 0) {
+    throw new Error(
+      `Qoo10 ${endpoint} returned empty response (HTTP ${res.status}). API key may not be activated yet, or the user_id/password is wrong.`,
+    );
+  }
+  if (!res.ok) {
+    throw new Error(
+      `Qoo10 ${endpoint} HTTP ${res.status}: ${text.slice(0, 200)}`,
+    );
+  }
+  // Sometimes QAPI wraps the JSON in a leading BOM or whitespace; trim
+  // before parsing.
+  const trimmed = text.replace(/^﻿/, "").trim();
+  if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) {
+    throw new Error(
+      `Qoo10 ${endpoint} returned non-JSON (HTTP ${res.status}): ${trimmed.slice(0, 200)}`,
+    );
+  }
+  try {
+    return JSON.parse(trimmed) as T;
+  } catch (err) {
+    throw new Error(
+      `Qoo10 ${endpoint} JSON parse failed: ${(err as Error).message} — body=${trimmed.slice(0, 200)}`,
+    );
+  }
+}
+
 async function getCertKey(creds: Qoo10Creds, force = false): Promise<string> {
   const key = cacheKey(creds);
   const now = Date.now();
@@ -101,26 +135,47 @@ async function getCertKey(creds: Qoo10Creds, force = false): Promise<string> {
     if (hit && hit.expiresAt > now) return hit.certKey;
   }
 
-  const url = `${baseUrl(creds.region)}/ebayjapan.qapi/CertificationAPI_Certification.aspx`;
+  // Qoo10 QAPI: try the documented ".aspx" form first, then fall back
+  // to the dot-style name some QSM regions use. This is needed because
+  // Qoo10's URL convention is inconsistent across regions and historical
+  // doc revisions, and the wrong form returns HTTP 200 with an empty
+  // body (not 404), which is impossible to diagnose without trying both.
+  const candidates = [
+    `${baseUrl(creds.region)}/ebayjapan.qapi/CertificationAPI_Certification.aspx`,
+    `${baseUrl(creds.region)}/ebayjapan.qapi/CertificationAPI.Certification.aspx`,
+    `${baseUrl(creds.region)}/ebayjapan.qapi/CertificationAPI.Certification`,
+  ];
   const body = new URLSearchParams({
     key: creds.apiKey,
     user_id: creds.userId,
     pwd: creds.password,
   });
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: body.toString(),
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Qoo10 auth HTTP ${res.status}: ${text.slice(0, 200)}`);
+  let json: { ResultCode?: number; ResultMsg?: string; ResultObject?: string } | null = null;
+  let lastErr: Error | null = null;
+  for (const url of candidates) {
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Accept: "application/json",
+        },
+        body: body.toString(),
+      });
+      json = await readQoo10Response<{
+        ResultCode?: number;
+        ResultMsg?: string;
+        ResultObject?: string;
+      }>(res, "Certification");
+      break;
+    } catch (err) {
+      lastErr = err as Error;
+      continue;
+    }
   }
-  const json = (await res.json()) as {
-    ResultCode?: number;
-    ResultMsg?: string;
-    ResultObject?: string;
-  };
+  if (!json) {
+    throw lastErr ?? new Error("Qoo10 auth failed (no response from any URL variant)");
+  }
   if (json.ResultCode !== 0 || !json.ResultObject) {
     throw new Error(
       `Qoo10 auth failed (code=${json.ResultCode}): ${json.ResultMsg ?? "unknown"}`,
@@ -150,15 +205,15 @@ async function callQapi(
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
+        Accept: "application/json",
         "giosis-certification-key": certKey,
       },
       body: body.toString(),
     });
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`Qoo10 ${endpoint} HTTP ${res.status}: ${text.slice(0, 200)}`);
-    }
-    const json = (await res.json()) as { ResultCode?: number; ResultMsg?: string };
+    const json = await readQoo10Response<{ ResultCode?: number; ResultMsg?: string }>(
+      res,
+      endpoint,
+    );
     // ResultCode -10001 / -10002 typically signal expired cert; retry once
     // with a fresh auth before bubbling the error up to the caller.
     if (
