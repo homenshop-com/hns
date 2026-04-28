@@ -80,6 +80,21 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  try {
+    return await postImpl(request);
+  } catch (err) {
+    // Catch-all so the client always receives JSON. Without this, an
+    // unhandled exception (e.g. SECRETS_KEY missing, marketplace API
+    // hangs past timeout, network error) leaves the client with an
+    // empty body and the cryptic "Failed to execute 'json' on Response:
+    // Unexpected end of JSON input" error.
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[/api/integrations POST] unhandled:", err);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+async function postImpl(request: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

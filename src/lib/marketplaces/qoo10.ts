@@ -154,14 +154,22 @@ async function getCertKey(creds: Qoo10Creds, force = false): Promise<string> {
   let lastErr: Error | null = null;
   for (const url of candidates) {
     try {
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          Accept: "application/json",
-        },
-        body: body.toString(),
-      });
+      const ctl = new AbortController();
+      const tm = setTimeout(() => ctl.abort(), 15000);
+      let res: Response;
+      try {
+        res = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            Accept: "application/json",
+          },
+          body: body.toString(),
+          signal: ctl.signal,
+        });
+      } finally {
+        clearTimeout(tm);
+      }
       json = await readQoo10Response<{
         ResultCode?: number;
         ResultMsg?: string;
@@ -201,15 +209,23 @@ async function callQapi(
     const certKey = await getCertKey(creds, attempt > 0);
     const url = `${baseUrl(creds.region)}/ebayjapan.qapi/${endpoint}`;
     const body = new URLSearchParams({ key: certKey, ...params });
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        Accept: "application/json",
-        "giosis-certification-key": certKey,
-      },
-      body: body.toString(),
-    });
+    const ctl = new AbortController();
+    const tm = setTimeout(() => ctl.abort(), 15000);
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Accept: "application/json",
+          "giosis-certification-key": certKey,
+        },
+        body: body.toString(),
+        signal: ctl.signal,
+      });
+    } finally {
+      clearTimeout(tm);
+    }
     const json = await readQoo10Response<{ ResultCode?: number; ResultMsg?: string }>(
       res,
       endpoint,
