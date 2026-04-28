@@ -327,6 +327,14 @@ Typical home page skeleton:
     Examples: cafe interior → q=cafe+interior · ocean sunset → q=ocean+sunset · team meeting → q=team+meeting · happy family → q=happy+family
     Use 1-3 specific words, lowercase, joined with "+". NEVER use picsum.photos or other random placeholders.
     Hero 1920×1080, cards 600×400, team portraits 400×400. Use orientation-appropriate dimensions.
+    **Ethnicity / locale matching for people imagery (CRITICAL):**
+      - When defaultLanguage is **ko (Korean)**: any image showing PEOPLE (portraits, customers, staff, family, lifestyle, hands, faces) MUST include the keyword \`korean\` to ensure Korean-looking subjects. Examples:
+          team meeting → q=korean+team+meeting · happy family → q=korean+family · woman portrait → q=korean+woman+portrait · hands typing → q=korean+hands+laptop · customer smiling → q=korean+customer+smile · therapist → q=korean+esthetician
+      - When defaultLanguage is **ja (Japanese)**: prepend \`japanese\` for people images. e.g. q=japanese+businessman+meeting
+      - When defaultLanguage is **zh-cn / zh-tw (Chinese)**: prepend \`chinese\` for people images.
+      - When defaultLanguage is **en / es** (Latin): no ethnicity prefix needed — Pexels defaults are diverse.
+      - The ethnicity keyword is for PEOPLE only. Generic objects/scenes (cafe interior, ocean sunset, food, products, buildings) do not need it.
+      - Why: Korean/Japanese/Chinese SMEs need locally-relatable customer faces. Default Pexels results lean Western, which feels off-brand for an Asian-language site.
 - **Header**: brand + inline nav, sticky w/ shadow + backdrop-filter. Menu underline-on-hover via pseudo-element.
     EDITOR-FRIENDLY HEADER MARKUP (REQUIRED — the design editor's "헤더 편집" modal looks for these):
     - Wrap the brand area with id="hns_h_logo" OR class="logo" so the logo-replace flow (canvas ↻ button + modal upload)
