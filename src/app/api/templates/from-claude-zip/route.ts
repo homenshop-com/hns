@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import { freeSiteDefaults } from "@/lib/site-expiration";
+import { atomizeBodyHtml } from "@/lib/atomic-transform";
 import * as fs from "fs";
 import * as path from "path";
 import JSZip from "jszip";
@@ -144,8 +145,12 @@ export async function POST(request: NextRequest) {
     for (const h of htmls) {
       fs.writeFileSync(path.join(diskDir, h.name.toLowerCase()), h.buffer);
       const html = h.buffer.toString("utf-8");
-      const bodyHtml = extractBody(html);
+      const rawBody = extractBody(html);
       const slug = h.name.toLowerCase().replace(/\.html$/, "");
+      // Atomize: wrap bare h1/h2/p/img/a.btn/ul/table in .dragable so the
+      // design editor can select, label, and edit them. Without this,
+      // user-uploaded HTML renders fine but is unselectable in the editor.
+      const bodyHtml = atomizeBodyHtml(rawBody, slug);
       const title = slug === "index" ? "HOME" : slug.charAt(0).toUpperCase() + slug.slice(1);
       pageData.push({ slug, title, bodyHtml });
     }
