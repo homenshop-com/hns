@@ -21,11 +21,21 @@ import type { OrderStatus } from "@/generated/prisma/client";
  * responses. Cron polls run as a single Node process so memory cache
  * is fine; no Redis needed.
  *
- * Order endpoints used:
- *   - ShipmentInfo_GetUnShippedList: orders paid but not yet shipped.
- *     Drives the "new orders" feed for sellers.
- *   - ShipmentInfo_GetShippingHistory: orders that have shipped.
- *     Provides tracking + delivery status updates.
+ * Endpoint discovery (probed live against api.qoo10.jp 2026-04-28):
+ *   Qoo10 QAPI URLs follow `{Service}.{Method}` (dot-separated, no .aspx).
+ *   Routing errors come back as plain text ("Can't find service Name X" /
+ *   "Can't find method Info Y") with HTTP 200 — not 404 — so any wrong
+ *   guess is silently dropped at the routing layer. Real endpoints
+ *   respond with a JSON envelope `{ErrorCode, ErrorMsg, ...}`.
+ *
+ * Confirmed endpoints:
+ *   - CertificationAPI.CreateCertificationKey  → auth
+ *   - ShippingBasic.GetShippingInfo            → orders / shipping data
+ *
+ * Order endpoint behavior:
+ *   GetShippingInfo takes a ShippingStatus param (U=unshipped,
+ *   S=shipping, D=delivered) and returns the orders matching. We pull
+ *   both U and S buckets per sync to capture new + in-flight orders.
  *
  * Region: Qoo10 runs three storefronts (JP / KR / SG) on independent
  * domains and seller account spaces. Each integration row stores its
@@ -135,65 +145,72 @@ async function getCertKey(creds: Qoo10Creds, force = false): Promise<string> {
     if (hit && hit.expiresAt > now) return hit.certKey;
   }
 
-  // Qoo10 QAPI: try the documented ".aspx" form first, then fall back
-  // to the dot-style name some QSM regions use. This is needed because
-  // Qoo10's URL convention is inconsistent across regions and historical
-  // doc revisions, and the wrong form returns HTTP 200 with an empty
-  // body (not 404), which is impossible to diagnose without trying both.
-  const candidates = [
-    `${baseUrl(creds.region)}/ebayjapan.qapi/CertificationAPI_Certification.aspx`,
-    `${baseUrl(creds.region)}/ebayjapan.qapi/CertificationAPI.Certification.aspx`,
-    `${baseUrl(creds.region)}/ebayjapan.qapi/CertificationAPI.Certification`,
-  ];
+  // Qoo10 QAPI: the auth endpoint is `CertificationAPI.CreateCertificationKey`
+  // (dot-separated, no .aspx). Confirmed by probing the live API: this
+  // is the only certification endpoint that responds with the expected
+  // JSON envelope (`{ErrorCode, ErrorMsg, ...}`); other variants return
+  // plain-text routing errors like "Can't find service Name" / "Can't
+  // find method Info ...".
+  const url = `${baseUrl(creds.region)}/ebayjapan.qapi/CertificationAPI.CreateCertificationKey`;
   const body = new URLSearchParams({
     key: creds.apiKey,
     user_id: creds.userId,
     pwd: creds.password,
   });
-  let json: { ResultCode?: number; ResultMsg?: string; ResultObject?: string } | null = null;
-  let lastErr: Error | null = null;
-  for (const url of candidates) {
-    try {
-      const ctl = new AbortController();
-      const tm = setTimeout(() => ctl.abort(), 15000);
-      let res: Response;
-      try {
-        res = await fetch(url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-            Accept: "application/json",
-          },
-          body: body.toString(),
-          signal: ctl.signal,
-        });
-      } finally {
-        clearTimeout(tm);
-      }
-      json = await readQoo10Response<{
-        ResultCode?: number;
-        ResultMsg?: string;
-        ResultObject?: string;
-      }>(res, "Certification");
-      break;
-    } catch (err) {
-      lastErr = err as Error;
-      continue;
-    }
+  const ctl = new AbortController();
+  const tm = setTimeout(() => ctl.abort(), 15000);
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Accept: "application/json",
+      },
+      body: body.toString(),
+      signal: ctl.signal,
+    });
+  } finally {
+    clearTimeout(tm);
   }
-  if (!json) {
-    throw lastErr ?? new Error("Qoo10 auth failed (no response from any URL variant)");
+  // Qoo10 auth response uses ErrorCode/ErrorMsg envelope (not the
+  // ResultCode/ResultMsg form used by the order endpoints). The cert
+  // key field has been documented under several names across QAPI
+  // revisions — we try the common ones in order.
+  const json = await readQoo10Response<{
+    ErrorCode?: number;
+    ErrorMsg?: string;
+    ResultCode?: number;
+    ResultMsg?: string;
+    ResultObject?: string;
+    Result?: string;
+    CertKey?: string;
+    CertificationKey?: string;
+    cert_key?: string;
+  }>(res, "Certification");
+
+  const errCode = json.ErrorCode ?? json.ResultCode;
+  const errMsg = json.ErrorMsg ?? json.ResultMsg;
+  const cert =
+    json.ResultObject ??
+    json.Result ??
+    json.CertKey ??
+    json.CertificationKey ??
+    json.cert_key;
+
+  if (errCode && errCode !== 0) {
+    throw new Error(`Qoo10 auth failed (code=${errCode}): ${errMsg ?? "unknown"}`);
   }
-  if (json.ResultCode !== 0 || !json.ResultObject) {
+  if (!cert) {
     throw new Error(
-      `Qoo10 auth failed (code=${json.ResultCode}): ${json.ResultMsg ?? "unknown"}`,
+      `Qoo10 auth response had no cert key field: ${JSON.stringify(json).slice(0, 200)}`,
     );
   }
   certCache.set(key, {
-    certKey: json.ResultObject,
+    certKey: cert,
     expiresAt: now + CERT_TTL_MS,
   });
-  return json.ResultObject;
+  return cert;
 }
 
 /* ──────────────────────────────────────────────────────────────────
@@ -404,12 +421,13 @@ export const qoo10Adapter: MarketplaceAdapter = {
   },
 
   async listOrdersSince(
-    creds: MarketplaceCredentials,
+    rawCreds: MarketplaceCredentials,
     sinceMs: number,
   ): Promise<SyncResult> {
-    if (!isQoo10Creds(creds)) {
+    if (!isQoo10Creds(rawCreds)) {
       throw new Error("Invalid Qoo10 credentials");
     }
+    const creds: Qoo10Creds = rawCreds;
     // Qoo10 requires a date window (max ~30 days). We cap the lookback
     // at 30 days to stay safe; the cron's 1-hour overlap means anything
     // older has already been imported on previous runs.
@@ -420,35 +438,39 @@ export const qoo10Adapter: MarketplaceAdapter = {
     const collected: NormalizedOrder[] = [];
     let cursor = sinceMs;
 
-    // 1) Unshipped (paid, awaiting shipment)
-    try {
-      const unshipped = (await callQapi(creds, "ShipmentInfo_GetUnShippedList.aspx", {
-        search_Sdate: start,
-        search_Edate: end,
-      })) as { ResultObject?: Qoo10OrderRaw[] };
-      for (const raw of unshipped.ResultObject ?? []) {
-        const norm = normalize(raw, "PAID");
-        collected.push(norm);
-        cursor = Math.max(cursor, norm.placedAt.getTime());
+    // Qoo10's order/shipping data lives behind `ShippingBasic.GetShippingInfo`
+    // (confirmed via live API probe — see endpoint discovery notes in
+    // the file header). Single endpoint covers both unshipped and shipped
+    // sets; callers filter by status param. We pull both buckets so the
+    // dashboard sees the full picture.
+    type GetShippingInfoResp = {
+      ResultObject?: Qoo10OrderRaw[];
+      Result?: Qoo10OrderRaw[];
+    };
+
+    async function pull(statusParam: string, defaultStatus: OrderStatus) {
+      try {
+        const resp = (await callQapi(creds, "ShippingBasic.GetShippingInfo", {
+          ShippingStatus: statusParam,
+          search_Sdate: start,
+          search_Edate: end,
+          ship_Sdate: start,
+          ship_Edate: end,
+        })) as GetShippingInfoResp;
+        const rows = resp.ResultObject ?? resp.Result ?? [];
+        for (const raw of rows) {
+          const norm = normalize(raw, defaultStatus);
+          collected.push(norm);
+          cursor = Math.max(cursor, norm.placedAt.getTime());
+        }
+      } catch (err) {
+        console.warn(`[qoo10] GetShippingInfo (status=${statusParam}) failed:`, err);
       }
-    } catch (err) {
-      console.warn("[qoo10] GetUnShippedList failed:", err);
     }
 
-    // 2) Shipped/delivered history
-    try {
-      const shipped = (await callQapi(creds, "ShipmentInfo_GetShippingHistory.aspx", {
-        ship_Sdate: start,
-        ship_Edate: end,
-      })) as { ResultObject?: Qoo10OrderRaw[] };
-      for (const raw of shipped.ResultObject ?? []) {
-        const norm = normalize(raw, "SHIPPING");
-        collected.push(norm);
-        cursor = Math.max(cursor, norm.placedAt.getTime());
-      }
-    } catch (err) {
-      console.warn("[qoo10] GetShippingHistory failed:", err);
-    }
+    // Status param values per QAPI: U=unshipped, S=shipping, D=delivered
+    await pull("U", "PAID");
+    await pull("S", "SHIPPING");
 
     return { orders: collected, cursor };
   },
@@ -472,7 +494,10 @@ export async function qoo10SendTracking(
   },
 ): Promise<void> {
   if (!isQoo10Creds(creds)) throw new Error("Invalid Qoo10 credentials");
-  await callQapi(creds, "ShipmentInfo_SendDeliveryInformation.aspx", {
+  // The exact method name for tracking push hasn't been confirmed via
+  // probing. Once a seller account is connected and the docs page can
+  // be inspected as authenticated, swap in the real method name.
+  await callQapi(creds, "ShippingBasic.SetShippingInfo", {
     OrderNo: args.orderNo,
     ShippingCompany: args.shippingCompany,
     TrackingNo: args.trackingNo,
