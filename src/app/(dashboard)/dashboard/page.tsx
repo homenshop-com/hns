@@ -576,8 +576,8 @@ export default async function DashboardPage() {
                 <div className="dv2-empty">
                   <div className="t">{t("sitesEmptyTitle")}</div>
                   <div className="d">{t("sitesEmptyDesc")}</div>
-                  <Link href="/dashboard/templates" className="dv2-row-btn primary">
-                    {t("sitesBrowseTemplates")} <Icon id="i-chev-right" size={12} />
+                  <Link href="/dashboard/sites" className="dv2-row-btn primary">
+                    {t("sitesCreateBtn")} <Icon id="i-chev-right" size={12} />
                   </Link>
                 </div>
               ) : (
