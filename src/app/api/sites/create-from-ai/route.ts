@@ -295,7 +295,14 @@ Typical home page skeleton:
 # Design quality bar (follow these — quality is what matters)
 - **Design tokens** at :root — color-primary/accent/bg/surface/text/muted/border, font-heading/body, radius-sm/md/lg, shadow-sm/md/lg, space scale (8pt rhythm), container 1200px.
 - **Palette** fits the brand mood: cafe→warm neutrals+terracotta+deep green; tech→indigo+near-black; wellness→sage+cream; luxury→black+gold+ivory; medical→deep blue+white.
-- **Typography**: @import Google Fonts at top of cssText. Heading font: Playfair/Fraunces/Space Grotesk (or Noto Serif/Sans KR for Korean). Body: Inter/Noto Sans. Type scale using clamp(): h1 clamp(2.25rem,4vw,3.5rem), h2 clamp(1.75rem,3vw,2.5rem). line-height 1.15 headings / 1.65 body. Letter-spacing −0.02em on headings.
+- **Typography**: @import Google Fonts at top of cssText. Type scale using clamp(): h1 clamp(2.25rem,4vw,3.5rem), h2 clamp(1.75rem,3vw,2.5rem). line-height 1.15 headings / 1.65 body.
+  **CRITICAL — defaultLanguage drives font selection:**
+    - **Korean (ko)**: REQUIRED first font for headings & body must be a CJK-supporting Korean font. Use Noto Serif KR or Gowun Batang for serif designs (luxury/editorial/organic), Pretendard or Noto Sans KR for sans designs (minimal/colorful). Place Korean font FIRST in the font-family stack, then optional Latin display fallback. Example: \`--font-heading: 'Noto Serif KR', 'Cormorant Garamond', serif;\` NOT the reverse — Korean glyphs in Latin display fonts fall back to system default and look broken.
+    - **Korean weight rules**: Korean serif glyphs are visually denser than Latin — weight 300-400 looks unrefined and unreadable on dark backgrounds. For Korean headings use weight 600-700 (NEVER 300-400, even in luxury/minimal styles). For Korean body use weight 400-500. Import the heavier weights explicitly (e.g., \`Noto+Serif+KR:wght@400;500;600;700;900\`).
+    - **Japanese (ja)**: First font Noto Serif JP / Noto Sans JP / Shippori Mincho. Same weight rules as Korean.
+    - **Chinese (zh-cn / zh-tw)**: First font Noto Serif SC/TC / Noto Sans SC/TC / ZCOOL XiaoWei. Same weight rules.
+    - **Latin only (en/es)**: Heading Playfair/Fraunces/Space Grotesk/Cormorant. Body Inter/Lato/Noto Sans. Original weight rules apply (300-500 OK).
+    - **Letter-spacing**: −0.02em headings is fine for Latin. For Korean/Japanese/Chinese headings use letter-spacing 0 to −0.005em — tight Latin tracking distorts CJK glyphs. uppercase + wide letter-spacing on CJK eyebrow text is fine since it only affects the Latin label part.
 - **Home page MUST have**: (1) Hero w/ bg image + overlay + large heading + CTA (2) 3-col feature grid (3) image+text content section (4) testimonial or stats (5) final CTA band. Other pages: 3-4 varied sections each.
 - **Layout**: CSS Grid + Flexbox. Section vertical rhythm padding-block: clamp(48px,8vw,120px).
 - **Polish**: Buttons padding 14px 28px, radius md, hover translateY(-2px)+shadow. Cards radius-lg+shadow-sm+padding 32px, hover lift. Images radius-md, object-fit:cover, aspect-ratio enforced. Hero bg w/ linear-gradient overlay.
@@ -361,7 +368,12 @@ const DESIGN_STYLE_DIRECTIVES: Record<Exclude<DesignStyle, "auto">, string> = {
 # Selected design style: MINIMAL MODERN
 Commit to refined minimalism. The user picked this — execute it boldly, do not blend it with other styles.
 - Palette: near-monochromatic. White / off-white background (#fafafa or #ffffff), deep ink text (#0f172a or #111111), one restrained accent (slate-blue, charcoal, or sage). NO gradients on hero, NO multiple bright colors.
-- Typography: clean geometric sans only. @import Inter, Space Grotesk, or Manrope. Headings 600-700 weight, tight tracking (-0.025em). Body Inter 16/1.65. Generous type scale jumps.
+- Typography: clean geometric sans only.
+    - **Korean (ko)**: Pretendard or Noto Sans KR (weights 400;500;700;900). Heading 700, body 400-500. font-heading stack starts with the Korean font.
+    - **Japanese (ja)**: Noto Sans JP first.
+    - **Chinese (zh-cn/zh-tw)**: Noto Sans SC/TC first.
+    - **Latin (en/es)**: @import Inter, Space Grotesk, or Manrope. Heading 600-700, tight tracking (-0.025em).
+    - Body line-height 1.65. Generous type scale jumps.
 - Layout: massive whitespace. Section padding-block clamp(80px, 12vw, 160px). 1100-1200px container. Single-column hero with text-only or image+text split. NO 3-card decorative grid unless content demands it.
 - Polish: subtle 1px hairlines (border-color #e5e7eb), no shadows or very faint shadow-sm only. Buttons: outlined or solid black, sharp 4px radius. Images: minimal radius (4-8px), grayscale-leaning palette.
 - Hero pattern preference: Pattern A overlay with VERY subtle dark gradient, large heading + one-line subhead + single CTA. No card stacks.
@@ -370,7 +382,10 @@ Commit to refined minimalism. The user picked this — execute it boldly, do not
 # Selected design style: EDITORIAL MAGAZINE
 Commit to a magazine / newspaper aesthetic. Bold display headings dominate the page.
 - Palette: monochrome black + white + cream (#fffaf0). One accent color used sparingly (rich red #c8102e, deep navy, or burnt orange).
-- Typography: REQUIRED display serif for headings — @import "Fraunces" or "Playfair Display" or "DM Serif Display". Hero h1 clamp(3rem, 6vw, 5rem), italic optional for emphasis. Body: serif (Source Serif 4, Lora) or pairing sans (Inter).
+- Typography: bold display headings.
+    - **Korean (ko)**: Noto Serif KR (weights 600;700;900) FIRST in font-heading. Heading weight 700-900 (large display sizes need heavy strokes). Italic does NOT exist in Korean fonts — use weight contrast or color accent for emphasis instead.
+    - **Japanese (ja)** / **Chinese (zh-cn/zh-tw)**: Noto Serif JP / Noto Serif SC/TC first, weights 700-900 for headings.
+    - **Latin (en/es)**: @import "Fraunces" or "Playfair Display" or "DM Serif Display". Hero h1 clamp(3rem, 6vw, 5rem), italic for emphasis OK. Body: serif (Source Serif 4, Lora) or pairing sans (Inter).
 - Layout: asymmetric magazine grids. Large pull quotes, oversized first-letter drop caps allowed, byline-style metadata under titles. Use CSS columns or asymmetric 2/3 + 1/3 splits, not equal 3-col grids.
 - Polish: thin top/bottom rules (1px solid #111) framing sections. Captions in tiny uppercase (font-size 11px, letter-spacing 0.15em). Black & white photography preferred — desaturate via filter: grayscale(15%) on hero images.
 - Hero pattern preference: Pattern A with massive serif headline, no image overlay tint, very high contrast.
@@ -379,7 +394,11 @@ Commit to a magazine / newspaper aesthetic. Bold display headings dominate the p
 # Selected design style: WARM & ORGANIC
 Commit to a warm, natural, friendly aesthetic. Rounded, hand-crafted feel.
 - Palette: earth + cream tones. Background cream/oat (#faf6ee or #f5ede1), deep moss/sage primary (#5b6f4a or #6b8e4e), terracotta/clay accent (#c97558 or #d97757), warm brown text (#3d2f24).
-- Typography: friendly serif for headings — @import "Fraunces" (loose tracking) or "Source Serif 4". Body: warm humanist sans (Nunito, Plus Jakarta Sans). Generous line-height 1.75 on body.
+- Typography: friendly serif for headings.
+    - **Korean (ko)**: Gowun Batang or Nanum Myeongjo (warm Korean serifs) FIRST. Heading weight 700, body weight 400-500. Body line-height 1.85 for breathing room.
+    - **Japanese (ja)**: Shippori Mincho or Noto Serif JP first.
+    - **Chinese (zh-cn/zh-tw)**: Noto Serif SC/TC first.
+    - **Latin (en/es)**: @import "Fraunces" (loose tracking) or "Source Serif 4". Body humanist sans (Nunito, Plus Jakarta Sans). Body line-height 1.75.
 - Layout: rounded corners everywhere (radius-md 16px, radius-lg 24px). Curved section dividers via SVG wave or border-radius on sections. Imagery shows natural textures (linen, wood, foliage, hands).
 - Polish: soft cream-colored cards on cream background, no harsh shadows — warm-tinted shadow-sm: 0 4px 16px rgba(120, 80, 40, 0.08). Buttons radius-full (pill-shaped), terracotta primary with subtle hover scale.
 - Hero pattern preference: Pattern C (split) with portrait-style image and warm overlay; OR Pattern A with cream gradient, dark moss heading.
@@ -388,16 +407,27 @@ Commit to a warm, natural, friendly aesthetic. Rounded, hand-crafted feel.
 # Selected design style: LUXURY PREMIUM
 Commit to refined luxury. Black + gold + ivory. Restraint signals quality.
 - Palette: ivory background (#f8f5f0) or deep black (#0a0a0a) with high contrast. Antique gold accent (#c9a961 or #b8945f), never bright yellow. Charcoal text (#1a1a1a) on light, ivory text on dark.
-- Typography: classical serif for headings — @import "Cormorant Garamond" or "Playfair Display" (uppercase tracking 0.1em on subtitles). Body: light-weight serif (Cormorant 400) or refined sans (Lato 300). NEVER bold weights — use weight 300-500 and rely on size for hierarchy.
+- Typography: classical serif for headings.
+    - **Korean (ko)**: \`@import Noto+Serif+KR:wght@400;500;600;700;900&Gowun+Batang:wght@400;700&Cormorant+Garamond:wght@400;500;600\`. font-heading stack: \`'Noto Serif KR', 'Gowun Batang', 'Cormorant Garamond', serif\`. Heading weight 600-700 (Korean serif at 400 looks broken). Body weight 400-500.
+    - **Japanese (ja)**: Noto Serif JP first (weights 400;500;700). Heading 600-700, body 400-500.
+    - **Chinese (zh-cn/zh-tw)**: Noto Serif SC/TC first. Heading 600-700, body 400-500.
+    - **Latin only (en/es)**: Cormorant Garamond / Playfair Display first. Heading weight 400-500, body 300-400 (classical luxury restraint OK for Latin glyphs).
+    - Subtitles: uppercase tracking 0.1em (Latin only — never uppercase Korean/CJK headlines).
 - Layout: centered, symmetric, generous space. Section padding-block clamp(96px, 14vw, 180px). Thin gold hairlines (1px solid #c9a961) as section dividers. 1180px container.
 - Polish: gold-accent buttons (1px solid #c9a961, transparent bg, gold text → fills on hover). Cards: ivory bg with thin gold border, no rounded corners or radius-sm only (4px). Imagery: muted, high-contrast B&W or warm-toned product shots.
-- Hero pattern preference: Pattern A overlay with dark image + ivory headline + thin gold underline + minimal CTA.
+- Contrast: ivory headings on dark MUST use solid color (#f8f5f0 or #f0e9d8), never opacity/rgba below 1.0. Gold accent for ornaments only — DO NOT make body text gold.
+- Hero pattern preference: Pattern A overlay with dark image + ivory headline (weight 600+ for Korean) + thin gold underline + minimal CTA.
 `.trim(),
   colorful: `
 # Selected design style: VIBRANT COLORFUL
 Commit to playful, energetic, vibrant. Saturated colors and bold gradients.
 - Palette: vivid primary + secondary + tertiary. Examples: hot-pink #ec4899 + cobalt #2563eb + sun-yellow #facc15, OR coral #f97316 + teal #14b8a6 + plum #a855f7. Background can be off-white or pastel-tinted (#fef9c3, #fce7f3).
-- Typography: friendly geometric sans — @import "Plus Jakarta Sans", "DM Sans", or "Outfit". Headings 800 weight, slight letter-spacing -0.02em. Body Inter or DM Sans 500.
+- Typography: friendly geometric sans.
+    - **Korean (ko)**: Pretendard or Noto Sans KR (weights 500;700;900) FIRST. Heading 800-900, body 500.
+    - **Japanese (ja)**: Noto Sans JP first.
+    - **Chinese (zh-cn/zh-tw)**: Noto Sans SC/TC first.
+    - **Latin (en/es)**: @import "Plus Jakarta Sans", "DM Sans", or "Outfit". Heading 800, body Inter/DM Sans 500.
+    - Letter-spacing -0.02em headings (Latin only — keep CJK headings at 0 to -0.005em).
 - Layout: bold gradient backgrounds on hero & CTA bands (linear-gradient 135deg, primary → secondary). Rounded corners radius-lg 24px on cards/images. Playful shapes — blob SVGs in corners, oversized circular accents.
 - Polish: punchy buttons in solid bright colors, radius-full, bold hover scale 1.04. Cards: soft pastel bg with bright accent border or shadow tinted with color (e.g., shadow: 0 12px 32px rgba(236, 72, 153, 0.18)). Imagery: bright candid lifestyle shots, smiling people, vivid scenes.
 - Hero pattern preference: Pattern A overlay with full-bleed gradient + white headline + bright CTA; OR Pattern C split with playful illustration on one side.
