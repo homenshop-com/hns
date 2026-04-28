@@ -100,6 +100,7 @@ export default function AICreateButton({ emailVerified, labels, renderAsCard }: 
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<"style" | "form" | "verify">("style");
+  const [mode, setMode] = useState<"ai" | "zip">("ai");
   const [designStyle, setDesignStyle] = useState<DesignStyle>("auto");
   const [language, setLanguage] = useState("ko");
   const [shopId, setShopId] = useState("");
@@ -193,6 +194,10 @@ export default function AICreateButton({ emailVerified, labels, renderAsCard }: 
   function handleOpen() {
     setError("");
     setResendMsg("");
+    setZipError("");
+    setMode("ai");
+    setZipFile(null);
+    setZipName("");
     if (!emailVerified) {
       setStep("verify");
     } else {
@@ -205,6 +210,8 @@ export default function AICreateButton({ emailVerified, labels, renderAsCard }: 
     if (creating) return;
     setOpen(false);
     setError("");
+    setZipError("");
+    setMode("ai");
   }
 
   function validateShopId(value: string): boolean {
@@ -229,7 +236,7 @@ export default function AICreateButton({ emailVerified, labels, renderAsCard }: 
     }
   }
 
-  async function handleZipUpload() {
+  function handleZipNext() {
     setZipError("");
     if (!zipName.trim()) {
       setZipError(labels.aiZipNameRequired);
@@ -239,27 +246,8 @@ export default function AICreateButton({ emailVerified, labels, renderAsCard }: 
       setZipError(labels.aiZipFileRequired);
       return;
     }
-    setZipUploading(true);
-    try {
-      const fd = new FormData();
-      fd.append("name", zipName.trim());
-      fd.append("zip", zipFile);
-      const res = await fetch("/api/templates/from-claude-zip", {
-        method: "POST",
-        body: fd,
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setZipError(data.error || "Upload failed");
-        setZipUploading(false);
-        return;
-      }
-      router.push("/dashboard/templates?tab=my");
-      router.refresh();
-    } catch {
-      setZipError("Upload failed");
-      setZipUploading(false);
-    }
+    setMode("zip");
+    setStep("form");
   }
 
   async function handleSubmit() {
@@ -276,6 +264,48 @@ export default function AICreateButton({ emailVerified, labels, renderAsCard }: 
       setError(labels.errorSiteTitleRequired);
       return;
     }
+
+    if (mode === "zip") {
+      if (!zipFile || !zipName.trim()) {
+        setError(labels.aiZipFileRequired);
+        return;
+      }
+      setCreating(true);
+      try {
+        const fd = new FormData();
+        fd.append("name", zipName.trim());
+        fd.append("zip", zipFile);
+        fd.append("createSite", "true");
+        fd.append("shopId", shopId);
+        fd.append("defaultLanguage", language);
+        fd.append("siteTitle", siteTitle);
+        const res = await fetch("/api/templates/from-claude-zip", {
+          method: "POST",
+          body: fd,
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          if (res.status === 409 && data.error?.includes("shopId")) {
+            setError(labels.errorShopIdTaken);
+          } else {
+            setError(data.error || "Failed");
+          }
+          setCreating(false);
+          return;
+        }
+        if (data.site?.pages?.[0]?.id) {
+          router.push(`/dashboard/site/pages/${data.site.pages[0].id}/edit`);
+        } else {
+          router.push("/dashboard/sites");
+          router.refresh();
+        }
+      } catch {
+        setError("Failed");
+        setCreating(false);
+      }
+      return;
+    }
+
     if (!prompt.trim() || prompt.trim().length < 10) {
       setError(labels.errorPromptRequired);
       return;
@@ -933,17 +963,16 @@ export default function AICreateButton({ emailVerified, labels, renderAsCard }: 
                   <button
                     type="button"
                     className="tpl-modal-create"
-                    onClick={handleZipUpload}
-                    disabled={zipUploading || !zipFile}
+                    onClick={handleZipNext}
+                    disabled={!zipFile || !zipName.trim()}
                     style={{
-                      background: zipFile && !zipUploading
+                      background: zipFile && zipName.trim()
                         ? "linear-gradient(135deg, #0891b2 0%, #0e7490 100%)"
                         : "#9ca3af",
                       marginTop: 12,
-                      opacity: zipUploading ? 0.7 : 1,
                     }}
                   >
-                    {zipUploading ? labels.aiZipUploading : `📦 ${labels.aiZipUpload}`}
+                    📦 {labels.aiStyleNext} →
                   </button>
                 </div>
               </div>
@@ -1059,6 +1088,33 @@ export default function AICreateButton({ emailVerified, labels, renderAsCard }: 
                   />
                 </div>
 
+                {mode === "zip" && (
+                  <div
+                    style={{
+                      marginTop: 16,
+                      padding: 14,
+                      border: "1px solid #67e8f9",
+                      borderRadius: 8,
+                      background: "linear-gradient(135deg, #f0f9ff 0%, #ecfeff 100%)",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                    }}
+                  >
+                    <i className="fa-solid fa-file-zipper" style={{ fontSize: 22, color: "#0891b2", flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#0c4a6e", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        📦 {zipName || zipFile?.name}
+                      </div>
+                      <div style={{ fontSize: 11, color: "#0e7490", marginTop: 2 }}>
+                        {zipFile?.name} · {zipFile ? (zipFile.size / 1024 / 1024).toFixed(2) : 0} MB
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {mode === "ai" && (
+                <>
                 <div className="tpl-modal-field" style={{ marginTop: 16, flexDirection: "column", alignItems: "stretch" }}>
                   <label style={{ marginBottom: 6, display: "block" }}>{labels.aiPrompt}:</label>
                   <textarea
@@ -1226,6 +1282,8 @@ export default function AICreateButton({ emailVerified, labels, renderAsCard }: 
                     </div>
                   )}
                 </div>
+                </>
+                )}
 
                 {error && <p className="tpl-modal-error">{error}</p>}
 
@@ -1283,11 +1341,13 @@ export default function AICreateButton({ emailVerified, labels, renderAsCard }: 
                     className="tpl-modal-create"
                     onClick={handleSubmit}
                     style={{
-                      background: "linear-gradient(135deg, #7c3aed 0%, #4338ca 100%)",
+                      background: mode === "zip"
+                        ? "linear-gradient(135deg, #0891b2 0%, #0e7490 100%)"
+                        : "linear-gradient(135deg, #7c3aed 0%, #4338ca 100%)",
                       marginTop: 16,
                     }}
                   >
-                    ✨ {labels.aiGenerate}
+                    {mode === "zip" ? `📦 ${labels.aiZipUpload}` : `✨ ${labels.aiGenerate}`}
                   </button>
                 )}
               </div>

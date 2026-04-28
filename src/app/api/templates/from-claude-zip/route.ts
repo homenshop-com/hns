@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { Prisma } from "@/generated/prisma/client";
+import { freeSiteDefaults } from "@/lib/site-expiration";
 import * as fs from "fs";
 import * as path from "path";
 import JSZip from "jszip";
 
 const UPLOAD_BASE = process.env.UPLOAD_PATH || "/var/www/uploads";
+const SHOP_ID_REGEX = /^[a-z0-9][a-z0-9-]{4,12}[a-z0-9]$/;
 
 const MAX_ZIP_BYTES = 30 * 1024 * 1024;
 const MAX_ENTRIES = 200;
@@ -32,12 +35,38 @@ export async function POST(request: NextRequest) {
   const formData = await request.formData();
   const name = (formData.get("name") as string)?.trim();
   const zipFile = formData.get("zip") as File | null;
+  const createSite = formData.get("createSite") === "true";
+  const shopId = ((formData.get("shopId") as string) ?? "").trim().toLowerCase();
+  const defaultLanguage = ((formData.get("defaultLanguage") as string) ?? "ko").toString();
+  const siteTitle = ((formData.get("siteTitle") as string) ?? "").trim();
 
   if (!name) {
     return NextResponse.json({ error: "템플릿 이름을 입력하세요." }, { status: 400 });
   }
   if (!zipFile) {
     return NextResponse.json({ error: "zip 파일을 업로드하세요." }, { status: 400 });
+  }
+
+  if (createSite) {
+    if (!shopId) {
+      return NextResponse.json({ error: "shopId is required" }, { status: 400 });
+    }
+    if (!SHOP_ID_REGEX.test(shopId)) {
+      return NextResponse.json({ error: "shopId format invalid" }, { status: 400 });
+    }
+    if (!siteTitle) {
+      return NextResponse.json({ error: "siteTitle is required" }, { status: 400 });
+    }
+    const siteCount = await prisma.site.count({
+      where: { userId: session.user.id, isTemplateStorage: false },
+    });
+    if (siteCount >= 5) {
+      return NextResponse.json({ error: "Maximum sites reached" }, { status: 409 });
+    }
+    const existing = await prisma.site.findUnique({ where: { shopId } });
+    if (existing) {
+      return NextResponse.json({ error: "shopId already taken" }, { status: 409 });
+    }
   }
   if (zipFile.size > MAX_ZIP_BYTES) {
     return NextResponse.json(
@@ -170,14 +199,71 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(
-      {
-        template,
-        pages: pageData,
-        stats: { html: htmls.length, css: csses.length, assets: assets.length },
-      },
-      { status: 201 },
-    );
+    if (!createSite) {
+      return NextResponse.json(
+        {
+          template,
+          pages: pageData,
+          stats: { html: htmls.length, css: csses.length, assets: assets.length },
+        },
+        { status: 201 },
+      );
+    }
+
+    try {
+      const site = await prisma.site.create({
+        data: {
+          userId: session.user.id,
+          shopId,
+          name: siteTitle,
+          defaultLanguage,
+          templateId: template.id,
+          templatePath: template.path,
+          headerHtml: template.headerHtml,
+          menuHtml: template.menuHtml,
+          footerHtml: template.footerHtml,
+          cssText: template.cssText || null,
+          ...freeSiteDefaults(),
+          pages: {
+            create: pageData.map((p, index) => ({
+              title: p.title,
+              slug: p.slug,
+              lang: defaultLanguage,
+              isHome: p.slug === "index",
+              showInMenu: true,
+              sortOrder: index,
+              content: { html: p.bodyHtml } as Prisma.InputJsonValue,
+            })),
+          },
+        },
+        include: {
+          pages: { orderBy: { sortOrder: "asc" } },
+        },
+      });
+
+      return NextResponse.json(
+        {
+          template,
+          site,
+          stats: { html: htmls.length, css: csses.length, assets: assets.length },
+        },
+        { status: 201 },
+      );
+    } catch (siteErr) {
+      console.error("[from-claude-zip] site creation failed, rolling back template:", siteErr);
+      try {
+        await prisma.template.delete({ where: { id: template.id } });
+      } catch (delErr) {
+        console.error("[from-claude-zip] template rollback failed:", delErr);
+      }
+      try {
+        if (fs.existsSync(diskDir)) fs.rmSync(diskDir, { recursive: true, force: true });
+      } catch {}
+      return NextResponse.json(
+        { error: "사이트 생성에 실패했습니다. 템플릿도 함께 롤백했습니다." },
+        { status: 500 },
+      );
+    }
   } catch (err) {
     console.error("[from-claude-zip] failed:", err);
     try {
