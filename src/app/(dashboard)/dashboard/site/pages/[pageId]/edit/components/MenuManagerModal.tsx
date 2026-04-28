@@ -16,6 +16,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 
 interface PageRow {
   id: string;
@@ -43,6 +44,8 @@ export default function MenuManagerModal({
   onClose,
   onPagesChanged,
 }: Props) {
+  const t = useTranslations("editor");
+
   // Local working copy so the user can tweak everything, then save once.
   // Order = sortOrder; we don't expose a numeric field — just drag.
   const [rows, setRows] = useState<PageRow[]>(() =>
@@ -140,12 +143,12 @@ export default function MenuManagerModal({
       const failed = results.find((r) => !r.ok);
       if (failed) {
         const j = (await failed.json().catch(() => ({}))) as { error?: string };
-        throw new Error(j.error || `저장 실패 (${failed.status})`);
+        throw new Error(j.error || `${t("menuMgr.saveFailed")} (${failed.status})`);
       }
       onPagesChanged(rows);
       onClose();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "저장 실패");
+      setErr(e instanceof Error ? e.message : t("menuMgr.saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -192,9 +195,9 @@ export default function MenuManagerModal({
           }}
         >
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 15, fontWeight: 600 }}>메뉴 관리</div>
+            <div style={{ fontSize: 15, fontWeight: 600 }}>{t("menuMgr.title")}</div>
             <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>
-              모든 페이지의 메뉴 표시·이름·순서를 한 곳에서 편집. 변경은 모든 페이지의 헤더에 적용됩니다.
+              {t("menuMgr.sub")}
             </div>
           </div>
           <button
@@ -217,7 +220,7 @@ export default function MenuManagerModal({
         <div style={{ flex: 1, overflowY: "auto", padding: "12px 18px" }}>
           {tree.length === 0 && (
             <div style={{ color: "#888", padding: 12, textAlign: "center" }}>
-              표시할 페이지가 없습니다.
+              {t("menuMgr.empty")}
             </div>
           )}
           {tree.map(({ page, children }) => (
@@ -302,7 +305,7 @@ export default function MenuManagerModal({
                     cursor: "copy",
                   }}
                 >
-                  ↳ 여기로 드롭하면 "{page.menuTitle || page.title}"의 하위 메뉴가 됩니다
+                  {t("menuMgr.childDropHint", { name: page.menuTitle || page.title })}
                 </div>
               )}
             </div>
@@ -324,7 +327,7 @@ export default function MenuManagerModal({
           )}
           {!err && (
             <span style={{ flex: 1, color: "#666", fontSize: 11 }}>
-              드래그로 순서 변경 · 점선 영역으로 드롭하면 하위 메뉴
+              {t("menuMgr.dragTip")}
             </span>
           )}
           <button
@@ -340,7 +343,7 @@ export default function MenuManagerModal({
               fontSize: 12,
             }}
           >
-            취소
+            {t("menuMgr.cancel")}
           </button>
           <button
             type="button"
@@ -357,7 +360,7 @@ export default function MenuManagerModal({
               opacity: saving ? 0.6 : 1,
             }}
           >
-            {saving ? "저장 중…" : "변경 저장"}
+            {saving ? t("menuMgr.saving") : t("menuMgr.save")}
           </button>
         </div>
       </div>
@@ -388,6 +391,7 @@ function PageRowItem({
   onChange: (patch: Partial<PageRow>) => void;
   onPromote: () => void;
 }) {
+  const t = useTranslations("editor");
   const visible = row.showInMenu !== false;
   return (
     <div
@@ -450,13 +454,13 @@ function PageRowItem({
           borderRadius: 4,
           fontSize: 12,
         }}
-        title="메뉴에 표시될 라벨 (비우면 페이지 제목 사용)"
+        title={t("menuMgr.labelTitle")}
       />
 
       <input
         type="text"
         value={row.externalUrl ?? ""}
-        placeholder="외부 URL (선택)"
+        placeholder={t("menuMgr.extLinkPlaceholder")}
         onChange={(e) => onChange({ externalUrl: e.target.value })}
         style={{
           width: 130,
@@ -467,13 +471,13 @@ function PageRowItem({
           borderRadius: 4,
           fontSize: 11,
         }}
-        title="입력 시 새 창으로 이동 (페이지 라우트 대신)"
+        title={t("menuMgr.newWindowTitle")}
       />
 
       <button
         type="button"
         onClick={() => onChange({ showInMenu: !visible })}
-        title={visible ? "메뉴에서 숨김" : "메뉴에 표시"}
+        title={visible ? t("menuMgr.hideMenu") : t("menuMgr.showMenu")}
         style={{
           width: 28,
           height: 28,
@@ -493,7 +497,7 @@ function PageRowItem({
         <button
           type="button"
           onClick={onPromote}
-          title="상위 메뉴로 올리기"
+          title={t("menuMgr.promote")}
           style={{
             width: 28,
             height: 28,

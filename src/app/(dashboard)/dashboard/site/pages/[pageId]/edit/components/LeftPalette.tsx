@@ -17,6 +17,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
+import { useTranslations } from "next-intl";
 import { SECTION_PRESETS } from "./section-library";
 import { FONT_CATALOG, FONT_CATEGORIES } from "./font-catalog";
 import { THEME_PRESETS, THEME_CATEGORIES, type ThemePreset } from "./theme-presets";
@@ -44,34 +45,35 @@ type InsertType =
   | "login"
   | "mail";
 
-// Top-level basic elements. "도형" is a meta-button that opens a popover
-// (handled in render below); the entry here is a sentinel — clicking it
-// won't fire onInsert directly, the popover does that.
-const BASIC_ELEMENTS: Array<{ id: InsertType | "shape:_picker"; label: string; icon: string; swatch: string }> = [
-  { id: "text",            label: "텍스트", icon: "fa-font",         swatch: "text" },
-  { id: "box",             label: "버튼",   icon: "fa-hand-pointer", swatch: "button" },
-  { id: "image",           label: "이미지", icon: "fa-image",        swatch: "image" },
-  { id: "shape:_picker",   label: "도형",   icon: "fa-shapes",       swatch: "shape" },
+// Top-level basic elements. The shape picker is a meta-button that opens
+// a popover (handled in render below); the entry here is a sentinel —
+// clicking it won't fire onInsert directly, the popover does that.
+// `labelKey` indexes into editor.basics.* for i18n.
+const BASIC_ELEMENTS: Array<{ id: InsertType | "shape:_picker"; labelKey: string; icon: string; swatch: string }> = [
+  { id: "text",            labelKey: "text",   icon: "fa-font",         swatch: "text" },
+  { id: "box",             labelKey: "button", icon: "fa-hand-pointer", swatch: "button" },
+  { id: "image",           labelKey: "image",  icon: "fa-image",        swatch: "image" },
+  { id: "shape:_picker",   labelKey: "shape",  icon: "fa-shapes",       swatch: "shape" },
 ];
 
 // Shape choices shown in the picker popover. `kind` becomes `shape:<name>`
 // in the InsertType, and addElement (design-editor) maps each to a
-// concrete CSS / clip-path style.
-const SHAPE_OPTIONS: Array<{ kind: ShapeKind; label: string; preview: React.CSSProperties }> = [
-  { kind: "shape:rect",     label: "사각형",   preview: { background: "#2a79ff" } },
-  { kind: "shape:rounded",  label: "둥근사각", preview: { background: "#2a79ff", borderRadius: 8 } },
-  { kind: "shape:circle",   label: "원",       preview: { background: "#2a79ff", borderRadius: "50%" } },
-  { kind: "shape:triangle", label: "삼각형",   preview: { background: "#2a79ff", clipPath: "polygon(50% 0%, 100% 100%, 0% 100%)" } },
-  { kind: "shape:diamond",  label: "다이아몬드", preview: { background: "#2a79ff", clipPath: "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)" } },
-  { kind: "shape:star",     label: "별",       preview: { background: "#2a79ff", clipPath: "polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)" } },
-  { kind: "shape:arrow",    label: "화살표",   preview: { background: "#2a79ff", clipPath: "polygon(0% 35%, 65% 35%, 65% 15%, 100% 50%, 65% 85%, 65% 65%, 0% 65%)" } },
-  { kind: "shape:line",     label: "선",       preview: { background: "#2a79ff", height: 3, alignSelf: "center" } },
+// concrete CSS / clip-path style. labelKey indexes into editor.shapes.*.
+const SHAPE_OPTIONS: Array<{ kind: ShapeKind; labelKey: string; preview: React.CSSProperties }> = [
+  { kind: "shape:rect",     labelKey: "rect",     preview: { background: "#2a79ff" } },
+  { kind: "shape:rounded",  labelKey: "rounded",  preview: { background: "#2a79ff", borderRadius: 8 } },
+  { kind: "shape:circle",   labelKey: "circle",   preview: { background: "#2a79ff", borderRadius: "50%" } },
+  { kind: "shape:triangle", labelKey: "triangle", preview: { background: "#2a79ff", clipPath: "polygon(50% 0%, 100% 100%, 0% 100%)" } },
+  { kind: "shape:diamond",  labelKey: "diamond",  preview: { background: "#2a79ff", clipPath: "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)" } },
+  { kind: "shape:star",     labelKey: "star",     preview: { background: "#2a79ff", clipPath: "polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)" } },
+  { kind: "shape:arrow",    labelKey: "arrow",    preview: { background: "#2a79ff", clipPath: "polygon(0% 35%, 65% 35%, 65% 15%, 100% 50%, 65% 85%, 65% 65%, 0% 65%)" } },
+  { kind: "shape:line",     labelKey: "line",     preview: { background: "#2a79ff", height: 3, alignSelf: "center" } },
 ];
 
 const MY_COMPONENTS = [
-  { label: "사이트 헤더 v2",   icon: "fa-heading" },
-  { label: "예약 버튼 (주황)",  icon: "fa-square-check" },
-  { label: "문의 카드",         icon: "fa-id-card" },
+  { labelKey: "siteHeader",     icon: "fa-heading" },
+  { labelKey: "bookingButton",  icon: "fa-square-check" },
+  { labelKey: "inquiryCard",    icon: "fa-id-card" },
 ];
 
 /** Theme presets and font catalog live in shared modules so the
@@ -143,6 +145,7 @@ export default function LeftPalette({
   onRunAi,
   onUndoAi,
 }: Props) {
+  const t = useTranslations("editor");
   const [tab, setTab] = useState<"insert" | "sections" | "assets" | "theme" | "ai">("insert");
   const [query, setQuery] = useState("");
   const [shapePopoverOpen, setShapePopoverOpen] = useState(false);
@@ -211,12 +214,12 @@ export default function LeftPalette({
         const res = await fetch(`/api/uploads/list?siteId=${encodeURIComponent(siteId)}&limit=60`);
         if (!res.ok) {
           const j = (await res.json().catch(() => ({}))) as { error?: string };
-          throw new Error(j.error || `목록 불러오기 실패 (${res.status})`);
+          throw new Error(j.error || `${t("assets.listFailed")} (${res.status})`);
         }
         const j = (await res.json()) as { items?: AssetItem[] };
         if (!cancelled) setAssets(j.items ?? []);
       } catch (e) {
-        if (!cancelled) setAssetsErr(e instanceof Error ? e.message : "오류");
+        if (!cancelled) setAssetsErr(e instanceof Error ? e.message : t("assets.error"));
       } finally {
         if (!cancelled) setAssetsLoading(false);
       }
@@ -238,7 +241,7 @@ export default function LeftPalette({
       const res = await fetch("/api/upload", { method: "POST", body: fd });
       if (!res.ok) {
         const j = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(j.error || `업로드 실패 (${res.status})`);
+        throw new Error(j.error || `${t("assets.uploadFailed")} (${res.status})`);
       }
       const j = (await res.json()) as { url?: string };
       if (j.url) {
@@ -250,7 +253,7 @@ export default function LeftPalette({
         ]);
       }
     } catch (e) {
-      setAssetsErr(e instanceof Error ? e.message : "업로드 실패");
+      setAssetsErr(e instanceof Error ? e.message : t("assets.uploadFailed"));
     } finally {
       setAssetUploadBusy(false);
     }
@@ -264,25 +267,29 @@ export default function LeftPalette({
   const filteredSections = useMemo(() => {
     if (!query.trim()) return SECTION_PRESETS;
     const q = query.toLowerCase();
-    return SECTION_PRESETS.filter((b) => b.label.toLowerCase().includes(q));
-  }, [query]);
+    return SECTION_PRESETS.filter((b) =>
+      t(`sectionPresets.${b.labelKey}`).toLowerCase().includes(q),
+    );
+  }, [query, t]);
 
   const filteredBasics = useMemo(() => {
     if (!query.trim()) return BASIC_ELEMENTS;
     const q = query.toLowerCase();
-    return BASIC_ELEMENTS.filter((b) => b.label.toLowerCase().includes(q));
-  }, [query]);
+    return BASIC_ELEMENTS.filter((b) =>
+      t(`basics.${b.labelKey}`).toLowerCase().includes(q),
+    );
+  }, [query, t]);
 
   return (
-    <aside className="leftpalette-rail" aria-label="컴포넌트 팔레트">
+    <aside className="leftpalette-rail" aria-label={t("palette.ariaLabel")}>
       {/* Tabs */}
       <div className="lp-tabs" role="tablist">
         {([
-          ["sections", "섹션"],
-          ["insert",   "추가"],
-          ["assets",   "에셋"],
-          ["theme",    "테마"],
-          ["ai",       "AI"],
+          ["sections", t("tabs.sections")],
+          ["insert",   t("tabs.insert")],
+          ["assets",   t("tabs.assets")],
+          ["theme",    t("tabs.theme")],
+          ["ai",       t("tabs.ai")],
         ] as const).map(([id, label]) => (
           <button
             key={id}
@@ -303,7 +310,7 @@ export default function LeftPalette({
             <i className="fa-solid fa-magnifying-glass" aria-hidden />
             <input
               type="text"
-              placeholder="컴포넌트, 블록 검색…"
+              placeholder={t("palette.searchPlaceholder")}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
@@ -314,20 +321,21 @@ export default function LeftPalette({
             {filteredBasics.length > 0 && (
               <section className="lp-section">
                 <h4>
-                  기본 요소
+                  {t("palette.basicElements")}
                   <i className="fa-solid fa-chevron-down lp-chev" aria-hidden />
                 </h4>
                 <div className="lp-block-grid">
                   {filteredBasics.map((b, i) => {
-                    // The "도형" entry is a popover trigger, not a direct
+                    // The shape entry is a popover trigger, not a direct
                     // insert. All other entries call onInsert immediately.
                     const isShapePicker = b.id === "shape:_picker";
+                    const label = t(`basics.${b.labelKey}`);
                     return (
                       <button
                         key={`${b.id}-${i}`}
                         type="button"
                         className={`lp-block${isShapePicker && shapePopoverOpen ? " active" : ""}`}
-                        title={b.label}
+                        title={label}
                         draggable={!isShapePicker}
                         onClick={() => {
                           if (isShapePicker) {
@@ -348,7 +356,7 @@ export default function LeftPalette({
                         <div className={`lp-thumb swatch-${b.swatch}`}>
                           <i className={`fa-solid ${b.icon}`} aria-hidden />
                         </div>
-                        <div className="lp-label">{b.label}</div>
+                        <div className="lp-label">{label}</div>
                       </button>
                     );
                   })}
@@ -390,7 +398,7 @@ export default function LeftPalette({
                           letterSpacing: "0.05em",
                         }}
                       >
-                        도형 선택
+                        {t("palette.shapeSelect")}
                       </div>
                       <div
                         style={{
@@ -399,11 +407,13 @@ export default function LeftPalette({
                           gap: 6,
                         }}
                       >
-                        {SHAPE_OPTIONS.map((s) => (
+                        {SHAPE_OPTIONS.map((s) => {
+                          const shapeLabel = t(`shapes.${s.labelKey}`);
+                          return (
                           <button
                             key={s.kind}
                             type="button"
-                            title={s.label}
+                            title={shapeLabel}
                             draggable
                             onClick={() => {
                               onInsert(s.kind);
@@ -436,10 +446,11 @@ export default function LeftPalette({
                               }}
                             />
                             <div style={{ fontSize: 10, color: "#c6c9d6" }}>
-                              {s.label}
+                              {shapeLabel}
                             </div>
                           </button>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   </>
@@ -450,11 +461,13 @@ export default function LeftPalette({
             {filteredSections.length > 0 && (
               <section className="lp-section">
                 <h4>
-                  섹션 블록
+                  {t("palette.sectionBlocks")}
                   <i className="fa-solid fa-chevron-down lp-chev" aria-hidden />
                 </h4>
                 <div className="lp-row-list">
-                  {filteredSections.map((s) => (
+                  {filteredSections.map((s) => {
+                    const sectionLabel = t(`sectionPresets.${s.labelKey}`);
+                    return (
                     <button
                       key={s.id}
                       type="button"
@@ -465,19 +478,20 @@ export default function LeftPalette({
                         e.dataTransfer.setData("text/x-homenshop-section", s.id);
                         e.dataTransfer.effectAllowed = "copy";
                       }}
-                      title={s.label}
+                      title={sectionLabel}
                     >
                       <span className="lp-row-icon">
                         <i className={`fa-solid ${s.icon}`} aria-hidden />
                       </span>
-                      <span className="lp-row-label">{s.label}</span>
+                      <span className="lp-row-label">{sectionLabel}</span>
                       <i
                         className="fa-solid fa-plus"
                         style={{ color: "var(--fig-text-3)", fontSize: 10 }}
                         aria-hidden
                       />
                     </button>
-                  ))}
+                    );
+                  })}
                 </div>
               </section>
             )}
@@ -485,7 +499,7 @@ export default function LeftPalette({
             {!query.trim() && (
               <section className="lp-section">
                 <h4>
-                  내 컴포넌트
+                  {t("palette.myComponents")}
                   <i className="fa-solid fa-plus lp-chev" aria-hidden />
                 </h4>
                 <div className="lp-row-list">
@@ -494,7 +508,7 @@ export default function LeftPalette({
                       <span className="lp-row-icon lp-accent">
                         <i className={`fa-solid ${c.icon}`} aria-hidden />
                       </span>
-                      <span className="lp-row-label">{c.label}</span>
+                      <span className="lp-row-label">{t(`myComponents.${c.labelKey}`)}</span>
                     </div>
                   ))}
                 </div>
@@ -519,7 +533,7 @@ export default function LeftPalette({
               feedback without a full refetch. */}
           <section className="lp-section">
             <h4>
-              에셋 라이브러리
+              {t("assets.library")}
               <i className="fa-solid fa-images lp-chev" aria-hidden />
             </h4>
             <div style={{ padding: "0 10px 8px", display: "flex", gap: 6 }}>
@@ -540,7 +554,7 @@ export default function LeftPalette({
                 }}
               >
                 <i className="fa-solid fa-upload" style={{ marginRight: 6 }} />
-                {assetUploadBusy ? "업로드 중…" : "파일 업로드"}
+                {assetUploadBusy ? t("assets.uploading") : t("assets.uploadFile")}
               </button>
               <input
                 ref={assetFileRef}
@@ -561,17 +575,17 @@ export default function LeftPalette({
             )}
             {!siteId && (
               <div className="lp-empty-sub" style={{ padding: "0 14px 14px" }}>
-                사이트 컨텍스트가 없어 에셋을 표시할 수 없습니다.
+                {t("assets.noSiteContext")}
               </div>
             )}
             {siteId && assetsLoading && assets.length === 0 && (
               <div className="lp-empty-sub" style={{ padding: "0 14px 14px" }}>
-                불러오는 중…
+                {t("assets.loading")}
               </div>
             )}
             {siteId && !assetsLoading && assets.length === 0 && !assetsErr && (
               <div className="lp-empty-sub" style={{ padding: "0 14px 14px" }}>
-                아직 업로드한 이미지가 없습니다.
+                {t("assets.empty")}
               </div>
             )}
             {/* Grid — 3 cols, square thumbs, click → insert into canvas
@@ -634,7 +648,7 @@ export default function LeftPalette({
           {/* ─── Live preview ─────────────────────────────────────── */}
           <section className="lp-section">
             <h4>
-              미리보기
+              {t("theme.preview")}
               <i className="fa-solid fa-eye lp-chev" aria-hidden />
             </h4>
             <div
@@ -646,26 +660,26 @@ export default function LeftPalette({
               }}
             >
               <div className="lp-theme-preview-eyebrow" style={{ color: themeColors.accent }}>
-                NEW · COLLECTION
+                {t("theme.previewEyebrow")}
               </div>
               <div className="lp-theme-preview-title" style={{ color: themeColors.brand }}>
-                헤드라인 텍스트
+                {t("theme.previewHeadline")}
               </div>
               <div className="lp-theme-preview-body">
-                본문 텍스트는 이런 색으로 보여집니다.
+                {t("theme.previewBody")}
               </div>
               <div className="lp-theme-preview-buttons">
                 <span
                   className="lp-theme-preview-btn primary"
                   style={{ background: themeColors.brand, color: "#fff" }}
                 >
-                  주요 버튼
+                  {t("theme.previewPrimary")}
                 </span>
                 <span
                   className="lp-theme-preview-btn outline"
                   style={{ borderColor: themeColors.accent, color: themeColors.brand }}
                 >
-                  보조 버튼
+                  {t("theme.previewSecondary")}
                 </span>
               </div>
             </div>
@@ -674,7 +688,7 @@ export default function LeftPalette({
           {/* ─── Preset cards by category ─────────────────────────── */}
           <section className="lp-section">
             <h4>
-              테마 프리셋
+              {t("theme.presets")}
               <i className="fa-solid fa-palette lp-chev" aria-hidden />
             </h4>
             {THEME_CATEGORIES.map((cat) => {
@@ -725,15 +739,15 @@ export default function LeftPalette({
           {/* ─── Custom 4-token color picker ──────────────────────── */}
           <section className="lp-section">
             <h4>
-              커스텀 컬러
+              {t("theme.customColors")}
               <i className="fa-solid fa-eye-dropper lp-chev" aria-hidden />
             </h4>
             <div className="lp-color-list">
               {([
-                { key: "brand",   label: "포인트", help: "버튼 / 제목" },
-                { key: "accent",  label: "강조",   help: "배지 / 보조" },
-                { key: "surface", label: "배경",   help: "페이지 바탕" },
-                { key: "text",    label: "본문",   help: "기본 글자색" },
+                { key: "brand",   label: t("theme.tokens.brand"),   help: t("theme.tokens.brandHelp") },
+                { key: "accent",  label: t("theme.tokens.accent"),  help: t("theme.tokens.accentHelp") },
+                { key: "surface", label: t("theme.tokens.surface"), help: t("theme.tokens.surfaceHelp") },
+                { key: "text",    label: t("theme.tokens.text"),    help: t("theme.tokens.textHelp") },
               ] as const).map((row) => (
                 <div key={row.key} className="lp-color-row">
                   <input
@@ -769,7 +783,7 @@ export default function LeftPalette({
           {/* ─── Typography (categorized font picker, unchanged) ──── */}
           <section className="lp-section">
             <h4>
-              타이포그래피
+              {t("theme.typography")}
               <i className="fa-solid fa-font lp-chev" aria-hidden />
             </h4>
             {FONT_CATEGORIES.map((cat) => {
@@ -818,7 +832,7 @@ export default function LeftPalette({
             <a
               href="/dashboard/credits"
               className={`lp-ai-credits${creditBalance < creditCost ? " low" : ""}`}
-              title={`AI 편집 1회 = ${creditCost} C`}
+              title={t("ai.creditsTooltip", { cost: creditCost })}
             >
               <span aria-hidden>✨</span>
               <span>{creditBalance.toLocaleString()} C</span>
@@ -829,7 +843,7 @@ export default function LeftPalette({
             className="lp-ai-textarea"
             value={aiPrompt}
             onChange={(e) => setAiPrompt(e.target.value)}
-            placeholder={'예: 배경색을 검정색으로 변경해줘\n배너 텍스트를 "봄 세일 50%"로 바꿔줘'}
+            placeholder={t("ai.promptPlaceholder")}
             onKeyDown={(e) => {
               if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
                 e.preventDefault();
@@ -849,7 +863,7 @@ export default function LeftPalette({
               (creditBalance !== null && creditBalance < creditCost)
             }
           >
-            {aiLoading ? "처리 중…" : `실행 (⌘↵) · ${creditCost}C`}
+            {aiLoading ? t("ai.running") : t("ai.run", { cost: creditCost })}
           </button>
           {/* In-tab insufficient-credits warning. Without this the user
               just sees the run button greyed out with no explanation;
@@ -867,12 +881,12 @@ export default function LeftPalette({
                 lineHeight: 1.5,
               }}
             >
-              크레딧이 부족합니다. 보유 {creditBalance}C, 필요 {creditCost}C.{" "}
+              {t("ai.lowCredits", { balance: creditBalance, cost: creditCost })}{" "}
               <a
                 href="/dashboard/credits"
                 style={{ color: "#fff", textDecoration: "underline", fontWeight: 600 }}
               >
-                충전하기 →
+                {t("ai.topUp")}
               </a>
             </div>
           )}
@@ -882,17 +896,17 @@ export default function LeftPalette({
               className="lp-ai-undo"
               onClick={onUndoAi}
             >
-              이전 상태로 되돌리기
+              {t("ai.undo")}
             </button>
           )}
           {aiStatus === "success" && (
-            <div className="lp-ai-status ok">✓ 적용 완료</div>
+            <div className="lp-ai-status ok">{t("ai.applied")}</div>
           )}
           {aiStatus === "error" && (
             <div className="lp-ai-status err">{aiError}</div>
           )}
           <div className="lp-empty-sub" style={{ padding: 0, marginTop: 8 }}>
-            선택된 요소가 있으면 그 요소를 우선 편집합니다. ⌘↵ 로 빠른 실행.
+            {t("ai.tip")}
           </div>
         </div>
       )}
@@ -925,6 +939,7 @@ function SectionsTab({
   onOpenHeaderEdit?: () => void;
   onOpenFooterEdit?: () => void;
 }) {
+  const t = useTranslations("editor");
   // Subscribe to the scene root so the list reflects every reorder /
   // add / delete instantly (same pattern as InspectorPanel).
   const [tick, setTick] = useState(0);
@@ -982,7 +997,7 @@ function SectionsTab({
     useEditorStore.getState().duplicateLayer(id, { dx: 0, dy: 0 });
   };
   const del = (id: string) => {
-    if (!confirm("이 섹션을 삭제할까요?")) return;
+    if (!confirm(t("sectionsTab.confirmDelete"))) return;
     useEditorStore.getState().remove(id);
   };
 
@@ -1000,9 +1015,9 @@ function SectionsTab({
               <i className="fa-solid fa-window-maximize" />
             </span>
             <span style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600 }}>헤더 편집</div>
+              <div style={{ fontWeight: 600 }}>{t("sectionsTab.headerEdit")}</div>
               <div style={{ fontSize: 10, color: "#888", marginTop: 2 }}>
-                로고 · 메뉴 · 텍스트 · 언어 · 스타일
+                {t("sectionsTab.headerEditSub")}
               </div>
             </span>
             <i className="fa-solid fa-chevron-right" style={{ color: "#666", fontSize: 11 }} />
@@ -1014,7 +1029,7 @@ function SectionsTab({
       <div className="lp-section-scroll">
         <div className="lp-section-list-head">
           <div className="lp-section-list-title">
-            <i className="fa-solid fa-layer-group" aria-hidden /> 본문 섹션
+            <i className="fa-solid fa-layer-group" aria-hidden /> {t("sectionsTab.bodySections")}
             {sections.length > 0 && (
               <span className="lp-section-count">{sections.length}</span>
             )}
@@ -1023,14 +1038,14 @@ function SectionsTab({
             type="button"
             onClick={onAddSectionClick}
             className="lp-section-add-btn"
-            title="새 섹션 추가"
+            title={t("sectionsTab.addSectionTitle")}
           >
-            <i className="fa-solid fa-plus" /> 추가
+            <i className="fa-solid fa-plus" /> {t("sectionsTab.addSection")}
           </button>
         </div>
         {sections.length === 0 ? (
           <div className="lp-empty-sub" style={{ padding: "12px 14px 14px" }}>
-            아직 섹션이 없습니다. 위 &ldquo;추가&rdquo; 버튼으로 시작하세요.
+            {t("sectionsTab.empty")}
           </div>
         ) : (
           <ol className="lp-section-list">
@@ -1090,9 +1105,9 @@ function SectionsTab({
               <i className="fa-solid fa-window-maximize" />
             </span>
             <span style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600 }}>푸터 편집</div>
+              <div style={{ fontWeight: 600 }}>{t("sectionsTab.footerEdit")}</div>
               <div style={{ fontSize: 10, color: "#888", marginTop: 2 }}>
-                이미지 · 텍스트 · 링크 · 스타일
+                {t("sectionsTab.footerEditSub")}
               </div>
             </span>
             <i className="fa-solid fa-chevron-right" style={{ color: "#666", fontSize: 11 }} />
@@ -1216,44 +1231,72 @@ function SectionRow({
       {/* Quick action buttons. Always visible to keep the affordance
           obvious for beginners — hover-only would be a discoverability
           regression. */}
-      <span style={{ display: "flex", gap: 2 }}>
-        <RowBtn
-          icon="fa-arrow-up"
-          title="위로"
-          disabled={index === 0}
-          onClick={(e) => {
-            e.stopPropagation();
-            onMoveUp();
-          }}
-        />
-        <RowBtn
-          icon="fa-arrow-down"
-          title="아래로"
-          disabled={index === total - 1}
-          onClick={(e) => {
-            e.stopPropagation();
-            onMoveDown();
-          }}
-        />
-        <RowBtn
-          icon="fa-clone"
-          title="복제"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDuplicate();
-          }}
-        />
-        <RowBtn
-          icon="fa-trash"
-          title="삭제"
-          danger
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete();
-          }}
-        />
-      </span>
+      <SectionRowActions
+        index={index}
+        total={total}
+        onMoveUp={onMoveUp}
+        onMoveDown={onMoveDown}
+        onDuplicate={onDuplicate}
+        onDelete={onDelete}
+      />
     </li>
+  );
+}
+
+function SectionRowActions({
+  index,
+  total,
+  onMoveUp,
+  onMoveDown,
+  onDuplicate,
+  onDelete,
+}: {
+  index: number;
+  total: number;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  onDuplicate: () => void;
+  onDelete: () => void;
+}) {
+  const t = useTranslations("editor");
+  return (
+    <span style={{ display: "flex", gap: 2 }}>
+      <RowBtn
+        icon="fa-arrow-up"
+        title={t("sectionsTab.actionUp")}
+        disabled={index === 0}
+        onClick={(e) => {
+          e.stopPropagation();
+          onMoveUp();
+        }}
+      />
+      <RowBtn
+        icon="fa-arrow-down"
+        title={t("sectionsTab.actionDown")}
+        disabled={index === total - 1}
+        onClick={(e) => {
+          e.stopPropagation();
+          onMoveDown();
+        }}
+      />
+      <RowBtn
+        icon="fa-clone"
+        title={t("sectionsTab.actionDuplicate")}
+        onClick={(e) => {
+          e.stopPropagation();
+          onDuplicate();
+        }}
+      />
+      <RowBtn
+        icon="fa-trash"
+        title={t("sectionsTab.actionDelete")}
+        danger
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete();
+        }}
+      />
+    </span>
   );
 }
 

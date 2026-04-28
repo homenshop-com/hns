@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect, lazy, Suspense } from "react";
 import { useStore } from "zustand";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import "./editor-styles.css";
 // Sprint 9i (2026-04-22) — Figma-inspired dark theme overlay, recreating
 // "Editor Canvas.html" from Claude Design. Must import AFTER editor-styles.css
@@ -282,6 +283,7 @@ export default function DesignEditor({
   isResponsiveTemplate = false,
 }: DesignEditorProps) {
   const router = useRouter();
+  const t = useTranslations("editor");
 
   // V2: keep the scene graph store in sync with the body HTML that the
   // DOM-first editor is rendering. Importing a fresh scene on every
@@ -476,7 +478,7 @@ export default function DesignEditor({
   async function submitSaveAsTemplate(e: React.FormEvent) {
     e.preventDefault();
     if (!saveTplName.trim()) {
-      setSaveTplError("템플릿 이름을 입력해 주세요.");
+      setSaveTplError(t("saveTemplateModal.nameRequired"));
       return;
     }
     setSaveTplBusy(true);
@@ -494,7 +496,7 @@ export default function DesignEditor({
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        setSaveTplError(err.error || `저장 실패 (${res.status})`);
+        setSaveTplError(err.error || `${t("saveTemplateModal.saveFailed")} (${res.status})`);
         setSaveTplBusy(false);
         return;
       }
@@ -503,7 +505,7 @@ export default function DesignEditor({
       setSaveTplName("");
       setSaveTplDesc("");
       setSaveTplThumb("");
-      alert("나의 템플릿으로 저장되었습니다.\n대시보드 > 템플릿 > 내 템플릿 탭에서 확인하세요.");
+      alert(t("saveTemplateModal.savedSuccess"));
     } catch (err) {
       setSaveTplError(String(err));
       setSaveTplBusy(false);
@@ -1030,7 +1032,7 @@ export default function DesignEditor({
           return;
         }
         setAiStatus("error");
-        setAiError(data.error || "오류가 발생했습니다.");
+        setAiError(data.error || t("ai.errorGeneric"));
         return;
       }
 
@@ -1055,7 +1057,7 @@ export default function DesignEditor({
       reloadBalance();
     } catch {
       setAiStatus("error");
-      setAiError("네트워크 오류가 발생했습니다.");
+      setAiError(t("ai.networkError"));
     } finally {
       setAiLoading(false);
     }
@@ -1256,7 +1258,7 @@ export default function DesignEditor({
           const res = await fetch("/api/upload", { method: "POST", body: fd });
           if (!res.ok) {
             const j = (await res.json().catch(() => ({}))) as { error?: string };
-            throw new Error(j.error || `업로드 실패 (${res.status})`);
+            throw new Error(j.error || `${t("inspector.image.uploadFailed")} (${res.status})`);
           }
           const { url } = (await res.json()) as { url?: string };
           if (typeof url !== "string") return;
@@ -1269,7 +1271,7 @@ export default function DesignEditor({
           }
         } catch (err) {
           console.error("[paste] image upload failed:", err);
-          alert(err instanceof Error ? err.message : "이미지 붙여넣기 실패");
+          alert(err instanceof Error ? err.message : t("alerts.imagePasteFailed"));
         }
       })();
     };
@@ -2414,14 +2416,14 @@ export default function DesignEditor({
     switch (type) {
       case "text":
         el.className = "dragable sol-replacible-text";
-        el.innerHTML = "<p>텍스트를 입력하세요</p>";
+        el.innerHTML = `<p>${t("canvasInsert.textPlaceholder")}</p>`;
         break;
       case "image": {
         // Must contain exactly one <img> (no other structural children) so
         // the scene parser classifies this as type=image, not type=box —
-        // otherwise the layer panel labels it "박스" and the Inspector
-        // image section never appears. Inline SVG data URI keeps the
-        // placeholder offline-friendly and self-contained.
+        // otherwise the layer panel labels it as a generic box and the
+        // Inspector image section never appears. Inline SVG data URI
+        // keeps the placeholder offline-friendly and self-contained.
         el.className = "dragable";
         el.style.minHeight = "180px";
         const placeholderSvg =
@@ -2432,8 +2434,8 @@ export default function DesignEditor({
               "<g fill='#888' font-family='-apple-system,BlinkMacSystemFont,Pretendard,sans-serif'>" +
               "<circle cx='300' cy='180' r='32' fill='none' stroke='#666' stroke-width='2'/>" +
               "<path d='M286 180l9 9 19-22' fill='none' stroke='#666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/>" +
-              "<text x='300' y='250' text-anchor='middle' font-size='16'>이미지</text>" +
-              "<text x='300' y='275' text-anchor='middle' font-size='12' opacity='.7'>Inspector 또는 ↻ 버튼으로 교체</text>" +
+              `<text x='300' y='250' text-anchor='middle' font-size='16'>${t("canvasInsert.imageLabel")}</text>` +
+              `<text x='300' y='275' text-anchor='middle' font-size='12' opacity='.7'>${t("canvasInsert.imageReplaceTip")}</text>` +
               "</g>" +
               "</svg>",
           );
@@ -2450,7 +2452,7 @@ export default function DesignEditor({
         el.style.display = "inline-block";
         el.style.minWidth = "120px";
         el.style.textAlign = "center";
-        el.innerHTML = '<span style="font-size:14px;">버튼</span>';
+        el.innerHTML = `<span style="font-size:14px;">${t("canvasInsert.buttonText")}</span>`;
         break;
       case "shape:rect":
       case "shape:rounded":
@@ -2473,12 +2475,12 @@ export default function DesignEditor({
       case "board":
         el.className = "dragable sol-replacible-text boardPlugin";
         el.innerHTML =
-          '<div style="padding:10px;color:#333"><strong>게시판</strong><ul style="margin-top:8px"><li style="line-height:22px">게시글 제목 1</li><li style="line-height:22px">게시글 제목 2</li><li style="line-height:22px">게시글 제목 3</li></ul></div>';
+          `<div style="padding:10px;color:#333"><strong>${t("canvasInsert.boardTitle")}</strong><ul style="margin-top:8px"><li style="line-height:22px">${t("canvasInsert.boardItem")} 1</li><li style="line-height:22px">${t("canvasInsert.boardItem")} 2</li><li style="line-height:22px">${t("canvasInsert.boardItem")} 3</li></ul></div>`;
         break;
       case "product":
         el.className = "dragable sol-replacible-text productPlugin";
         el.innerHTML =
-          '<div style="padding:10px;color:#333"><strong>상품 목록</strong><div style="display:flex;gap:10px;margin-top:8px"><div style="width:80px;height:80px;background:#eee;border:1px solid #ddd"></div><div style="width:80px;height:80px;background:#eee;border:1px solid #ddd"></div><div style="width:80px;height:80px;background:#eee;border:1px solid #ddd"></div></div></div>';
+          `<div style="padding:10px;color:#333"><strong>${t("canvasInsert.productTitle")}</strong><div style="display:flex;gap:10px;margin-top:8px"><div style="width:80px;height:80px;background:#eee;border:1px solid #ddd"></div><div style="width:80px;height:80px;background:#eee;border:1px solid #ddd"></div><div style="width:80px;height:80px;background:#eee;border:1px solid #ddd"></div></div></div>`;
         break;
       default:
         el.className = "dragable sol-replacible-text";
@@ -2571,14 +2573,14 @@ export default function DesignEditor({
 
     switch (type) {
       case "text":
-        el.innerHTML = "<p>텍스트를 입력하세요</p>";
+        el.innerHTML = `<p>${t("canvasInsert.textPlaceholder")}</p>`;
         el.style.left = "100px";
         el.style.top = "100px";
         el.style.width = "300px";
         el.style.zIndex = "10";
         break;
       case "image":
-        el.innerHTML = '<div style="width:300px;height:200px;background:#555;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:14px;">이미지를 드래그하세요</div>';
+        el.innerHTML = `<div style="width:300px;height:200px;background:#555;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:14px;">${t("canvasInsert.imageDragHint")}</div>`;
         el.style.left = "100px";
         el.style.top = "100px";
         el.style.zIndex = "10";
@@ -2616,7 +2618,7 @@ export default function DesignEditor({
         break;
       case "board":
         el.className = "dragable sol-replacible-text boardPlugin";
-        el.innerHTML = '<div style="padding:10px;color:#ddd"><strong>게시판</strong><ul style="margin-top:8px"><li style="line-height:22px">게시글 제목 1</li><li style="line-height:22px">게시글 제목 2</li><li style="line-height:22px">게시글 제목 3</li></ul></div>';
+        el.innerHTML = `<div style="padding:10px;color:#ddd"><strong>${t("canvasInsert.boardTitle")}</strong><ul style="margin-top:8px"><li style="line-height:22px">${t("canvasInsert.boardItem")} 1</li><li style="line-height:22px">${t("canvasInsert.boardItem")} 2</li><li style="line-height:22px">${t("canvasInsert.boardItem")} 3</li></ul></div>`;
         el.style.left = "50px";
         el.style.top = "400px";
         el.style.width = "500px";
@@ -2624,7 +2626,7 @@ export default function DesignEditor({
         break;
       case "product":
         el.className = "dragable sol-replacible-text productPlugin";
-        el.innerHTML = '<div style="padding:10px;color:#ddd"><strong>상품 목록</strong><div style="display:flex;gap:10px;margin-top:8px"><div style="width:80px;height:80px;background:#505050;border:3px solid #505050"></div><div style="width:80px;height:80px;background:#505050;border:3px solid #505050"></div><div style="width:80px;height:80px;background:#505050;border:3px solid #505050"></div></div></div>';
+        el.innerHTML = `<div style="padding:10px;color:#ddd"><strong>${t("canvasInsert.productTitle")}</strong><div style="display:flex;gap:10px;margin-top:8px"><div style="width:80px;height:80px;background:#505050;border:3px solid #505050"></div><div style="width:80px;height:80px;background:#505050;border:3px solid #505050"></div><div style="width:80px;height:80px;background:#505050;border:3px solid #505050"></div></div></div>`;
         el.style.left = "50px";
         el.style.top = "400px";
         el.style.width = "500px";
@@ -2726,7 +2728,7 @@ export default function DesignEditor({
       const res = await fetch("/api/upload", { method: "POST", body: fd });
       if (!res.ok) {
         const j = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(j.error || `업로드 실패 (${res.status})`);
+        throw new Error(j.error || `${t("inspector.image.uploadFailed")} (${res.status})`);
       }
       const { url } = (await res.json()) as { url?: string };
       if (typeof url !== "string") return;
@@ -2740,7 +2742,7 @@ export default function DesignEditor({
       ) as HTMLImageElement | null;
       if (logoImg) logoImg.setAttribute("src", url);
     } catch (e) {
-      alert(e instanceof Error ? e.message : "로고 업로드 실패");
+      alert(e instanceof Error ? e.message : t("alerts.logoUploadFailed"));
     }
   }
 
@@ -2755,7 +2757,7 @@ export default function DesignEditor({
   }
 
   function handleResetFooter() {
-    if (!confirm("푸터를 초기 상태로 되돌리시겠습니까?")) return;
+    if (!confirm(t("siteSettingsModal.confirmFooterReset"))) return;
     const fEl = footerRef.current;
     if (fEl) {
       fEl.innerHTML = footerHtml;
@@ -2763,7 +2765,7 @@ export default function DesignEditor({
   }
 
   function handleResetHeader() {
-    if (!confirm("헤더를 초기 상태로 되돌리시겠습니까?")) return;
+    if (!confirm(t("siteSettingsModal.confirmHeaderReset"))) return;
     const hEl = headerRef.current;
     if (hEl) {
       hEl.innerHTML = headerHtml;
@@ -2976,7 +2978,7 @@ export default function DesignEditor({
           <a href="/dashboard" className="de-logo">homeNshop</a>
           {/* Language switcher (only when the site has more than one language). */}
           {siteLanguages.length > 1 && (
-            <div className="de-lang-switch" role="group" aria-label="언어 전환">
+            <div className="de-lang-switch" role="group" aria-label={t("topbar.langGroupLabel")}>
               {siteLanguages.map((l) => {
                 const targetPageId = langPageMap[l];
                 const isActive = l === currentLang;
@@ -2992,7 +2994,7 @@ export default function DesignEditor({
                     }}
                     disabled={!hasPage}
                     className={`de-lang-btn${isActive ? " active" : ""}`}
-                    title={hasPage ? `${l.toUpperCase()} 버전 편집` : `${l.toUpperCase()} 페이지 없음`}
+                    title={hasPage ? t("topbar.langEditTitle", { lang: l.toUpperCase() }) : t("topbar.langNoPageTitle", { lang: l.toUpperCase() })}
                   >
                     {l.toUpperCase()}
                   </button>
@@ -3001,7 +3003,7 @@ export default function DesignEditor({
             </div>
           )}
           {/* Page tabs — Figma-style, inline in the App bar. */}
-          <nav className="de-header-pagetabs" aria-label="페이지 탭">
+          <nav className="de-header-pagetabs" aria-label={t("topbar.pageTabsLabel")}>
             {pages.map((p) => (
               <button
                 key={p.id}
@@ -3025,8 +3027,8 @@ export default function DesignEditor({
               type="button"
               className="de-header-pageadd"
               onClick={() => router.push(`/dashboard/site/pages/new`)}
-              title="페이지 추가"
-              aria-label="페이지 추가"
+              title={t("topbar.addPage")}
+              aria-label={t("topbar.addPage")}
             >
               <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
                 <path d="M8 3v10M3 8h10" />
@@ -3036,12 +3038,12 @@ export default function DesignEditor({
         </div>
         <div className="de-header-right">
           {editorV2Enabled && !isResponsiveTemplate && (
-            <div className="de-viewport-toggle" role="group" aria-label="뷰포트 전환">
+            <div className="de-viewport-toggle" role="group" aria-label={t("topbar.viewportLabel")}>
               <button
                 type="button"
                 className={`de-viewport-btn${viewportMode === "desktop" ? " active" : ""}`}
                 onClick={() => useEditorStore.getState().setViewportMode("desktop")}
-                title="데스크탑 편집 (≥ 768px)"
+                title={t("topbar.desktopTitle")}
                 aria-pressed={viewportMode === "desktop"}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ display: "block" }}>
@@ -3055,7 +3057,7 @@ export default function DesignEditor({
                 type="button"
                 className={`de-viewport-btn${viewportMode === "mobile" ? " active" : ""}`}
                 onClick={() => useEditorStore.getState().setViewportMode("mobile")}
-                title="모바일 편집 (< 768px) — 데스크탑과 별도의 위치/크기 저장"
+                title={t("topbar.mobileTitle")}
                 aria-pressed={viewportMode === "mobile"}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ display: "block" }}>
@@ -3072,14 +3074,14 @@ export default function DesignEditor({
           {/* Undo / Redo — between URL and Save, mirroring the keyboard
               shortcuts already handled in the global keydown listener. */}
           {editorV2Enabled && (
-            <div className="de-history-group" role="group" aria-label="실행 취소 / 다시 실행">
+            <div className="de-history-group" role="group" aria-label={t("topbar.historyLabel")}>
               <button
                 type="button"
                 className="de-history-btn"
                 onClick={() => useEditorStore.temporal.getState().undo()}
                 disabled={!canUndo}
-                title={`실행 취소 (${typeof navigator !== "undefined" && /Mac/.test(navigator.platform) ? "⌘Z" : "Ctrl+Z"})`}
-                aria-label="실행 취소"
+                title={t("topbar.undoTitle", { shortcut: typeof navigator !== "undefined" && /Mac/.test(navigator.platform) ? "⌘Z" : "Ctrl+Z" })}
+                aria-label={t("topbar.undo")}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M3 7v6h6" />
@@ -3091,8 +3093,8 @@ export default function DesignEditor({
                 className="de-history-btn"
                 onClick={() => useEditorStore.temporal.getState().redo()}
                 disabled={!canRedo}
-                title={`다시 실행 (${typeof navigator !== "undefined" && /Mac/.test(navigator.platform) ? "⇧⌘Z" : "Ctrl+Shift+Z"})`}
-                aria-label="다시 실행"
+                title={t("topbar.redoTitle", { shortcut: typeof navigator !== "undefined" && /Mac/.test(navigator.platform) ? "⇧⌘Z" : "Ctrl+Shift+Z" })}
+                aria-label={t("topbar.redo")}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 7v6h-6" />
@@ -3106,22 +3108,22 @@ export default function DesignEditor({
             onClick={saveContent}
             disabled={saving}
           >
-            {saving ? "저장중..." : saveStatus === "saved" ? "저장됨 ✓" : "저장 (⌘S)"}
+            {saving ? t("topbar.saving") : saveStatus === "saved" ? t("topbar.saved") : t("topbar.save")}
           </button>
           <button
             className="de-publish-btn"
             onClick={publishSite}
             disabled={publishing}
           >
-            {publishing ? "퍼블리싱중..." : "퍼블리싱"}
+            {publishing ? t("topbar.publishing") : t("topbar.publish")}
           </button>
           {/* Overflow menu — save-as-template etc. */}
           <div ref={moreMenuRef} style={{ position: "relative" }}>
             <button
               type="button"
               onClick={() => setMoreMenuOpen((v) => !v)}
-              title="더보기"
-              aria-label="더보기"
+              title={t("topbar.more")}
+              aria-label={t("topbar.more")}
               aria-haspopup="menu"
               aria-expanded={moreMenuOpen}
               style={{
@@ -3177,7 +3179,7 @@ export default function DesignEditor({
                     <circle cx="12" cy="12" r="3" />
                     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
                   </svg>
-                  <span>사이트 설정 · 헤더·메뉴·푸터</span>
+                  <span>{t("topbar.siteSettingsItem")}</span>
                 </button>
                 <div className="de-more-divider" />
                 <button
@@ -3194,7 +3196,7 @@ export default function DesignEditor({
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
                   </svg>
-                  <span>나의 템플릿으로 저장</span>
+                  <span>{t("topbar.saveAsTemplate")}</span>
                 </button>
               </div>
             )}
@@ -3225,7 +3227,7 @@ export default function DesignEditor({
                 router.push(`/dashboard/site/pages/${id}/edit`);
               }}
             >
-              <span>열기</span>
+              <span>{t("pageContextMenu.open")}</span>
             </button>
             <button
               type="button"
@@ -3236,7 +3238,7 @@ export default function DesignEditor({
                 router.push(`/dashboard/site/pages`);
               }}
             >
-              <span>페이지 관리 열기</span>
+              <span>{t("pageContextMenu.managePages")}</span>
             </button>
             <button
               type="button"
@@ -3247,7 +3249,7 @@ export default function DesignEditor({
                 router.push(`/dashboard/site/pages/new`);
               }}
             >
-              <span>새 페이지 추가</span>
+              <span>{t("pageContextMenu.newPage")}</span>
             </button>
           </div>
         </>
@@ -3282,10 +3284,10 @@ export default function DesignEditor({
             }}
           >
             <h3 style={{ margin: 0, marginBottom: 6, fontSize: 18, fontWeight: 700 }}>
-              나의 템플릿으로 저장
+              {t("saveTemplateModal.title")}
             </h3>
             <p style={{ margin: 0, marginBottom: 18, fontSize: 13, color: "#6b7280", lineHeight: 1.5 }}>
-              현재 사이트의 헤더/메뉴/푸터/CSS 및 모든 페이지를 스냅샷하여 개인 템플릿으로 저장합니다. 공개 전환은 템플릿 목록에서 가능합니다.
+              {t("saveTemplateModal.description")}
             </p>
             {saveTplError && (
               <div style={{ background: "#fef2f2", color: "#991b1b", padding: "8px 12px", borderRadius: 6, fontSize: 13, marginBottom: 12 }}>
@@ -3294,7 +3296,7 @@ export default function DesignEditor({
             )}
             <div style={{ marginBottom: 14 }}>
               <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
-                템플릿 이름 <span style={{ color: "#e03131" }}>*</span>
+                {t("saveTemplateModal.nameLabel")} <span style={{ color: "#e03131" }}>*</span>
               </label>
               <input
                 type="text"
@@ -3303,26 +3305,26 @@ export default function DesignEditor({
                 maxLength={100}
                 required
                 autoFocus
-                placeholder="예: 내 쇼핑몰 템플릿 v1"
+                placeholder={t("saveTemplateModal.namePlaceholder")}
                 style={{ width: "100%", padding: "8px 12px", fontSize: 14, border: "1px solid #d1d5db", borderRadius: 6, boxSizing: "border-box" }}
               />
             </div>
             <div style={{ marginBottom: 14 }}>
               <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
-                설명 (선택)
+                {t("saveTemplateModal.descLabel")}
               </label>
               <textarea
                 value={saveTplDesc}
                 onChange={(e) => setSaveTplDesc(e.target.value)}
                 rows={3}
                 maxLength={500}
-                placeholder="이 템플릿에 대한 간단한 설명"
+                placeholder={t("saveTemplateModal.descPlaceholder")}
                 style={{ width: "100%", padding: "8px 12px", fontSize: 14, border: "1px solid #d1d5db", borderRadius: 6, boxSizing: "border-box", resize: "vertical" }}
               />
             </div>
             <div style={{ marginBottom: 20 }}>
               <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
-                썸네일 URL (선택)
+                {t("saveTemplateModal.thumbLabel")}
               </label>
               <input
                 type="url"
@@ -3339,14 +3341,14 @@ export default function DesignEditor({
                 disabled={saveTplBusy}
                 style={{ padding: "8px 16px", fontSize: 13, fontWeight: 600, background: "#fff", color: "#374151", border: "1px solid #d1d5db", borderRadius: 6, cursor: saveTplBusy ? "default" : "pointer" }}
               >
-                취소
+                {t("saveTemplateModal.cancel")}
               </button>
               <button
                 type="submit"
                 disabled={saveTplBusy}
                 style={{ padding: "8px 18px", fontSize: 13, fontWeight: 600, background: saveTplBusy ? "#9ca3af" : "#228be6", color: "#fff", border: "none", borderRadius: 6, cursor: saveTplBusy ? "default" : "pointer" }}
               >
-                {saveTplBusy ? "저장 중..." : "저장"}
+                {saveTplBusy ? t("saveTemplateModal.saving") : t("saveTemplateModal.save")}
               </button>
             </div>
           </form>
@@ -3384,11 +3386,11 @@ export default function DesignEditor({
             }}
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>사이트 설정</h3>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>{t("siteSettingsModal.title")}</h3>
               <button
                 type="button"
                 onClick={() => setShowSiteSettings(false)}
-                aria-label="닫기"
+                aria-label={t("siteSettingsModal.close")}
                 style={{ background: "transparent", border: 0, cursor: "pointer", fontSize: 22, color: "#6b7280", lineHeight: 1 }}
               >
                 ×
@@ -3398,13 +3400,13 @@ export default function DesignEditor({
             <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
               {/* Site info */}
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <span style={{ fontSize: 11, color: "#6b7280", textTransform: "uppercase", letterSpacing: 1, fontWeight: 600 }}>사이트</span>
+                <span style={{ fontSize: 11, color: "#6b7280", textTransform: "uppercase", letterSpacing: 1, fontWeight: 600 }}>{t("siteSettingsModal.siteLabel")}</span>
                 <span style={{ fontSize: 14, color: "#111" }}>{siteName} · {currentLang.toUpperCase()}</span>
               </div>
 
               {/* Header / Logo */}
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <span style={{ fontSize: 11, color: "#6b7280", textTransform: "uppercase", letterSpacing: 1, fontWeight: 600 }}>헤더 · 로고</span>
+                <span style={{ fontSize: 11, color: "#6b7280", textTransform: "uppercase", letterSpacing: 1, fontWeight: 600 }}>{t("siteSettingsModal.headerLogo")}</span>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   {logoUrl && (
                     <img
@@ -3418,18 +3420,18 @@ export default function DesignEditor({
                     onClick={handleLogoChange}
                     style={{ padding: "6px 12px", fontSize: 13, background: "#111827", color: "#fff", border: 0, borderRadius: 6, cursor: "pointer", fontWeight: 500 }}
                   >
-                    로고 변경
+                    {t("siteSettingsModal.changeLogo")}
                   </button>
                   <button
                     type="button"
                     onClick={handleResetHeader}
                     style={{ padding: "6px 12px", fontSize: 13, background: "#fff", color: "#374151", border: "1px solid #d1d5db", borderRadius: 6, cursor: "pointer" }}
                   >
-                    헤더 초기화
+                    {t("siteSettingsModal.resetHeader")}
                   </button>
                 </div>
                 <span style={{ fontSize: 12, color: "#6b7280" }}>
-                  캔버스의 로고를 직접 클릭해도 ↻ 버튼으로 교체할 수 있습니다.
+                  {t("siteSettingsModal.logoTip")}
                 </span>
                 <input
                   ref={logoFileInputRef}
@@ -3466,7 +3468,7 @@ export default function DesignEditor({
 
               {/* Menu Mode */}
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <span style={{ fontSize: 11, color: "#6b7280", textTransform: "uppercase", letterSpacing: 1, fontWeight: 600 }}>메뉴</span>
+                <span style={{ fontSize: 11, color: "#6b7280", textTransform: "uppercase", letterSpacing: 1, fontWeight: 600 }}>{t("siteSettingsModal.menu")}</span>
                 <div style={{ display: "flex", gap: 6 }}>
                   <button
                     type="button"
@@ -3482,7 +3484,7 @@ export default function DesignEditor({
                       fontWeight: menuMode === "auto" ? 600 : 500,
                     }}
                   >
-                    메뉴관리 자동
+                    {t("siteSettingsModal.menuAuto")}
                   </button>
                   <button
                     type="button"
@@ -3498,7 +3500,7 @@ export default function DesignEditor({
                       fontWeight: menuMode === "custom" ? 600 : 500,
                     }}
                   >
-                    커스텀 수정
+                    {t("siteSettingsModal.menuCustom")}
                   </button>
                   <button
                     type="button"
@@ -3519,26 +3521,26 @@ export default function DesignEditor({
                     }}
                   >
                     <i className="fa-solid fa-list-ul" style={{ marginRight: 6 }} />
-                    메뉴 관리 열기
+                    {t("siteSettingsModal.openMenuMgr")}
                   </button>
                 </div>
                 <span style={{ fontSize: 12, color: "#6b7280" }}>
-                  {menuMode === "auto" ? "메뉴관리 페이지에서 설정한 메뉴가 적용됩니다." : "캔버스 메뉴를 더블클릭해 직접 편집합니다."}
+                  {menuMode === "auto" ? t("siteSettingsModal.menuAutoTip") : t("siteSettingsModal.menuCustomTip")}
                 </span>
               </div>
 
               {/* Footer */}
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <span style={{ fontSize: 11, color: "#6b7280", textTransform: "uppercase", letterSpacing: 1, fontWeight: 600 }}>푸터</span>
+                <span style={{ fontSize: 11, color: "#6b7280", textTransform: "uppercase", letterSpacing: 1, fontWeight: 600 }}>{t("siteSettingsModal.footer")}</span>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   <button
                     type="button"
                     onClick={handleResetFooter}
                     style={{ padding: "6px 12px", fontSize: 13, background: "#fff", color: "#374151", border: "1px solid #d1d5db", borderRadius: 6, cursor: "pointer" }}
                   >
-                    푸터 초기화
+                    {t("siteSettingsModal.resetFooter")}
                   </button>
-                  <span style={{ fontSize: 12, color: "#6b7280" }}>캔버스의 푸터를 더블클릭해 편집합니다.</span>
+                  <span style={{ fontSize: 12, color: "#6b7280" }}>{t("siteSettingsModal.footerTip")}</span>
                 </div>
               </div>
             </div>
@@ -3549,7 +3551,7 @@ export default function DesignEditor({
                 onClick={() => setShowSiteSettings(false)}
                 style={{ padding: "8px 16px", fontSize: 13, background: "#111827", color: "#fff", border: 0, borderRadius: 6, cursor: "pointer", fontWeight: 600 }}
               >
-                닫기
+                {t("siteSettingsModal.doneClose")}
               </button>
             </div>
           </div>
@@ -3582,7 +3584,7 @@ export default function DesignEditor({
           }}
         >
           <span className="chip">
-            {viewportMode === "mobile" ? "📱 모바일" : "🖥 데스크탑"}
+            {viewportMode === "mobile" ? t("viewport.mobile") : t("viewport.desktop")}
           </span>
           <span className="dev">
             {viewportMode === "mobile"
@@ -3636,9 +3638,9 @@ export default function DesignEditor({
             <button
               type="button"
               className="de-icon-btn"
-              title="축소 (⌘−)"
+              title={t("zoom.outTitle")}
               onClick={() => setZoom((z) => Math.max(25, z - 10))}
-              aria-label="축소"
+              aria-label={t("zoom.out")}
             >
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
                 <path d="M3 8h10" />
@@ -3648,9 +3650,9 @@ export default function DesignEditor({
             <button
               type="button"
               className="de-icon-btn"
-              title="확대 (⌘+)"
+              title={t("zoom.inTitle")}
               onClick={() => setZoom((z) => Math.min(400, z + 10))}
-              aria-label="확대"
+              aria-label={t("zoom.in")}
             >
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
                 <path d="M8 3v10M3 8h10" />
@@ -3661,9 +3663,9 @@ export default function DesignEditor({
             <button
               type="button"
               className="de-icon-btn"
-              title="화면 맞춤 (⇧1)"
+              title={t("zoom.fitTitle")}
               onClick={() => setZoom(100)}
-              aria-label="화면 맞춤"
+              aria-label={t("zoom.fit")}
             >
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
                 <path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" />
@@ -3675,7 +3677,7 @@ export default function DesignEditor({
 
       {/* TOOLTIP for double-click */}
       {selectedElId && !editingTextId && (
-        <div className="de-tooltip">더블 클릭 하시면 해당객체를 수정하실 수 있습니다.</div>
+        <div className="de-tooltip">{t("tooltip.doubleClick")}</div>
       )}
 
       {/* Sprint 9j / 9k — Figma-style left component palette (fixed left rail) */}
@@ -3819,7 +3821,7 @@ export default function DesignEditor({
       {false && tiptapTarget && (
         <Suspense fallback={
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10000, color: "#fff" }}>
-            에디터 로딩 중...
+            {t("loading")}
           </div>
         }>
           <TiptapModal
@@ -3835,9 +3837,9 @@ export default function DesignEditor({
         <div className="de-modal-overlay" onClick={() => setShowPublishModal(false)}>
           <div className="de-modal" onClick={(e) => e.stopPropagation()}>
             <div className="de-modal-icon">&#x2705;</div>
-            <h3 className="de-modal-title">퍼블리싱 완료!</h3>
+            <h3 className="de-modal-title">{t("publishModal.title")}</h3>
             <p className="de-modal-desc">
-              홈페이지가 성공적으로 게시되었습니다.
+              {t("publishModal.desc")}
             </p>
             <div className="de-modal-url">
               https://home.homenshop.com/{shopId}/{defaultLanguage}/
@@ -3849,13 +3851,13 @@ export default function DesignEditor({
                 rel="noopener noreferrer"
                 className="de-modal-btn primary"
               >
-                미리보기
+                {t("publishModal.preview")}
               </a>
               <button
                 className="de-modal-btn secondary"
                 onClick={() => setShowPublishModal(false)}
               >
-                계속 편집
+                {t("publishModal.continue")}
               </button>
             </div>
           </div>
@@ -3912,7 +3914,7 @@ export default function DesignEditor({
                 margin: "0 0 10px",
               }}
             >
-              크레딧이 부족합니다
+              {t("creditsModal.title")}
             </h3>
             <p
               style={{
@@ -3922,8 +3924,8 @@ export default function DesignEditor({
                 margin: "0 0 24px",
               }}
             >
-              이 작업에는 <b>{insufficientCredits.required} 크레딧</b>이 필요합니다.<br />
-              현재 잔액: <b>{insufficientCredits.balance.toLocaleString()} C</b>
+              {t("creditsModal.needPrefix")} <b>{insufficientCredits.required} C</b> {t("creditsModal.needSuffix")}<br />
+              {t("creditsModal.currentBalance")}: <b>{insufficientCredits.balance.toLocaleString()} C</b>
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <a
@@ -3940,7 +3942,7 @@ export default function DesignEditor({
                   textAlign: "center",
                 }}
               >
-                크레딧 충전하러 가기
+                {t("creditsModal.topUp")}
               </a>
               <button
                 onClick={() => setInsufficientCredits(null)}
@@ -3955,7 +3957,7 @@ export default function DesignEditor({
                   cursor: "pointer",
                 }}
               >
-                닫기
+                {t("creditsModal.close")}
               </button>
             </div>
           </div>
@@ -3963,40 +3965,40 @@ export default function DesignEditor({
       )}
 
       {/* ═══ Sprint 9i — Status bar (Figma-style, bottom of editor) ═══ */}
-      <div className="de-status-bar" aria-label="에디터 상태 표시줄">
+      <div className="de-status-bar" aria-label={t("statusBar.ariaLabel")}>
         <span className={`item${saveStatus === "saved" ? " ok" : ""}`}>
           <span className="dot" />
           {saving
-            ? "저장 중…"
+            ? t("statusBar.saving")
             : saveStatus === "error"
-              ? "저장 실패"
+              ? t("statusBar.savingFailed")
               : saveStatus === "saved"
-                ? "저장됨 · 방금"
-                : "모든 변경사항 저장됨"}
+                ? t("statusBar.savedJustNow")
+                : t("statusBar.allSaved")}
         </span>
         <span className="item">
-          페이지 <span className="mono">{pageSlug}</span>
+          {t("statusBar.page")} <span className="mono">{pageSlug}</span>
         </span>
         {editorV2Enabled && (
           <span className="item">
-            요소 <span className="mono">{layerCount}</span>
+            {t("statusBar.element")} <span className="mono">{layerCount}</span>
           </span>
         )}
         <span className="item">
-          언어 <span className="mono">{currentLang}</span>
+          {t("statusBar.language")} <span className="mono">{currentLang}</span>
         </span>
         <span className="spacer" />
         <span className="item cursor">
-          커서{" "}
+          {t("statusBar.cursor")}{" "}
           <span className="mono">
             {cursorCoord ? `${cursorCoord[0]}, ${cursorCoord[1]}` : "—"}
           </span>
         </span>
         <span className="item">
-          줌 <span className="mono">{zoom}%</span>
+          {t("statusBar.zoom")} <span className="mono">{zoom}%</span>
         </span>
         <span className="item">
-          뷰포트 <span className="mono">{viewportMode === "mobile" ? "375" : "1000"}</span>
+          {t("statusBar.viewport")} <span className="mono">{viewportMode === "mobile" ? "375" : "1000"}</span>
         </span>
       </div>
     </div>
@@ -4023,10 +4025,11 @@ function HeaderLayoutSection({
   value: HeaderLayoutValue;
   onChange: (v: HeaderLayoutValue) => void;
 }) {
+  const t = useTranslations("editor");
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       <span style={{ fontSize: 11, color: "#6b7280", textTransform: "uppercase", letterSpacing: 1, fontWeight: 600 }}>
-        헤더 레이아웃
+        {t("siteSettingsModal.headerLayout")}
       </span>
       <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#374151" }}>
         <input
@@ -4034,11 +4037,11 @@ function HeaderLayoutSection({
           checked={value.sticky}
           onChange={(e) => onChange({ ...value, sticky: e.target.checked })}
         />
-        스크롤 시 상단 고정 (sticky)
+        {t("siteSettingsModal.stickyLabel")}
       </label>
       <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
         <label style={{ fontSize: 13, color: "#374151", display: "flex", alignItems: "center", gap: 6 }}>
-          높이
+          {t("siteSettingsModal.heightLabel")}
           <input
             type="text"
             value={value.height}
@@ -4048,7 +4051,7 @@ function HeaderLayoutSection({
           />
         </label>
         <label style={{ fontSize: 13, color: "#374151", display: "flex", alignItems: "center", gap: 6 }}>
-          배경
+          {t("siteSettingsModal.bgLabel")}
           <input
             type="text"
             value={value.background}
@@ -4059,7 +4062,7 @@ function HeaderLayoutSection({
         </label>
       </div>
       <span style={{ fontSize: 11, color: "#6b7280" }}>
-        값은 :root CSS 변수로 페이지 CSS에 저장됩니다 (HNS-HEADER-LAYOUT 블록).
+        {t("siteSettingsModal.headerLayoutNote")}
       </span>
     </div>
   );
@@ -4076,18 +4079,20 @@ function LanguagesSection({
   languages: string[];
   defaultLanguage: string;
 }) {
+  const t = useTranslations("editor");
+  const tLang = useTranslations("language");
   const [selected, setSelected] = useState<string[]>(languages);
   const [defaultLang, setDefaultLang] = useState<string>(defaultLanguage);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
   const VALID = [
-    { code: "ko", label: "한국어" },
-    { code: "en", label: "English" },
-    { code: "ja", label: "日本語" },
-    { code: "zh-cn", label: "简体中文" },
-    { code: "zh-tw", label: "繁體中文" },
-    { code: "es", label: "Español" },
+    { code: "ko",    label: tLang("ko") },
+    { code: "en",    label: tLang("en") },
+    { code: "ja",    label: tLang("ja") },
+    { code: "zh-cn", label: tLang("zh-cn") },
+    { code: "zh-tw", label: tLang("zh-tw") },
+    { code: "es",    label: tLang("es") },
   ];
 
   const toggle = (code: string) => {
@@ -4096,9 +4101,11 @@ function LanguagesSection({
     );
   };
 
+  const savedMsg = t("siteSettingsModal.savedLanguages");
+
   const save = async () => {
     if (selected.length === 0) {
-      setMsg("최소 1개 언어를 선택하세요.");
+      setMsg(t("siteSettingsModal.minOneLang"));
       return;
     }
     if (!selected.includes(defaultLang)) {
@@ -4118,11 +4125,11 @@ function LanguagesSection({
       });
       if (!res.ok) {
         const j = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(j.error || `저장 실패 (${res.status})`);
+        throw new Error(j.error || `${t("siteSettingsModal.saveFailed")} (${res.status})`);
       }
-      setMsg("저장됨. 페이지 새로고침 후 반영됩니다.");
+      setMsg(savedMsg);
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "저장 실패");
+      setMsg(e instanceof Error ? e.message : t("siteSettingsModal.saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -4131,7 +4138,7 @@ function LanguagesSection({
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       <span style={{ fontSize: 11, color: "#6b7280", textTransform: "uppercase", letterSpacing: 1, fontWeight: 600 }}>
-        언어
+        {t("siteSettingsModal.languageLabel")}
       </span>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 6 }}>
         {VALID.map((l) => {
@@ -4164,7 +4171,7 @@ function LanguagesSection({
                     e.preventDefault();
                     setDefaultLang(l.code);
                   }}
-                  title="기본 언어로 설정"
+                  title={t("siteSettingsModal.setDefault")}
                   style={{
                     padding: "2px 6px",
                     fontSize: 10,
@@ -4175,11 +4182,11 @@ function LanguagesSection({
                     cursor: "pointer",
                   }}
                 >
-                  {isDefault ? "기본" : "기본으로"}
+                  {isDefault ? t("siteSettingsModal.isDefault") : t("siteSettingsModal.makeDefault")}
                 </button>
               )}
               {isCurrent && (
-                <span style={{ color: "#10b981", fontSize: 10 }} title="편집 중인 언어">●</span>
+                <span style={{ color: "#10b981", fontSize: 10 }} title={t("siteSettingsModal.currentlyEditing")}>●</span>
               )}
             </label>
           );
@@ -4202,9 +4209,9 @@ function LanguagesSection({
             opacity: saving ? 0.6 : 1,
           }}
         >
-          {saving ? "저장 중…" : "언어 설정 저장"}
+          {saving ? t("siteSettingsModal.savingLanguages") : t("siteSettingsModal.saveLanguages")}
         </button>
-        {msg && <span style={{ fontSize: 12, color: msg.startsWith("저장됨") ? "#10b981" : "#dc2626" }}>{msg}</span>}
+        {msg && <span style={{ fontSize: 12, color: msg === savedMsg ? "#10b981" : "#dc2626" }}>{msg}</span>}
       </div>
     </div>
   );

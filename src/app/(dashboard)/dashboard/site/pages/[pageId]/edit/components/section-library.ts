@@ -23,8 +23,8 @@ function uid(prefix: string): string {
 export interface SectionPreset {
   /** Stable key used for search / analytics. */
   id: string;
-  /** Korean label shown in the palette. */
-  label: string;
+  /** i18n key under `editor.sectionPresets.*` for the palette label. */
+  labelKey: string;
   /** Font Awesome icon class (without the `fa-` prefix). */
   icon: string;
   /** Build the HTML fragment. Called once per insert. */
@@ -38,7 +38,7 @@ export const SECTION_PRESETS: SectionPreset[] = [
   /* ═══════════════════════════ HERO OVERLAY ═══════════════════════════ */
   {
     id: "hero-overlay",
-    label: "히어로 배너 (오버레이)",
+    labelKey: "heroOverlay",
     icon: "fa-table-columns",
     build() {
       const sec = uid("obj_sec");
@@ -64,7 +64,7 @@ export const SECTION_PRESETS: SectionPreset[] = [
   /* ═══════════════════════════ SPLIT (이미지 + 콘텐츠) ════════════════ */
   {
     id: "split-content",
-    label: "이미지 + 콘텐츠 (2단)",
+    labelKey: "splitContent",
     icon: "fa-panorama",
     build() {
       const sec = uid("obj_sec");
@@ -95,7 +95,7 @@ export const SECTION_PRESETS: SectionPreset[] = [
   /* ═══════════════════════════ 3-COL FEATURES ════════════════════════ */
   {
     id: "features-3col",
-    label: "3단 피처 카드",
+    labelKey: "features3col",
     icon: "fa-grip",
     build() {
       const sec = uid("obj_sec");
@@ -129,7 +129,7 @@ export const SECTION_PRESETS: SectionPreset[] = [
   /* ═══════════════════════════ GALLERY 3-COL ══════════════════════════ */
   {
     id: "gallery-grid",
-    label: "갤러리 (3 × 2)",
+    labelKey: "galleryGrid",
     icon: "fa-images",
     build() {
       const sec = uid("obj_sec");
@@ -154,7 +154,7 @@ ${items}
   /* ═══════════════════════════ STATS 4-COL ════════════════════════════ */
   {
     id: "stats-4col",
-    label: "통계 4-column",
+    labelKey: "stats4col",
     icon: "fa-chart-line",
     build() {
       const sec = uid("obj_sec");
@@ -185,7 +185,7 @@ ${items}
   /* ═══════════════════════════ CTA BAND ═══════════════════════════════ */
   {
     id: "cta-band",
-    label: "CTA 배너",
+    labelKey: "ctaBand",
     icon: "fa-bullhorn",
     build() {
       const sec = uid("obj_sec");
@@ -206,7 +206,7 @@ ${items}
   /* ═══════════════════════════ CONTACT FORM ═══════════════════════════ */
   {
     id: "contact-form",
-    label: "문의 폼",
+    labelKey: "contactForm",
     icon: "fa-square-pen",
     build() {
       const sec = uid("obj_sec");
@@ -232,7 +232,7 @@ ${items}
   /* ═══════════════════════════ TESTIMONIALS ═══════════════════════════ */
   {
     id: "testimonials",
-    label: "후기 · 평점 (3개)",
+    labelKey: "testimonials",
     icon: "fa-star",
     build() {
       const sec = uid("obj_sec");
@@ -266,7 +266,7 @@ ${items}
   /* ═══════════════════════════ NAV HEADER ═════════════════════════════ */
   {
     id: "nav-header",
-    label: "상단 네비게이션",
+    labelKey: "navHeader",
     icon: "fa-bars",
     build() {
       const sec = uid("obj_sec");
@@ -292,7 +292,7 @@ ${items}
   /* ═══════════════════════════ FOOTER ═════════════════════════════════ */
   {
     id: "footer",
-    label: "푸터 (4단)",
+    labelKey: "footer",
     icon: "fa-align-justify",
     build() {
       const sec = uid("obj_sec");

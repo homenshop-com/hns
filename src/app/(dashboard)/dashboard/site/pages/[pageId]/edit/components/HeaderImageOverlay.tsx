@@ -13,6 +13,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 
 interface Props {
   /** The site header element rendered inside the canvas. Usually
@@ -29,6 +30,7 @@ interface Spot {
 }
 
 export default function HeaderImageOverlay({ headerRef, siteId }: Props) {
+  const t = useTranslations("editor");
   const [spots, setSpots] = useState<Spot[]>([]);
   const [busyEl, setBusyEl] = useState<HTMLImageElement | null>(null);
 
@@ -91,14 +93,14 @@ export default function HeaderImageOverlay({ headerRef, siteId }: Props) {
       const res = await fetch("/api/upload", { method: "POST", body: fd });
       if (!res.ok) {
         const j = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(j.error || `업로드 실패 (${res.status})`);
+        throw new Error(j.error || `${t("headerImageOverlay.uploadFailed")} (${res.status})`);
       }
       const { url } = (await res.json()) as { url?: string };
       if (typeof url === "string") {
         img.setAttribute("src", url);
       }
     } catch (e) {
-      alert(e instanceof Error ? e.message : "업로드 실패");
+      alert(e instanceof Error ? e.message : t("headerImageOverlay.uploadFailed"));
     } finally {
       setBusyEl(null);
     }
@@ -127,6 +129,7 @@ function SpotButton({
   busy: boolean;
   onPick: (f: File) => void;
 }) {
+  const t = useTranslations("editor");
   const fileRef = useRef<HTMLInputElement | null>(null);
   // Choose corner placement: top-right of the img, like the body
   // image ↻ button. Keeps gizmos consistent across header/body.
@@ -137,7 +140,7 @@ function SpotButton({
       <button
         type="button"
         onClick={() => fileRef.current?.click()}
-        title="이미지 교체 (헤더)"
+        title={t("headerImageOverlay.replaceImage")}
         style={{
           position: "fixed",
           left,

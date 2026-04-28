@@ -19,6 +19,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   useEditorStore,
   selectRoot,
@@ -58,6 +59,7 @@ interface RowProps {
   expanded: Set<LayerId>;
   toggleExpanded: (id: LayerId) => void;
   onDropOn: (draggedId: LayerId, target: Layer) => void;
+  t: ReturnType<typeof useTranslations>;
 }
 
 function Row({
@@ -68,6 +70,7 @@ function Row({
   expanded,
   toggleExpanded,
   onDropOn,
+  t,
 }: RowProps) {
   const select = useEditorStore((s) => s.select);
   const toggleVisibility = useEditorStore((s) => s.toggleVisibility);
@@ -135,7 +138,7 @@ function Row({
               e.stopPropagation();
               toggleExpanded(layer.id);
             }}
-            aria-label={isOpen ? "접기" : "펼치기"}
+            aria-label={isOpen ? t("layers.collapse") : t("layers.expand")}
           >
             {isOpen ? "▾" : "▸"}
           </button>
@@ -187,7 +190,7 @@ function Row({
         <button
           type="button"
           className={`layerpanel-action${!layer.visible ? " is-off" : ""}`}
-          title={layer.visible ? "숨기기" : "표시"}
+          title={layer.visible ? t("layers.hide") : t("layers.show")}
           onClick={(e) => {
             e.stopPropagation();
             toggleVisibility(layer.id);
@@ -202,7 +205,7 @@ function Row({
         <button
           type="button"
           className={`layerpanel-action${layer.locked ? " is-on" : ""}`}
-          title={layer.locked ? "잠금 해제" : "잠금"}
+          title={layer.locked ? t("layers.unlock") : t("layers.lock")}
           onClick={(e) => {
             e.stopPropagation();
             toggleLock(layer.id);
@@ -235,6 +238,7 @@ function Row({
                 expanded={expanded}
                 toggleExpanded={toggleExpanded}
                 onDropOn={onDropOn}
+                t={t}
               />
             ))
         : null}
@@ -245,6 +249,7 @@ function Row({
 /* ─── Panel ─── */
 
 export function LayerPanel() {
+  const t = useTranslations("editor");
   const root = useEditorStore(selectRoot);
   const selectedId = useEditorStore(selectSelectedId);
   const multiIds = useEditorStore(selectMultiIds);
@@ -395,54 +400,54 @@ export function LayerPanel() {
   return (
     <div className="layerpanel">
       <div className="layerpanel-toolbar">
-        <span className="layerpanel-title">레이어</span>
+        <span className="layerpanel-title">{t("layers.title")}</span>
         <div className="layerpanel-toolbar-actions">
           <button
             type="button"
             onClick={doGroup}
             disabled={selectedIds.length < 2}
-            title="선택한 레이어를 그룹으로 묶기 (Ctrl+G)"
+            title={t("layers.groupTitle")}
           >
-            그룹
+            {t("layers.group")}
           </button>
           <button
             type="button"
             onClick={doUngroup}
             disabled={!selectedId}
-            title="그룹 해제 (Ctrl+Shift+G)"
+            title={t("layers.ungroupTitle")}
           >
-            해제
+            {t("layers.ungroup")}
           </button>
           <button
             type="button"
             onClick={doExplode}
             disabled={!canExplode}
-            title="박스 분해 — 내부 요소를 개별 레이어로 승격"
+            title={t("layers.decomposeTitle")}
           >
-            분해
+            {t("layers.decompose")}
           </button>
           <button
             type="button"
             onClick={doDuplicate}
             disabled={selectedIds.length === 0}
-            title="선택 레이어 복제 (Ctrl/Cmd+D)"
+            title={t("layers.duplicateTitle")}
           >
-            복제
+            {t("layers.duplicate")}
           </button>
           <button
             type="button"
             onClick={doRemove}
             disabled={selectedIds.length === 0}
-            title="선택 레이어 삭제 (Delete)"
+            title={t("layers.deleteTitle")}
           >
-            삭제
+            {t("layers.delete")}
           </button>
         </div>
       </div>
 
       <div className="layerpanel-list" role="tree" ref={listRef}>
         {root.children.length === 0 ? (
-          <div className="layerpanel-empty">레이어가 없습니다.</div>
+          <div className="layerpanel-empty">{t("layers.empty")}</div>
         ) : (
           (() => {
             // When the page is section-based (flow), show top-to-bottom
@@ -460,6 +465,7 @@ export function LayerPanel() {
                 expanded={expanded}
                 toggleExpanded={toggleExpanded}
                 onDropOn={onDropOn}
+                t={t}
               />
             ))
         )}
@@ -480,6 +486,7 @@ function TransformInspector({
   selectedId: LayerId | null;
   root: GroupLayer;
 }) {
+  const t = useTranslations("editor");
   const setTransform = useEditorStore((s) => s.setTransform);
   // Walk once per render to resolve the selected layer; panels typically
   // have 10s of layers so the cost is trivial.
@@ -504,7 +511,7 @@ function TransformInspector({
   return (
     <div className="layerpanel-inspector">
       <div className="layerpanel-inspector-row">
-        <label htmlFor="layerpanel-rotate">회전</label>
+        <label htmlFor="layerpanel-rotate">{t("layers.rotate")}</label>
         <input
           id="layerpanel-rotate"
           type="number"
@@ -528,7 +535,7 @@ function TransformInspector({
         <button
           type="button"
           className="layerpanel-inspector-reset"
-          title="회전 초기화"
+          title={t("layers.resetRotation")}
           onClick={() => setTransform(layer.id, { rotate: 0 })}
         >
           ↺

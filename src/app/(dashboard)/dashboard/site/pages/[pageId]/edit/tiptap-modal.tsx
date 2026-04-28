@@ -7,6 +7,7 @@ import { TextStyle } from "@tiptap/extension-text-style";
 import Color from "@tiptap/extension-color";
 import Image from "@tiptap/extension-image";
 import { useCallback } from "react";
+import { useTranslations } from "next-intl";
 
 interface TiptapModalProps {
   initialHtml: string;
@@ -54,6 +55,7 @@ function TBtn({
 
 /* ─── Main Modal ─── */
 export default function TiptapModal({ initialHtml, onSave, onClose }: TiptapModalProps) {
+  const t = useTranslations("editor");
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -84,7 +86,7 @@ export default function TiptapModal({ initialHtml, onSave, onClose }: TiptapModa
   const setLink = useCallback(() => {
     if (!editor) return;
     const prev = editor.getAttributes("link").href;
-    const url = prompt("URL을 입력하세요:", prev || "https://");
+    const url = prompt(t("tiptap.promptUrl"), prev || "https://");
     if (url === null) return;
     if (url === "") {
       editor.chain().focus().extendMarkRange("link").unsetLink().run();
@@ -95,7 +97,7 @@ export default function TiptapModal({ initialHtml, onSave, onClose }: TiptapModa
 
   const addImage = useCallback(() => {
     if (!editor) return;
-    const url = prompt("이미지 URL을 입력하세요:", "https://");
+    const url = prompt(t("tiptap.promptImageUrl"), "https://");
     if (url) {
       editor.chain().focus().setImage({ src: url }).run();
     }
@@ -152,7 +154,7 @@ export default function TiptapModal({ initialHtml, onSave, onClose }: TiptapModa
           }}
         >
           <span style={{ fontSize: 15, fontWeight: 700, color: "#e0e0e0" }}>
-            텍스트 편집
+            {t("tiptap.title")}
           </span>
           <button
             onClick={onClose}
@@ -181,68 +183,68 @@ export default function TiptapModal({ initialHtml, onSave, onClose }: TiptapModa
           }}
         >
           {/* Text style */}
-          <TBtn active={editor.isActive("bold")} onClick={() => editor.chain().focus().toggleBold().run()} title="굵게 (⌘B)">
+          <TBtn active={editor.isActive("bold")} onClick={() => editor.chain().focus().toggleBold().run()} title={t("tiptap.bold")}>
             <strong>B</strong>
           </TBtn>
-          <TBtn active={editor.isActive("italic")} onClick={() => editor.chain().focus().toggleItalic().run()} title="기울임 (⌘I)">
+          <TBtn active={editor.isActive("italic")} onClick={() => editor.chain().focus().toggleItalic().run()} title={t("tiptap.italic")}>
             <em>I</em>
           </TBtn>
-          <TBtn active={editor.isActive("underline")} onClick={() => editor.chain().focus().toggleUnderline().run()} title="밑줄 (⌘U)">
+          <TBtn active={editor.isActive("underline")} onClick={() => editor.chain().focus().toggleUnderline().run()} title={t("tiptap.underline")}>
             <u>U</u>
           </TBtn>
-          <TBtn active={editor.isActive("strike")} onClick={() => editor.chain().focus().toggleStrike().run()} title="취소선">
+          <TBtn active={editor.isActive("strike")} onClick={() => editor.chain().focus().toggleStrike().run()} title={t("tiptap.strike")}>
             <s>S</s>
           </TBtn>
 
           <span style={{ width: 1, background: "#555", margin: "2px 4px" }} />
 
           {/* Headings */}
-          <TBtn active={editor.isActive("heading", { level: 1 })} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} title="제목 1">
+          <TBtn active={editor.isActive("heading", { level: 1 })} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} title={t("tiptap.h1")}>
             H1
           </TBtn>
-          <TBtn active={editor.isActive("heading", { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} title="제목 2">
+          <TBtn active={editor.isActive("heading", { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} title={t("tiptap.h2")}>
             H2
           </TBtn>
-          <TBtn active={editor.isActive("heading", { level: 3 })} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} title="제목 3">
+          <TBtn active={editor.isActive("heading", { level: 3 })} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} title={t("tiptap.h3")}>
             H3
           </TBtn>
-          <TBtn active={editor.isActive("paragraph")} onClick={() => editor.chain().focus().setParagraph().run()} title="본문">
+          <TBtn active={editor.isActive("paragraph")} onClick={() => editor.chain().focus().setParagraph().run()} title={t("tiptap.paragraph")}>
             P
           </TBtn>
 
           <span style={{ width: 1, background: "#555", margin: "2px 4px" }} />
 
           {/* Alignment */}
-          <TBtn active={editor.isActive({ textAlign: "left" })} onClick={() => editor.chain().focus().setTextAlign("left").run()} title="왼쪽 정렬">
+          <TBtn active={editor.isActive({ textAlign: "left" })} onClick={() => editor.chain().focus().setTextAlign("left").run()} title={t("tiptap.alignLeft")}>
             &#x2190;
           </TBtn>
-          <TBtn active={editor.isActive({ textAlign: "center" })} onClick={() => editor.chain().focus().setTextAlign("center").run()} title="가운데 정렬">
+          <TBtn active={editor.isActive({ textAlign: "center" })} onClick={() => editor.chain().focus().setTextAlign("center").run()} title={t("tiptap.alignCenter")}>
             &#x2194;
           </TBtn>
-          <TBtn active={editor.isActive({ textAlign: "right" })} onClick={() => editor.chain().focus().setTextAlign("right").run()} title="오른쪽 정렬">
+          <TBtn active={editor.isActive({ textAlign: "right" })} onClick={() => editor.chain().focus().setTextAlign("right").run()} title={t("tiptap.alignRight")}>
             &#x2192;
           </TBtn>
 
           <span style={{ width: 1, background: "#555", margin: "2px 4px" }} />
 
           {/* Lists */}
-          <TBtn active={editor.isActive("bulletList")} onClick={() => editor.chain().focus().toggleBulletList().run()} title="글머리 기호">
+          <TBtn active={editor.isActive("bulletList")} onClick={() => editor.chain().focus().toggleBulletList().run()} title={t("tiptap.bulletList")}>
             &#x2022; List
           </TBtn>
-          <TBtn active={editor.isActive("orderedList")} onClick={() => editor.chain().focus().toggleOrderedList().run()} title="번호 매기기">
+          <TBtn active={editor.isActive("orderedList")} onClick={() => editor.chain().focus().toggleOrderedList().run()} title={t("tiptap.orderedList")}>
             1. List
           </TBtn>
-          <TBtn onClick={() => editor.chain().focus().setBlockquote().run()} active={editor.isActive("blockquote")} title="인용구">
+          <TBtn onClick={() => editor.chain().focus().setBlockquote().run()} active={editor.isActive("blockquote")} title={t("tiptap.blockquote")}>
             &ldquo;&rdquo;
           </TBtn>
 
           <span style={{ width: 1, background: "#555", margin: "2px 4px" }} />
 
           {/* Link & Image */}
-          <TBtn active={editor.isActive("link")} onClick={setLink} title="링크">
+          <TBtn active={editor.isActive("link")} onClick={setLink} title={t("tiptap.link")}>
             &#x1F517;
           </TBtn>
-          <TBtn onClick={addImage} title="이미지 삽입">
+          <TBtn onClick={addImage} title={t("tiptap.image")}>
             &#x1F5BC;
           </TBtn>
 
@@ -275,20 +277,20 @@ export default function TiptapModal({ initialHtml, onSave, onClose }: TiptapModa
           <span style={{ width: 1, background: "#555", margin: "2px 4px" }} />
 
           {/* Undo/Redo */}
-          <TBtn onClick={() => editor.chain().focus().undo().run()} title="실행 취소 (⌘Z)">
+          <TBtn onClick={() => editor.chain().focus().undo().run()} title={t("tiptap.undo")}>
             &#x21A9;
           </TBtn>
-          <TBtn onClick={() => editor.chain().focus().redo().run()} title="다시 실행 (⌘⇧Z)">
+          <TBtn onClick={() => editor.chain().focus().redo().run()} title={t("tiptap.redo")}>
             &#x21AA;
           </TBtn>
 
           <span style={{ width: 1, background: "#555", margin: "2px 4px" }} />
 
           {/* Clear formatting */}
-          <TBtn onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()} title="서식 지우기">
+          <TBtn onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()} title={t("tiptap.clearFormat")}>
             &#x2718;
           </TBtn>
-          <TBtn onClick={() => editor.chain().focus().setHorizontalRule().run()} title="구분선">
+          <TBtn onClick={() => editor.chain().focus().setHorizontalRule().run()} title={t("tiptap.hr")}>
             &#x2015;
           </TBtn>
         </div>
@@ -330,7 +332,7 @@ export default function TiptapModal({ initialHtml, onSave, onClose }: TiptapModa
               cursor: "pointer",
             }}
           >
-            취소
+            {t("tiptap.cancel")}
           </button>
           <button
             onClick={handleSave}
@@ -345,7 +347,7 @@ export default function TiptapModal({ initialHtml, onSave, onClose }: TiptapModa
               cursor: "pointer",
             }}
           >
-            적용
+            {t("tiptap.apply")}
           </button>
         </div>
       </div>

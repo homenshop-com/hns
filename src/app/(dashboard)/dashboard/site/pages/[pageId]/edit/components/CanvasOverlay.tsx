@@ -14,6 +14,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { useEditorStore, selectRoot, type AlignMode } from "../store/editor-store";
 import { snapResize, type Rect as SnapRect } from "../store/snap";
 import type { Layer } from "@/lib/scene";
@@ -70,6 +71,7 @@ function measureEl(el: HTMLElement): Rect {
 }
 
 export default function CanvasOverlay({ containerRef, siteId }: Props) {
+  const t = useTranslations("editor");
   const [primary, setPrimary] = useState<string | null>(useEditorStore.getState().selectedId);
   const [multi, setMulti] = useState<Set<string>>(useEditorStore.getState().multiSelectedIds);
   const [tick, setTick] = useState(0); // re-measure trigger
@@ -453,7 +455,7 @@ export default function CanvasOverlay({ containerRef, siteId }: Props) {
             pointerEvents: "auto",
           }}
           onPointerDown={onRotateStart}
-          title="드래그: 회전 · Shift 드래그: 15° 스냅"
+          title={t("canvasOverlay.rotateTip")}
         >
           <svg width="20" height="20" viewBox="0 0 20 20" style={{ display: "block" }}>
             <circle cx="10" cy="10" r="8" fill="#2a79ff" stroke="#fff" strokeWidth="2" />
@@ -503,13 +505,13 @@ export default function CanvasOverlay({ containerRef, siteId }: Props) {
           }}
           onPointerDown={(e) => e.stopPropagation()}
         >
-          <AlignBtn mode="left"    label="왼쪽 정렬"     onClick={doAlign} icon="L" />
-          <AlignBtn mode="centerH" label="가로 가운데"   onClick={doAlign} icon="C" />
-          <AlignBtn mode="right"   label="오른쪽 정렬"   onClick={doAlign} icon="R" />
+          <AlignBtn mode="left"    label={t("canvasOverlay.alignLeft")}    onClick={doAlign} icon="L" />
+          <AlignBtn mode="centerH" label={t("canvasOverlay.alignCenterH")} onClick={doAlign} icon="C" />
+          <AlignBtn mode="right"   label={t("canvasOverlay.alignRight")}   onClick={doAlign} icon="R" />
           <div style={{ width: 1, background: "#333", margin: "2px 2px" }} />
-          <AlignBtn mode="top"     label="위쪽 정렬"     onClick={doAlign} icon="T" />
-          <AlignBtn mode="middleV" label="세로 가운데"   onClick={doAlign} icon="M" />
-          <AlignBtn mode="bottom"  label="아래쪽 정렬"   onClick={doAlign} icon="B" />
+          <AlignBtn mode="top"     label={t("canvasOverlay.alignTop")}     onClick={doAlign} icon="T" />
+          <AlignBtn mode="middleV" label={t("canvasOverlay.alignMiddleV")} onClick={doAlign} icon="M" />
+          <AlignBtn mode="bottom"  label={t("canvasOverlay.alignBottom")}  onClick={doAlign} icon="B" />
         </div>
       )}
     </>
@@ -633,6 +635,7 @@ function ImageReplaceButton({
   rect: Rect;
   siteId?: string;
 }) {
+  const t = useTranslations("editor");
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [busy, setBusy] = useState(false);
   const setImage = useEditorStore((s) => s.setImage);
@@ -646,13 +649,11 @@ function ImageReplaceButton({
       fd.append("compress", "true");
       if (siteId) fd.append("siteId", siteId);
       const res = await fetch("/api/upload", { method: "POST", body: fd });
-      if (!res.ok) throw new Error(`업로드 실패 (${res.status})`);
+      if (!res.ok) throw new Error(`${t("canvasOverlay.uploadFailed")} (${res.status})`);
       const { url } = await res.json();
       if (typeof url === "string") setImage(layerId, { src: url });
     } catch (e) {
-      // Lightweight: surface as alert. The Inspector ImageSection has the
-      // proper inline error state for power-user replace flows.
-      alert(e instanceof Error ? e.message : "업로드 실패");
+      alert(e instanceof Error ? e.message : t("canvasOverlay.uploadFailed"));
     } finally {
       setBusy(false);
     }
@@ -663,7 +664,7 @@ function ImageReplaceButton({
       <button
         type="button"
         onClick={() => fileRef.current?.click()}
-        title="이미지 교체"
+        title={t("canvasOverlay.replaceImage")}
         style={{
           position: "fixed",
           left: rect.left + rect.width - 32,

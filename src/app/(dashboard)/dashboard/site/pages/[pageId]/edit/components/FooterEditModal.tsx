@@ -21,6 +21,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 
 interface Props {
   siteId: string;
@@ -58,6 +59,8 @@ export default function FooterEditModal({
   initialFooterHtml,
   onClose,
 }: Props) {
+  const t = useTranslations("editor");
+
   /* ── 1. Images ── */
   const [images, setImages] = useState<ImageEdit[]>([]);
   const [imgUploadBusy, setImgUploadBusy] = useState<string | null>(null);
@@ -89,7 +92,7 @@ export default function FooterEditModal({
       const res = await fetch("/api/upload", { method: "POST", body: fd });
       if (!res.ok) {
         const j = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(j.error || `업로드 실패 (${res.status})`);
+        throw new Error(j.error || `${t("footerModal.uploadFailed")} (${res.status})`);
       }
       const { url } = (await res.json()) as { url?: string };
       if (typeof url !== "string") return;
@@ -98,7 +101,7 @@ export default function FooterEditModal({
         prev.map((p) => (p.key === img.key ? { ...p, src: url } : p)),
       );
     } catch (e) {
-      alert(e instanceof Error ? e.message : "업로드 실패");
+      alert(e instanceof Error ? e.message : t("footerModal.uploadFailed"));
     } finally {
       setImgUploadBusy(null);
     }
@@ -244,7 +247,7 @@ export default function FooterEditModal({
 
   /* ── 5. Reset ── */
   const resetFooter = () => {
-    if (!confirm("푸터를 템플릿 초기 상태로 되돌리시겠습니까?\n(현재 편집 내용 손실)")) return;
+    if (!confirm(t("footerModal.confirmReset"))) return;
     const fEl = footerRef.current;
     if (!fEl) return;
     fEl.innerHTML = initialFooterHtml;
@@ -295,9 +298,9 @@ export default function FooterEditModal({
           }}
         >
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 15, fontWeight: 600 }}>푸터 편집</div>
+            <div style={{ fontSize: 15, fontWeight: 600 }}>{t("footerModal.title")}</div>
             <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>
-              로고·텍스트·링크·스타일 — 모든 페이지의 푸터에 적용됩니다.
+              {t("footerModal.sub")}
             </div>
           </div>
           <button
@@ -311,7 +314,7 @@ export default function FooterEditModal({
               cursor: "pointer",
               padding: 4,
             }}
-            aria-label="닫기"
+            aria-label={t("footerModal.close")}
           >
             ✕
           </button>
@@ -329,10 +332,10 @@ export default function FooterEditModal({
           }}
         >
           {/* 1. Images */}
-          <Section title={`이미지 (${imgCount})`}>
+          <Section title={t("footerModal.imagesSection", { count: imgCount })}>
             {images.length === 0 && (
               <div style={{ color: "#666", fontSize: 12 }}>
-                푸터에 이미지가 없습니다.
+                {t("footerModal.noImages")}
               </div>
             )}
             {images.map((img) => (
@@ -348,8 +351,8 @@ export default function FooterEditModal({
 
           {/* 2. Texts */}
           <Section
-            title={`푸터 텍스트 (${textEdits.length})`}
-            sub="각 줄을 수정하면 캔버스에 즉시 반영됩니다."
+            title={t("footerModal.footerText", { count: textEdits.length })}
+            sub={t("footerModal.footerTextSub")}
           >
             <div
               style={{
@@ -363,7 +366,7 @@ export default function FooterEditModal({
             >
               {textEdits.length === 0 && (
                 <div style={{ color: "#666", fontSize: 12 }}>
-                  편집 가능한 텍스트가 없습니다.
+                  {t("footerModal.noEditableText")}
                 </div>
               )}
               {textEdits.map((t) => (
@@ -378,7 +381,7 @@ export default function FooterEditModal({
           </Section>
 
           {/* 3. Links */}
-          <Section title={`링크 (${linkCount})`} sub="라벨·URL·새 창 토글">
+          <Section title={t("footerModal.linksSection", { count: linkCount })} sub={t("footerModal.linksSub")}>
             <div
               style={{
                 display: "flex",
@@ -391,7 +394,7 @@ export default function FooterEditModal({
             >
               {links.length === 0 && (
                 <div style={{ color: "#666", fontSize: 12 }}>
-                  푸터에 링크가 없습니다.
+                  {t("footerModal.noLinks")}
                 </div>
               )}
               {links.map((l) => (
@@ -406,20 +409,20 @@ export default function FooterEditModal({
                 >
                   <input
                     value={l.label}
-                    placeholder="라벨"
+                    placeholder={t("footerModal.labelPlaceholder")}
                     onChange={(e) => updateLinkLabel(l.key, e.target.value)}
                     style={textInput}
                   />
                   <input
                     value={l.href}
-                    placeholder="https://… 또는 /path"
+                    placeholder={t("footerModal.urlPlaceholder")}
                     onChange={(e) => updateLinkHref(l.key, e.target.value)}
                     style={textInput}
                   />
                   <button
                     type="button"
                     onClick={() => toggleLinkBlank(l.key)}
-                    title={l.target === "_blank" ? "새 창 (켜짐)" : "같은 창"}
+                    title={l.target === "_blank" ? t("footerModal.newWindowOn") : t("footerModal.sameWindow")}
                     style={{
                       width: 28,
                       height: 28,
@@ -440,10 +443,10 @@ export default function FooterEditModal({
           </Section>
 
           {/* 4. Style */}
-          <Section title="푸터 스타일">
+          <Section title={t("footerModal.footerStyle")}>
             <div style={{ display: "flex", gap: 10 }}>
               <label style={miniLabel}>
-                높이
+                {t("footerModal.heightLabel")}
                 <input
                   type="text"
                   value={height}
@@ -453,7 +456,7 @@ export default function FooterEditModal({
                 />
               </label>
               <label style={miniLabel}>
-                배경
+                {t("footerModal.bgLabel")}
                 <input
                   type="text"
                   value={bg}
@@ -466,10 +469,10 @@ export default function FooterEditModal({
           </Section>
 
           {/* 5. Reset */}
-          <Section title="고급">
+          <Section title={t("footerModal.advanced")}>
             <button type="button" onClick={resetFooter} style={dangerBtn}>
               <i className="fa-solid fa-rotate-left" style={{ marginRight: 6 }} />
-              푸터를 템플릿 초기 상태로 되돌리기
+              {t("footerModal.resetFooter")}
             </button>
           </Section>
         </div>
@@ -485,7 +488,7 @@ export default function FooterEditModal({
           }}
         >
           <span style={{ flex: 1, fontSize: 11, color: "#666" }}>
-            ⌘S 로 사이트 저장하면 모든 변경이 영구 반영됩니다.
+            {t("footerModal.saveTip")}
           </span>
           <button
             type="button"
@@ -501,7 +504,7 @@ export default function FooterEditModal({
               fontWeight: 600,
             }}
           >
-            완료
+            {t("footerModal.doneClose")}
           </button>
         </div>
       </div>
@@ -522,6 +525,7 @@ function ImageRow({
   onPick: (f: File) => void;
   onAltChange: (v: string) => void;
 }) {
+  const t = useTranslations("editor");
   const fileRef = useRef<HTMLInputElement>(null);
   return (
     <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 8 }}>
@@ -555,11 +559,11 @@ function ImageRow({
           }}
         >
           <i className="fa-solid fa-upload" style={{ marginRight: 5 }} />
-          {busy ? "업로드 중…" : "이미지 교체"}
+          {busy ? t("footerModal.uploading") : t("footerModal.replaceImage")}
         </button>
         <input
           value={img.alt}
-          placeholder="대체 텍스트 (alt)"
+          placeholder={t("footerModal.altPlaceholder")}
           onChange={(e) => onAltChange(e.target.value)}
           style={{ ...textInput, fontSize: 11 }}
         />

@@ -24,6 +24,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 
 interface Props {
   siteId: string;
@@ -73,6 +74,8 @@ export default function HeaderEditModal({
   onOpenMenuManager,
   onClose,
 }: Props) {
+  const t = useTranslations("editor");
+
   /* ── 1. Logo ── */
   const [logoSrc, setLogoSrc] = useState<string>(() => {
     const hEl = headerRef.current;
@@ -108,7 +111,7 @@ export default function HeaderEditModal({
       const res = await fetch("/api/upload", { method: "POST", body: fd });
       if (!res.ok) {
         const j = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(j.error || `업로드 실패 (${res.status})`);
+        throw new Error(j.error || `${t("headerModal.uploadFailed")} (${res.status})`);
       }
       const { url } = (await res.json()) as { url?: string };
       if (typeof url !== "string") return;
@@ -138,14 +141,14 @@ export default function HeaderEditModal({
           if (container) {
             // Replace contents with an <img>. Keep the wrapper element
             // (its class drives sizing/positioning); just swap inner.
-            container.innerHTML = `<img src="${url}" alt="로고" style="display:block;max-height:48px;width:auto;height:auto;" />`;
+            container.innerHTML = `<img src="${url}" alt="${t("canvasInsert.logoAlt")}" style="display:block;max-height:48px;width:auto;height:auto;" />`;
           } else {
             // Truly no logo container — inject at start of header.
             const wrap = document.createElement("a");
             wrap.className = "logo";
             wrap.href = "/";
             wrap.style.cssText = "display:inline-block;padding:8px;";
-            wrap.innerHTML = `<img src="${url}" alt="로고" style="display:block;max-height:48px;width:auto;height:auto;" />`;
+            wrap.innerHTML = `<img src="${url}" alt="${t("canvasInsert.logoAlt")}" style="display:block;max-height:48px;width:auto;height:auto;" />`;
             hEl.insertBefore(wrap, hEl.firstChild);
           }
         }
@@ -154,7 +157,7 @@ export default function HeaderEditModal({
       // Clear the text-logo input — image takes precedence now.
       setLogoText("");
     } catch (e) {
-      alert(e instanceof Error ? e.message : "업로드 실패");
+      alert(e instanceof Error ? e.message : t("headerModal.uploadFailed"));
     } finally {
       setLogoBusy(false);
     }
@@ -236,10 +239,12 @@ export default function HeaderEditModal({
   const [defaultLang, setDefaultLang] = useState<string>(defaultLanguage);
   const [langSaving, setLangSaving] = useState(false);
   const [langMsg, setLangMsg] = useState<string | null>(null);
+  const [langMsgOk, setLangMsgOk] = useState(false);
 
   const saveLanguages = async () => {
     if (langs.length === 0) {
-      setLangMsg("최소 1개 언어를 선택하세요.");
+      setLangMsg(t("headerModal.minOneLang"));
+      setLangMsgOk(false);
       return;
     }
     const finalDefault = langs.includes(defaultLang) ? defaultLang : langs[0]!;
@@ -253,11 +258,13 @@ export default function HeaderEditModal({
       });
       if (!res.ok) {
         const j = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(j.error || `저장 실패 (${res.status})`);
+        throw new Error(j.error || `${t("headerModal.saveFailed")} (${res.status})`);
       }
-      setLangMsg("저장됨. 새로고침 후 반영됩니다.");
+      setLangMsg(t("headerModal.savedLanguages"));
+      setLangMsgOk(true);
     } catch (e) {
-      setLangMsg(e instanceof Error ? e.message : "저장 실패");
+      setLangMsg(e instanceof Error ? e.message : t("headerModal.saveFailed"));
+      setLangMsgOk(false);
     } finally {
       setLangSaving(false);
     }
@@ -265,7 +272,7 @@ export default function HeaderEditModal({
 
   /* ── 4. Reset header ── */
   const resetHeader = () => {
-    if (!confirm("헤더를 템플릿 초기 상태로 되돌리시겠습니까?\n(현재 편집 내용 손실)")) return;
+    if (!confirm(t("headerModal.confirmReset"))) return;
     const hEl = headerRef.current;
     if (!hEl) return;
     hEl.innerHTML = initialHeaderHtml;
@@ -320,9 +327,9 @@ export default function HeaderEditModal({
           }}
         >
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 15, fontWeight: 600 }}>헤더 편집</div>
+            <div style={{ fontSize: 15, fontWeight: 600 }}>{t("headerModal.title")}</div>
             <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>
-              로고·텍스트·메뉴·언어·스타일 — 모든 페이지의 헤더에 적용됩니다.
+              {t("headerModal.sub")}
             </div>
           </div>
           <button
@@ -336,7 +343,7 @@ export default function HeaderEditModal({
               cursor: "pointer",
               padding: 4,
             }}
-            aria-label="닫기"
+            aria-label={t("headerModal.close")}
           >
             ✕
           </button>
@@ -354,7 +361,7 @@ export default function HeaderEditModal({
           }}
         >
           {/* 1. Logo */}
-          <Section title="로고">
+          <Section title={t("headerModal.logo")}>
             <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
               {logoSrc ? (
                 <img
@@ -394,7 +401,7 @@ export default function HeaderEditModal({
                 style={primaryBtn(logoBusy)}
               >
                 <i className="fa-solid fa-upload" style={{ marginRight: 6 }} />
-                {logoBusy ? "업로드 중…" : "로고 이미지 교체"}
+                {logoBusy ? t("headerModal.logoUploading") : t("headerModal.logoReplace")}
               </button>
               <input
                 ref={logoFileRef}
@@ -410,7 +417,7 @@ export default function HeaderEditModal({
             </div>
             {logoText && (
               <div style={{ marginTop: 10 }}>
-                <Label>로고 텍스트 (텍스트형 로고일 때)</Label>
+                <Label>{t("headerModal.logoTextLabel")}</Label>
                 <input
                   value={logoText}
                   onChange={(e) => handleLogoTextChange(e.target.value)}
@@ -422,8 +429,8 @@ export default function HeaderEditModal({
 
           {/* 2. Header texts */}
           <Section
-            title={`헤더 텍스트 (${textEdits.length})`}
-            sub="각 줄을 수정하면 캔버스에 즉시 반영됩니다."
+            title={t("headerModal.headerText", { count: textEdits.length })}
+            sub={t("headerModal.headerTextSub")}
           >
             <div
               style={{
@@ -437,7 +444,7 @@ export default function HeaderEditModal({
             >
               {textEdits.length === 0 && (
                 <div style={{ color: "#666", fontSize: 12 }}>
-                  편집 가능한 텍스트가 없습니다.
+                  {t("headerModal.noEditableText")}
                 </div>
               )}
               {textEdits.map((t) => (
@@ -452,7 +459,7 @@ export default function HeaderEditModal({
           </Section>
 
           {/* 3. Menu */}
-          <Section title="메뉴" sub={`현재 헤더 nav 링크: ${navLinkCount}개`}>
+          <Section title={t("headerModal.menu")} sub={t("headerModal.navLinkCount", { count: navLinkCount })}>
             <button
               type="button"
               onClick={() => {
@@ -462,16 +469,15 @@ export default function HeaderEditModal({
               style={primaryBtn(false)}
             >
               <i className="fa-solid fa-list-ul" style={{ marginRight: 6 }} />
-              메뉴 관리 열기
+              {t("headerModal.openMenuMgr")}
             </button>
             <div style={{ marginTop: 6, fontSize: 11, color: "#888" }}>
-              순서·표시·이름·외부링크를 일괄 편집합니다. 저장하면 헤더 nav
-              가 자동으로 갱신됩니다.
+              {t("headerModal.menuTip")}
             </div>
           </Section>
 
           {/* 4. Layout */}
-          <Section title="헤더 스타일">
+          <Section title={t("headerModal.headerStyle")}>
             <label
               style={{
                 display: "flex",
@@ -489,11 +495,11 @@ export default function HeaderEditModal({
                   onApplyLayout({ ...headerLayout, sticky: e.target.checked })
                 }
               />
-              스크롤 시 상단 고정 (sticky)
+              {t("headerModal.stickyLabel")}
             </label>
             <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
               <label style={miniLabel}>
-                높이
+                {t("headerModal.heightLabel")}
                 <input
                   type="text"
                   value={headerLayout.height}
@@ -505,7 +511,7 @@ export default function HeaderEditModal({
                 />
               </label>
               <label style={miniLabel}>
-                배경
+                {t("headerModal.bgLabel")}
                 <input
                   type="text"
                   value={headerLayout.background}
@@ -520,7 +526,7 @@ export default function HeaderEditModal({
           </Section>
 
           {/* 5. Languages */}
-          <Section title="언어 스위처">
+          <Section title={t("headerModal.languageSwitcher")}>
             <div
               style={{
                 display: "grid",
@@ -580,12 +586,12 @@ export default function HeaderEditModal({
                           cursor: "pointer",
                         }}
                       >
-                        {isDefault ? "기본" : "기본으로"}
+                        {isDefault ? t("headerModal.isDefault") : t("headerModal.makeDefault")}
                       </button>
                     )}
                     {isCurrent && (
                       <span
-                        title="편집 중"
+                        title={t("headerModal.editingNow")}
                         style={{ color: "#3ccf97", fontSize: 9 }}
                       >
                         ●
@@ -609,13 +615,13 @@ export default function HeaderEditModal({
                 disabled={langSaving}
                 style={primaryBtn(langSaving)}
               >
-                {langSaving ? "저장 중…" : "언어 저장"}
+                {langSaving ? t("headerModal.savingLanguages") : t("headerModal.saveLanguages")}
               </button>
               {langMsg && (
                 <span
                   style={{
                     fontSize: 11,
-                    color: langMsg.startsWith("저장됨") ? "#3ccf97" : "#ff6b6b",
+                    color: langMsgOk ? "#3ccf97" : "#ff6b6b",
                   }}
                 >
                   {langMsg}
@@ -625,14 +631,14 @@ export default function HeaderEditModal({
           </Section>
 
           {/* 6. Reset */}
-          <Section title="고급">
+          <Section title={t("headerModal.advanced")}>
             <button
               type="button"
               onClick={resetHeader}
               style={dangerBtn}
             >
               <i className="fa-solid fa-rotate-left" style={{ marginRight: 6 }} />
-              헤더를 템플릿 초기 상태로 되돌리기
+              {t("headerModal.resetHeader")}
             </button>
           </Section>
         </div>
@@ -648,7 +654,7 @@ export default function HeaderEditModal({
           }}
         >
           <span style={{ flex: 1, fontSize: 11, color: "#666" }}>
-            ⌘S 로 사이트 저장하면 모든 변경이 영구 반영됩니다.
+            {t("headerModal.saveTip")}
           </span>
           <button
             type="button"
@@ -664,7 +670,7 @@ export default function HeaderEditModal({
               fontWeight: 600,
             }}
           >
-            완료
+            {t("headerModal.doneClose")}
           </button>
         </div>
       </div>

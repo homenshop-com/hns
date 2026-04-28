@@ -20,6 +20,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 
 export type DropPayload =
   | { kind: "type"; value: string; label: string; icon: string }
@@ -39,19 +40,21 @@ interface Props {
   onDrop(payload: DropPayload, target: DropTarget): void;
 }
 
-/** Friendly labels + icons for the ghost. Mirrors LeftPalette constants. */
-const TYPE_LABEL: Record<string, { label: string; icon: string }> = {
-  text:        { label: "텍스트", icon: "fa-font" },
-  image:       { label: "이미지", icon: "fa-image" },
-  box:         { label: "박스",   icon: "fa-shapes" },
-  board:       { label: "게시판", icon: "fa-clipboard-list" },
-  product:     { label: "상품",   icon: "fa-bag-shopping" },
-  exhibition:  { label: "갤러리", icon: "fa-images" },
-  login:       { label: "로그인", icon: "fa-user-lock" },
-  mail:        { label: "문의폼", icon: "fa-envelope" },
+const TYPE_ICON: Record<string, string> = {
+  text:        "fa-font",
+  image:       "fa-image",
+  box:         "fa-shapes",
+  board:       "fa-clipboard-list",
+  product:     "fa-bag-shopping",
+  exhibition:  "fa-images",
+  login:       "fa-user-lock",
+  mail:        "fa-envelope",
 };
 
 export default function DragInsertLayer({ wrapperRef, bodyRef, onDrop }: Props) {
+  const t = useTranslations("editor");
+  const tRef = useRef(t);
+  tRef.current = t;
   const [payload, setPayload] = useState<DropPayload | null>(null);
   const [ghost, setGhost] = useState<{ x: number; y: number } | null>(null);
   const [target, setTarget] = useState<DropTarget | null>(null);
@@ -77,8 +80,10 @@ export default function DragInsertLayer({ wrapperRef, bodyRef, onDrop }: Props) 
       // row carries a data-* we can read.
       let p: DropPayload | null = null;
       if (typeVal) {
-        const meta = TYPE_LABEL[typeVal] || { label: typeVal, icon: "fa-square" };
-        p = { kind: "type", value: typeVal, label: meta.label, icon: meta.icon };
+        const icon = TYPE_ICON[typeVal] ?? "fa-square";
+        const tt = tRef.current as (k: string) => string;
+        const label = tt(`basics.${typeVal}`) || typeVal;
+        p = { kind: "type", value: typeVal, label, icon };
       } else if (secVal) {
         const src = e.target as HTMLElement | null;
         const label = src?.getAttribute("title") || secVal;
@@ -219,7 +224,7 @@ export default function DragInsertLayer({ wrapperRef, bodyRef, onDrop }: Props) 
         >
           <div className="de-drag-indicator-bar" />
           <div className="de-drag-indicator-label">
-            {target.afterId ? "아래에 삽입" : "최상단에 삽입"}
+            {target.afterId ? t("dragInsert.insertBelow") : t("dragInsert.insertTop")}
           </div>
         </div>
       )}

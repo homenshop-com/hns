@@ -16,6 +16,7 @@
 "use client";
 
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   useEditorStore,
   selectRoot,
@@ -81,6 +82,7 @@ interface Props {
 }
 
 export default function InspectorPanel({ enabled, siteId }: Props) {
+  const t = useTranslations("editor");
   const [tab, setTab] = useState<Tab>("design");
   const [selectedId, setSelectedId] = useState<LayerId | null>(null);
   // Subscribe to selection + scene changes.
@@ -104,13 +106,13 @@ export default function InspectorPanel({ enabled, siteId }: Props) {
   }, [selectedId, tick]);
 
   return (
-    <aside className="inspector-rail" aria-label="인스펙터">
+    <aside className="inspector-rail" aria-label={t("inspector.ariaLabel")}>
       {/* Tabs */}
       <div className="ins-tabs" role="tablist">
         {([
-          ["design", "디자인"],
-          ["layers", "레이어"],
-          ["proto",  "인터랙션"],
+          ["design", t("inspector.tabs.design")],
+          ["layers", t("inspector.tabs.layers")],
+          ["proto",  t("inspector.tabs.interaction")],
         ] as const).map(([id, label]) => (
           <button
             key={id}
@@ -131,7 +133,7 @@ export default function InspectorPanel({ enabled, siteId }: Props) {
         )}
 
         {tab === "layers" && (
-          <Suspense fallback={<div className="ins-empty-small">로딩…</div>}>
+          <Suspense fallback={<div className="ins-empty-small">{t("inspector.loading")}</div>}>
             <LayerPanel />
           </Suspense>
         )}
@@ -153,17 +155,18 @@ interface DesignTabProps {
 }
 
 function DesignTab({ layer, path, siteId }: DesignTabProps) {
+  const t = useTranslations("editor");
   if (!layer) {
     return (
       <div className="ins-empty">
         <div className="ins-empty-icon">
           <i className="fa-solid fa-arrow-pointer" aria-hidden />
         </div>
-        <div className="ins-empty-title">선택된 요소 없음</div>
+        <div className="ins-empty-title">{t("inspector.emptyTitle")}</div>
         <div className="ins-empty-sub">
-          캔버스에서 요소를 클릭하거나
+          {t("inspector.emptyL1")}
           <br />
-          레이어 탭에서 선택하세요
+          {t("inspector.emptyL2")}
         </div>
       </div>
     );
@@ -242,6 +245,7 @@ function ImageSection({
   initialAttrs?: { src: string; alt?: string; href?: string; hrefTarget?: string; objectFit?: ImageLayer["objectFit"] };
   siteId?: string;
 }) {
+  const t = useTranslations("editor");
   const setImage = useEditorStore((s) => s.setImage);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -268,24 +272,24 @@ function ImageSection({
       const res = await fetch("/api/upload", { method: "POST", body: fd });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
-        throw new Error(j.error || `업로드 실패 (${res.status})`);
+        throw new Error(j.error || `${t("inspector.image.uploadFailed")} (${res.status})`);
       }
       const { url } = await res.json();
       if (typeof url === "string") setImage(layer.id, { src: url });
     } catch (e) {
-      setUploadErr(e instanceof Error ? e.message : "업로드 실패");
+      setUploadErr(e instanceof Error ? e.message : t("inspector.image.uploadFailed"));
     } finally {
       setUploading(false);
     }
   };
 
   return (
-    <Section title="이미지">
+    <Section title={t("inspector.image.section")}>
       <div className="ins-prop-row">
         <TextField
-          label="소스"
+          label={t("inspector.image.source")}
           value={src}
-          placeholder="https://… 또는 /uploaded/…"
+          placeholder={t("inspector.image.sourcePlaceholder")}
           onCommit={(v) => setImage(layer.id, { src: v })}
           wide
         />
@@ -309,7 +313,7 @@ function ImageSection({
           }}
         >
           <i className="fa-solid fa-upload" style={{ marginRight: 6 }} />
-          {uploading ? "업로드 중…" : "파일 업로드"}
+          {uploading ? t("inspector.image.uploading") : t("inspector.image.uploadFile")}
         </button>
         <input
           ref={fileInputRef}
@@ -333,9 +337,9 @@ function ImageSection({
       )}
       <div className="ins-prop-row">
         <TextField
-          label="대체 텍스트"
+          label={t("inspector.image.alt")}
           value={alt}
-          placeholder="이미지 설명 (SEO·접근성)"
+          placeholder={t("inspector.image.altPlaceholder")}
           onCommit={(v) => setImage(layer.id, { alt: v })}
           wide
         />
@@ -352,9 +356,9 @@ function ImageSection({
       </div>
       <div className="ins-prop-row">
         <TextField
-          label="링크"
+          label={t("inspector.image.link")}
           value={href}
-          placeholder="클릭 시 이동할 URL (선택)"
+          placeholder={t("inspector.image.linkPlaceholder")}
           onCommit={(v) => setImage(layer.id, { href: v })}
           wide
         />
@@ -371,6 +375,7 @@ function ImageSection({
  * token and re-emitting `url(<new>) <existing-rest>`.
  */
 function BackgroundImageSection({ layer, siteId }: { layer: Layer; siteId?: string }) {
+  const t = useTranslations("editor");
   const setStyle = useEditorStore((s) => s.setStyle);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -412,24 +417,24 @@ function BackgroundImageSection({ layer, siteId }: { layer: Layer; siteId?: stri
       const res = await fetch("/api/upload", { method: "POST", body: fd });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
-        throw new Error(j.error || `업로드 실패 (${res.status})`);
+        throw new Error(j.error || `${t("inspector.bgImage.uploadFailed")} (${res.status})`);
       }
       const { url } = await res.json();
       if (typeof url === "string") setBgUrl(url);
     } catch (e) {
-      setUploadErr(e instanceof Error ? e.message : "업로드 실패");
+      setUploadErr(e instanceof Error ? e.message : t("inspector.bgImage.uploadFailed"));
     } finally {
       setUploading(false);
     }
   };
 
   return (
-    <Section title="배경 이미지">
+    <Section title={t("inspector.bgImage.section")}>
       <div className="ins-prop-row">
         <TextField
           label="URL"
           value={currentUrl}
-          placeholder="https://… 또는 /uploaded/…"
+          placeholder={t("inspector.image.sourcePlaceholder")}
           onCommit={setBgUrl}
           wide
         />
@@ -452,13 +457,13 @@ function BackgroundImageSection({ layer, siteId }: { layer: Layer; siteId?: stri
           }}
         >
           <i className="fa-solid fa-upload" style={{ marginRight: 6 }} />
-          {uploading ? "업로드 중…" : "배경 이미지 업로드"}
+          {uploading ? t("inspector.bgImage.uploading") : t("inspector.bgImage.upload")}
         </button>
         {currentUrl && (
           <button
             type="button"
             onClick={() => setBgUrl("")}
-            title="배경 이미지 제거"
+            title={t("inspector.bgImage.remove")}
             style={{
               padding: "8px 10px",
               background: "#3a3d4a",
@@ -503,8 +508,9 @@ function FitToggle({
   value: string;
   onChange(v: string): void;
 }) {
+  const t = useTranslations("editor");
   const opts: Array<[string, string]> = [
-    ["", "자동"],
+    ["", t("inspector.image.fitAuto")],
     ["cover", "cover"],
     ["contain", "contain"],
     ["fill", "fill"],
@@ -512,7 +518,7 @@ function FitToggle({
   ];
   return (
     <div className="ins-prop wide">
-      <label>맞춤</label>
+      <label>{t("inspector.image.fitLabel")}</label>
       <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
         {opts.map(([v, label]) => (
           <button
@@ -602,6 +608,7 @@ interface PosProps {
 }
 
 function PositionSizeSection({ frame, rotate, layerId, disabled }: PosProps) {
+  const t = useTranslations("editor");
   const setFrame = useEditorStore((s) => s.setFrame);
   const setTransform = useEditorStore((s) => s.setTransform);
 
@@ -615,7 +622,7 @@ function PositionSizeSection({ frame, rotate, layerId, disabled }: PosProps) {
   };
 
   return (
-    <Section title="위치 · 크기">
+    <Section title={t("inspector.position.section")}>
       <div className="ins-prop-grid">
         <EditableProp
           label="X"
@@ -658,27 +665,28 @@ function PositionSizeSection({ frame, rotate, layerId, disabled }: PosProps) {
 /* ─── Style-editing sections (Sprint 9k) ──────────────────────────── */
 
 function TypographySection({ layer }: { layer: Layer }) {
+  const t = useTranslations("editor");
   const setStyle = useEditorStore((s) => s.setStyle);
   const s = layer.style ?? {};
   return (
-    <Section title="타이포그래피">
+    <Section title={t("inspector.typography.section")}>
       <div className="ins-prop-row">
         <FontPickerField
-          label="폰트"
+          label={t("inspector.typography.font")}
           value={s.fontFamily ?? ""}
           onChange={(v) => setStyle(layer.id, { fontFamily: v })}
         />
       </div>
       <div className="ins-prop-row">
         <DimensionField
-          label="크기"
+          label={t("inspector.typography.size")}
           value={s.fontSize ?? ""}
           placeholder="16"
           defaultUnit="px"
           onCommit={(v) => setStyle(layer.id, { fontSize: v })}
         />
         <TextField
-          label="굵기"
+          label={t("inspector.typography.weight")}
           value={s.fontWeight != null ? String(s.fontWeight) : ""}
           placeholder="400"
           onCommit={(v) => setStyle(layer.id, { fontWeight: v })}
@@ -686,13 +694,13 @@ function TypographySection({ layer }: { layer: Layer }) {
       </div>
       <div className="ins-prop-row">
         <TextField
-          label="행간"
+          label={t("inspector.typography.lineHeight")}
           value={s.lineHeight ?? ""}
           placeholder="1.6"
           onCommit={(v) => setStyle(layer.id, { lineHeight: v })}
         />
         <DimensionField
-          label="자간"
+          label={t("inspector.typography.letterSpacing")}
           value={s.letterSpacing ?? ""}
           placeholder="0"
           defaultUnit="em"
@@ -706,7 +714,7 @@ function TypographySection({ layer }: { layer: Layer }) {
         />
       </div>
       <SwatchEditor
-        label="글자색"
+        label={t("inspector.typography.color")}
         value={s.color ?? ""}
         onChange={(v) => setStyle(layer.id, { color: v })}
       />
@@ -715,18 +723,19 @@ function TypographySection({ layer }: { layer: Layer }) {
 }
 
 function FillSection({ layer }: { layer: Layer }) {
+  const t = useTranslations("editor");
   const setStyle = useEditorStore((s) => s.setStyle);
   const s = layer.style ?? {};
   return (
-    <Section title="채우기">
+    <Section title={t("inspector.fill.section")}>
       <SwatchEditor
-        label="배경"
+        label={t("inspector.fill.bg")}
         value={s.background ?? ""}
         onChange={(v) => setStyle(layer.id, { background: v })}
       />
       <div className="ins-prop-row">
         <TextField
-          label="투명도"
+          label={t("inspector.fill.opacity")}
           value={s.opacity != null ? String(s.opacity) : ""}
           placeholder="1"
           onCommit={(v) => {
@@ -746,25 +755,26 @@ function FillSection({ layer }: { layer: Layer }) {
 }
 
 function BorderSection({ layer }: { layer: Layer }) {
+  const t = useTranslations("editor");
   const setStyle = useEditorStore((s) => s.setStyle);
   const s = layer.style ?? {};
   return (
-    <Section title="테두리">
+    <Section title={t("inspector.border.section")}>
       <SwatchEditor
-        label="색상"
+        label={t("inspector.border.color")}
         value={s.borderColor ?? ""}
         onChange={(v) => setStyle(layer.id, { borderColor: v })}
       />
       <div className="ins-prop-row">
         <DimensionField
-          label="두께"
+          label={t("inspector.border.width")}
           value={s.borderWidth ?? ""}
           placeholder="1"
           defaultUnit="px"
           onCommit={(v) => setStyle(layer.id, { borderWidth: v })}
         />
         <DimensionField
-          label="라운드"
+          label={t("inspector.border.radius")}
           value={s.borderRadius ?? ""}
           placeholder="8"
           defaultUnit="px"
@@ -773,10 +783,10 @@ function BorderSection({ layer }: { layer: Layer }) {
       </div>
       <div className="ins-prop-row">
         <SelectField
-          label="스타일"
+          label={t("inspector.border.style")}
           value={s.borderStyle ?? ""}
           options={[
-            ["", "없음"],
+            ["", t("inspector.border.styleNone")],
             ["solid", "solid"],
             ["dashed", "dashed"],
             ["dotted", "dotted"],
@@ -792,10 +802,11 @@ function BorderSection({ layer }: { layer: Layer }) {
 }
 
 function EffectSection({ layer }: { layer: Layer }) {
+  const t = useTranslations("editor");
   const setStyle = useEditorStore((s) => s.setStyle);
   const s = layer.style ?? {};
   return (
-    <Section title="이펙트">
+    <Section title={t("inspector.effect.section")}>
       <div className="ins-prop-row">
         <TextField
           label="box-shadow"
@@ -821,6 +832,7 @@ function EffectSection({ layer }: { layer: Layer }) {
 /* ─── Interaction tab (Sprint 9k) ─────────────────────────────────── */
 
 function InteractionTab({ layer }: { layer: Layer | null }) {
+  const t = useTranslations("editor");
   const setInteraction = useEditorStore((s) => s.setInteraction);
 
   if (!layer) {
@@ -829,11 +841,11 @@ function InteractionTab({ layer }: { layer: Layer | null }) {
         <div className="ins-empty-icon">
           <i className="fa-solid fa-bolt" aria-hidden />
         </div>
-        <div className="ins-empty-title">선택된 요소 없음</div>
+        <div className="ins-empty-title">{t("inspector.interactionEmpty.title")}</div>
         <div className="ins-empty-sub">
-          인터랙션을 추가하려면
+          {t("inspector.interactionEmpty.l1")}
           <br />
-          레이어를 먼저 선택하세요
+          {t("inspector.interactionEmpty.l2")}
         </div>
       </div>
     );
@@ -864,17 +876,17 @@ function InteractionTab({ layer }: { layer: Layer | null }) {
         </div>
       </header>
 
-      <Section title="클릭 시 동작">
+      <Section title={t("inspector.interaction.section")}>
         <div className="ins-prop-row">
           <SelectField
-            label="액션"
+            label={t("inspector.interaction.action")}
             value={kind}
             options={[
-              ["", "없음"],
-              ["link", "링크 이동"],
-              ["scrollTo", "섹션으로 스크롤"],
-              ["modal", "모달 열기"],
-              ["toggle", "클래스 토글"],
+              ["", t("inspector.interaction.actionNone")],
+              ["link", t("inspector.interaction.actionLink")],
+              ["scrollTo", t("inspector.interaction.actionScrollTo")],
+              ["modal", t("inspector.interaction.actionModal")],
+              ["toggle", t("inspector.interaction.actionToggle")],
             ]}
             onChange={setKind}
           />
@@ -895,11 +907,11 @@ function InteractionTab({ layer }: { layer: Layer | null }) {
             </div>
             <div className="ins-prop-row">
               <SelectField
-                label="대상"
+                label={t("inspector.interaction.target")}
                 value={interaction.target ?? "_self"}
                 options={[
-                  ["_self", "같은 창"],
-                  ["_blank", "새 창"],
+                  ["_self", t("inspector.interaction.targetSelf")],
+                  ["_blank", t("inspector.interaction.targetBlank")],
                 ]}
                 onChange={(v) =>
                   setInteraction(layer.id, {
@@ -916,7 +928,7 @@ function InteractionTab({ layer }: { layer: Layer | null }) {
           <>
             <div className="ins-prop-row">
               <TextField
-                label="대상 ID"
+                label={t("inspector.interaction.targetId")}
                 value={interaction.targetId}
                 placeholder="obj_sec_xxx"
                 onCommit={(v) =>
@@ -927,11 +939,11 @@ function InteractionTab({ layer }: { layer: Layer | null }) {
             </div>
             <div className="ins-prop-row">
               <SelectField
-                label="부드럽게"
+                label={t("inspector.interaction.smooth")}
                 value={interaction.smooth ? "1" : "0"}
                 options={[
-                  ["1", "예 (smooth)"],
-                  ["0", "아니오"],
+                  ["1", t("inspector.interaction.smoothYes")],
+                  ["0", t("inspector.interaction.smoothNo")],
                 ]}
                 onChange={(v) =>
                   setInteraction(layer.id, { ...interaction, smooth: v === "1" })
@@ -944,7 +956,7 @@ function InteractionTab({ layer }: { layer: Layer | null }) {
         {interaction?.kind === "modal" && (
           <div className="ins-prop-row">
             <TextField
-              label="모달 ID"
+              label={t("inspector.interaction.modalId")}
               value={interaction.targetId}
               placeholder="modal-xxx"
               onCommit={(v) =>
@@ -959,7 +971,7 @@ function InteractionTab({ layer }: { layer: Layer | null }) {
           <>
             <div className="ins-prop-row">
               <TextField
-                label="대상 ID"
+                label={t("inspector.interaction.targetId")}
                 value={interaction.targetId}
                 placeholder="menu-panel"
                 onCommit={(v) =>
@@ -970,7 +982,7 @@ function InteractionTab({ layer }: { layer: Layer | null }) {
             </div>
             <div className="ins-prop-row">
               <TextField
-                label="클래스"
+                label={t("inspector.interaction.className")}
                 value={interaction.className}
                 placeholder="active"
                 onCommit={(v) =>
@@ -988,13 +1000,13 @@ function InteractionTab({ layer }: { layer: Layer | null }) {
             className="ins-empty-btn"
             onClick={() => setInteraction(layer.id, null)}
           >
-            <i className="fa-solid fa-xmark" aria-hidden /> 인터랙션 제거
+            <i className="fa-solid fa-xmark" aria-hidden /> {t("inspector.interaction.remove")}
           </button>
         )}
       </Section>
 
       <div className="ins-empty-sub" style={{ padding: "0 16px", marginTop: 8 }}>
-        인터랙션은 저장 후 실제 사이트에서 동작합니다.
+        {t("inspector.interaction.note")}
       </div>
     </div>
   );
@@ -1103,6 +1115,7 @@ function FontPickerField({
   value: string;
   onChange(value: string): void;
 }) {
+  const t = useTranslations("editor");
   const [open, setOpen] = useState(false);
   // Anchor coords for the fixed-position popover — recomputed on open
   // and on scroll/resize. We use `position: fixed` (instead of absolute
@@ -1160,7 +1173,7 @@ function FontPickerField({
     };
   }, [open]);
 
-  const triggerLabel = activeFont ? activeFont.label : value || "기본";
+  const triggerLabel = activeFont ? activeFont.label : value || t("inspector.fontFamily.default");
   const triggerStyle = activeFont
     ? { fontFamily: activeFont.stack }
     : value
@@ -1175,7 +1188,7 @@ function FontPickerField({
         type="button"
         className={`ins-font-trigger${open ? " open" : ""}`}
         onClick={() => setOpen((v) => !v)}
-        title={value || "기본 폰트"}
+        title={value || t("inspector.fontFamily.defaultTitle")}
         style={triggerStyle}
       >
         <span className="ins-font-trigger-label">{triggerLabel}</span>
@@ -1201,7 +1214,7 @@ function FontPickerField({
               setOpen(false);
             }}
           >
-            <span className="ins-font-option-label">기본 (사이트 폰트)</span>
+            <span className="ins-font-option-label">{t("inspector.fontFamily.defaultLong")}</span>
           </button>
           {FONT_CATEGORIES.map((cat) => {
             const fonts = FONT_CATALOG.filter((f) => f.category === cat.key);
@@ -1226,7 +1239,7 @@ function FontPickerField({
                       title={`${f.label} · ${f.english}`}
                     >
                       <span className="ins-font-option-label">{f.label}</span>
-                      <span className="ins-font-option-sample">가나다 Aa 123</span>
+                      <span className="ins-font-option-sample">{t("inspector.fontFamily.sample")}</span>
                       {active && (
                         <i className="fa-solid fa-check" aria-hidden />
                       )}
@@ -1364,14 +1377,15 @@ function AlignToggle({
   value: string;
   onChange(value: string): void;
 }) {
+  const t = useTranslations("editor");
   const opts: Array<[string, string, string]> = [
-    ["left",    "fa-align-left",    "왼쪽"],
-    ["center",  "fa-align-center",  "가운데"],
-    ["right",   "fa-align-right",   "오른쪽"],
-    ["justify", "fa-align-justify", "양쪽"],
+    ["left",    "fa-align-left",    t("inspector.align.left")],
+    ["center",  "fa-align-center",  t("inspector.align.center")],
+    ["right",   "fa-align-right",   t("inspector.align.right")],
+    ["justify", "fa-align-justify", t("inspector.align.justify")],
   ];
   return (
-    <div className="ins-align-toggle" role="radiogroup" aria-label="정렬">
+    <div className="ins-align-toggle" role="radiogroup" aria-label={t("inspector.align.ariaLabel")}>
       {opts.map(([v, icon, label]) => (
         <button
           key={v}
