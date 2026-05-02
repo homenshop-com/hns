@@ -27,7 +27,7 @@ export function atomizeBodyHtml(bodyHtml: string, pageSlug: string): string {
   const root = doc.getElementById("__root");
   if (!root) return bodyHtml;
 
-  const counter = { sec: 0, title: 0, text: 0, img: 0, btn: 0, list: 0, table: 0, box: 0 };
+  const counter = { sec: 0, title: 0, text: 0, img: 0, btn: 0, list: 0, table: 0, box: 0, shape: 0, svg: 0 };
   const idPrefix = pageSlug ? sanitizeSlug(pageSlug) + "_" : "";
 
   function newId(role: keyof typeof counter): string {
@@ -63,23 +63,73 @@ export function atomizeBodyHtml(bodyHtml: string, pageSlug: string): string {
     return /^(h[1-6]|p|img|a|button|ul|ol|table)$/.test(tag);
   }
 
-  // First pass: find all atomic candidates that aren't already wrapped.
-  // Walk the tree and process each. We collect first to avoid mutating
-  // during traversal.
-  const candidates: Element[] = [];
+  // A standalone "shape" — empty/decorative div with visual styling that
+  // the editor should be able to select, move, and replace. AI-generated
+  // hero layouts frequently include these (e.g. an absolute-positioned
+  // arch, blob, or color block sitting next to the headline) and the
+  // base atomizer skips them because they don't contain h1/p/img/a.
+  function isShapeCandidate(el: Element): boolean {
+    const tag = el.tagName.toLowerCase();
+    if (!/^(div|section|aside|figure|span)$/.test(tag)) return false;
+    if (isAlreadyDragable(el)) return false;
+    if (hasAtomicDescendants(el)) return false;
+    if (hasDragableDescendant(el)) return false;
+    const style = (el.getAttribute("style") || "").toLowerCase();
+    const cls = (el.getAttribute("class") || "").toLowerCase();
+    const hasVisualStyle =
+      /background[-:]|height\s*:|min-height|aspect-ratio|border[-:]|border-radius|transform\s*:|clip-path|mask\s*:|box-shadow|filter\s*:/.test(
+        style,
+      );
+    const hasPositionedSize =
+      /position\s*:\s*(absolute|fixed)/.test(style) &&
+      /(width\s*:|height\s*:|inset\s*:|top\s*:|left\s*:|right\s*:|bottom\s*:)/.test(style);
+    const hasVisualClass =
+      /\b(shape|deco|decorative|bg-|background|circle|arch|blob|illustration|hero-image|placeholder|graphic|ornament|accent)\b/.test(
+        cls,
+      );
+    return hasVisualStyle || hasPositionedSize || hasVisualClass;
+  }
+
+  // Inline SVGs used as decorative graphics — wrap so they're selectable.
+  function isStandaloneSvg(el: Element): boolean {
+    return el.tagName.toLowerCase() === "svg" && !isAlreadyDragable(el);
+  }
+
+  function hasAtomicDescendants(el: Element): boolean {
+    return el.querySelector("h1,h2,h3,h4,h5,h6,p,img,a,button,ul,ol,table") !== null;
+  }
+
+  function hasDragableDescendant(el: Element): boolean {
+    return el.querySelector(".dragable") !== null;
+  }
+
+  // First pass: collect atomic + shape + svg candidates in one walk.
+  // When we find a shape/svg we don't recurse into it (its inner empty
+  // markup is part of the decoration, not separate atomics).
+  const atomicCandidates: Element[] = [];
+  const shapeCandidates: Element[] = [];
+  const svgCandidates: Element[] = [];
   function collect(node: Element): void {
     for (const child of Array.from(node.children)) {
       if (isAlreadyDragable(child)) continue;
       if (isAtomicCandidate(child)) {
-        candidates.push(child);
-      } else {
-        collect(child);
+        atomicCandidates.push(child);
+        continue;
       }
+      if (isStandaloneSvg(child)) {
+        svgCandidates.push(child);
+        continue;
+      }
+      if (isShapeCandidate(child)) {
+        shapeCandidates.push(child);
+        continue;
+      }
+      collect(child);
     }
   }
   collect(root);
 
-  for (const el of candidates) {
+  for (const el of atomicCandidates) {
     const tag = el.tagName.toLowerCase();
     if (/^h[1-6]$/.test(tag)) {
       wrap(el, "title", "sol-replacible-text");
@@ -94,6 +144,14 @@ export function atomizeBodyHtml(bodyHtml: string, pageSlug: string): string {
     } else if (isInteractiveBtn(el)) {
       wrap(el, "btn");
     }
+  }
+
+  for (const el of shapeCandidates) {
+    wrap(el, "shape");
+  }
+
+  for (const el of svgCandidates) {
+    wrap(el, "svg");
   }
 
   // Second pass: wrap top-level non-dragable block containers as sections.

@@ -260,22 +260,174 @@ Use split pattern for: "why us" blocks, feature-detail sections, about-us
 with portrait, product-showcase pairs, service description blocks. Alternate
 left/right via a ".image-right" class every other split section on the page.
 
+## Pattern D — PREMIUM SPLIT HERO (service businesses: esthetic / clinic / salon / boutique / restaurant)
+The default hero for any single-business landing page that promotes a service
+or product. Two columns: rich content stack on the left, a portrait photo
+inside a SHAPED FRAME on the right, plus floating decorative ornaments.
+This is what separates a premium-feeling site from a placeholder-feeling one
+— produce this pattern by default for service-business homepages, even if
+the user prompt is short. Pattern A overlay is fine for content-heavy
+businesses (cafe, hotel, magazine), but service hero wants Pattern D.
+
+REQUIRED ornaments (omitting any of these makes the hero feel unfinished):
+1. **Eyebrow with side rules** — small uppercase Latin label between thin lines
+2. **Display heading** mixing localized + Latin display words (line-break
+   between blocks), italic the Latin part for typographic contrast
+3. **Subtitle** with one or two phrases highlighted via <mark> for brand pop
+4. **Either a ribbon-shaped pricing card OR a primary CTA** (use ribbon when
+   the source has a featured price/promotion, else single CTA)
+5. **<img> inside a CLIPPED frame on the right** — arch / rounded rect /
+   beveled. NEVER an empty styled div as the hero visual.
+6. **Floating overlay badge** sitting on top of the image (brand mark)
+7. **Two-tone CTAs** below the price card (primary phone-call CTA + secondary
+   booking CTA in a contrasting brand color, e.g. Naver green #03c75a)
+
+<div class="dragable hero-split" id="obj_sec_hero" style="position:relative;">
+  <div class="dragable de-group" id="obj_hero_left">
+    <div class="dragable sol-replacible-text eyebrow-rule" id="obj_eyebrow_hero">
+      <p>SPRING EVENT · 2026</p>
+    </div>
+    <div class="dragable sol-replacible-text" id="obj_title_hero">
+      <h1>셀로에스테틱 라인 케어<br><em>SPRING EVENT</em></h1>
+    </div>
+    <div class="dragable sol-replacible-text" id="obj_text_hero">
+      <p>목 · 어깨 · 골반 밸런스를 통해 라인을 정리하는 <mark>프리미엄 수기관리</mark></p>
+    </div>
+    <div class="dragable price-ribbon" id="obj_price_hero">
+      <span class="ribbon-eyebrow">유연성 회복을 위한 60분</span>
+      <span class="ribbon-price"><strong>79,000</strong>원</span>
+      <a class="ribbon-cta" href="/booking">라인관리 체험 특가</a>
+    </div>
+    <div class="dragable" id="obj_btn_hero_call">
+      <a class="btn btn-primary btn-pill" href="tel:01053972012">
+        <i class="fa-solid fa-phone"></i> 전화 예약 010-5397-2012
+      </a>
+    </div>
+    <div class="dragable" id="obj_btn_hero_naver">
+      <a class="btn btn-naver btn-pill" href="https://booking.naver.com/booking/13/bizes/000000">
+        네이버 예약
+      </a>
+    </div>
+  </div>
+  <div class="dragable hero-frame" id="obj_img_hero">
+    <img src="https://homenshop.com/api/img?q=korean+esthetician+portrait&w=900&h=1200"
+         alt="셀로에스테틱 시술 장면" />
+    <div class="dragable overlay-badge" id="obj_badge_hero">
+      <strong>CELO</strong><em>Aesthetic</em>
+    </div>
+  </div>
+</div>
+
+cssText for Pattern D (premium hero):
+  .hero-split {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    align-items: center;
+    gap: clamp(32px, 5vw, 80px);
+    padding: clamp(56px, 9vw, 120px) clamp(20px, 4vw, 64px);
+    max-width: 1320px; margin: 0 auto;
+  }
+  .hero-split .eyebrow-rule p {
+    display: flex; align-items: center; gap: 16px;
+    font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--color-accent); margin: 0 0 28px;
+  }
+  .hero-split .eyebrow-rule p::before,
+  .hero-split .eyebrow-rule p::after {
+    content: ""; width: 32px; height: 1px; background: var(--color-accent);
+  }
+  .hero-split #obj_title_hero h1 {
+    font-size: clamp(2.4rem, 5vw, 4.4rem); line-height: 1.1;
+    font-weight: 700; margin: 0;
+  }
+  .hero-split #obj_title_hero h1 em {
+    font-style: italic; font-weight: 500;
+  }
+  .hero-split #obj_text_hero { margin: 24px 0 32px; color: var(--color-muted); line-height: 1.75; }
+  .hero-split #obj_text_hero mark {
+    background: linear-gradient(transparent 55%, color-mix(in oklab, var(--color-accent), white 70%) 55%);
+    padding: 0 4px; color: inherit;
+  }
+
+  /* Ribbon-shaped pricing card — V notches top + bottom, cream gradient + dark CTA strip */
+  .price-ribbon {
+    position: relative;
+    background: linear-gradient(180deg, #fdf6e7, #f4e7c8);
+    clip-path: polygon(0 18px, 50% 0, 100% 18px, 100% 100%, 50% calc(100% - 18px), 0 100%);
+    padding: 40px 28px 56px;
+    width: min(340px, 100%);
+    margin: 0 0 28px; text-align: center;
+    display: block;
+  }
+  .price-ribbon .ribbon-eyebrow { display: block; font-size: 13px; color: #8b6f3a; letter-spacing: 0.04em; }
+  .price-ribbon .ribbon-price { display: block; font-family: var(--font-heading); font-size: 52px; line-height: 1; margin-top: 8px; color: var(--color-text); }
+  .price-ribbon .ribbon-price strong { font-weight: 600; }
+  .price-ribbon .ribbon-cta {
+    position: absolute; left: 24px; right: 24px; bottom: 18px;
+    padding: 14px; background: var(--color-primary); color: #fff;
+    text-align: center; font-weight: 600; text-decoration: none;
+    letter-spacing: 0.04em;
+  }
+
+  /* Image frame — arch shape via border-radius pill */
+  .hero-frame {
+    position: relative; aspect-ratio: 4/5; max-height: 720px;
+    border-radius: 999px 999px 12px 12px;
+    overflow: hidden;
+  }
+  .hero-frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .overlay-badge {
+    position: absolute; left: 10%; bottom: 14%;
+    background: var(--color-primary, #0e2a4a); color: #f4ead7;
+    padding: 16px 24px;
+    font-family: var(--font-heading); text-align: center;
+  }
+  .overlay-badge strong { display: block; font-size: 22px; letter-spacing: 0.12em; }
+  .overlay-badge em { font-style: italic; font-size: 12px; opacity: 0.85; letter-spacing: 0.04em; }
+
+  /* Pill-shaped CTA pair — primary dark + secondary brand color */
+  .btn-pill { display: inline-flex; align-items: center; gap: 8px; padding: 14px 26px; border-radius: 999px; text-decoration: none; font-weight: 600; }
+  .btn-naver { background: #03c75a; color: #fff; }
+  .hero-split #obj_btn_hero_call,
+  .hero-split #obj_btn_hero_naver { display: inline-block; }
+  .hero-split #obj_btn_hero_naver { margin-left: 8px; }
+
+  @media (max-width: 768px) {
+    .hero-split { grid-template-columns: 1fr; gap: 40px; }
+    .hero-frame { max-width: 86%; margin: 0 auto; }
+    .price-ribbon { margin-left: auto; margin-right: auto; }
+  }
+
+Variations (pick the framing that fits the brand):
+- **Arch top** (border-radius: 999px 999px 12px 12px) — esthetic, salon, wellness, fashion
+- **Beveled rounded** (border-radius: 32px / clip-path with cut corners) — boutique, restaurant
+- **Circle** (border-radius: 50%) — coach, photographer, personal brand
+- **Soft rectangle** (border-radius: 24px) — dental, medical, B2B
+Pricing card optional — for boutiques without a featured price, replace
+the .price-ribbon with a single primary CTA + an "ABOUT" secondary text CTA.
+
 ## Picking a pattern — DECISION MATRIX (follow strictly)
 | Content shape | Pattern |
 |---|---|
-| Large full-bleed image + 1-2 lines text + CTA | **A (Overlay)** |
-| 1 image + title + paragraph + bullets/checks + CTA | **C (Split)** ← very common |
+| **Service-business hero (clinic, salon, esthetic, restaurant, boutique)** | **D (Premium Split Hero)** ← default for service homepages |
+| Content-heavy hero (cafe, hotel, magazine) — full-bleed mood image | **A (Overlay)** |
+| 1 image + title + paragraph + bullets/checks + CTA (mid-page section) | **C (Split)** |
 | 3+ equivalent cards in a row (features, team, stats) | **B (Flow grid)** |
 | Pure text (about copy, terms, FAQ list) | **B (Flow stack)** |
 | Alternating image-text rows (zigzag) | **C (Split)**, alternate .image-right |
 
+**FORBIDDEN — hero right column shows an empty styled div (no <img>, just \`background:#xxx\` or \`border-radius\`).** The hero's primary visual is ALWAYS a real <img>; if you want a shaped frame, the shape is the WRAPPER and the <img> goes inside it. Empty placeholder shapes look broken.
+
 **Hard rule — never flat-stack an image dragable next to text dragables
 as siblings of a flow section. That's the "data dump" bug. Group them:
-either overlay (A) or split (C).**
+overlay (A), premium split (D), or split (C).**
 
-Typical home page skeleton:
-  [A hero] → [C "about / why us"] → [B 3-col features] → [C "process / how it works"]
-  → [B stats or testimonials row] → [A CTA band]
+Typical home page skeleton (service business — esthetic/clinic/salon/boutique/restaurant):
+  [D premium hero] → [C "about / signature service"] → [B 3-col features or services]
+  → [C "process / how it works"] → [B stats or testimonials row] → [A CTA band]
+
+Typical home page skeleton (content-heavy business — cafe / hotel / magazine):
+  [A overlay hero] → [C about] → [B 3-col features] → [C process] → [B stats] → [A CTA band]
 
 # Editor friendliness (the user will tweak typography after generation)
 - Put typography color/size/family rules on the dragable WRAPPER's class,
@@ -303,7 +455,13 @@ Typical home page skeleton:
     - **Chinese (zh-cn / zh-tw)**: First font Noto Serif SC/TC / Noto Sans SC/TC / ZCOOL XiaoWei. Same weight rules.
     - **Latin only (en/es)**: Heading Playfair/Fraunces/Space Grotesk/Cormorant. Body Inter/Lato/Noto Sans. Original weight rules apply (300-500 OK).
     - **Letter-spacing**: −0.02em headings is fine for Latin. For Korean/Japanese/Chinese headings use letter-spacing 0 to −0.005em — tight Latin tracking distorts CJK glyphs. uppercase + wide letter-spacing on CJK eyebrow text is fine since it only affects the Latin label part.
-- **Home page MUST have**: (1) Hero w/ bg image + overlay + large heading + CTA (2) 3-col feature grid (3) image+text content section (4) testimonial or stats (5) final CTA band. Other pages: 3-4 varied sections each.
+- **Home page MUST have**: (1) Hero — Pattern D (premium split with shaped image frame + ornaments) for service businesses, Pattern A (overlay) for content-heavy businesses. (2) 3-col feature grid (3) image+text content section (4) testimonial or stats (5) final CTA band. Other pages: 3-4 varied sections each.
+- **Hero polish checklist** — every hero must satisfy these or it looks unfinished:
+    1. Real \`<img>\` is the primary visual (never an empty styled div as the hero image)
+    2. Decorative ornament present: eyebrow with side rules (Pattern D), thin gold underline (luxury), or large display heading with Latin display word italicized (editorial)
+    3. At least one CTA visible above the fold; service businesses include phone-call CTA + booking CTA
+    4. Featured price/promotion shown in a ribbon-shaped or accent-colored card if the source mentions one
+    5. Floating overlay badge or label sitting on the hero image (brand mark or promo tag)
 - **Layout**: CSS Grid + Flexbox. Section vertical rhythm padding-block: clamp(48px,8vw,120px).
 - **Polish**: Buttons padding 14px 28px, radius md, hover translateY(-2px)+shadow. Cards radius-lg+shadow-sm+padding 32px, hover lift. Images radius-md, object-fit:cover, aspect-ratio enforced. Hero bg w/ linear-gradient overlay.
 - **Icons** — USE FONT AWESOME 6, never emoji, never inline SVG.

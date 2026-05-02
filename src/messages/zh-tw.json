@@ -940,7 +940,13 @@
       "publish": "發佈",
       "more": "更多",
       "siteSettingsItem": "網站設定 · 頁首·選單·頁尾",
-      "saveAsTemplate": "儲存為我的範本"
+      "saveAsTemplate": "儲存為我的範本",
+      "atomize": "使所有物件可編輯",
+      "atomizeBusy": "拆分中...",
+      "atomizeNoChange": "所有物件已經分離。",
+      "atomizeDone": "物件已拆分為可編輯圖層。",
+      "atomizeError": "拆分物件失敗。",
+      "atomizeUnsavedConfirm": "存在尚未儲存的變更。先儲存再拆分物件嗎?"
     },
     "pageContextMenu": {
       "open": "開啟",

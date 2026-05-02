@@ -954,7 +954,13 @@
       "publish": "Publish",
       "more": "More",
       "siteSettingsItem": "Site Settings · Header · Menu · Footer",
-      "saveAsTemplate": "Save as My Template"
+      "saveAsTemplate": "Save as My Template",
+      "atomize": "Make all objects editable",
+      "atomizeBusy": "Splitting...",
+      "atomizeNoChange": "All objects are already separated.",
+      "atomizeDone": "Objects have been split into editable layers.",
+      "atomizeError": "Failed to split objects.",
+      "atomizeUnsavedConfirm": "There are unsaved changes. Save and then split objects?"
     },
     "pageContextMenu": {
       "open": "Open",

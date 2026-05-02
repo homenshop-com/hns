@@ -940,7 +940,13 @@
       "publish": "公開",
       "more": "その他",
       "siteSettingsItem": "サイト設定 · ヘッダー・メニュー・フッター",
-      "saveAsTemplate": "マイテンプレートとして保存"
+      "saveAsTemplate": "マイテンプレートとして保存",
+      "atomize": "すべてのオブジェクトを編集可能にする",
+      "atomizeBusy": "分離中...",
+      "atomizeNoChange": "すべてのオブジェクトはすでに分離されています。",
+      "atomizeDone": "オブジェクトの分離が完了しました。",
+      "atomizeError": "オブジェクトの分離に失敗しました。",
+      "atomizeUnsavedConfirm": "未保存の変更があります。保存してからオブジェクトを分離しますか?"
     },
     "pageContextMenu": {
       "open": "開く",

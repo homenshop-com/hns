@@ -940,7 +940,13 @@
       "publish": "发布",
       "more": "更多",
       "siteSettingsItem": "网站设置 · 页眉·菜单·页脚",
-      "saveAsTemplate": "保存为我的模板"
+      "saveAsTemplate": "保存为我的模板",
+      "atomize": "使所有对象可编辑",
+      "atomizeBusy": "拆分中...",
+      "atomizeNoChange": "所有对象已经分离。",
+      "atomizeDone": "对象已拆分为可编辑层。",
+      "atomizeError": "拆分对象失败。",
+      "atomizeUnsavedConfirm": "存在未保存的更改。先保存再拆分对象吗?"
     },
     "pageContextMenu": {
       "open": "打开",

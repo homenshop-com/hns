@@ -462,6 +462,7 @@ export default function DesignEditor({
   const [saveTplThumb, setSaveTplThumb] = useState("");
   const [saveTplBusy, setSaveTplBusy] = useState(false);
   const [saveTplError, setSaveTplError] = useState("");
+  const [atomizeBusy, setAtomizeBusy] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
 
   // Close the "⋯" menu on any outside click.
@@ -509,6 +510,44 @@ export default function DesignEditor({
     } catch (err) {
       setSaveTplError(String(err));
       setSaveTplBusy(false);
+    }
+  }
+
+  // Wrap bare h1/h2/p/img/a.btn/ul/table in .dragable so the editor can
+  // select & edit them. The page may have unsaved DOM edits, so we save
+  // first (atomize reads from the DB), then refresh to pull the rewrapped
+  // HTML back into the canvas.
+  async function runAtomize() {
+    setMoreMenuOpen(false);
+    const bodyEl = bodyRef.current;
+    const liveHtml = bodyEl ? bodyEl.innerHTML : currentBodyHtml;
+    const hasUnsaved = liveHtml !== currentBodyHtml || saveStatus === "error";
+    if (hasUnsaved) {
+      if (!confirm(t("topbar.atomizeUnsavedConfirm"))) return;
+      await saveContent();
+    }
+    setAtomizeBusy(true);
+    try {
+      const res = await fetch(`/api/sites/${siteId}/pages/${pageId}/atomize`, {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || t("topbar.atomizeError"));
+        return;
+      }
+      const data = (await res.json().catch(() => ({}))) as { changed?: boolean };
+      if (data.changed === false) {
+        alert(t("topbar.atomizeNoChange"));
+        return;
+      }
+      alert(t("topbar.atomizeDone"));
+      router.refresh();
+    } catch (err) {
+      console.error("[atomize]", err);
+      alert(t("topbar.atomizeError"));
+    } finally {
+      setAtomizeBusy(false);
     }
   }
 
@@ -2566,26 +2605,52 @@ export default function DesignEditor({
 
     // Fix-template legacy path — absolute pixel positioning at a
     // hardcoded offset. User then drags / resizes via canvas handles.
+    // className is set per-case below (NOT here) — applying
+    // "sol-replacible-text" globally would mis-type image/box/shape
+    // layers as text in the scene parser.
     const el = document.createElement("div");
     el.id = id;
-    el.className = "dragable sol-replacible-text";
     el.style.position = "absolute";
 
     switch (type) {
       case "text":
+        el.className = "dragable sol-replacible-text";
         el.innerHTML = `<p>${t("canvasInsert.textPlaceholder")}</p>`;
         el.style.left = "100px";
         el.style.top = "100px";
         el.style.width = "300px";
         el.style.zIndex = "10";
         break;
-      case "image":
-        el.innerHTML = `<div style="width:300px;height:200px;background:#555;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:14px;">${t("canvasInsert.imageDragHint")}</div>`;
+      case "image": {
+        // Must contain exactly one <img> so the scene parser classifies
+        // this as type=image and the Inspector's image controls (replace,
+        // alt, fit) appear. A styled div with placeholder text would get
+        // typed as text. Inline SVG data URI keeps the placeholder
+        // self-contained and offline-friendly.
+        el.className = "dragable";
         el.style.left = "100px";
         el.style.top = "100px";
+        el.style.width = "300px";
+        el.style.height = "200px";
         el.style.zIndex = "10";
+        const placeholderSvg =
+          "data:image/svg+xml;charset=utf-8," +
+          encodeURIComponent(
+            "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 400'>" +
+              "<rect width='600' height='400' fill='#1a1c24'/>" +
+              "<g fill='#888' font-family='-apple-system,BlinkMacSystemFont,Pretendard,sans-serif'>" +
+              "<circle cx='300' cy='180' r='32' fill='none' stroke='#666' stroke-width='2'/>" +
+              "<path d='M286 180l9 9 19-22' fill='none' stroke='#666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/>" +
+              `<text x='300' y='250' text-anchor='middle' font-size='16'>${t("canvasInsert.imageLabel")}</text>` +
+              `<text x='300' y='275' text-anchor='middle' font-size='12' opacity='.7'>${t("canvasInsert.imageReplaceTip")}</text>` +
+              "</g>" +
+              "</svg>",
+          );
+        el.innerHTML = `<img src="${placeholderSvg}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;" />`;
         break;
+      }
       case "box":
+        el.className = "dragable";
         el.style.left = "100px";
         el.style.top = "100px";
         el.style.width = "300px";
@@ -2601,6 +2666,7 @@ export default function DesignEditor({
       case "shape:diamond":
       case "shape:star":
       case "shape:arrow":
+        el.className = "dragable";
         el.style.left = "100px";
         el.style.top = "100px";
         el.style.width = "180px";
@@ -2609,6 +2675,7 @@ export default function DesignEditor({
         applyShapeStyle(el, type);
         break;
       case "shape:line":
+        el.className = "dragable";
         el.style.left = "100px";
         el.style.top = "100px";
         el.style.width = "240px";
@@ -2633,6 +2700,7 @@ export default function DesignEditor({
         el.style.zIndex = "10";
         break;
       default:
+        el.className = "dragable sol-replacible-text";
         el.innerHTML = `<div style="padding:10px;color:#ddd">${type}</div>`;
         el.style.left = "100px";
         el.style.top = "200px";
@@ -3197,6 +3265,22 @@ export default function DesignEditor({
                     <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
                   </svg>
                   <span>{t("topbar.saveAsTemplate")}</span>
+                </button>
+                <div className="de-more-divider" />
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={runAtomize}
+                  disabled={atomizeBusy}
+                  className="de-more-menuitem"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <rect x="3" y="3" width="7" height="7" rx="1" />
+                    <rect x="14" y="3" width="7" height="7" rx="1" />
+                    <rect x="3" y="14" width="7" height="7" rx="1" />
+                    <rect x="14" y="14" width="7" height="7" rx="1" />
+                  </svg>
+                  <span>{atomizeBusy ? t("topbar.atomizeBusy") : t("topbar.atomize")}</span>
                 </button>
               </div>
             )}

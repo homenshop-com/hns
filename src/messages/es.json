@@ -940,7 +940,13 @@
       "publish": "Publicar",
       "more": "Más",
       "siteSettingsItem": "Configuración del sitio · Encabezado · Menú · Pie de página",
-      "saveAsTemplate": "Guardar como mi plantilla"
+      "saveAsTemplate": "Guardar como mi plantilla",
+      "atomize": "Hacer editables todos los objetos",
+      "atomizeBusy": "Dividiendo...",
+      "atomizeNoChange": "Todos los objetos ya están separados.",
+      "atomizeDone": "Los objetos se han dividido en capas editables.",
+      "atomizeError": "No se pudieron dividir los objetos.",
+      "atomizeUnsavedConfirm": "Hay cambios sin guardar. ¿Guardar y luego dividir los objetos?"
     },
     "pageContextMenu": {
       "open": "Abrir",

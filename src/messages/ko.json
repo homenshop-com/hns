@@ -954,7 +954,13 @@
       "publish": "퍼블리싱",
       "more": "더보기",
       "siteSettingsItem": "사이트 설정 · 헤더·메뉴·푸터",
-      "saveAsTemplate": "나의 템플릿으로 저장"
+      "saveAsTemplate": "나의 템플릿으로 저장",
+      "atomize": "객체 모두 수정 가능하게",
+      "atomizeBusy": "분리 중...",
+      "atomizeNoChange": "이미 모든 객체가 분리되어 있습니다.",
+      "atomizeDone": "객체 분리가 완료되었습니다.",
+      "atomizeError": "객체 분리에 실패했습니다.",
+      "atomizeUnsavedConfirm": "저장되지 않은 변경 사항이 있습니다. 저장 후 객체를 분리할까요?"
     },
     "pageContextMenu": {
       "open": "열기",
