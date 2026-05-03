@@ -51,15 +51,14 @@ Image handling:
 - NEVER use picsum.photos or other random placeholder services — always use the absolute URL above with a specific English keyword.
 
 CRITICAL RULES:
-- Output ONLY a JSON object: {"body":"...","header":"...","menu":"...","footer":"...","pageCss":"..."}
-- Only include keys you actually modified
-- When a selected element is provided, ONLY modify that element — keep everything else identical
-- pageCss must be the COMPLETE CSS (existing + your additions merged)
-- Prefer CSS changes over HTML changes when possible (e.g. color/font/background changes → pageCss)
-- NEVER output explanations, questions, or anything other than JSON
-- NEVER ask for clarification — make your best judgment and apply the change
-- If you cannot do something, return {} (empty JSON object)
-- Do not wrap JSON in markdown code fences`;
+- Submit your changes by calling the apply_edit tool. Do NOT respond with prose.
+- Only include the keys you actually modified — leave others unset.
+- When a selected element is provided, ONLY modify that element — keep everything else identical.
+- pageCss must be the COMPLETE CSS (existing + your additions merged).
+- Prefer CSS changes over HTML changes when possible (e.g. color/font/background changes → pageCss only).
+- NEVER include explanations, questions, or comments in tool input values.
+- NEVER ask for clarification — make your best judgment and apply the change.
+- If you genuinely cannot do anything, call apply_edit with an empty object.`;
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -159,18 +158,39 @@ async function runAiEdit(input: AiEditInput): Promise<NextResponse> {
   if (selectedElement) {
     userMessage += `Selected element:\n${selectedElement}\n\n`;
   }
-  userMessage += `Request: ${prompt.trim()}\n\nRespond with JSON only.`;
+  userMessage += `Request: ${prompt.trim()}\n\nCall the apply_edit tool with only the keys you modified.`;
 
   console.log("AI edit request:", { selectedElement: selectedElement ? "yes" : "no", promptLen: prompt.length, htmlLen: (html || "").length });
 
+  // Use tool_use for structured output. Text mode + assistant prefill was
+  // unreliable for HTML/CSS-laden JSON: max_tokens 8192 with a 22KB body
+  // re-emitted in the response routinely truncated mid-string and broke
+  // JSON.parse. Tool input fields don't have the same "re-serialize the
+  // whole HTML" pressure (the model emits only what it modified) and the
+  // SDK delivers them as proper JS values — no escaping mismatch.
   const apiBody = JSON.stringify({
     model: CLAUDE_MODEL,
-    max_tokens: 8192,
+    max_tokens: 32000,
     system: SYSTEM_PROMPT,
-    messages: [
-      { role: "user", content: userMessage },
-      { role: "assistant", content: "{" },
+    tools: [
+      {
+        name: "apply_edit",
+        description:
+          "Apply the requested HTML/CSS changes to the page. Only include the keys you actually modified — omit untouched ones.",
+        input_schema: {
+          type: "object",
+          properties: {
+            body: { type: "string", description: "Full hns_body inner HTML, only if you modified it" },
+            header: { type: "string", description: "Full hns_header inner HTML, only if you modified it" },
+            menu: { type: "string", description: "Full hns_menu inner HTML, only if you modified it" },
+            footer: { type: "string", description: "Full hns_footer inner HTML, only if you modified it" },
+            pageCss: { type: "string", description: "Full merged page CSS, only if you modified it" },
+          },
+        },
+      },
     ],
+    tool_choice: { type: "tool", name: "apply_edit" },
+    messages: [{ role: "user", content: userMessage }],
   });
 
   // ANTHROPIC_API_KEY is validated in the POST handler before this is called.
@@ -212,61 +232,59 @@ async function runAiEdit(input: AiEditInput): Promise<NextResponse> {
       }
 
       const data = await response.json();
-      let resultText = data.content?.[0]?.text || "";
+      const stopReason: string | undefined = data.stop_reason;
+      const toolBlock = Array.isArray(data.content)
+        ? data.content.find(
+            (c: { type?: string; name?: string }) =>
+              c?.type === "tool_use" && c?.name === "apply_edit",
+          )
+        : null;
 
-      // Prepend "{" from assistant prefill
-      resultText = "{" + resultText;
-
-      // Strip markdown code fences
-      resultText = resultText
-        .replace(/^```json?\s*\n?/i, "")
-        .replace(/\n?```\s*$/i, "")
-        .trim();
-
-      // Try to extract JSON object if response contains extra text
-      if (!resultText.startsWith("{")) {
-        const jsonMatch = resultText.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          resultText = jsonMatch[0];
-        } else {
-          console.error("AI returned non-JSON:", resultText.substring(0, 200));
+      if (!toolBlock) {
+        console.error("AI edit: no apply_edit tool_use in response", {
+          stopReason,
+          contentTypes: Array.isArray(data.content)
+            ? data.content.map((c: { type?: string }) => c?.type)
+            : null,
+        });
+        if (stopReason === "max_tokens") {
           return NextResponse.json(
-            { error: "AI가 올바른 형식으로 응답하지 않았습니다. 다시 시도해주세요." },
-            { status: 502 }
+            { error: "변경 사항이 너무 커서 응답 한도에 걸렸습니다. 더 작은 범위로 요청해주세요." },
+            { status: 502 },
           );
         }
-      }
-
-      try {
-        const result = JSON.parse(resultText);
-
-        // Validate: each value must look like HTML or CSS, not plain text explanations
-        for (const key of ["body", "header", "menu", "footer"]) {
-          if (result[key] && typeof result[key] === "string") {
-            const val = result[key].trim();
-            // If it looks like an explanation (starts with "I ", "Please", "However", etc.)
-            if (/^(I |Please |However|Unfortunately|Note:|To |Since )/i.test(val)) {
-              delete result[key]; // Remove invalid entries
-            }
-          }
-        }
-
-        // If empty result after cleanup
-        if (Object.keys(result).length === 0) {
-          return NextResponse.json(
-            { error: "AI가 변경 사항을 생성하지 못했습니다. 더 구체적으로 요청해주세요." },
-            { status: 502 }
-          );
-        }
-
-        return NextResponse.json(result);
-      } catch {
-        console.error("JSON parse failed:", resultText.substring(0, 200));
         return NextResponse.json(
-          { error: "AI 응답을 파싱할 수 없습니다. 다시 시도해주세요." },
-          { status: 502 }
+          { error: "AI가 올바른 형식으로 응답하지 않았습니다. 다시 시도해주세요." },
+          { status: 502 },
         );
       }
+
+      const result = (toolBlock as { input?: Record<string, unknown> }).input || {};
+
+      // Validate: drop fields that look like prose explanations rather than HTML/CSS.
+      for (const key of ["body", "header", "menu", "footer"]) {
+        const v = result[key];
+        if (typeof v === "string") {
+          const trimmed = v.trim();
+          if (/^(I |Please |However|Unfortunately|Note:|To |Since )/i.test(trimmed)) {
+            delete result[key];
+          }
+        } else if (v !== undefined) {
+          delete result[key];
+        }
+      }
+      if (typeof result.pageCss !== "string" && result.pageCss !== undefined) {
+        delete result.pageCss;
+      }
+
+      if (Object.keys(result).length === 0) {
+        return NextResponse.json(
+          { error: "AI가 변경 사항을 생성하지 못했습니다. 더 구체적으로 요청해주세요." },
+          { status: 502 },
+        );
+      }
+
+      return NextResponse.json(result);
     } catch (err) {
       console.error("AI edit error:", err);
       lastError = "네트워크 오류가 발생했습니다.";
