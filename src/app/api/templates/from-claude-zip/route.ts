@@ -246,6 +246,27 @@ export async function POST(request: NextRequest) {
         },
       });
 
+      // ── Inject single-page nav as menu items ─────────────────────────
+      // When the zip's headerHtml has a <nav> with hash-anchor links
+      // (#event, #wedding, …) — typical for Claude Designs single-page
+      // exports — surface those as Page rows with menuType="external" so
+      // they show up in 메뉴관리. Without this the user only sees "HOME"
+      // there even though the published nav has 5+ section links.
+      try {
+        const injected = await injectNavAsMenuItems(
+          site.id,
+          defaultLanguage,
+          template.headerHtml || "",
+          pageData.length,
+        );
+        if (injected > 0) {
+          console.log(`[from-claude-zip] injected ${injected} hash-anchor menu items for site ${site.id}`);
+        }
+      } catch (menuErr) {
+        // Non-fatal — site already created successfully
+        console.error("[from-claude-zip] menu inject failed (non-fatal):", menuErr);
+      }
+
       return NextResponse.json(
         {
           template,
@@ -296,6 +317,79 @@ function extractBody(html: string): string {
   }
 
   return html;
+}
+
+/**
+ * Parse the <nav> inside headerHtml and inject each hash-anchor link
+ * (#event, #wedding, …) as a Page row with menuType="external" so it
+ * appears in 메뉴관리. Skips links with non-hash hrefs (those should be
+ * real pages, not single-page section anchors).
+ *
+ * Returns the number of menu items inserted. Idempotent-ish: skips
+ * slugs that already exist for the site/lang.
+ */
+async function injectNavAsMenuItems(
+  siteId: string,
+  lang: string,
+  headerHtml: string,
+  startSortOrder: number,
+): Promise<number> {
+  const navMatch = /<nav\b[^>]*>([\s\S]*?)<\/nav>/i.exec(headerHtml);
+  if (!navMatch) return 0;
+
+  const linkRe = /<a\b[^>]*\bhref\s*=\s*["']([^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  const matches = Array.from(navMatch[1].matchAll(linkRe));
+  if (matches.length === 0) return 0;
+
+  // Only auto-inject when EVERY link is a hash anchor (single-page nav).
+  // Mixed nav (real pages + anchors) would imply real pages — those should
+  // come from htmls[] or be added manually.
+  const allHash = matches.every((m) => m[1].trim().startsWith("#"));
+  if (!allHash) return 0;
+
+  let order = startSortOrder;
+  const usedSlugs = new Set<string>();
+  let injected = 0;
+
+  for (const m of matches) {
+    const href = m[1].trim();
+    const rawLabel = m[2].replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
+    if (!rawLabel) continue;
+
+    // slug from hash (e.g. #wedding → "wedding"). Sanitize and dedupe.
+    let baseSlug = href
+      .slice(1)
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, "-")
+      .replace(/^-+|-+$/g, "");
+    if (!baseSlug) baseSlug = `nav-${order}`;
+    let slug = baseSlug;
+    let suffix = 1;
+    while (usedSlugs.has(slug)) slug = `${baseSlug}-${suffix++}`;
+    usedSlugs.add(slug);
+
+    const existing = await prisma.page.findUnique({
+      where: { siteId_slug_lang: { siteId, slug, lang } },
+    });
+    if (existing) continue;
+
+    await prisma.page.create({
+      data: {
+        siteId,
+        title: rawLabel.slice(0, 100),
+        slug,
+        lang,
+        sortOrder: order++,
+        menuType: "external",
+        externalUrl: href,
+        showInMenu: true,
+        content: { html: "" } as Prisma.InputJsonValue,
+      },
+    });
+    injected++;
+  }
+
+  return injected;
 }
 
 function extractSection(html: string, idOrTag: string): string {
