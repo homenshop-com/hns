@@ -2307,18 +2307,25 @@
   padding: 14px 24px;
   font-size: 16px;
   font-weight: 700;
-  background: var(--blue);
+  letter-spacing: -0.01em;
+  background: #4a90d9;
   color: #fff;
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  transition: background 0.15s;
+  box-shadow: 0 2px 6px rgba(74,144,217,0.25);
+  transition: background 0.15s, box-shadow 0.15s, transform 0.05s;
 }
 .tpl-modal-create:hover {
-  background: var(--blue-dark);
+  background: #357abd;
+  box-shadow: 0 4px 10px rgba(74,144,217,0.35);
+}
+.tpl-modal-create:active {
+  transform: translateY(1px);
 }
 .tpl-modal-create:disabled {
   background: #adb5bd;
+  box-shadow: none;
   cursor: not-allowed;
 }
 
