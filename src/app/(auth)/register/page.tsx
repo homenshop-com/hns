@@ -221,15 +221,29 @@ export default function RegisterPage() {
         <form onSubmit={handleSubmit}>
           {error && <div className="auth-error">{error}</div>}
 
-          <div className="auth-field">
-            <label htmlFor="name">{t("name")}</label>
-            <input
-              id="name"
-              name="name"
-              type="text"
-              required
-              placeholder={t("namePlaceholder")}
-            />
+          <div className="auth-row">
+            <div className="auth-field">
+              <label htmlFor="name">{t("name")}</label>
+              <input
+                id="name"
+                name="name"
+                type="text"
+                required
+                placeholder={t("namePlaceholder")}
+              />
+            </div>
+            <div className="auth-field">
+              <label htmlFor="email">
+                {t("email")} <span className="hint">(E-mail)</span>
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                required
+                placeholder={t("emailPlaceholder")}
+              />
+            </div>
           </div>
 
           {/* Phone + OTP — given its own full-width row so the input has
@@ -337,19 +351,6 @@ export default function RegisterPage() {
                 {otp.message}
               </p>
             )}
-          </div>
-
-          <div className="auth-field">
-            <label htmlFor="email">
-              {t("email")} <span className="hint">(E-mail)</span>
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              required
-              placeholder={t("emailPlaceholder")}
-            />
           </div>
 
           {/* Honeypot — invisible to humans, bots fill it */}
