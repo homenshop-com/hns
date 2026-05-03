@@ -843,7 +843,13 @@ export default function DesignEditor({
 
       if (hasCompleteMenu) {
         menuRef.current.innerHTML = menuHtml;
-      } else if (headerHasNav || modernTemplate) {
+      } else if (headerHasNav) {
+        // Publisher behavior: when headerHtml already provides the <nav>,
+        // suppress menuHtml entirely so the editor doesn't render a
+        // duplicate top-of-canvas menu bar (mirroring
+        // /api/published — `headerHasNavWithLinks ⇒ menuHtml = ""`).
+        menuRef.current.innerHTML = "";
+      } else if (modernTemplate) {
         menuRef.current.innerHTML = menuHtml || "";
       } else {
         menuRef.current.innerHTML = buildMenuHtml();

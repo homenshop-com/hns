@@ -385,6 +385,30 @@
   isolation: isolate;
   position: relative;
 }
+
+/* User CSS often pins the published-site header with `position: fixed`
+   (sticky-on-scroll nav). Inside the editor that escapes the canvas to
+   the viewport top, gets covered by the editor toolbar, and the user
+   sees no header in the canvas — which makes the editor disagree with
+   the published preview. Force fixed/sticky descendants of the canvas
+   into normal flow so the header shows up at canvas top, matching what
+   the publisher renders.
+
+   `header.nav` and `.nav` cover the common AI-generated and Claude
+   Designs export markup; `[style*="position: fixed"]` and `[style*="position:sticky"]`
+   catch one-off inline overrides. */
+.de-canvas-content header.nav,
+.de-canvas-content .nav,
+.de-canvas-content [style*="position: fixed"],
+.de-canvas-content [style*="position:fixed"],
+.de-canvas-content [style*="position: sticky"],
+.de-canvas-content [style*="position:sticky"] {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+}
 .de-canvas {
   width: 1000px;
   min-height: 800px;
