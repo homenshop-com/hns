@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { JSDOM } from "jsdom";
 import {
   consumeCredits,
   refundCredits,
@@ -30,8 +31,9 @@ For menu styling: use #hns_menu a { color: ... !important; } in pageCss.
 Selected element (VERY IMPORTANT):
 - When a [Selected element] section is provided, the user's request applies ONLY to that specific element (identified by its id).
 - "현재 선택된", "선택한", "이 객체", "이 요소" ALL refer to that one selected element.
-- You MUST modify ONLY the selected element. Do NOT touch any other elements in the HTML.
-- Find the element by its id in the section HTML, modify only that element, and return the full section HTML with everything else unchanged.
+- **REQUIRED**: in this case, set ONLY the \`selectedElementHtml\` field to the new outerHTML of that single element (must keep the same id and outer wrapper). Do NOT also send body/header/menu/footer — the server merges your patch into the original section, preserving every other element exactly. Sending body when a [Selected element] exists has caused other dragable objects to be dropped — DO NOT do it.
+- The selectedElementHtml MUST start with the wrapper that has the same id as the selected element. Example: if selected id is "obj_index_sec_1", return \`<div class="dragable" id="obj_index_sec_1" style="...">…new inner content…</div>\`.
+- If you also need to update CSS, you may include pageCss alongside selectedElementHtml.
 - If NO [Selected element] is provided but the user mentions "선택된/선택한", apply the change to the most likely target element based on context. Never refuse — always make your best attempt.
 
 Image handling:
@@ -176,11 +178,20 @@ async function runAiEdit(input: AiEditInput): Promise<NextResponse> {
       {
         name: "apply_edit",
         description:
-          "Apply the requested HTML/CSS changes to the page. Only include the keys you actually modified — omit untouched ones.",
+          "Apply the requested HTML/CSS changes to the page. Only include the keys you actually modified — omit untouched ones. **When a [Selected element] is provided, use selectedElementHtml (NOT body) so the server can merge your single-element patch without dropping other dragable objects.**",
         input_schema: {
           type: "object",
           properties: {
-            body: { type: "string", description: "Full hns_body inner HTML, only if you modified it" },
+            selectedElementHtml: {
+              type: "string",
+              description:
+                "Modified outerHTML for the SELECTED element only — REQUIRED whenever [Selected element] is provided in the user message. Must start with a wrapper that has the same id as the selected element. The server replaces ONLY that element in the original HTML, preserving every other dragable object.",
+            },
+            body: {
+              type: "string",
+              description:
+                "Full hns_body inner HTML — use ONLY when no [Selected element] is provided AND the change spans multiple elements. Otherwise prefer selectedElementHtml.",
+            },
             header: { type: "string", description: "Full hns_header inner HTML, only if you modified it" },
             menu: { type: "string", description: "Full hns_menu inner HTML, only if you modified it" },
             footer: { type: "string", description: "Full hns_footer inner HTML, only if you modified it" },
@@ -262,7 +273,7 @@ async function runAiEdit(input: AiEditInput): Promise<NextResponse> {
       const result = (toolBlock as { input?: Record<string, unknown> }).input || {};
 
       // Validate: drop fields that look like prose explanations rather than HTML/CSS.
-      for (const key of ["body", "header", "menu", "footer"]) {
+      for (const key of ["body", "header", "menu", "footer", "selectedElementHtml"]) {
         const v = result[key];
         if (typeof v === "string") {
           const trimmed = v.trim();
@@ -275,6 +286,46 @@ async function runAiEdit(input: AiEditInput): Promise<NextResponse> {
       }
       if (typeof result.pageCss !== "string" && result.pageCss !== undefined) {
         delete result.pageCss;
+      }
+
+      // ── Server-side merge for selectedElementHtml ──────────────────────
+      // When the AI returns a single-element patch, replace ONLY that
+      // element in the original section's HTML using jsdom. This prevents
+      // the loss-of-other-objects bug that happened when the AI emitted a
+      // full body field but accidentally omitted some dragables.
+      if (typeof result.selectedElementHtml === "string" && selectedElement) {
+        const idMatch = /id="([^"]+)"/.exec(selectedElement);
+        const targetId = idMatch?.[1];
+        if (targetId) {
+          // Detect which section the element lives in by inspecting the
+          // selectedElement marker. The client encodes section="body|header|menu|footer".
+          const sectionMatch = /section="(body|header|menu|footer)"/.exec(selectedElement);
+          const sectionKey = (sectionMatch?.[1] || "body") as
+            | "body"
+            | "header"
+            | "menu"
+            | "footer";
+          const originalHtml =
+            sectionKey === "body" ? html
+            : sectionKey === "header" ? headerHtml
+            : sectionKey === "menu" ? menuHtml
+            : footerHtml;
+          if (originalHtml) {
+            const merged = mergeSelectedElement(
+              originalHtml,
+              targetId,
+              result.selectedElementHtml,
+            );
+            if (merged) {
+              // Always write under the section key the client expects to apply
+              // ("body" by default). Drop any conflicting full-section field
+              // so the merged HTML wins — preventing the AI's full-body copy
+              // from clobbering other objects.
+              result[sectionKey] = merged;
+            }
+          }
+        }
+        delete result.selectedElementHtml;
       }
 
       if (Object.keys(result).length === 0) {
@@ -292,4 +343,40 @@ async function runAiEdit(input: AiEditInput): Promise<NextResponse> {
   }
 
   return NextResponse.json({ error: lastError || "AI 처리 중 오류가 발생했습니다." }, { status: 502 });
+}
+
+/**
+ * Replace a single element by id inside a section's HTML, preserving every
+ * other element exactly. Returns null if the target id isn't found or the
+ * patch can't be parsed — in that case the caller falls back to whatever
+ * the AI returned in the body/header/menu/footer field.
+ */
+function mergeSelectedElement(
+  originalSectionHtml: string,
+  targetId: string,
+  newElementHtml: string,
+): string | null {
+  try {
+    const dom = new JSDOM(
+      `<!DOCTYPE html><html><body><div id="__root">${originalSectionHtml}</div></body></html>`,
+    );
+    const doc = dom.window.document;
+    const root = doc.getElementById("__root");
+    if (!root) return null;
+    const target = root.querySelector(`#${cssEscapeId(targetId)}`);
+    if (!target) {
+      console.warn(`[ai-edit] target id="${targetId}" not found in section, skipping merge`);
+      return null;
+    }
+    target.outerHTML = newElementHtml;
+    return root.innerHTML;
+  } catch (err) {
+    console.error("[ai-edit] merge failed:", err);
+    return null;
+  }
+}
+
+function cssEscapeId(id: string): string {
+  // Minimal CSS.escape polyfill for ids with unusual characters.
+  return id.replace(/([!"#$%&'()*+,./:;<=>?@[\\\]^`{|}~])/g, "\\$1");
 }
