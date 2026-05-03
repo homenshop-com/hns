@@ -1001,7 +1001,7 @@ export default function TemplateGallery({
                     : `₩${selectedTemplate.price.toLocaleString()}`}
                 </p>
                 <button className="tpl-modal-action" onClick={goToSetup}>
-                  [ {labels.selectDesign} ]
+                  {labels.selectDesign}
                 </button>
                 {error && <p className="tpl-modal-error">{error}</p>}
               </div>
