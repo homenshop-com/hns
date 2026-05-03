@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
+import { getTempDomain } from "@/lib/temp-domains";
 
 const ACCOUNT_TYPES: Record<string, string> = { "0": "Free", "1": "Paid", "2": "Test", "9": "Expired" };
 
@@ -93,7 +94,7 @@ export default async function AdminSiteDetailPage({
                 <label className="block text-xs text-slate-500 mb-1">Account ID</label>
                 <div className="flex gap-2 items-center">
                   <input name="shopId" defaultValue={site.shopId} className="flex-1 border border-slate-300 rounded-lg bg-white px-3 py-2 text-sm text-slate-800" />
-                  <a href={`https://home.homenshop.com/${site.shopId}`} target="_blank" rel="noopener noreferrer" className="shrink-0 rounded-lg border border-slate-300 px-3 py-2 text-xs text-[#405189] hover:bg-white hover:text-[#405189] transition-colors">Open ↗</a>
+                  <a href={`https://${getTempDomain(site)}/${site.shopId}`} target="_blank" rel="noopener noreferrer" className="shrink-0 rounded-lg border border-slate-300 px-3 py-2 text-xs text-[#405189] hover:bg-white hover:text-[#405189] transition-colors">Open ↗</a>
                 </div>
               </div>
               <div>

@@ -8,6 +8,7 @@ import ExpiryEditor from "./expiry-editor";
 interface SiteRow {
   id: string;
   shopId: string;
+  tempDomain: string;
   accountType: string;
   email: string;
   domain: string;
@@ -171,7 +172,7 @@ export default function SitesTable({
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    <a href={`https://home.homenshop.com/${site.shopId}`} target="_blank" rel="noopener" className="text-[#405189] hover:text-[#405189] hover:underline">
+                    <a href={`https://${site.tempDomain || "home.homenshop.com"}/${site.shopId}`} target="_blank" rel="noopener" className="text-[#405189] hover:text-[#405189] hover:underline">
                       {site.shopId}
                     </a>
                   </td>

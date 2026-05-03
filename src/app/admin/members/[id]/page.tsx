@@ -8,6 +8,7 @@ interface SiteInfo {
   id: string;
   name: string;
   shopId: string;
+  tempDomain: string;
   published: boolean;
 }
 
@@ -405,7 +406,7 @@ export default function AdminMemberDetailPage() {
                   {member.sites.map((site) => (
                     <tr key={site.id} className="hover:bg-slate-50">
                       <td className="px-4 py-3 text-slate-800">{site.name}</td>
-                      <td className="px-4 py-3 font-mono text-xs"><a href={`https://home.homenshop.com/${site.shopId}`} target="_blank" rel="noopener noreferrer" className="text-[#405189] hover:text-[#405189]">{site.shopId} ↗</a></td>
+                      <td className="px-4 py-3 font-mono text-xs"><a href={`https://${site.tempDomain || "home.homenshop.com"}/${site.shopId}`} target="_blank" rel="noopener noreferrer" className="text-[#405189] hover:text-[#405189]">{site.shopId} ↗</a></td>
                       <td className="px-4 py-3">
                         {site.published ? (
                           <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset bg-emerald-50 text-emerald-700 ring-emerald-200">공개</span>

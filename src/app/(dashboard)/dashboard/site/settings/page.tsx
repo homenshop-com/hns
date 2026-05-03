@@ -14,6 +14,8 @@ import { DashboardIconSprite, Icon } from "../../dashboard-icons";
 import DashboardShell from "../../dashboard-shell";
 import SupportUnreadIndicator from "../../support-unread-indicator";
 import { resolveExpiresAt, FREE_TRIAL_DAYS } from "@/lib/site-expiration";
+import { getTempDomain, TEMP_DOMAINS } from "@/lib/temp-domains";
+import TempDomainSelect from "./temp-domain-select";
 import "../../dashboard-v2.css";
 import "../[siteId]/manage/manage-v2.css";
 import "./settings-v2.css";
@@ -106,8 +108,9 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
     : null;
 
   const activeDomain = site.domains.find((d) => d.status === "ACTIVE");
-  const publicUrl = activeDomain ? `https://${activeDomain.domain}` : `https://home.homenshop.com/${site.shopId}/${site.defaultLanguage}/`;
-  const defaultUrlLabel = `home.homenshop.com/${site.shopId}/${site.defaultLanguage}/`;
+  const sTemp = getTempDomain(site);
+  const publicUrl = activeDomain ? `https://${activeDomain.domain}` : `https://${sTemp}/${site.shopId}/${site.defaultLanguage}/`;
+  const defaultUrlLabel = `${sTemp}/${site.shopId}/${site.defaultLanguage}/`;
 
   const sitemapApiUrl = `https://homenshop.com/api/sitemap/${site.id}`;
   const sitemapCustomUrl = activeDomain ? `https://${activeDomain.domain}/sitemap.xml` : null;
@@ -249,6 +252,29 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                     siteId={site.id}
                     languages={siteLanguages}
                     defaultLanguage={site.defaultLanguage}
+                  />
+                </div>
+              </section>
+
+              {/* 3a — 임시 도메인 선택 */}
+              <section className="sv2-card blue">
+                <div className="sv2-card-head">
+                  <div className="accent"></div>
+                  <h3>
+                    <svg className="ic" width={16} height={16}><use href="#i-globe" /></svg>
+                    임시 도메인
+                  </h3>
+                </div>
+                <div className="sv2-card-body">
+                  <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--ink-3)" }}>
+                    커스텀 도메인이 연결되기 전까지 사용하는 공개 주소입니다. 선택한 도메인이 canonical/sitemap에 반영됩니다.
+                  </p>
+                  <TempDomainSelect
+                    siteId={site.id}
+                    shopId={site.shopId}
+                    defaultLanguage={site.defaultLanguage}
+                    options={[...TEMP_DOMAINS]}
+                    initialValue={sTemp}
                   />
                 </div>
               </section>

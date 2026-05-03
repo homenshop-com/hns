@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getTempDomain } from "@/lib/temp-domains";
 
 // GET /api/sitemap/[siteId] — Generate sitemap.xml for a site
 export async function GET(
@@ -30,7 +31,7 @@ export async function GET(
   const customDomain = site.domains.length > 0 ? site.domains[0].domain : null;
   const baseUrl = customDomain
     ? `https://${customDomain}`
-    : `https://home.homenshop.com/${site.shopId}`;
+    : `https://${getTempDomain(site)}/${site.shopId}`;
 
   const activeLangs = new Set(site.languages || [site.defaultLanguage]);
   const skipSlugs = new Set(["empty", "user", "users", "agreement"]);

@@ -4,6 +4,7 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import ProductEditClient from "./product-edit-client";
 import DashboardShell from "../../dashboard-shell";
+import { getTempDomain } from "@/lib/temp-domains";
 
 export default async function ProductDetailPage({
   params,
@@ -44,7 +45,7 @@ export default async function ProductDetailPage({
         if (p.startsWith("http") || p.startsWith("/uploads/")) {
           imageUrls.push(p);
         } else {
-          imageUrls.push(`https://home.homenshop.com/${site.shopId}/uploaded/${encodeURIComponent(p)}`);
+          imageUrls.push(`https://${getTempDomain(site)}/${site.shopId}/uploaded/${encodeURIComponent(p)}`);
         }
       }
     }

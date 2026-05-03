@@ -14,14 +14,18 @@ export default async function AdminMembersPage({
   const page = parsePageParam(params.page);
   const search = params.search || "";
 
+  // Prospect placeholders live in /admin/prospects; keep them out of the
+  // regular member list so admin search results aren't polluted by every
+  // pre-built lead.
   const where = search
     ? {
+        isProspect: false,
         OR: [
           { email: { contains: search, mode: "insensitive" as const } },
           { name: { contains: search, mode: "insensitive" as const } },
         ],
       }
-    : {};
+    : { isProspect: false };
 
   const [users, totalCount] = await Promise.all([
     prisma.user.findMany({

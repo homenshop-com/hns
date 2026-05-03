@@ -10,6 +10,7 @@ import { canEditTemplates } from "@/lib/permissions";
 const baseNavItems = [
   { href: "/admin", label: "대시보드", icon: "dashboard" },
   { href: "/admin/members", label: "회원 관리", icon: "members" },
+  { href: "/admin/prospects", label: "잠재고객", icon: "members" },
   { href: "/admin/sites", label: "계정 관리", icon: "sites" },
   { href: "/admin/orders", label: "주문 관리", icon: "orders" },
   { href: "/admin/domains", label: "도메인 관리", icon: "domains" },

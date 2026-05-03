@@ -5,6 +5,7 @@ import { renderBoardPluginContent, renderProductPluginContent } from "@/lib/plug
 import { readTemplateCss, rewriteAssetUrls } from "@/lib/template-parser";
 import { isEditorV2Enabled } from "@/lib/editor-flags";
 import DesignEditor from "./design-editor";
+import { getTempDomain } from "@/lib/temp-domains";
 
 interface EditPageProps {
   params: Promise<{ pageId: string }>;
@@ -133,6 +134,7 @@ export default async function EditPagePage({ params }: EditPageProps) {
       shopId={site.shopId}
       siteName={site.name}
       defaultLanguage={site.defaultLanguage}
+      tempDomain={getTempDomain(site)}
       templatePath={templatePath}
       headerHtml={headerHtmlFinal}
       menuHtml={menuHtmlFinal}

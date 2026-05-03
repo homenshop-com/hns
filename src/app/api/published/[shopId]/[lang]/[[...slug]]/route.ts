@@ -13,6 +13,7 @@ import {
   type JsonLdContext,
 } from "@/lib/seo-jsonld";
 import { isSiteExpired } from "@/lib/site-expiration";
+import { getTempDomain, isManagedTempHost } from "@/lib/temp-domains";
 
 function renderExpiredPage(shopId: string, name: string): string {
   const safeName = name.replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -85,7 +86,7 @@ function escapeHtml(s: unknown): string {
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-async function renderBoardRead(siteId: string, shopId: string, lang: string, id: number, urlPrefix: string = ""): Promise<string> {
+async function renderBoardRead(siteId: string, shopId: string, lang: string, id: number, urlPrefix: string = "", tempDomain: string = "home.homenshop.com"): Promise<string> {
   const row = await prisma.boardPost.findFirst({
     where: { siteId, legacyId: id },
     include: { category: { select: { name: true, legacyId: true } } },
@@ -95,7 +96,7 @@ async function renderBoardRead(siteId: string, shopId: string, lang: string, id:
   const photos = row.photos ? row.photos.split("|").filter(Boolean) : [];
   const imageExts = new Set(["jpg", "jpeg", "png", "gif", "bmp", "webp", "svg"]);
   const photoHtml = photos.map((p) => {
-    const src = `https://home.homenshop.com/${shopId}/uploaded/${encodeURIComponent(p)}`;
+    const src = `https://${tempDomain}/${shopId}/uploaded/${encodeURIComponent(p)}`;
     const ext = p.split(".").pop()?.toLowerCase() || "";
     if (imageExts.has(ext)) {
       return `<div style="margin:10px 0"><img src="${src}" style="max-width:100%;height:auto" alt="${escapeHtml(p)}" /></div>`;
@@ -188,7 +189,7 @@ async function renderBoardRead(siteId: string, shopId: string, lang: string, id:
   </div>`;
 }
 
-async function renderBoardList(siteId: string, shopId: string, lang: string, category: number, pageNum: number, urlPrefix: string = ""): Promise<string> {
+async function renderBoardList(siteId: string, shopId: string, lang: string, category: number, pageNum: number, urlPrefix: string = "", tempDomain: string = "home.homenshop.com"): Promise<string> {
   const perPage = 20;
   const offset = (pageNum - 1) * perPage;
 
@@ -255,7 +256,7 @@ async function renderBoardList(siteId: string, shopId: string, lang: string, cat
       const photos = r.photos ? r.photos.split("|").filter(Boolean) : [];
       const firstPhoto = photos[0] || "";
       const imgSrc = firstPhoto
-        ? `https://home.homenshop.com/${shopId}/thumb/${thumbW}x${thumbH}/${encodeURIComponent(firstPhoto)}`
+        ? `https://${tempDomain}/${shopId}/thumb/${thumbW}x${thumbH}/${encodeURIComponent(firstPhoto)}`
         : "";
       const title = escapeHtml(r.title || "");
       const date = (r.regdate || "").slice(0, 10);
@@ -386,7 +387,7 @@ async function renderBoardList(siteId: string, shopId: string, lang: string, cat
 
 /* ─── Product detail / list page rendering ─── */
 async function renderProductRead(
-  siteId: string, shopId: string, lang: string, productId: number, urlPrefix: string, goodsPage: string = "goods", prismaProductId?: string, prodSettings?: ProductDisplaySettings
+  siteId: string, shopId: string, lang: string, productId: number, urlPrefix: string, goodsPage: string = "goods", prismaProductId?: string, prodSettings?: ProductDisplaySettings, tempDomain: string = "home.homenshop.com"
 ): Promise<string> {
   let pname = "", price = "", contents = "", specification = "", catId = 0, catName = "";
   let photos: string[] = [];
@@ -415,7 +416,7 @@ async function renderProductRead(
   // Build photo gallery — handle both legacy and new URL formats
   function photoUrl(p: string) {
     if (p.startsWith("http") || p.startsWith("/")) return p;
-    return `https://home.homenshop.com/${shopId}/uploaded/${encodeURIComponent(p)}`;
+    return `https://${tempDomain}/${shopId}/uploaded/${encodeURIComponent(p)}`;
   }
 
   const detailImgWidth = prodSettings?.detailWidth || 400;
@@ -461,7 +462,7 @@ interface ProductDisplaySettings {
 }
 
 async function renderProductList(
-  siteId: string, shopId: string, lang: string, category: number, page: number, urlPrefix: string, goodsPage: string = "goods", prodSettings?: ProductDisplaySettings
+  siteId: string, shopId: string, lang: string, category: number, page: number, urlPrefix: string, goodsPage: string = "goods", prodSettings?: ProductDisplaySettings, tempDomain: string = "home.homenshop.com"
 ): Promise<string> {
   // Get categories from Prisma
   const categories = await prisma.productCategory.findMany({
@@ -530,7 +531,7 @@ async function renderProductList(
       if (firstPhoto.startsWith("/") || firstPhoto.startsWith("http")) {
         imgSrc = firstPhoto;
       } else {
-        imgSrc = `https://home.homenshop.com/${shopId}/uploaded/${encodeURIComponent(firstPhoto)}`;
+        imgSrc = `https://${tempDomain}/${shopId}/uploaded/${encodeURIComponent(firstPhoto)}`;
       }
     }
     // Use pid= for Prisma products with no legacyId, id= for legacy
@@ -589,7 +590,10 @@ export async function GET(
     });
     const defaultLang = siteForLang?.defaultLanguage || "ko";
     const hostHeader = request.headers.get("host") || "";
-    const isCustomDomain = hostHeader && !hostHeader.includes("homenshop");
+    // Custom domain = NOT one of our managed multi-tenant temp hosts.
+    // Both home.homenshop.com and aesthetic.helper.so route by /{shopId},
+    // so neither should be treated as a per-site bound custom domain.
+    const isCustomDomain = !!hostHeader && !isManagedTempHost(hostHeader);
     const prefix = isCustomDomain ? "" : `/${shopId}`;
     const slugPath = slug?.join("/") || "";
     const qs = url.search || "";
@@ -607,9 +611,12 @@ export async function GET(
   const boardPage = parsePageParam(url.searchParams.get("page"));
   const prismaProductId = url.searchParams.get("pid") || "";
 
-  // Detect custom domain: if Host header is not homenshop.com/net, omit shopId from URLs
+  // Detect custom domain: anything that is NOT one of our managed temp
+  // hosts (home.homenshop.com / aesthetic.helper.so / …). Custom domains
+  // are bound 1:1 to a site so they omit /{shopId} from URLs; managed
+  // temp hosts multiplex many sites under /{shopId}/{lang}/.
   const hostHeader = request.headers.get("host") || request.headers.get("x-forwarded-host") || "";
-  const isCustomDomain = hostHeader && !hostHeader.includes("homenshop");
+  const isCustomDomain = !!hostHeader && !isManagedTempHost(hostHeader);
   const urlPrefix = isCustomDomain ? "" : `/${shopId}`;
 
   // Find the site by shopId with lang-filtered pages and HMF translations
@@ -627,6 +634,12 @@ export async function GET(
   if (!site) {
     return new NextResponse("Not Found", { status: 404 });
   }
+
+  // Site's chosen managed temp domain — used for asset URLs (image src,
+  // OG, canonical, hreflang) regardless of which host this request came
+  // in on. Keeps SEO stable when the same site is reachable through
+  // multiple aliases.
+  const tempDomain = getTempDomain(site);
   if (isSiteExpired(site)) {
     return new NextResponse(renderExpiredPage(shopId, site.name), {
       status: 410,
@@ -702,20 +715,20 @@ export async function GET(
   const prodSettings = (site.productSettings as ProductDisplaySettings | null) || undefined;
   if (isProductAction) {
     if (effectiveAction === "read" && prismaProductId) {
-      boardSectionHtml = await renderProductRead(site.id, shopId, lang, 0, urlPrefix, productPageSlug, prismaProductId, prodSettings);
+      boardSectionHtml = await renderProductRead(site.id, shopId, lang, 0, urlPrefix, productPageSlug, prismaProductId, prodSettings, tempDomain);
     } else if (effectiveAction === "read" && boardId > 0) {
-      boardSectionHtml = await renderProductRead(site.id, shopId, lang, boardId, urlPrefix, productPageSlug, undefined, prodSettings);
+      boardSectionHtml = await renderProductRead(site.id, shopId, lang, boardId, urlPrefix, productPageSlug, undefined, prodSettings, tempDomain);
     } else if (effectiveAction === "list") {
-      boardSectionHtml = await renderProductList(site.id, shopId, lang, boardCategory, boardPage, urlPrefix, productPageSlug, prodSettings);
+      boardSectionHtml = await renderProductList(site.id, shopId, lang, boardCategory, boardPage, urlPrefix, productPageSlug, prodSettings, tempDomain);
     }
     if (boardSectionHtml) {
       bodyHtml = "";
     }
   } else if (isBoardAction) {
     if (effectiveAction === "read" && boardId > 0) {
-      boardSectionHtml = await renderBoardRead(site.id, shopId, lang, boardId, urlPrefix);
+      boardSectionHtml = await renderBoardRead(site.id, shopId, lang, boardId, urlPrefix, tempDomain);
     } else if (effectiveAction === "list") {
-      boardSectionHtml = await renderBoardList(site.id, shopId, lang, boardCategory, boardPage, urlPrefix);
+      boardSectionHtml = await renderBoardList(site.id, shopId, lang, boardCategory, boardPage, urlPrefix, tempDomain);
     }
     // Board action pages: clear body HTML (absolute-positioned page elements create unwanted space)
     if (boardSectionHtml) {
@@ -727,10 +740,10 @@ export async function GET(
   const templatePath = site.templatePath || "";
 
   // BoardPlugin: inject dynamic board lists into page body (for all pages)
-  bodyHtml = await renderBoardPluginContent(site.id, shopId, lang, pageSlug, bodyHtml, urlPrefix);
+  bodyHtml = await renderBoardPluginContent(site.id, shopId, lang, pageSlug, bodyHtml, urlPrefix, tempDomain);
 
   // ProductPlugin: inject dynamic product lists into page body
-  bodyHtml = await renderProductPluginContent(site.id, shopId, lang, pageSlug, bodyHtml, urlPrefix);
+  bodyHtml = await renderProductPluginContent(site.id, shopId, lang, pageSlug, bodyHtml, urlPrefix, tempDomain);
   let templateCss = "";
   if (templatePath) {
     templateCss = readTemplateCss(templatePath);
@@ -1207,13 +1220,13 @@ export async function GET(
         itemSeoKeywords = pRow.name.replace(/[,/|]/g, ", ");
         const pPhotos = pRow.photos ? pRow.photos.split("|").filter(Boolean) : [];
         if (pPhotos[0]) {
-          itemOgImage = `https://home.homenshop.com/${shopId}/uploaded/${encodeURIComponent(pPhotos[0])}`;
+          itemOgImage = `https://${tempDomain}/${shopId}/uploaded/${encodeURIComponent(pPhotos[0])}`;
         }
         const jsonImages = (pRow.images as string[] | null) || [];
         const absImages = (jsonImages.length > 0 ? jsonImages : pPhotos).map((p) =>
           p.startsWith("http") || p.startsWith("/")
             ? p
-            : `https://home.homenshop.com/${shopId}/uploaded/${encodeURIComponent(p)}`
+            : `https://${tempDomain}/${shopId}/uploaded/${encodeURIComponent(p)}`
         );
         productDetailForLd = {
           name: pRow.name,
@@ -1242,10 +1255,10 @@ export async function GET(
         const imageExts = new Set(["jpg", "jpeg", "png", "gif", "bmp", "webp", "svg"]);
         const photoImages = bPhotos.filter(p => imageExts.has(p.split(".").pop()?.toLowerCase() || ""));
         if (photoImages[0]) {
-          itemOgImage = `https://home.homenshop.com/${shopId}/uploaded/${encodeURIComponent(photoImages[0])}`;
+          itemOgImage = `https://${tempDomain}/${shopId}/uploaded/${encodeURIComponent(photoImages[0])}`;
         }
         const absImages = photoImages.map(
-          (p) => `https://home.homenshop.com/${shopId}/uploaded/${encodeURIComponent(p)}`
+          (p) => `https://${tempDomain}/${shopId}/uploaded/${encodeURIComponent(p)}`
         );
         articleDetailForLd = {
           title: bRow.title || "",
@@ -1265,8 +1278,10 @@ export async function GET(
   const finalSeoKeywords = itemSeoKeywords || (page as any).seoKeywords || "";
   const finalOgImage = itemOgImage || (page as any).ogImage || "";
 
-  // SEO: Canonical URL and meta tags
-  const canonicalBase = isCustomDomain ? `https://${hostHeader}` : `https://home.homenshop.com/${shopId}`;
+  // SEO: Canonical URL and meta tags. For managed temp hosts we always
+  // canonicalize to the site's chosen tempDomain (not the host header)
+  // so visiting via the alias does not create duplicate-content URLs.
+  const canonicalBase = isCustomDomain ? `https://${hostHeader}` : `https://${tempDomain}/${shopId}`;
   const canonicalUrl = `${canonicalBase}/${lang}/${pageSlug}.html${(effectiveAction === "read" && boardId > 0) ? `?action=read&id=${boardId}` : ''}`;
   const seoMeta = {
     keywords: finalSeoKeywords ? `<meta name="keywords" content="${finalSeoKeywords.replace(/"/g, '&quot;')}" />` : '',
@@ -1284,7 +1299,7 @@ export async function GET(
 
   /* ─── GEO: hreflang alternates ─── */
   const siteLangsForHreflang = (site.languages && site.languages.length > 0) ? site.languages : [site.defaultLanguage];
-  const hreflangBase = isCustomDomain ? `https://${hostHeader}` : `https://home.homenshop.com/${shopId}`;
+  const hreflangBase = isCustomDomain ? `https://${hostHeader}` : `https://${tempDomain}/${shopId}`;
   const currentQs = (effectiveAction === "read" && boardId > 0) ? `?action=read&id=${boardId}` : '';
   const hreflangLinks = siteLangsForHreflang.map(l =>
     `<link rel="alternate" hreflang="${l}" href="${hreflangBase}/${l}/${pageSlug}.html${currentQs}" />`

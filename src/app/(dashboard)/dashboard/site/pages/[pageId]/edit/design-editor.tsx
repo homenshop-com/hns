@@ -232,6 +232,7 @@ interface DesignEditorProps {
   shopId: string;
   siteName: string;
   defaultLanguage: string;
+  tempDomain: string;
   templatePath: string;
   headerHtml: string;
   menuHtml: string;
@@ -263,6 +264,7 @@ export default function DesignEditor({
   shopId,
   siteName,
   defaultLanguage,
+  tempDomain,
   templatePath,
   headerHtml,
   menuHtml,
@@ -3142,8 +3144,8 @@ export default function DesignEditor({
               </button>
             </div>
           )}
-          <a className="de-url" href={`https://home.homenshop.com/${shopId}/${defaultLanguage}/${pageSlug === "index" ? "" : pageSlug}`} target="_blank" rel="noopener noreferrer">
-            home.homenshop.com/{shopId}/{defaultLanguage}/{pageSlug === "index" ? "" : pageSlug}
+          <a className="de-url" href={`https://${tempDomain}/${shopId}/${defaultLanguage}/${pageSlug === "index" ? "" : pageSlug}`} target="_blank" rel="noopener noreferrer">
+            {tempDomain}/{shopId}/{defaultLanguage}/{pageSlug === "index" ? "" : pageSlug}
           </a>
           {/* Undo / Redo — between URL and Save, mirroring the keyboard
               shortcuts already handled in the global keydown listener. */}
@@ -3932,11 +3934,11 @@ export default function DesignEditor({
               {t("publishModal.desc")}
             </p>
             <div className="de-modal-url">
-              https://home.homenshop.com/{shopId}/{defaultLanguage}/
+              https://{tempDomain}/{shopId}/{defaultLanguage}/
             </div>
             <div className="de-modal-actions">
               <a
-                href={`https://home.homenshop.com/${shopId}/${defaultLanguage}/`}
+                href={`https://${tempDomain}/${shopId}/${defaultLanguage}/`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="de-modal-btn primary"

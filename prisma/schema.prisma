@@ -61,45 +61,62 @@ model SystemSetting {
 // ============================================
 
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  name          String?
-  password      String?
-  phone         String?
-  emailVerified DateTime?
-  image         String?
-  role          UserRole  @default(MEMBER)
-  status        UserStatus @default(ACTIVE)
-  shopId        String?   @unique
+  id                 String     @id @default(cuid())
+  email              String     @unique
+  name               String?
+  password           String?
+  phone              String?
+  emailVerified      DateTime?
+  image              String?
+  role               UserRole   @default(MEMBER)
+  status             UserStatus @default(ACTIVE)
+  shopId             String?    @unique
   /// Cached AI credit balance. Authoritative source is sum(CreditTransaction.amount).
   /// Kept in sync by src/lib/credits.ts — never write outside that module.
-  credits       Int       @default(0)
+  credits            Int        @default(0)
   /// Timestamp of last monthly auto-grant (for paid plans). Null = never granted.
   lastMonthlyGrantAt DateTime?
   /// Persistent UI language preference. Synced with the NEXT_LOCALE cookie:
   /// when the user changes language while logged in we update both. On
   /// login we mirror this back to the cookie so the choice follows the
   /// user across devices/browsers. Null until first explicit selection.
-  preferredLanguage String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  preferredLanguage  String?
+  /// True for admin-created placeholder accounts that hold a pre-built site
+  /// for a prospect customer. On real-customer registration with a matching
+  /// (verified) phone, the placeholder's site/shopId/relations transfer to
+  /// the real user and the placeholder row is deleted (claim flow).
+  isProspect         Boolean    @default(false)
+  /// Admin user id who created this placeholder. Audit-only (no FK so admin
+  /// deletion doesn't cascade to the placeholder).
+  prospectCreatedBy  String?
+  /// Free-form note visible only in admin UI — referrer name, deal context, etc.
+  prospectNote       String?    @db.Text
+  /// Set on the real user when they claim a prospect's site. Null otherwise.
+  claimedAt          DateTime?
+  /// Timestamp the user proved ownership of `phone` via SMS OTP. Cleared
+  /// when phone is changed. Used by the claim flow as proof of phone match.
+  phoneVerifiedAt    DateTime?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
 
-  accounts            Account[]
-  sessions            Session[]
-  sites               Site[]
-  orders              Order[]
-  domains             Domain[]
-  templates           Template[]
-  creditTransactions  CreditTransaction[]
-  supportThread       SupportThread?
+  accounts                Account[]
+  sessions                Session[]
+  sites                   Site[]
+  orders                  Order[]
+  domains                 Domain[]
+  templates               Template[]
+  creditTransactions      CreditTransaction[]
+  supportThread           SupportThread?
   /// Marketplace integrations are owned at the User level — not tied to a
   /// specific homenshop site. A seller can connect Coupang/Shopify/etc
   /// independently of any individual storefront they may also operate.
   marketplaceIntegrations MarketplaceIntegration[]
-  customers           Customer[]
+  customers               Customer[]
 
   @@index([email])
   @@index([shopId])
+  @@index([phone])
+  @@index([isProspect])
 }
 
 enum UserRole {
@@ -119,25 +136,33 @@ enum UserStatus {
 // ============================================
 
 model Site {
-  id              String    @id @default(cuid())
-  userId          String
-  shopId          String    @unique
-  name            String
-  description     String?   @db.Text
-  defaultLanguage String    @default("ko")
-  languages       String[]  @default(["ko"])
-  templateId      String?
-  templatePath    String?
-  headerHtml      String?   @db.Text
-  menuHtml        String?   @db.Text
-  footerHtml      String?   @db.Text
-  cssText         String?   @db.Text
+  id                 String    @id @default(cuid())
+  userId             String
+  shopId             String    @unique
+  name               String
+  description        String?   @db.Text
+  defaultLanguage    String    @default("ko")
+  languages          String[]  @default(["ko"])
+  templateId         String?
+  templatePath       String?
+  headerHtml         String?   @db.Text
+  menuHtml           String?   @db.Text
+  footerHtml         String?   @db.Text
+  cssText            String?   @db.Text
   published          Boolean   @default(false)
   accountType        String    @default("free")
   expiresAt          DateTime?
   googleAnalyticsId  String?
   googleVerification String?
   productSettings    Json?
+  /// Which managed temporary domain this site is published under
+  /// (e.g. "home.homenshop.com" or "aesthetic.helper.so"). All public
+  /// URLs — image src, canonical, hreflang, OG, sitemap, dashboard
+  /// labels — are derived from this. Allowed values are constrained by
+  /// `TEMP_DOMAINS` in src/lib/temp-domains.ts; the API rejects others.
+  /// nginx is configured to serve every value in that list via the same
+  /// vhost, so switching is just a metadata change.
+  tempDomain         String    @default("home.homenshop.com")
   /// Email address the contact form sends to. Falls back to site owner's
   /// User.email when not set. Stored per-site so one user can operate
   /// multiple sites with different inbox destinations.
@@ -277,53 +302,53 @@ enum ProductStatus {
 }
 
 model Order {
-  id            String      @id @default(cuid())
-  userId        String
+  id                 String       @id @default(cuid())
+  userId             String
   /// Site this order belongs to. Null for CREDIT_PACK / SUBSCRIPTION
   /// (which are platform-level purchases not tied to a specific storefront).
-  siteId        String?
-  orderNumber   String      @unique
-  totalAmount   Int
-  status        OrderStatus @default(PENDING)
+  siteId             String?
+  orderNumber        String       @unique
+  totalAmount        Int
+  status             OrderStatus  @default(PENDING)
   /// PRODUCT = physical/service order (default, backwards-compatible).
   /// CREDIT_PACK = AI credit top-up; on PAID → grants credits.packSize credits.
   /// SUBSCRIPTION = paid site plan (1yr/2yr/3yr); on PAID → extends Site.expiresAt.
-  orderType     OrderType   @default(PRODUCT)
+  orderType          OrderType    @default(PRODUCT)
   /// Source channel — STOREFRONT for orders placed on a homenshop site,
   /// or one of the marketplace enums for orders synced from external platforms.
-  channel       OrderChannel @default(STOREFRONT)
+  channel            OrderChannel @default(STOREFRONT)
   /// FK to the MarketplaceIntegration this order was imported through.
   /// Null for STOREFRONT orders. Multiple integrations of the same channel
   /// can exist (multi-account), so dedupe is scoped by integrationId.
-  integrationId String?
+  integrationId      String?
   /// External marketplace's order ID (Coupang's orderSheetCode, Shopify's
   /// order id, etc.). Combined with integrationId, must be unique to dedupe.
-  externalOrderId String?
+  externalOrderId    String?
   /// Raw JSON snapshot of the external marketplace's order response, kept
   /// for audit/debugging and for replaying mappers when normalizers change.
-  externalRawJson Json?
+  externalRawJson    Json?
   /// Optional Customer reference (separates buyer identity from shipping
   /// info, enables repeat-customer analytics, GDPR-clean PII separation).
-  customerId    String?
+  customerId         String?
   /// For CREDIT_PACK orders: number of credits purchased.
-  creditAmount  Int?
+  creditAmount       Int?
   /// For SUBSCRIPTION orders: number of months to extend the linked site.
   subscriptionMonths Int?
   /// For SUBSCRIPTION orders: id of the Site being extended.
   subscriptionSiteId String?
-  paymentMethod String?
-  paymentKey    String?
-  shippingName  String?
-  shippingPhone String?
-  shippingAddr  String?     @db.Text
-  shippingMemo  String?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  paymentMethod      String?
+  paymentKey         String?
+  shippingName       String?
+  shippingPhone      String?
+  shippingAddr       String?      @db.Text
+  shippingMemo       String?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
 
-  user               User                @relation(fields: [userId], references: [id])
-  site               Site?               @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  user               User                    @relation(fields: [userId], references: [id])
+  site               Site?                   @relation(fields: [siteId], references: [id], onDelete: SetNull)
   integration        MarketplaceIntegration? @relation(fields: [integrationId], references: [id], onDelete: SetNull)
-  customer           Customer?           @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  customer           Customer?               @relation(fields: [customerId], references: [id], onDelete: SetNull)
   items              OrderItem[]
   creditTransactions CreditTransaction[]
 
@@ -377,26 +402,26 @@ enum OrderChannel {
 /// sync by src/lib/credits.ts. Never mutate User.credits directly — always
 /// write a transaction via that module.
 model CreditTransaction {
-  id            String              @id @default(cuid())
-  userId        String
+  id           String                @id @default(cuid())
+  userId       String
   /// Signed amount: positive = grant/refund, negative = consumption.
-  amount        Int
+  amount       Int
   /// User's total balance after applying this transaction (for audit).
-  balanceAfter  Int
-  kind          CreditTransactionKind
+  balanceAfter Int
+  kind         CreditTransactionKind
   /// For CREDIT_PACK purchases: the Order that paid for these credits.
-  refOrderId    String?
+  refOrderId   String?
   /// For AI consumption: which site this was for.
-  refSiteId     String?
+  refSiteId    String?
   /// AI model used (e.g., "claude-sonnet-4-6", "claude-haiku-4-5"). Audit only.
-  aiModel       String?
-  inputTokens   Int?
-  outputTokens  Int?
+  aiModel      String?
+  inputTokens  Int?
+  outputTokens Int?
   /// Human-readable description shown in user-facing history.
-  description   String?             @db.Text
+  description  String?               @db.Text
   /// Admin user ID for ADMIN_GRANT / ADMIN_DEBIT; null otherwise.
-  adminUserId   String?
-  createdAt     DateTime            @default(now())
+  adminUserId  String?
+  createdAt    DateTime              @default(now())
 
   user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   order Order? @relation(fields: [refOrderId], references: [id], onDelete: SetNull)
@@ -426,43 +451,43 @@ enum CreditTransactionKind {
 /// (or the fallback provider). Populated by /api/img on first lookup; reused
 /// for ~30 days. Admin may purge rows to force re-fetch.
 model ImageCache {
-  id          String   @id @default(cuid())
+  id           String   @id @default(cuid())
   /// Normalized keyword: lowercased, trimmed, spaces collapsed.
-  keyword     String
+  keyword      String
   /// "landscape" | "portrait" | "square" — matches Pexels orientation param.
-  orientation String
+  orientation  String
   /// Resolved absolute URL the /api/img endpoint redirects to.
-  url         String   @db.Text
+  url          String   @db.Text
   /// Attribution: photographer name & Pexels photo URL, for optional crediting.
   photographer String?
-  sourceUrl   String?
+  sourceUrl    String?
   /// Image provider ("pexels" | "picsum" | "manual").
-  provider    String   @default("pexels")
+  provider     String   @default("pexels")
   /// Hit count — useful for tuning.
-  hits        Int      @default(1)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  hits         Int      @default(1)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@unique([keyword, orientation])
   @@index([keyword])
 }
 
 model OrderItem {
-  id        String  @id @default(cuid())
-  orderId   String
+  id           String  @id @default(cuid())
+  orderId      String
   /// Internal product reference. Null when the OrderItem represents a
   /// marketplace SKU that has not been mapped to a homenshop Product yet
   /// (we still want to import the order; mapping can happen later).
-  productId String?
+  productId    String?
   /// External marketplace SKU/item identifier (Coupang's vendorItemId,
   /// Shopify's variant_id, etc.). Set for marketplace orders; null for
   /// native storefront orders that have a productId.
-  externalSku String?
+  externalSku  String?
   /// Display name captured at import time so the UI is readable even if
   /// the seller hasn't mapped the SKU to a Product yet.
   externalName String?
-  quantity  Int
-  price     Int
+  quantity     Int
+  price        Int
 
   order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product Product? @relation(fields: [productId], references: [id])
@@ -486,7 +511,7 @@ model OrderItem {
 /// scoped by integrationId, so two seller accounts on Qoo10 can have
 /// separate customer bases even for the same buyer login id.
 model Customer {
-  id            String  @id @default(cuid())
+  id            String       @id @default(cuid())
   /// Owner — required. Marketplace customers always belong to one user
   /// regardless of whether they're tied to a homenshop site.
   userId        String
@@ -508,8 +533,8 @@ model Customer {
   name          String?
   /// Free-form metadata bag (loyalty tier, marketplace VIP flag, etc.).
   meta          Json?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 
   user        User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
   site        Site?                   @relation(fields: [siteId], references: [id], onDelete: SetNull)
@@ -546,7 +571,7 @@ model Customer {
 ///
 /// Credentials are AES-256-GCM encrypted JSON blobs (see src/lib/secrets.ts).
 model MarketplaceIntegration {
-  id          String           @id @default(cuid())
+  id          String            @id @default(cuid())
   /// Owner of the integration. Required.
   userId      String
   /// Optional association with a homenshop site (for inventory/customer
@@ -564,23 +589,23 @@ model MarketplaceIntegration {
   /// Encrypted JSON: marketplace-specific credentials (access token,
   /// refresh token, vendorId, secret, etc.). Decrypted via decryptJson()
   /// only at the moment of API call — never logged.
-  credentials String           @db.Text
+  credentials String            @db.Text
   status      IntegrationStatus @default(DISCONNECTED)
   /// Last successful sync poll (or webhook receive). Drives the cron's
   /// "sync since X" cursor for marketplaces that lack push webhooks.
   lastSyncAt  DateTime?
   /// Most recent error string from a failed sync, surfaced in the
   /// integrations dashboard so the seller can act on token expiry etc.
-  lastError   String?          @db.Text
+  lastError   String?           @db.Text
   /// Marketplace-specific config (region, currency, fulfilment policy).
   config      Json?
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 
-  user      User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  site      Site?                   @relation(fields: [siteId], references: [id], onDelete: SetNull)
-  orders    Order[]
-  customers Customer[]
+  user            User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  site            Site?                   @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  orders          Order[]
+  customers       Customer[]
   productMappings ProductChannelMapping[]
 
   @@index([userId, channel])
@@ -674,36 +699,36 @@ model Reseller {
 // ============================================
 
 model Template {
-  id           String   @id @default(cuid())
-  legacyUid    Int?     @unique
-  userId       String?
-  name         String
-  path         String   @unique
-  thumbnailUrl String?
-  category     String?
-  price        Int      @default(0)
-  keywords     String?
-  description  String?  @db.Text
-  demoSiteId   String?
-  headerHtml   String?  @db.Text
-  menuHtml     String?  @db.Text
-  footerHtml   String?  @db.Text
-  cssText      String?  @db.Text
+  id            String   @id @default(cuid())
+  legacyUid     Int?     @unique
+  userId        String?
+  name          String
+  path          String   @unique
+  thumbnailUrl  String?
+  category      String?
+  price         Int      @default(0)
+  keywords      String?
+  description   String?  @db.Text
+  demoSiteId    String?
+  headerHtml    String?  @db.Text
+  menuHtml      String?  @db.Text
+  footerHtml    String?  @db.Text
+  cssText       String?  @db.Text
   /// Snapshot of Page rows at save time (array of {slug,title,content,lang,sortOrder,isHome,showInMenu}).
   /// Takes precedence over disk-based parsing when present.
   pagesSnapshot Json?
   /// false = private to owner ("나의 템플릿"), true = visible to everyone ("공개 템플릿").
   /// Public templates with a userId are user-contributed; null userId is system-authored.
-  isPublic     Boolean  @default(false)
-  isActive     Boolean  @default(true)
+  isPublic      Boolean  @default(false)
+  isActive      Boolean  @default(true)
   /// true = built mobile-responsive (single layout that flows). false = fixed desktop
   /// width (legacy templates that need a separate mobile layout). Drives the badge
   /// on the template list and the mobile-mode toggle in the design editor.
-  isResponsive Boolean  @default(false)
-  clicks       Int      @default(0)
-  sortOrder    Int      @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  isResponsive  Boolean  @default(false)
+  clicks        Int      @default(0)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   owner User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
@@ -718,19 +743,19 @@ model Template {
 // ============================================
 
 model BoardCategory {
-  id         String @id @default(cuid())
-  siteId     String
-  legacyId   Int?
-  lang       String @default("ko")
-  name       String
-  defaultKey Int    @default(0)
-  replyMode  Int    @default(2)
-  writeMode  Int    @default(2)
-  rowsPerPage Int   @default(20)
-  titleLen   Int    @default(20)
-  imgWidth   Int    @default(100)
-  imgHeight  Int    @default(96)
-  listStyle  Int    @default(0)
+  id          String @id @default(cuid())
+  siteId      String
+  legacyId    Int?
+  lang        String @default("ko")
+  name        String
+  defaultKey  Int    @default(0)
+  replyMode   Int    @default(2)
+  writeMode   Int    @default(2)
+  rowsPerPage Int    @default(20)
+  titleLen    Int    @default(20)
+  imgWidth    Int    @default(100)
+  imgHeight   Int    @default(96)
+  listStyle   Int    @default(0)
 
   site  Site        @relation(fields: [siteId], references: [id], onDelete: Cascade)
   posts BoardPost[]
@@ -777,27 +802,27 @@ model BoardComment {
   parentId  String?
   createdAt DateTime @default(now())
 
-  post     BoardPost     @relation(fields: [postId], references: [id], onDelete: Cascade)
-  parent   BoardComment? @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
-  replies  BoardComment[] @relation("CommentReplies")
+  post    BoardPost      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  parent  BoardComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies BoardComment[] @relation("CommentReplies")
 
   @@index([postId])
   @@index([parentId])
 }
 
 model BoardPlugin {
-  id           String @id @default(cuid())
+  id           String  @id @default(cuid())
   siteId       String
   page         String
   divId        String
   categoryId   String?
   legacyCatId  Int?
-  nums         Int    @default(5)
-  titleLen     Int    @default(20)
-  dateStyle    String @default("0")
-  displayStyle Int    @default(0)
-  imgWidth     Int    @default(150)
-  imgHeight    Int    @default(100)
+  nums         Int     @default(5)
+  titleLen     Int     @default(20)
+  dateStyle    String  @default("0")
+  displayStyle Int     @default(0)
+  imgWidth     Int     @default(150)
+  imgHeight    Int     @default(100)
   skinFile     String?
 
   site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
@@ -807,20 +832,20 @@ model BoardPlugin {
 }
 
 model ProductCategory {
-  id         String @id @default(cuid())
-  siteId     String
-  legacyId   Int?
-  lang       String @default("ko")
-  name       String
-  defaultKey Int    @default(0)
+  id             String @id @default(cuid())
+  siteId         String
+  legacyId       Int?
+  lang           String @default("ko")
+  name           String
+  defaultKey     Int    @default(0)
   parentLegacyId Int?
-  depth      Int    @default(0)
-  listStyle  Int    @default(0)
-  rows       Int    @default(9)
-  imgWidth   Int    @default(80)
-  imgHeight  Int    @default(80)
-  titleLen   Int    @default(30)
-  textLen    Int    @default(0)
+  depth          Int    @default(0)
+  listStyle      Int    @default(0)
+  rows           Int    @default(9)
+  imgWidth       Int    @default(80)
+  imgHeight      Int    @default(80)
+  titleLen       Int    @default(30)
+  textLen        Int    @default(0)
 
   site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
 
@@ -829,17 +854,17 @@ model ProductCategory {
 }
 
 model ProductPlugin {
-  id           String @id @default(cuid())
-  siteId       String
-  lang         String @default("ko")
-  page         String
-  divId        String
-  legacyCatId  Int?
-  nums         Int    @default(7)
-  titleLen     Int    @default(38)
-  imgWidth     Int    @default(128)
-  imgHeight    Int    @default(125)
-  skinFile     String?
+  id          String  @id @default(cuid())
+  siteId      String
+  lang        String  @default("ko")
+  page        String
+  divId       String
+  legacyCatId Int?
+  nums        Int     @default(7)
+  titleLen    Int     @default(38)
+  imgWidth    Int     @default(128)
+  imgHeight   Int     @default(125)
+  skinFile    String?
 
   site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
 
@@ -859,6 +884,35 @@ model PasswordResetToken {
   createdAt DateTime @default(now())
 
   @@index([email])
+}
+
+/// SMS OTP records for phone verification. Used by registration (proves
+/// phone ownership for the prospect-claim flow) and re-usable for future
+/// flows like password recovery via SMS. Codes are stored in plaintext —
+/// industry-standard for short-lived (3min) one-time SMS OTPs with attempt
+/// limits. The verifyToken issued on success is single-use and consumed
+/// when the registration completes.
+model PhoneVerification {
+  id          String    @id @default(cuid())
+  /// Normalized phone number (digits only, leading-zero preserved).
+  phone       String
+  /// 6-digit numeric code.
+  code        String
+  /// Where this verification will be used. "register" for now; reserved for
+  /// future "claim" / "password-reset" purposes so we can scope token reuse.
+  purpose     String    @default("register")
+  expiresAt   DateTime
+  attempts    Int       @default(0)
+  verifiedAt  DateTime?
+  /// Random opaque token issued on successful verify; the client passes it
+  /// back to /api/auth/register as proof. Single-use — register API marks
+  /// it consumed (verifiedAt cleared, row deleted) on use.
+  verifyToken String?   @unique
+  ip          String?
+  createdAt   DateTime  @default(now())
+
+  @@index([phone, purpose])
+  @@index([expiresAt])
 }
 
 model RateLimit {
@@ -892,17 +946,17 @@ model MasterLoginAudit {
 /// timestamps power unread badges on both sides — compared against the
 /// most recent message from the OTHER side.
 model SupportThread {
-  id              String            @id @default(cuid())
-  userId          String            @unique
-  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id              String           @id @default(cuid())
+  userId          String           @unique
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   /// Last time the user opened the thread (null = never). Any admin
   /// message with createdAt > this is unread for the user.
   lastUserReadAt  DateTime?
   /// Last time an admin opened the thread. Any user message with
   /// createdAt > this is unread on the admin side.
   lastAdminReadAt DateTime?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
   messages        SupportMessage[]
 
   @@index([updatedAt])
@@ -914,15 +968,15 @@ enum SupportSender {
 }
 
 model SupportMessage {
-  id        String         @id @default(cuid())
-  threadId  String
-  thread    SupportThread  @relation(fields: [threadId], references: [id], onDelete: Cascade)
-  sender    SupportSender
+  id          String        @id @default(cuid())
+  threadId    String
+  thread      SupportThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  sender      SupportSender
   /// Admin user id when sender=ADMIN (for audit / multi-admin future).
   /// Null when sender=USER. Not a FK to avoid tying deletion.
   adminUserId String?
-  body      String         @db.Text
-  createdAt DateTime       @default(now())
+  body        String        @db.Text
+  createdAt   DateTime      @default(now())
 
   @@index([threadId, createdAt])
 }

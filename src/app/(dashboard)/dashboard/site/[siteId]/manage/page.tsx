@@ -10,6 +10,7 @@ import "../../../dashboard-v2.css";
 import "./manage-v2.css";
 import { DashboardIconSprite, Icon } from "../../../dashboard-icons";
 import DashboardShell from "../../../dashboard-shell";
+import { getTempDomain } from "@/lib/temp-domains";
 
 /* ────────────────────────────────────────────────────────────────
  * Helpers
@@ -110,9 +111,10 @@ export default async function SiteManagePage({
     site.pages[0];
 
   const activeDomain = site.domains[0];
-  const publicUrl = activeDomain ? `https://${activeDomain.domain}` : `https://home.homenshop.com/${site.shopId}/`;
-  const publicUrlLabel = activeDomain ? activeDomain.domain : `home.homenshop.com/${site.shopId}`;
-  const defaultUrl = `home.homenshop.com/${site.shopId}`;
+  const sTemp = getTempDomain(site);
+  const publicUrl = activeDomain ? `https://${activeDomain.domain}` : `https://${sTemp}/${site.shopId}/`;
+  const publicUrlLabel = activeDomain ? activeDomain.domain : `${sTemp}/${site.shopId}`;
+  const defaultUrl = `${sTemp}/${site.shopId}`;
 
   const displayName = currentUser?.name || currentUser?.email?.split("@")[0] || "게스트";
   const credits = currentUser?.credits ?? 0;

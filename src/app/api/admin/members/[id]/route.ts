@@ -16,6 +16,7 @@ const memberSelect = {
       id: true,
       name: true,
       shopId: true,
+      tempDomain: true,
       published: true,
     },
   },

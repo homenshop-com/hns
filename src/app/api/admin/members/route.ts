@@ -21,14 +21,17 @@ export async function GET(request: NextRequest) {
   const page = parsePageParam(searchParams.get("page"));
   const search = searchParams.get("search") || "";
 
+  // Prospect placeholders are managed in /admin/prospects — exclude them
+  // here so the regular member listing reflects real customers only.
   const where = search
     ? {
+        isProspect: false,
         OR: [
           { email: { contains: search, mode: "insensitive" as const } },
           { name: { contains: search, mode: "insensitive" as const } },
         ],
       }
-    : {};
+    : { isProspect: false };
 
   const [users, totalCount] = await Promise.all([
     prisma.user.findMany({

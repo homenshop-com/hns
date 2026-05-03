@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { syncTemplateFromSiteIfLinked } from "@/lib/template-sync";
+import { TEMP_DOMAINS, isAllowedTempDomain } from "@/lib/temp-domains";
 
 // GET /api/sites/[id] — 사이트 상세 조회
 export async function GET(
@@ -64,7 +65,14 @@ export async function PUT(
   }
 
   const body = await request.json();
-  const { name, description, published, languages, defaultLanguage, googleAnalyticsId, googleVerification, headerHtml, menuHtml, footerHtml, hmfLang } = body;
+  const { name, description, published, languages, defaultLanguage, googleAnalyticsId, googleVerification, headerHtml, menuHtml, footerHtml, hmfLang, tempDomain } = body;
+
+  if (tempDomain !== undefined && !isAllowedTempDomain(tempDomain)) {
+    return NextResponse.json(
+      { error: `지원하지 않는 임시 도메인입니다. (허용: ${TEMP_DOMAINS.join(", ")})` },
+      { status: 400 }
+    );
+  }
 
   if (name !== undefined && (typeof name !== "string" || name.trim().length === 0)) {
     return NextResponse.json(
@@ -111,6 +119,7 @@ export async function PUT(
       ...(defaultLanguage !== undefined && { defaultLanguage }),
       ...(googleAnalyticsId !== undefined && { googleAnalyticsId: googleAnalyticsId?.trim() || null }),
       ...(googleVerification !== undefined && { googleVerification: googleVerification?.trim() || null }),
+      ...(tempDomain !== undefined && { tempDomain }),
     },
   });
 

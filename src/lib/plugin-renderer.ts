@@ -49,7 +49,7 @@ function replaceInnerByDivId(html: string, divId: string, newContent: string): s
 /* ─── BoardPlugin rendering (Prisma) ─── */
 export async function renderBoardPluginContent(
   siteId: string, shopId: string, lang: string, pageSlug: string,
-  bodyHtml: string, urlPrefix: string = ""
+  bodyHtml: string, urlPrefix: string = "", tempDomain: string = "home.homenshop.com"
 ): Promise<string> {
   const pageFile = pageSlug === "index" ? "index.html" : `${pageSlug}.html`;
   const plugins = await prisma.boardPlugin.findMany({
@@ -111,7 +111,7 @@ export async function renderBoardPluginContent(
         const photos = r.photos ? r.photos.split("|").filter(Boolean) : [];
         const firstPhoto = photos[0] || "";
         const imgSrc = firstPhoto
-          ? `https://home.homenshop.com/${shopId}/thumb/${thumbSize}/${encodeURIComponent(firstPhoto)}`
+          ? `https://${tempDomain}/${shopId}/thumb/${thumbSize}/${encodeURIComponent(firstPhoto)}`
           : "";
         const title = r.title || "";
         const truncTitle = title.length > titleLen ? title.substring(0, titleLen) + ".." : title;
@@ -132,7 +132,7 @@ export async function renderBoardPluginContent(
         const photos = r.photos ? r.photos.split("|").filter(Boolean) : [];
         for (const p of photos) {
           allPhotos.push({
-            src: `https://home.homenshop.com/${shopId}/uploaded/${encodeURIComponent(p)}`,
+            src: `https://${tempDomain}/${shopId}/uploaded/${encodeURIComponent(p)}`,
             title: r.title || "",
             href: `${urlPrefix}/${lang}/board.html?action=read&id=${r.legacyId}`,
           });
@@ -160,7 +160,7 @@ export async function renderBoardPluginContent(
 /* ─── ProductPlugin rendering (Prisma) ─── */
 export async function renderProductPluginContent(
   siteId: string, shopId: string, lang: string, pageSlug: string,
-  bodyHtml: string, urlPrefix: string = ""
+  bodyHtml: string, urlPrefix: string = "", tempDomain: string = "home.homenshop.com"
 ): Promise<string> {
   const pageFile = `${pageSlug === "index" ? "index" : pageSlug}.html`;
   const plugins = await prisma.productPlugin.findMany({
@@ -201,7 +201,7 @@ export async function renderProductPluginContent(
       const photos = r.photos ? r.photos.split("|").filter(Boolean) : [];
       const firstPhoto = photos[0] || "";
       const imgSrc = firstPhoto
-        ? `https://home.homenshop.com/${shopId}/uploaded/${encodeURIComponent(firstPhoto)}`
+        ? `https://${tempDomain}/${shopId}/uploaded/${encodeURIComponent(firstPhoto)}`
         : "";
       const href = `${urlPrefix}/${lang}/${goodsPage}?action=read&id=${r.legacyId}`;
       const price = r.price ? `<span style="color:#333;font-size:12px;">$${r.price}</span>` : "";

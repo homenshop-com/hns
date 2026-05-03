@@ -13,6 +13,7 @@ import {
   isSiteExpired,
   shouldShowExpirationWarning,
 } from "@/lib/site-expiration";
+import { getTempDomain } from "@/lib/temp-domains";
 
 const PLAN_TAG: Record<string, { cls: string; key: "planFree" | "planPaid" | "planTest" | "planExpired" }> = {
   "0": { cls: "free", key: "planFree" },
@@ -272,12 +273,13 @@ export default async function SitesPage() {
                   s.updatedAt,
                 );
                 const activeDomain = s.domains[0];
+                const sTemp = getTempDomain(s);
                 const publicUrl = activeDomain
                   ? `https://${activeDomain.domain}`
-                  : `https://home.homenshop.com/${s.shopId}/`;
+                  : `https://${sTemp}/${s.shopId}/`;
                 const publicLabel = activeDomain
                   ? activeDomain.domain
-                  : `home.homenshop.com/${s.shopId}`;
+                  : `${sTemp}/${s.shopId}`;
 
                 return (
                   <div key={s.id} className="dv2-site-row">

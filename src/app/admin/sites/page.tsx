@@ -92,6 +92,7 @@ export default async function AdminSitesPage({
   const serializedSites = sites.map(s => ({
     id: s.id,
     shopId: s.shopId,
+    tempDomain: s.tempDomain,
     accountType: s.accountType,
     email: s.user.email,
     domain: s.domains.length > 0 ? s.domains[0].domain : "",
