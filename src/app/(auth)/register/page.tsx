@@ -221,115 +221,122 @@ export default function RegisterPage() {
         <form onSubmit={handleSubmit}>
           {error && <div className="auth-error">{error}</div>}
 
-          <div className="auth-row">
-            <div className="auth-field">
-              <label htmlFor="name">{t("name")}</label>
+          <div className="auth-field">
+            <label htmlFor="name">{t("name")}</label>
+            <input
+              id="name"
+              name="name"
+              type="text"
+              required
+              placeholder={t("namePlaceholder")}
+            />
+          </div>
+
+          {/* Phone + OTP — given its own full-width row so the input has
+              room for a long number plus the inline send button. */}
+          <div className="auth-field">
+            <label htmlFor="phone">
+              {t("phone")} <span className="optional">{t("phoneOptional")}</span>
+            </label>
+            <div style={{ display: "flex", gap: 8 }}>
               <input
-                id="name"
-                name="name"
-                type="text"
-                required
-                placeholder={t("namePlaceholder")}
+                id="phone"
+                name="phone"
+                type="tel"
+                value={phone}
+                onChange={(e) => handlePhoneChange(e.target.value)}
+                placeholder={t("phonePlaceholder")}
+                disabled={otpVerified}
+                style={{ flex: 1, minWidth: 0 }}
               />
+              <button
+                type="button"
+                onClick={sendOtp}
+                disabled={otpDisabled || otpVerified}
+                style={{
+                  flex: "0 0 auto",
+                  height: 48,
+                  padding: "0 18px",
+                  fontSize: 14,
+                  fontWeight: 500,
+                  borderRadius: 6,
+                  border: "1px solid #cbd5e1",
+                  background: otpVerified ? "#dcfce7" : "#f1f5f9",
+                  color: otpVerified ? "#166534" : "#334155",
+                  cursor: otpDisabled || otpVerified ? "default" : "pointer",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {otp.stage === "sending"
+                  ? "전송중..."
+                  : otpVerified
+                    ? "✓ 인증완료"
+                    : otpSent
+                      ? "재발송"
+                      : "인증번호 받기"}
+              </button>
             </div>
-            <div className="auth-field">
-              <label htmlFor="phone">
-                {t("phone")} <span className="optional">{t("phoneOptional")}</span>
-              </label>
-              <div style={{ display: "flex", gap: 6 }}>
+
+            {otpSent && (
+              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                 <input
-                  id="phone"
-                  name="phone"
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => handlePhoneChange(e.target.value)}
-                  placeholder={t("phonePlaceholder")}
-                  disabled={otpVerified}
-                  style={{ flex: 1 }}
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
+                  placeholder="6자리 인증번호"
+                  style={{ flex: 1, minWidth: 0 }}
                 />
                 <button
                   type="button"
-                  onClick={sendOtp}
-                  disabled={otpDisabled || otpVerified}
+                  onClick={verifyOtp}
+                  disabled={otpCode.length !== 6 || otp.stage === "verifying"}
                   style={{
-                    padding: "0 12px",
-                    fontSize: 13,
+                    flex: "0 0 auto",
+                    height: 48,
+                    padding: "0 24px",
+                    fontSize: 14,
+                    fontWeight: 500,
                     borderRadius: 6,
-                    border: "1px solid #cbd5e1",
-                    background: otpVerified ? "#dcfce7" : "#f1f5f9",
-                    color: otpVerified ? "#166534" : "#334155",
-                    cursor: otpDisabled || otpVerified ? "default" : "pointer",
+                    border: "1px solid #405189",
+                    background: "#405189",
+                    color: "white",
+                    cursor:
+                      otpCode.length !== 6 || otp.stage === "verifying"
+                        ? "default"
+                        : "pointer",
                     whiteSpace: "nowrap",
                   }}
                 >
-                  {otp.stage === "sending"
-                    ? "전송중..."
-                    : otpVerified
-                      ? "✓ 인증완료"
-                      : otpSent
-                        ? "재발송"
-                        : "인증번호 받기"}
+                  {otp.stage === "verifying" ? "확인중..." : "확인"}
                 </button>
               </div>
+            )}
 
-              {otpSent && (
-                <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={6}
-                    value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
-                    placeholder="6자리 인증번호"
-                    style={{ flex: 1 }}
-                  />
-                  <button
-                    type="button"
-                    onClick={verifyOtp}
-                    disabled={otpCode.length !== 6 || otp.stage === "verifying"}
-                    style={{
-                      padding: "0 12px",
-                      fontSize: 13,
-                      borderRadius: 6,
-                      border: "1px solid #405189",
-                      background: "#405189",
-                      color: "white",
-                      cursor:
-                        otpCode.length !== 6 || otp.stage === "verifying"
-                          ? "default"
-                          : "pointer",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {otp.stage === "verifying" ? "확인중..." : "확인"}
-                  </button>
-                </div>
-              )}
+            {otp.stage === "sent" && secondsLeft > 0 && (
+              <p style={{ marginTop: 6, fontSize: 12, color: "#64748b" }}>
+                남은 시간 {Math.floor(secondsLeft / 60)}:
+                {String(secondsLeft % 60).padStart(2, "0")}
+              </p>
+            )}
 
-              {otp.stage === "sent" && secondsLeft > 0 && (
-                <p style={{ marginTop: 4, fontSize: 11, color: "#64748b" }}>
-                  남은 시간 {Math.floor(secondsLeft / 60)}:
-                  {String(secondsLeft % 60).padStart(2, "0")}
-                </p>
-              )}
-
-              {otpMessage && (
-                <p
-                  style={{
-                    marginTop: 4,
-                    fontSize: 11,
-                    color: otpVerified ? "#166534" : otp.stage === "error" ? "#b91c1c" : "#64748b",
-                  }}
-                >
-                  {otpMessage}
-                </p>
-              )}
-              {otp.stage === "error" && (
-                <p style={{ marginTop: 4, fontSize: 11, color: "#b91c1c" }}>
-                  {otp.message}
-                </p>
-              )}
-            </div>
+            {otpMessage && (
+              <p
+                style={{
+                  marginTop: 6,
+                  fontSize: 12,
+                  color: otpVerified ? "#166534" : otp.stage === "error" ? "#b91c1c" : "#64748b",
+                }}
+              >
+                {otpMessage}
+              </p>
+            )}
+            {otp.stage === "error" && (
+              <p style={{ marginTop: 6, fontSize: 12, color: "#b91c1c" }}>
+                {otp.message}
+              </p>
+            )}
           </div>
 
           <div className="auth-field">
