@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -111,6 +111,28 @@ export default function TemplateGallery({
   const htmlRef = useRef<HTMLInputElement>(null);
   const cssRef = useRef<HTMLInputElement>(null);
   const assetRef = useRef<HTMLInputElement>(null);
+
+  // Per-card kebab menu (My templates) — id of the card whose menu is open
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!openMenuId) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpenMenuId(null);
+      }
+    }
+    function handleEsc(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpenMenuId(null);
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEsc);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEsc);
+    };
+  }, [openMenuId]);
 
   // Edit-modal state (rename + re-upload thumbnail for an owner's template)
   const [editTarget, setEditTarget] = useState<TemplateItem | null>(null);
@@ -803,56 +825,124 @@ export default function TemplateGallery({
                   <div className="tpl-card-body">
                     <span className="tpl-card-name">{tpl.name}</span>
                   </div>
-                  <div className="tpl-card-footer" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <div
+                    className="tpl-card-footer"
+                    style={{ display: "flex", gap: 8, alignItems: "stretch", padding: "0 14px 14px" }}
+                  >
                     <button
-                      className="tpl-select-btn"
+                      className="tpl-create-cta"
                       onClick={() => openPreview(tpl)}
                     >
-                      [{labels.selectTemplate}]
+                      이 템플릿으로 홈페이지 제작
                     </button>
-                    <Link
-                      href={`/dashboard/templates/my/${tpl.id}/edit`}
-                      className="tpl-delete-btn"
-                      style={{
-                        background: "#ede9fe",
-                        color: "#6d28d9",
-                        border: "1px solid #c4b5fd",
-                        textDecoration: "none",
-                      }}
-                      title="원본 사이트 에디터에서 디자인 편집"
-                    >
-                      디자인 수정
-                    </Link>
-                    <button
-                      className="tpl-delete-btn"
-                      onClick={() => openEditModal(tpl)}
-                      style={{
-                        background: "#f1f3f5",
-                        color: "#495057",
-                        border: "1px solid #dee2e6",
-                      }}
-                      title="이름 / 썸네일 설정"
-                    >
-                      설정
-                    </button>
-                    <button
-                      className="tpl-delete-btn"
-                      onClick={() => handleToggleVisibility(tpl.id, !tpl.isPublic)}
-                      style={{
-                        background: tpl.isPublic ? "#fff0f0" : "#e7f5ff",
-                        color: tpl.isPublic ? "#c92a2a" : "#1971c2",
-                        border: `1px solid ${tpl.isPublic ? "#ffc9c9" : "#a5d8ff"}`,
-                      }}
-                      title={tpl.isPublic ? "비공개로 되돌리기" : "공개 템플릿으로 전환"}
-                    >
-                      {tpl.isPublic ? "비공개로" : "공개로 전환"}
-                    </button>
-                    <button
-                      className="tpl-delete-btn"
-                      onClick={() => handleDeleteTemplate(tpl.id)}
-                    >
-                      {labels.deleteTemplate}
-                    </button>
+                    <div style={{ position: "relative", flexShrink: 0 }}>
+                      <button
+                        type="button"
+                        className="tpl-kebab-btn"
+                        aria-label="더보기"
+                        aria-haspopup="menu"
+                        aria-expanded={openMenuId === tpl.id}
+                        onClick={() =>
+                          setOpenMenuId(openMenuId === tpl.id ? null : tpl.id)
+                        }
+                        title="더보기"
+                      >
+                        <svg
+                          width="18"
+                          height="18"
+                          viewBox="0 0 24 24"
+                          fill="currentColor"
+                          aria-hidden="true"
+                        >
+                          <circle cx="5" cy="12" r="1.8" />
+                          <circle cx="12" cy="12" r="1.8" />
+                          <circle cx="19" cy="12" r="1.8" />
+                        </svg>
+                      </button>
+                      {openMenuId === tpl.id && (
+                        <div
+                          ref={menuRef}
+                          role="menu"
+                          className="tpl-kebab-menu"
+                        >
+                          <Link
+                            href={`/dashboard/templates/my/${tpl.id}/edit`}
+                            role="menuitem"
+                            className="tpl-kebab-item"
+                            onClick={() => setOpenMenuId(null)}
+                          >
+                            <span className="tpl-kebab-ic" aria-hidden="true">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M12 20h9" />
+                                <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                              </svg>
+                            </span>
+                            디자인 수정
+                          </Link>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className="tpl-kebab-item"
+                            onClick={() => {
+                              setOpenMenuId(null);
+                              openEditModal(tpl);
+                            }}
+                          >
+                            <span className="tpl-kebab-ic" aria-hidden="true">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="12" cy="12" r="3" />
+                                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                              </svg>
+                            </span>
+                            정보 수정
+                          </button>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className="tpl-kebab-item"
+                            onClick={() => {
+                              setOpenMenuId(null);
+                              handleToggleVisibility(tpl.id, !tpl.isPublic);
+                            }}
+                          >
+                            <span className="tpl-kebab-ic" aria-hidden="true">
+                              {tpl.isPublic ? (
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                                  <line x1="1" y1="1" x2="23" y2="23" />
+                                </svg>
+                              ) : (
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                  <circle cx="12" cy="12" r="3" />
+                                </svg>
+                              )}
+                            </span>
+                            {tpl.isPublic ? "비공개로 전환" : "공개로 전환"}
+                          </button>
+                          <div className="tpl-kebab-sep" />
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className="tpl-kebab-item tpl-kebab-danger"
+                            onClick={() => {
+                              setOpenMenuId(null);
+                              handleDeleteTemplate(tpl.id);
+                            }}
+                          >
+                            <span className="tpl-kebab-ic" aria-hidden="true">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="3 6 5 6 21 6" />
+                                <path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6" />
+                                <path d="M10 11v6M14 11v6" />
+                                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                              </svg>
+                            </span>
+                            {labels.deleteTemplate}
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
