@@ -53,11 +53,18 @@ export default async function ClaimPage({
     },
   });
 
-  if (
-    !site ||
-    !site.user.isProspect ||
-    site.user.phone !== me.phone
-  ) {
+  // Two valid claim patterns:
+  //   (A) Site.prospectPhone matches the caller's verified phone — site
+  //       can live under any admin/master account.
+  //   (B) Site is owned by a User.isProspect placeholder whose phone
+  //       matches — legacy pattern from /admin/prospects/new.
+  const reservedPhone = site?.prospectPhone ?? site?.user.phone ?? null;
+  const isClaimable =
+    !!site &&
+    (!!site.prospectPhone || site.user.isProspect) &&
+    reservedPhone === me.phone;
+
+  if (!site || !isClaimable) {
     redirect("/dashboard");
   }
 

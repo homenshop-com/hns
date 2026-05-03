@@ -196,6 +196,16 @@ model Site {
   /// Set by /api/cron/expiration-reminders so we don't spam the same email
   /// twice for the same milestone. Reset to null when expiresAt is extended.
   lastReminderDay    Int?
+  /// Phone (digits only) of the real customer this admin-prepared site is
+  /// reserved for. When a user registers and OTP-verifies a phone matching
+  /// this value, they're offered the chance to claim the site — at which
+  /// point ownership transfers, this field is cleared, expiresAt resets to
+  /// +30 days, and the previous owner (typically the master account) is
+  /// left intact so it can hold other prospect sites.
+  prospectPhone      String?
+  /// Free-form admin note about this prospect — referrer, sales status,
+  /// follow-up date, etc. Visible only in admin UI.
+  prospectNote       String?   @db.Text
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
@@ -215,6 +225,7 @@ model Site {
 
   @@index([userId])
   @@index([isTemplateStorage])
+  @@index([prospectPhone])
 }
 
 model SiteHmf {

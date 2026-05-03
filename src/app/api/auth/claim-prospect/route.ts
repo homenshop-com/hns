@@ -4,15 +4,23 @@ import { prisma } from "@/lib/db";
 import { trialExpiryFromNow } from "@/lib/site-expiration";
 
 /**
- * Claim a prospect placeholder. The current session must be a real user
- * whose phone matches a single isProspect=true placeholder. The site,
- * shopId, and User-level relations move from the placeholder to the
- * caller, expiresAt is reset to +30 days from claim time, and the
- * placeholder row is deleted.
+ * Claim a prospect site. Two source patterns are supported:
  *
- * This is intentionally idempotent at the boundary: if the placeholder
- * is already gone (raced or already claimed) we return 410 instead of
- * 500 so the UI can show "이미 인계되었습니다" cleanly.
+ *   (A) Site.prospectPhone is set — the preferred pattern. The site can
+ *       be owned by anyone (typically the master admin account holding
+ *       many prospect sites). On claim, we transfer Site.userId to the
+ *       caller, clear prospectPhone/prospectNote, reset expiresAt to
+ *       +30 days, and leave the previous owner intact.
+ *
+ *   (B) Site is owned by a User.isProspect=true placeholder — the legacy
+ *       pattern from /admin/prospects/new. On claim, we additionally move
+ *       User-scoped relations (Domain, Customer, Marketplace, Order,
+ *       Template) to the caller and delete the placeholder user.
+ *
+ * The caller must be a real (non-prospect) user with an OTP-verified
+ * phone matching the site's reserved phone. Idempotent at the boundary:
+ * if the site is already claimed (no prospect phone, owner not a
+ * placeholder) we return 410 with a friendly message.
  */
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -39,21 +47,12 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
-  if (me.shopId) {
-    return NextResponse.json(
-      { error: "이미 사이트가 있는 계정은 인계받을 수 없습니다." },
-      { status: 409 },
-    );
-  }
 
   const { siteId } = (await req.json().catch(() => ({}))) as { siteId?: string };
   if (!siteId) {
     return NextResponse.json({ error: "siteId가 필요합니다." }, { status: 400 });
   }
 
-  // Resolve the prospect via the site rather than via phone-only — that
-  // lets us return useful errors when the user navigated back to a stale
-  // claim URL.
   const site = await prisma.site.findUnique({
     where: { id: siteId },
     include: {
@@ -73,80 +72,106 @@ export async function POST(req: NextRequest) {
       { status: 410 },
     );
   }
-  if (!site.user.isProspect) {
+
+  // Determine which pattern this site uses.
+  const isPlaceholderOwner = site.user.isProspect;
+  const hasProspectPhone = !!site.prospectPhone;
+
+  if (!isPlaceholderOwner && !hasProspectPhone) {
     return NextResponse.json(
       { error: "이미 인계되었거나 잠재고객 사이트가 아닙니다." },
       { status: 410 },
     );
   }
-  if (site.user.phone !== me.phone) {
+
+  // Phone match check — for pattern (A) compare against Site.prospectPhone,
+  // for pattern (B) compare against the placeholder user's phone.
+  const reservedPhone = site.prospectPhone ?? site.user.phone;
+  if (reservedPhone !== me.phone) {
     return NextResponse.json(
       { error: "핸드폰 번호가 일치하지 않습니다." },
       { status: 403 },
     );
   }
 
-  const prospectId = site.user.id;
   const realUserId = me.id;
   const newExpiresAt = trialExpiryFromNow(30);
 
-  // The transaction order matters:
-  //   1. Free shopId on placeholder (User.shopId is @unique).
-  //   2. Move Site ownership and reset expiry/reminder state.
-  //   3. Move other User-scoped relations (Domain/Customer/Marketplace/
-  //      Order/Template) so the placeholder has nothing left blocking
-  //      its delete.
-  //   4. Adopt shopId on the real user, mark claimedAt.
-  //   5. Delete placeholder. Site is already detached, so cascade is a
-  //      no-op for it; SupportThread (1:1, cascade) is the only thing
-  //      we deliberately drop — it would have been empty for a freshly
-  //      created placeholder.
-  await prisma.$transaction(async (tx) => {
-    await tx.user.update({
-      where: { id: prospectId },
-      data: { shopId: null },
+  if (isPlaceholderOwner) {
+    // Pattern (B) — legacy placeholder user. Move everything off the
+    // placeholder so the User row can be deleted without cascading.
+    const prospectId = site.user.id;
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: prospectId },
+        data: { shopId: null },
+      });
+      await tx.site.update({
+        where: { id: site.id },
+        data: {
+          userId: realUserId,
+          expiresAt: newExpiresAt,
+          lastReminderDay: null,
+          prospectPhone: null,
+          prospectNote: null,
+        },
+      });
+      await tx.domain.updateMany({
+        where: { userId: prospectId },
+        data: { userId: realUserId },
+      });
+      await tx.customer.updateMany({
+        where: { userId: prospectId },
+        data: { userId: realUserId },
+      });
+      await tx.marketplaceIntegration.updateMany({
+        where: { userId: prospectId },
+        data: { userId: realUserId },
+      });
+      await tx.order.updateMany({
+        where: { userId: prospectId },
+        data: { userId: realUserId },
+      });
+      await tx.template.updateMany({
+        where: { userId: prospectId },
+        data: { userId: realUserId },
+      });
+      // Adopt the shopId on the real user only if they don't already
+      // hold one — preserves their existing primary site if any.
+      await tx.user.update({
+        where: { id: realUserId },
+        data: {
+          shopId: me.shopId ?? site.shopId,
+          claimedAt: new Date(),
+        },
+      });
+      await tx.user.delete({ where: { id: prospectId } });
     });
-
-    await tx.site.update({
-      where: { id: site.id },
-      data: {
-        userId: realUserId,
-        expiresAt: newExpiresAt,
-        lastReminderDay: null,
-      },
+  } else {
+    // Pattern (A) — site lives under a real admin account (master). Just
+    // move the site over and clear the prospect markers; do NOT touch
+    // the previous owner or its other relations, since master typically
+    // holds many other prospect sites that should remain.
+    await prisma.$transaction(async (tx) => {
+      await tx.site.update({
+        where: { id: site.id },
+        data: {
+          userId: realUserId,
+          expiresAt: newExpiresAt,
+          lastReminderDay: null,
+          prospectPhone: null,
+          prospectNote: null,
+        },
+      });
+      await tx.user.update({
+        where: { id: realUserId },
+        data: {
+          shopId: me.shopId ?? site.shopId,
+          claimedAt: new Date(),
+        },
+      });
     });
-
-    await tx.domain.updateMany({
-      where: { userId: prospectId },
-      data: { userId: realUserId },
-    });
-    await tx.customer.updateMany({
-      where: { userId: prospectId },
-      data: { userId: realUserId },
-    });
-    await tx.marketplaceIntegration.updateMany({
-      where: { userId: prospectId },
-      data: { userId: realUserId },
-    });
-    await tx.order.updateMany({
-      where: { userId: prospectId },
-      data: { userId: realUserId },
-    });
-    await tx.template.updateMany({
-      where: { userId: prospectId },
-      data: { userId: realUserId },
-    });
-
-    await tx.user.update({
-      where: { id: realUserId },
-      data: {
-        shopId: site.shopId,
-        claimedAt: new Date(),
-      },
-    });
-
-    await tx.user.delete({ where: { id: prospectId } });
-  });
+  }
 
   return NextResponse.json({
     ok: true,

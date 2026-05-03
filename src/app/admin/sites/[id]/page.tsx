@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { getTempDomain } from "@/lib/temp-domains";
+import { normalizePhoneDigits, formatKoreanPhone } from "@/lib/sms";
 
 const ACCOUNT_TYPES: Record<string, string> = { "0": "Free", "1": "Paid", "2": "Test", "9": "Expired" };
 
@@ -12,6 +13,13 @@ async function updateSite(formData: FormData) {
   const expiresAt = formData.get("expiresAt") as string;
   const name = formData.get("name") as string;
   const shopId = formData.get("shopId") as string;
+  // Prospect phone — when set, the customer who later registers with a
+  // matching OTP-verified phone will be offered the claim flow.
+  const prospectPhoneRaw = (formData.get("prospectPhone") as string) || "";
+  const prospectPhone = prospectPhoneRaw.trim()
+    ? normalizePhoneDigits(prospectPhoneRaw)
+    : null;
+  const prospectNote = ((formData.get("prospectNote") as string) || "").trim() || null;
 
   await prisma.site.update({
     where: { id },
@@ -20,6 +28,8 @@ async function updateSite(formData: FormData) {
       expiresAt: expiresAt ? new Date(expiresAt) : null,
       name: name || undefined,
       shopId: shopId || undefined,
+      prospectPhone,
+      prospectNote,
     },
   });
   redirect(`/admin/sites/${id}`);
@@ -70,6 +80,9 @@ export default async function AdminSiteDetailPage({
   if (!site) notFound();
 
   const isExpired = site.expiresAt && new Date(site.expiresAt) < new Date();
+  const prospectPhoneDisplay = site.prospectPhone
+    ? formatKoreanPhone(site.prospectPhone)
+    : "";
 
   return (
     <div>
@@ -120,6 +133,41 @@ export default async function AdminSiteDetailPage({
                 <label className="block text-xs text-slate-500 mb-1">Expiration Date</label>
                 <input type="date" name="expiresAt" defaultValue={site.expiresAt ? site.expiresAt.toISOString().split("T")[0] : ""} className="w-full border border-slate-300 rounded-lg bg-white px-3 py-2 text-sm text-slate-800" />
               </div>
+
+              {/* Prospect Phone — pre-set the real customer's phone so they
+                  can claim this site automatically at registration time. */}
+              <div className="rounded-lg border border-amber-200 bg-amber-50/40 p-3 -mx-1">
+                <label className="block text-xs font-medium text-amber-800 mb-1">
+                  실제 소유자 핸드폰 <span className="font-normal text-slate-500">(잠재고객 인계용)</span>
+                </label>
+                <input
+                  name="prospectPhone"
+                  type="tel"
+                  defaultValue={prospectPhoneDisplay}
+                  placeholder="010-1234-5678"
+                  className="w-full border border-amber-300 rounded-lg bg-white px-3 py-2 text-sm text-slate-800"
+                />
+                <p className="mt-1 text-[11px] text-slate-500 leading-relaxed">
+                  이 번호로 OTP 인증 후 회원가입하면 사이트가 자동 인계됩니다 (만료일 +30일 재설정).
+                  비워두면 일반 사이트로 처리됩니다.
+                </p>
+                <label className="block text-xs font-medium text-amber-800 mt-3 mb-1">
+                  관리자 메모
+                </label>
+                <textarea
+                  name="prospectNote"
+                  rows={2}
+                  defaultValue={site.prospectNote ?? ""}
+                  placeholder="소개자, 영업 상태, 후속 일정 등"
+                  className="w-full border border-amber-300 rounded-lg bg-white px-3 py-2 text-sm text-slate-800"
+                />
+                {site.prospectPhone && (
+                  <p className="mt-2 text-[11px] text-amber-700">
+                    📞 현재 등록된 번호: <span className="font-mono">{prospectPhoneDisplay}</span> — 인계 대기 중
+                  </p>
+                )}
+              </div>
+
               <div className="grid grid-cols-2 gap-4 text-sm text-slate-500">
                 <div>
                   <span className="text-xs">Created:</span><br />

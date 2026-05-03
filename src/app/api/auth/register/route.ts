@@ -172,27 +172,44 @@ export async function POST(req: NextRequest) {
         );
     }
 
-    // Detect a prospect placeholder created by an admin for this phone.
-    // We don't auto-claim — the user must explicitly confirm on the claim
-    // page, which is also what surfaces the prepared site for review.
+    // Detect an admin-prepared site reserved for this phone. The newer
+    // pattern (Site.prospectPhone) lets a single admin account hold many
+    // prospect sites; the legacy pattern (User.isProspect placeholder)
+    // is checked as a fallback for any prospects created before the
+    // refactor. We don't auto-claim — the user explicitly confirms on
+    // the claim page, which also surfaces the site for review.
     let claimablePlaceholder: {
       shopId: string;
       siteName: string;
       siteId: string;
     } | null = null;
     if (normalizedPhone) {
-      const prospect = await prisma.user.findFirst({
-        where: { isProspect: true, phone: normalizedPhone },
-        include: { sites: { take: 1, select: { id: true, shopId: true, name: true } } },
+      const targetedSite = await prisma.site.findFirst({
+        where: { prospectPhone: normalizedPhone },
+        select: { id: true, shopId: true, name: true },
         orderBy: { createdAt: "desc" },
       });
-      const site = prospect?.sites[0];
-      if (prospect && site) {
+      if (targetedSite) {
         claimablePlaceholder = {
-          shopId: site.shopId,
-          siteId: site.id,
-          siteName: site.name,
+          shopId: targetedSite.shopId,
+          siteId: targetedSite.id,
+          siteName: targetedSite.name,
         };
+      } else {
+        // Fallback: legacy isProspect placeholder accounts.
+        const prospect = await prisma.user.findFirst({
+          where: { isProspect: true, phone: normalizedPhone },
+          include: { sites: { take: 1, select: { id: true, shopId: true, name: true } } },
+          orderBy: { createdAt: "desc" },
+        });
+        const site = prospect?.sites[0];
+        if (prospect && site) {
+          claimablePlaceholder = {
+            shopId: site.shopId,
+            siteId: site.id,
+            siteName: site.name,
+          };
+        }
       }
     }
 
