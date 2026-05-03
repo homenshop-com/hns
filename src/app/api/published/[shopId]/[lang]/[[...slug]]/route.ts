@@ -916,7 +916,23 @@ export async function GET(
   const headerNavIsCustom =
     /<nav[^>]*(?:data-preserve|class="[^"]*(?:ul-nav-custom|has-dropdown)[^"]*")/i.test(headerHtml) ||
     /<nav[\s>][\s\S]*?<(?:div|ul|button|details)\b[\s\S]*?<\/nav>/i.test(headerHtml);
-  if (headerHasNavWithLinks && !headerNavIsCustom) {
+  // Single-page sites with on-page hash anchors (#event, #line, #visit, …)
+  // — typical for Claude Designs / one-pager exports — must NOT have their
+  // nav links overwritten with the page list. If the page list has only
+  // "HOME" but the nav defines 5 sections on the same page, regenerating
+  // would wipe out 4 navigation entries and leave the user with a single
+  // HOME link. Treat the existing nav as authoritative when every link
+  // inside it is a hash anchor.
+  const navAllHashAnchors = (() => {
+    const navMatch = /<nav\b[^>]*>([\s\S]*?)<\/nav>/i.exec(headerHtml);
+    if (!navMatch) return false;
+    const inside = navMatch[1];
+    const hrefs = Array.from(inside.matchAll(/<a\b[^>]*\bhref\s*=\s*["']([^"']*)["']/gi))
+      .map((m) => m[1].trim());
+    if (hrefs.length === 0) return false;
+    return hrefs.every((h) => h.startsWith("#"));
+  })();
+  if (headerHasNavWithLinks && !headerNavIsCustom && !navAllHashAnchors) {
     const navLinks = topLevelPages
       .map((p) => {
         const label = p.menuTitle || p.title;
@@ -931,8 +947,9 @@ export async function GET(
       (_m, open, _old, close) => `${open}\n${navLinks}\n${close}`
     );
     menuHtml = "";
-  } else if (headerHasNavWithLinks && headerNavIsCustom) {
-    // Custom nav preserved as-authored; still suppress the legacy second menu bar
+  } else if (headerHasNavWithLinks && (headerNavIsCustom || navAllHashAnchors)) {
+    // Nav is preserved as-authored (custom dropdown markup OR single-page
+    // hash-anchor links); still suppress the legacy second menu bar.
     menuHtml = "";
   } else if (!rawMenuHtml) {
     menuHtml = wrappedMenu;
