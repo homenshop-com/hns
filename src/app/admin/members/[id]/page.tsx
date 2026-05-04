@@ -19,6 +19,7 @@ interface MemberDetail {
   phone: string | null;
   role: string;
   status: string;
+  emailVerified: string | null;
   createdAt: string;
   updatedAt: string;
   sites: SiteInfo[];
@@ -54,6 +55,7 @@ export default function AdminMemberDetailPage() {
   const [phone, setPhone] = useState("");
   const [role, setRole] = useState("");
   const [status, setStatus] = useState("");
+  const [verifyingEmail, setVerifyingEmail] = useState(false);
 
   // Credits
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
@@ -128,6 +130,34 @@ export default function AdminMemberDetailPage() {
     fetchMember();
     loadCredits(id);
   }, [id, router]);
+
+  async function handleToggleEmailVerified() {
+    if (!member) return;
+    const willVerify = !member.emailVerified;
+    const confirmMsg = willVerify
+      ? "이 회원을 이메일 인증 완료 상태로 처리하시겠습니까?"
+      : "이메일 인증을 해제하시겠습니까? (다시 로그인 시 인증 필요)";
+    if (!window.confirm(confirmMsg)) return;
+    setVerifyingEmail(true);
+    setError("");
+    setSuccess("");
+    try {
+      const res = await fetch(`/api/admin/members/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emailVerified: willVerify }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "처리에 실패했습니다.");
+      setMember(data);
+      setSuccess(willVerify ? "이메일 인증 완료로 처리되었습니다." : "이메일 인증이 해제되었습니다.");
+      setTimeout(() => setSuccess(""), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "오류가 발생했습니다.");
+    } finally {
+      setVerifyingEmail(false);
+    }
+  }
 
   async function handleSave() {
     setSaving(true);
@@ -204,6 +234,38 @@ export default function AdminMemberDetailPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-[#405189] focus:outline-none"
               />
+              <div className="mt-2 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  {member.emailVerified ? (
+                    <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200">
+                      <svg width={12} height={12} viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
+                      인증 완료
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 ring-1 ring-inset ring-amber-200">
+                      <svg width={12} height={12} viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /></svg>
+                      미인증
+                    </span>
+                  )}
+                  {member.emailVerified && (
+                    <span className="text-[11px] text-slate-500">
+                      {new Date(member.emailVerified).toLocaleString("ko-KR")}
+                    </span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleToggleEmailVerified}
+                  disabled={verifyingEmail}
+                  className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors disabled:opacity-50 ${
+                    member.emailVerified
+                      ? "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                      : "bg-[#405189] text-white hover:bg-[#364574]"
+                  }`}
+                >
+                  {verifyingEmail ? "처리 중..." : member.emailVerified ? "인증 해제" : "인증 완료 처리"}
+                </button>
+              </div>
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-500 mb-1">이름</label>

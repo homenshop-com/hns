@@ -9,6 +9,7 @@ const memberSelect = {
   phone: true,
   role: true,
   status: true,
+  emailVerified: true,
   createdAt: true,
   updatedAt: true,
   sites: {
@@ -67,7 +68,7 @@ export async function PUT(
 
   const { id } = await params;
   const body = await request.json();
-  const { role, status, name, phone, email } = body;
+  const { role, status, name, phone, email, emailVerified } = body;
 
   const validRoles = ["ADMIN", "RESELLER", "MEMBER"];
   if (role && !validRoles.includes(role)) {
@@ -91,12 +92,15 @@ export async function PUT(
     }
   }
 
-  const updateData: Record<string, string> = {};
+  const updateData: Record<string, string | Date | null> = {};
   if (role) updateData.role = role;
   if (status) updateData.status = status;
   if (name !== undefined) updateData.name = name;
   if (phone !== undefined) updateData.phone = phone;
   if (email) updateData.email = email;
+  if (emailVerified !== undefined) {
+    updateData.emailVerified = emailVerified ? new Date() : null;
+  }
 
   const updatedMember = await prisma.user.update({
     where: { id },
