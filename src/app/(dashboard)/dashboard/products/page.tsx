@@ -7,19 +7,34 @@ import DashboardShell from "../dashboard-shell";
 import { parsePageParam } from "@/lib/pagination";
 import { getTempDomain } from "@/lib/temp-domains";
 
-function firstImageUrl(
-  images: unknown,
-  site: { shopId: string; tempDomain?: string | null }
-): string | null {
-  if (!images || !Array.isArray(images)) return null;
-  for (const entry of images) {
-    const parts = String(entry).split("|").map(s => s.trim()).filter(Boolean);
-    for (const p of parts) {
-      if (p.startsWith("http") || p.startsWith("/uploads/")) return p;
-      return `https://${getTempDomain(site)}/${site.shopId}/uploaded/${encodeURIComponent(p)}`;
+/**
+ * Extract the first image filename from either the new `images` JSON field
+ * or the legacy `photos` pipe-delimited text column. Migrated sites (e.g.
+ * ybsurplus) still have all their data in `photos` and an empty `images`,
+ * so admin pages that only read `images` end up showing no thumbnails.
+ */
+function firstImageFile(p: { images: unknown; photos?: string | null }): string | null {
+  if (Array.isArray(p.images)) {
+    for (const entry of p.images) {
+      const parts = String(entry).split("|").map(s => s.trim()).filter(Boolean);
+      if (parts.length) return parts[0];
     }
   }
+  if (typeof p.photos === "string" && p.photos.trim()) {
+    const parts = p.photos.split("|").map(s => s.trim()).filter(Boolean);
+    if (parts.length) return parts[0];
+  }
   return null;
+}
+
+/** Build a URL pointing at nginx's per-site thumbnailer (thumb.php). */
+function thumbUrl(
+  filename: string,
+  site: { shopId: string; tempDomain?: string | null },
+  size: string
+): string {
+  if (filename.startsWith("http") || filename.startsWith("/uploads/")) return filename;
+  return `https://${getTempDomain(site)}/${site.shopId}/thumb/${size}/${encodeURIComponent(filename)}`;
 }
 
 async function getCategoryMap(siteId: string): Promise<Record<string, string>> {
@@ -265,7 +280,8 @@ export default async function ProductsPage({
               </thead>
               <tbody>
                 {products.map((product) => {
-                  const thumb = site ? firstImageUrl(product.images, site) : null;
+                  const file = firstImageFile(product);
+                  const thumb = file && site ? thumbUrl(file, site, "120x120") : null;
                   return (
                   <tr
                     key={product.id}

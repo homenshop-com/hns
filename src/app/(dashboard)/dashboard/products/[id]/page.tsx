@@ -34,22 +34,27 @@ export default async function ProductDetailPage({
     notFound();
   }
 
-  // Parse legacy images: Json field may contain ["file1.jpg|file2.jpg|"] or ["url1","url2"]
-  const imageUrls: string[] = [];
-  if (product.images) {
-    const imgs = product.images as string[];
-    for (const entry of imgs) {
-      // Legacy format: pipe-separated filenames in a single string
-      const parts = String(entry).split("|").filter(Boolean);
-      for (const p of parts) {
-        if (p.startsWith("http") || p.startsWith("/uploads/")) {
-          imageUrls.push(p);
-        } else {
-          imageUrls.push(`https://${getTempDomain(site)}/${site.shopId}/uploaded/${encodeURIComponent(p)}`);
-        }
+  // Parse images. Newer rows store filenames in the `images` JSON field;
+  // legacy/migrated rows still keep them as a pipe-separated string in
+  // `photos`. Without the photos fallback, every migrated site renders
+  // an empty image picker (ybsurplus, etc).
+  const collectFiles = (): string[] => {
+    const out: string[] = [];
+    if (Array.isArray(product.images)) {
+      for (const entry of product.images) {
+        String(entry).split("|").map(s => s.trim()).filter(Boolean).forEach(f => out.push(f));
       }
     }
-  }
+    if (out.length === 0 && typeof product.photos === "string" && product.photos.trim()) {
+      product.photos.split("|").map(s => s.trim()).filter(Boolean).forEach(f => out.push(f));
+    }
+    return out;
+  };
+
+  const imageUrls: string[] = collectFiles().map((p) => {
+    if (p.startsWith("http") || p.startsWith("/uploads/")) return p;
+    return `https://${getTempDomain(site)}/${site.shopId}/uploaded/${encodeURIComponent(p)}`;
+  });
 
   const initialData = {
     name: product.name,
