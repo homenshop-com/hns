@@ -5,6 +5,22 @@ import Link from "next/link";
 import { Prisma } from "@/generated/prisma/client";
 import DashboardShell from "../dashboard-shell";
 import { parsePageParam } from "@/lib/pagination";
+import { getTempDomain } from "@/lib/temp-domains";
+
+function firstImageUrl(
+  images: unknown,
+  site: { shopId: string; tempDomain?: string | null }
+): string | null {
+  if (!images || !Array.isArray(images)) return null;
+  for (const entry of images) {
+    const parts = String(entry).split("|").map(s => s.trim()).filter(Boolean);
+    for (const p of parts) {
+      if (p.startsWith("http") || p.startsWith("/uploads/")) return p;
+      return `https://${getTempDomain(site)}/${site.shopId}/uploaded/${encodeURIComponent(p)}`;
+    }
+  }
+  return null;
+}
 
 async function getCategoryMap(siteId: string): Promise<Record<string, string>> {
   const categories = await prisma.productCategory.findMany({
@@ -133,7 +149,7 @@ export default async function ProductsPage({
             </Link>
             <Link
               href="/dashboard/products/new"
-              className="rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+              className="rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-violet-700 dark:bg-violet-500 dark:hover:bg-violet-400"
             >
               + 상품 등록
             </Link>
@@ -174,7 +190,7 @@ export default async function ProductsPage({
             </select>
             <button
               type="submit"
-              className="rounded-lg bg-zinc-700 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-600 dark:bg-zinc-600 dark:hover:bg-zinc-500"
+              className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-violet-700 dark:bg-violet-500 dark:hover:bg-violet-400"
             >
               검색
             </button>
@@ -224,6 +240,9 @@ export default async function ProductsPage({
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-zinc-200 dark:border-zinc-800">
+                  <th className="w-20 px-4 py-3 text-left font-medium text-zinc-500 dark:text-zinc-400">
+                    이미지
+                  </th>
                   <th className="px-6 py-3 text-left font-medium text-zinc-500 dark:text-zinc-400">
                     상품명
                   </th>
@@ -245,11 +264,33 @@ export default async function ProductsPage({
                 </tr>
               </thead>
               <tbody>
-                {products.map((product) => (
+                {products.map((product) => {
+                  const thumb = site ? firstImageUrl(product.images, site) : null;
+                  return (
                   <tr
                     key={product.id}
                     className="border-b border-zinc-100 last:border-0 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800/50"
                   >
+                    <td className="px-4 py-3">
+                      <Link
+                        href={`/dashboard/products/${product.id}`}
+                        className="block w-14 h-14 overflow-hidden rounded-md border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800"
+                      >
+                        {thumb ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={thumb}
+                            alt=""
+                            loading="lazy"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full grid place-items-center text-[10px] text-zinc-400">
+                            이미지 없음
+                          </div>
+                        )}
+                      </Link>
+                    </td>
                     <td className="px-6 py-4">
                       <Link
                         href={`/dashboard/products/${product.id}`}
@@ -293,7 +334,8 @@ export default async function ProductsPage({
                       )}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
