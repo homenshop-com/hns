@@ -290,7 +290,7 @@
     "navAnalytics": "統計・分析",
     "navSoonTag": "SOON",
     "navOrders": "注文管理",
-    "navBoards": "問い合わせ・予約",
+    "navBoards": "掲示板",
     "navDomains": "ドメイン管理",
     "navIntegrations": "マーケットプレイス連携",
     "navSectionAccount": "アカウント",
@@ -364,7 +364,8 @@
     "planFree": "無料",
     "planPaid": "有料",
     "planTest": "テスト",
-    "planExpired": "期限切れ"
+    "planExpired": "期限切れ",
+    "navInquiries": "問い合わせ・予約"
   },
   "settings": {
     "pageTitle": "基本情報管理",

@@ -290,7 +290,7 @@
     "navAnalytics": "Analytics",
     "navSoonTag": "SOON",
     "navOrders": "Orders",
-    "navBoards": "Inquiries · Bookings",
+    "navBoards": "Boards",
     "navDomains": "Domains",
     "navIntegrations": "Marketplace Integrations",
     "navSectionAccount": "Account",
@@ -364,7 +364,8 @@
     "planFree": "Free",
     "planPaid": "Paid",
     "planTest": "Test",
-    "planExpired": "Expired"
+    "planExpired": "Expired",
+    "navInquiries": "Inquiries · Bookings"
   },
   "settings": {
     "pageTitle": "Site Settings",

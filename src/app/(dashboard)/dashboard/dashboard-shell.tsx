@@ -15,6 +15,7 @@ export type DashboardNavKey =
   | "home"
   | "sites"
   | "orders"
+  | "inquiries"
   | "boards"
   | "domains"
   | "credits"
@@ -112,12 +113,16 @@ export default async function DashboardShell({
                 <span className="badge g">{badges.orders}</span>
               )}
             </Link>
-            <Link className={cls("boards")} href="/dashboard/boards">
+            <Link className={cls("inquiries")} href="/dashboard/inquiries">
               <span className="ic"><Icon id="i-mail" /></span>
-              <span className="label">{t("navBoards")}</span>
+              <span className="label">{t("navInquiries")}</span>
               {badges?.inquiries != null && badges.inquiries > 0 && (
                 <span className="badge">{badges.inquiries}</span>
               )}
+            </Link>
+            <Link className={cls("boards")} href="/dashboard/boards">
+              <span className="ic"><Icon id="i-grid" /></span>
+              <span className="label">{t("navBoards")}</span>
             </Link>
             <Link className={cls("domains")} href="/dashboard/domains">
               <span className="ic"><Icon id="i-globe" /></span>

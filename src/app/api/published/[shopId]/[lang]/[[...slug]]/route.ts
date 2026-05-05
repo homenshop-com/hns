@@ -86,12 +86,46 @@ function escapeHtml(s: unknown): string {
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
+/* ─── Board / Product label i18n ─── */
+/* Centralised here (not in next-intl) because these strings are emitted
+ * inside the published-page renderer, which runs as a per-request server
+ * function and produces raw HTML — not React. Falls back to English when
+ * the lang isn't covered. */
+type BoardLabels = {
+  board: string;
+  notFound: string;
+  empty: string;
+  total: string;
+  page: string;
+  no: string;
+  title: string;
+  author: string;
+  date: string;
+  views: string;
+  authorBy: string;  // prefix in detail meta — e.g. "By eric"
+  viewsBy: string;   // prefix in detail meta — e.g. "Views 1234"
+  defaultAuthor: string;
+  backToList: string;
+};
+const BOARD_LABELS: Record<string, BoardLabels> = {
+  ko: { board: "게시판", notFound: "게시글을 찾을 수 없습니다.", empty: "등록된 글이 없습니다.", total: "총", page: "페이지", no: "번호", title: "제목", author: "작성자", date: "날짜", views: "조회", authorBy: "작성자", viewsBy: "조회", defaultAuthor: "관리자", backToList: "목록으로" },
+  en: { board: "Board", notFound: "Post not found.", empty: "No posts yet.", total: "TOTAL", page: "PAGE", no: "No.", title: "Title", author: "Author", date: "Date", views: "Views", authorBy: "By", viewsBy: "Views", defaultAuthor: "Admin", backToList: "Back to list" },
+  ja: { board: "掲示板", notFound: "投稿が見つかりません。", empty: "投稿がまだありません。", total: "合計", page: "ページ", no: "番号", title: "タイトル", author: "投稿者", date: "日付", views: "閲覧", authorBy: "投稿者", viewsBy: "閲覧", defaultAuthor: "管理者", backToList: "一覧へ" },
+  "zh-cn": { board: "公告板", notFound: "找不到帖子。", empty: "暂无帖子。", total: "共", page: "页", no: "编号", title: "标题", author: "作者", date: "日期", views: "查看", authorBy: "作者", viewsBy: "查看", defaultAuthor: "管理员", backToList: "返回列表" },
+  "zh-tw": { board: "公告板", notFound: "找不到貼文。", empty: "尚無貼文。", total: "共", page: "頁", no: "編號", title: "標題", author: "作者", date: "日期", views: "查看", authorBy: "作者", viewsBy: "查看", defaultAuthor: "管理員", backToList: "返回列表" },
+  es: { board: "Tablón", notFound: "Publicación no encontrada.", empty: "No hay publicaciones todavía.", total: "TOTAL", page: "PÁG.", no: "N.º", title: "Título", author: "Autor", date: "Fecha", views: "Vistas", authorBy: "Por", viewsBy: "Vistas", defaultAuthor: "Admin", backToList: "Volver a la lista" },
+};
+function boardLabels(lang: string): BoardLabels {
+  return BOARD_LABELS[lang] || BOARD_LABELS["en"];
+}
+
 async function renderBoardRead(siteId: string, shopId: string, lang: string, id: number, urlPrefix: string = "", tempDomain: string = "home.homenshop.com"): Promise<string> {
+  const L = boardLabels(lang);
   const row = await prisma.boardPost.findFirst({
     where: { siteId, legacyId: id },
     include: { category: { select: { name: true, legacyId: true } } },
   });
-  if (!row) return `<div class="board-content" style="width:100%;margin:20px auto;position:relative;padding:40px 20px;color:#999;text-align:center;font-size:15px;">게시글을 찾을 수 없습니다. (id=${id})</div>`;
+  if (!row) return `<div class="board-content" style="width:100%;margin:20px auto;position:relative;padding:40px 20px;color:#999;text-align:center;font-size:15px;">${L.notFound} (id=${id})</div>`;
 
   const photos = row.photos ? row.photos.split("|").filter(Boolean) : [];
   const imageExts = new Set(["jpg", "jpeg", "png", "gif", "bmp", "webp", "svg"]);
@@ -173,9 +207,9 @@ async function renderBoardRead(siteId: string, shopId: string, lang: string, id:
       ${catName ? `<div class="${scope}-cat">${escapeHtml(catName)}</div>` : ""}
       <h1 class="${scope}-title">${escapeHtml(row.title || "")}</h1>
       <div class="${scope}-meta">
-        <span>작성자 ${escapeHtml(row.author || "관리자")}</span>
+        <span>${L.authorBy} ${escapeHtml(row.author || L.defaultAuthor)}</span>
         <span>${row.regdate || ""}</span>
-        <span>조회 ${row.views || 0}</span>
+        <span>${L.viewsBy} ${row.views || 0}</span>
       </div>
     </div>
     <div class="${scope}-body">
@@ -184,7 +218,7 @@ async function renderBoardRead(siteId: string, shopId: string, lang: string, id:
     </div>
     ${repliesScoped}
     <div class="${scope}-footer">
-      <a href="${listHref}" class="${scope}-back">← 목록으로</a>
+      <a href="${listHref}" class="${scope}-back">← ${L.backToList}</a>
     </div>
   </div>`;
 }
@@ -196,7 +230,8 @@ async function renderBoardList(siteId: string, shopId: string, lang: string, cat
   // Get category info — including listStyle so we know whether to render as
   // table (0, default) or gallery (1). listStyle is stored on BoardCategory
   // per the legacy PHP conventions.
-  let catName = "게시판";
+  const L = boardLabels(lang);
+  let catName = L.board;
   let categoryId: string | undefined;
   let listStyle = 0;
   let imgWidth = 150;
@@ -304,10 +339,10 @@ async function renderBoardList(siteId: string, shopId: string, lang: string, cat
       <style>${css}</style>
       <div class="${scope}-head">
         <h2>${escapeHtml(catName)}</h2>
-        <span class="${scope}-count">TOTAL ${total} · PAGE ${pageNum}/${Math.max(1, totalPages)}</span>
+        <span class="${scope}-count">${L.total} ${total} · ${L.page} ${pageNum}/${Math.max(1, totalPages)}</span>
       </div>
       <div class="${scope}-grid">
-        ${cardsHtml || `<div class="${scope}-empty">등록된 글이 없습니다.</div>`}
+        ${cardsHtml || `<div class="${scope}-empty">${L.empty}</div>`}
       </div>
       ${paginationHtml}
     </div>`;
@@ -324,7 +359,7 @@ async function renderBoardList(siteId: string, shopId: string, lang: string, cat
     return `<tr class="${scope}-row">
       <td class="${scope}-num">${r.legacyId}</td>
       <td class="${scope}-title"><a href="${href}">${escapeHtml(r.title || "")}</a></td>
-      <td class="${scope}-muted">${escapeHtml(r.author || "관리자")}</td>
+      <td class="${scope}-muted">${escapeHtml(r.author || L.defaultAuthor)}</td>
       <td class="${scope}-muted">${r.regdate || ""}</td>
       <td class="${scope}-muted">${r.views || 0}</td>
     </tr>`;
@@ -365,20 +400,20 @@ async function renderBoardList(siteId: string, shopId: string, lang: string, cat
     <style>${css}</style>
     <div class="${scope}-head">
       <h2>${escapeHtml(catName)}</h2>
-      <span class="${scope}-count">TOTAL ${total} · PAGE ${pageNum}/${Math.max(1, totalPages)}</span>
+      <span class="${scope}-count">${L.total} ${total} · ${L.page} ${pageNum}/${Math.max(1, totalPages)}</span>
     </div>
     <table class="${scope}-table">
       <thead>
         <tr>
-          <th class="${scope}-col-num">번호</th>
-          <th class="${scope}-col-title">제목</th>
-          <th class="${scope}-col-meta ${scope}-col-author">작성자</th>
-          <th class="${scope}-col-meta">날짜</th>
-          <th class="${scope}-col-meta ${scope}-col-views">조회</th>
+          <th class="${scope}-col-num">${L.no}</th>
+          <th class="${scope}-col-title">${L.title}</th>
+          <th class="${scope}-col-meta ${scope}-col-author">${L.author}</th>
+          <th class="${scope}-col-meta">${L.date}</th>
+          <th class="${scope}-col-meta ${scope}-col-views">${L.views}</th>
         </tr>
       </thead>
       <tbody>
-        ${rowsHtml || `<tr><td colspan="5" class="${scope}-empty">등록된 글이 없습니다.</td></tr>`}
+        ${rowsHtml || `<tr><td colspan="5" class="${scope}-empty">${L.empty}</td></tr>`}
       </tbody>
     </table>
     ${paginationHtml}
@@ -434,22 +469,94 @@ async function renderProductRead(
     ? `${urlPrefix}/${lang}/${goodsPage}.html?action=list&category=${catId}`
     : `${urlPrefix}/${lang}/${goodsPage}.html?action=list`;
 
-  return `<div style="max-width:900px;margin:20px auto;padding:20px;font-family:Tahoma,Arial,sans-serif;">
-    <div style="margin-bottom:15px;">
+  // CTA buttons + (for inquiry mode) inline form, controlled by the site's
+  // productSettings.buttonMode. Default = "sales" (구매하기/바로구매).
+  const buttonMode = prodSettings?.buttonMode ?? "sales";
+  const ctaProductRef = pp.legacyId ? String(pp.legacyId) : pp.id;
+
+  let ctaHtml = "";
+  if (buttonMode === "sales") {
+    ctaHtml = `<div class="product-detail-cta product-detail-cta-sales">
+      <button type="button" class="product-detail-btn product-detail-btn-cart"
+        onclick="alert('장바구니 담기는 준비 중입니다.');return false;">구매하기</button>
+      <button type="button" class="product-detail-btn product-detail-btn-buy"
+        onclick="alert('바로구매는 준비 중입니다.');return false;">바로구매</button>
+    </div>`;
+  } else if (buttonMode === "inquiry") {
+    // Inline inquiry form. Posts to /api/contact/submit with product info
+    // pre-filled in the message body so the recipient knows which item the
+    // inquiry refers to.
+    const productLabel = `[Inquiry] ${pname}${ctaProductRef ? ` (#${ctaProductRef})` : ""}`;
+    const formId = `prod-inquiry-${ctaProductRef}`;
+    ctaHtml = `<div class="product-detail-cta product-detail-cta-inquiry">
+      <button type="button" class="product-detail-btn product-detail-btn-inquiry"
+        onclick="document.getElementById('${formId}').classList.toggle('open');return false;">
+        Send inquiry <span style="margin-left:6px;">→</span>
+      </button>
+      <form id="${formId}" class="product-detail-inquiry-form" onsubmit="
+        var f=this;var btn=f.querySelector('button[type=submit]');var msgEl=f.querySelector('.product-inquiry-msg');
+        btn.disabled=true;btn.textContent='Sending…';msgEl.textContent='';
+        var payload={
+          shopId:'${escapeHtml(shopId)}',
+          source:'product',
+          productId:'${escapeHtml(pp.id)}',
+          ${pp.legacyId ? `productLegacyId:${pp.legacyId},` : ''}
+          productName:'${escapeHtml(pname).replace(/'/g, "\\'")}',
+          pageUrl:window.location.href,
+          name:f.name.value.trim(),
+          email:f.email.value.trim(),
+          phone:f.phone.value.trim(),
+          company:f.company.value.trim(),
+          hp:f.hp.value,
+          message:f.message.value
+        };
+        fetch('/api/contact/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+          .then(function(r){return r.json().then(function(d){return {ok:r.ok,d:d};});})
+          .then(function(res){
+            if(res.ok){msgEl.style.color='#047857';msgEl.textContent='Thank you — your inquiry has been sent. We will respond within one business day.';f.reset();}
+            else{msgEl.style.color='#b91c1c';msgEl.textContent='Could not send: '+(res.d.error||'unknown error');}
+          })
+          .catch(function(){msgEl.style.color='#b91c1c';msgEl.textContent='Network error — please try again.';})
+          .finally(function(){btn.disabled=false;btn.textContent='Send inquiry';});
+        return false;">
+        <input type="text" name="hp" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px;width:1px;height:1px;" />
+        <div class="row">
+          <input type="text" name="name" placeholder="Name *" required />
+          <input type="text" name="company" placeholder="Company" />
+        </div>
+        <div class="row">
+          <input type="email" name="email" placeholder="Email *" required />
+          <input type="tel" name="phone" placeholder="Phone" />
+        </div>
+        <textarea name="message" placeholder="Quantity, target delivery date, condition (new / refurbished), shipping country…" required></textarea>
+        <div class="actions">
+          <button type="submit">Send inquiry</button>
+          <span class="product-inquiry-msg"></span>
+        </div>
+      </form>
+    </div>`;
+  }
+  // buttonMode === "none" → ctaHtml stays empty
+
+  // Same `product-content` wrapper as the list view so themed CSS (and the
+  // page-header :has(+ .product-content) slim-header rule) applies to both.
+  return `<div class="product-content product-detail" style="max-width:900px;margin:20px auto;padding:20px;font-family:Tahoma,Arial,sans-serif;">
+    <div class="product-detail-back" style="margin-bottom:15px;">
       <a href="${backHref}" style="color:#666;text-decoration:none;font-size:13px;">&larr; ${catName || "Product List"}</a>
     </div>
-    <div style="display:flex;gap:30px;flex-wrap:wrap;">
-      <div style="flex:0 0 auto;">
-        ${mainImg ? `<div id="prod-main-img-wrap">${mainImg.replace('<img ', '<img id="prod-main-img" ')}</div>` : ""}
-        ${thumbs ? `<div style="margin-top:8px;">${thumbs}</div>` : ""}
+    <div class="product-detail-grid" style="display:flex;gap:30px;flex-wrap:wrap;">
+      <div class="product-detail-photos" style="flex:0 0 auto;">
+        ${mainImg ? `<div id="prod-main-img-wrap">${mainImg.replace('<img ', '<img id="prod-main-img" class="product-detail-mainimg" ')}</div>` : ""}
+        ${thumbs ? `<div class="product-detail-thumbs" style="margin-top:8px;">${thumbs}</div>` : ""}
       </div>
-      <div style="flex:1;min-width:250px;">
-        <h1 style="font-size:20px;color:#333;margin:0 0 10px 0;font-weight:bold;">${escapeHtml(pname)}</h1>
-        ${price ? `<div style="font-size:18px;color:#c00;font-weight:bold;margin-bottom:15px;">${escapeHtml(price)}</div>` : ""}
-        ${specification ? `<div style="font-size:13px;color:#666;margin-bottom:15px;line-height:1.6;">${specification}</div>` : ""}
+      <div class="product-detail-info" style="flex:1;min-width:250px;">
+        <h1 class="product-detail-name" style="font-size:20px;color:#333;margin:0 0 10px 0;font-weight:bold;">${escapeHtml(pname)}</h1>
+        ${price ? `<div class="product-detail-price" style="font-size:18px;color:#c00;font-weight:bold;margin-bottom:15px;">${escapeHtml(price)}</div>` : ""}
+        ${specification ? `<div class="product-detail-spec" style="font-size:13px;color:#666;margin-bottom:15px;line-height:1.6;">${specification}</div>` : ""}
+        ${ctaHtml}
       </div>
     </div>
-    ${contents ? `<div style="margin-top:30px;padding-top:20px;border-top:1px solid #eee;font-size:13px;color:#555;line-height:1.8;">${contents}</div>` : ""}
+    ${contents ? `<div class="product-detail-desc" style="margin-top:30px;padding-top:20px;border-top:1px solid #eee;font-size:13px;color:#555;line-height:1.8;">${contents}</div>` : ""}
   </div>`;
 }
 
@@ -459,6 +566,12 @@ interface ProductDisplaySettings {
   thumbWidth?: number;
   thumbHeight?: number;
   detailWidth?: number;
+  /** Which CTA buttons appear on the product detail page.
+   *   "sales"   — [구매하기] + [바로구매]   (general retail, default)
+   *   "inquiry" — [Send inquiry] + inline form (B2B / export)
+   *   "none"    — no buttons, display-only catalog
+   */
+  buttonMode?: "sales" | "inquiry" | "none";
 }
 
 async function renderProductList(
@@ -471,17 +584,24 @@ async function renderProductList(
   });
 
   // Category tabs
+  // Semantic classes (product-tabs / product-tab / product-tab-active) are
+  // emitted alongside legacy inline styles so themed CSS can override the
+  // default look without disturbing un-themed legacy templates.
   const allHref = `${urlPrefix}/${lang}/${goodsPage}.html?action=list`;
+  const tabClass = (active: boolean) =>
+    `product-tab${active ? " product-tab-active" : ""}`;
+  const tabInline = (active: boolean) =>
+    `display:inline-block;padding:8px 20px;margin:0 2px;text-decoration:none;font-size:13px;font-weight:bold;color:${active ? '#fff' : '#555'};background:${active ? '#666' : '#f5f5f5'};border:1px solid #ddd;`;
   const catTabs = categories.map((c) => {
     const catId = c.legacyId ?? 0;
     const catName = c.name || "";
     const href = `${urlPrefix}/${lang}/${goodsPage}.html?action=list&category=${catId}`;
     const active = catId === category;
-    return `<a href="${href}" style="display:inline-block;padding:8px 20px;margin:0 2px;text-decoration:none;font-size:13px;font-weight:bold;color:${active ? '#fff' : '#555'};background:${active ? '#666' : '#f5f5f5'};border:1px solid #ddd;">${escapeHtml(catName)}</a>`;
+    return `<a href="${href}" class="${tabClass(active)}" style="${tabInline(active)}">${escapeHtml(catName)}</a>`;
   }).join("");
   const allActive = category === 0;
-  const tabsHtml = `<div style="margin-bottom:20px;text-align:center;">
-    <a href="${allHref}" style="display:inline-block;padding:8px 20px;margin:0 2px;text-decoration:none;font-size:13px;font-weight:bold;color:${allActive ? '#fff' : '#555'};background:${allActive ? '#666' : '#f5f5f5'};border:1px solid #ddd;">All</a>
+  const tabsHtml = `<div class="product-tabs" style="margin-bottom:20px;text-align:center;">
+    <a href="${allHref}" class="${tabClass(allActive)}" style="${tabInline(allActive)}">All</a>
     ${catTabs}
   </div>`;
 
@@ -537,12 +657,12 @@ async function renderProductList(
     // Use pid= for Prisma products with no legacyId, id= for legacy
     const idParam = p.legacyId ? `id=${p.legacyId}` : `pid=${p.id}`;
     const href = `${urlPrefix}/${lang}/${goodsPage}.html?action=read&${idParam}`;
-    const price = p.price > 0 ? `<div style="color:#c00;font-size:12px;margin-top:2px;">$${escapeHtml(String(p.price))}</div>` : "";
-    return `<div style="text-align:center;">
-      <a href="${href}">
-        ${imgSrc ? `<img src="${imgSrc}" style="width:100%;max-width:${imgW}px;height:${imgH}px;object-fit:contain;border:1px solid #eee;" alt="${escapeHtml(pname)}" />` : `<div style="width:100%;max-width:${imgW}px;height:${imgH}px;background:#f9f9f9;border:1px solid #eee;margin:0 auto;"></div>`}
+    const price = p.price > 0 ? `<div class="product-item-price" style="color:#c00;font-size:12px;margin-top:2px;">$${escapeHtml(String(p.price))}</div>` : "";
+    return `<div class="product-item" style="text-align:center;">
+      <a class="product-item-imglink" href="${href}">
+        ${imgSrc ? `<img class="product-item-img" src="${imgSrc}" style="width:100%;max-width:${imgW}px;height:${imgH}px;object-fit:contain;border:1px solid #eee;" alt="${escapeHtml(pname)}" />` : `<div class="product-item-imgph" style="width:100%;max-width:${imgW}px;height:${imgH}px;background:#f9f9f9;border:1px solid #eee;margin:0 auto;"></div>`}
       </a>
-      <div style="font-size:11px;color:#333;margin-top:4px;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.4;max-height:2.8em;">
+      <div class="product-item-name" style="font-size:11px;color:#333;margin-top:4px;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.4;max-height:2.8em;">
         <a href="${href}" style="color:#333;text-decoration:none;">${escapeHtml(pname)}</a>
       </div>
       ${price}
@@ -556,21 +676,21 @@ async function renderProductList(
     const makeLink = (i: number) => {
       const href = `${urlPrefix}/${lang}/${goodsPage}.html?action=list${catParam}&page=${i}`;
       return i === page
-        ? `<span style="display:inline-block;padding:4px 10px;margin:0 2px;font-weight:bold;color:#333;border:1px solid #333;">${i}</span>`
-        : `<a href="${href}" style="display:inline-block;padding:4px 10px;margin:0 2px;color:#666;text-decoration:none;border:1px solid #ddd;">${i}</a>`;
+        ? `<span class="product-page product-page-active" style="display:inline-block;padding:4px 10px;margin:0 2px;font-weight:bold;color:#333;border:1px solid #333;">${i}</span>`
+        : `<a class="product-page" href="${href}" style="display:inline-block;padding:4px 10px;margin:0 2px;color:#666;text-decoration:none;border:1px solid #ddd;">${i}</a>`;
     };
     const links: string[] = [];
     const rangeStart = Math.max(1, page - 5);
     const rangeEnd = Math.min(totalPages, page + 5);
-    if (rangeStart > 1) { links.push(makeLink(1)); if (rangeStart > 2) links.push(`<span style="padding:4px 6px;color:#999;">...</span>`); }
+    if (rangeStart > 1) { links.push(makeLink(1)); if (rangeStart > 2) links.push(`<span class="product-page-ellipsis" style="padding:4px 6px;color:#999;">...</span>`); }
     for (let i = rangeStart; i <= rangeEnd; i++) links.push(makeLink(i));
-    if (rangeEnd < totalPages) { if (rangeEnd < totalPages - 1) links.push(`<span style="padding:4px 6px;color:#999;">...</span>`); links.push(makeLink(totalPages)); }
-    paginationHtml = `<div style="text-align:center;margin-top:20px;">${links.join("")}</div>`;
+    if (rangeEnd < totalPages) { if (rangeEnd < totalPages - 1) links.push(`<span class="product-page-ellipsis" style="padding:4px 6px;color:#999;">...</span>`); links.push(makeLink(totalPages)); }
+    paginationHtml = `<div class="product-pagination" style="text-align:center;margin-top:20px;">${links.join("")}</div>`;
   }
 
-  return `<div style="max-width:900px;margin:20px auto;padding:20px;font-family:Tahoma,Arial,sans-serif;">
+  return `<div class="product-content" style="max-width:900px;margin:20px auto;padding:20px;font-family:Tahoma,Arial,sans-serif;">
     ${tabsHtml}
-    <div style="display:grid;grid-template-columns:repeat(${itemsPerRow}, 1fr);gap:24px 12px;">${items}</div>
+    <div class="product-grid" style="display:grid;grid-template-columns:repeat(${itemsPerRow}, 1fr);gap:24px 12px;">${items}</div>
     ${paginationHtml}
   </div>`;
 }
@@ -712,6 +832,15 @@ export async function GET(
   const isBoardAction = !isProductPage && (effectiveAction === "read" || effectiveAction === "list") && (isBoardPage || boardId > 0 || boardCategory > 0);
   const isProductAction = isProductPage && (effectiveAction === "read" || effectiveAction === "list");
 
+  // Modern (responsive, in-flow) templates use a "page-header" + dynamic
+  // list pattern: the body chrome is small and positioned in the normal
+  // document flow, so prepending it before the list looks intentional. We
+  // detect those by the HNS-MODERN-TEMPLATE marker their cssText carries.
+  // Legacy templates use absolute-positioned full-page layouts that would
+  // collide with an injected list, so we keep wiping bodyHtml for them.
+  const isModernTpl =
+    typeof site.cssText === "string" && site.cssText.includes("HNS-MODERN-TEMPLATE");
+
   const prodSettings = (site.productSettings as ProductDisplaySettings | null) || undefined;
   if (isProductAction) {
     if (effectiveAction === "read" && prismaProductId) {
@@ -721,7 +850,7 @@ export async function GET(
     } else if (effectiveAction === "list") {
       boardSectionHtml = await renderProductList(site.id, shopId, lang, boardCategory, boardPage, urlPrefix, productPageSlug, prodSettings, tempDomain);
     }
-    if (boardSectionHtml) {
+    if (boardSectionHtml && !isModernTpl) {
       bodyHtml = "";
     }
   } else if (isBoardAction) {
@@ -730,8 +859,10 @@ export async function GET(
     } else if (effectiveAction === "list") {
       boardSectionHtml = await renderBoardList(site.id, shopId, lang, boardCategory, boardPage, urlPrefix, tempDomain);
     }
-    // Board action pages: clear body HTML (absolute-positioned page elements create unwanted space)
-    if (boardSectionHtml) {
+    // Board action pages: clear body HTML for legacy absolute-positioned
+    // templates (where leftover page elements create unwanted space).
+    // Modern in-flow templates keep their page-header chrome.
+    if (boardSectionHtml && !isModernTpl) {
       bodyHtml = "";
     }
   }
@@ -1413,8 +1544,13 @@ export async function GET(
     .board-content table tr:hover { background: rgba(255,255,255,0.03); }
     .board-content img { border-radius: 4px; }
 
-    #hns_body { display: flex; justify-content: center; }
-    .board-content { max-width: var(--menu-width, 780px); }
+    /* Modern templates: page-header sits ABOVE the auto-rendered list,
+       so #hns_body must be a normal block (stack children vertically).
+       Legacy templates centred the lone boardSection horizontally — keep
+       that behavior when there's no template marker. */
+    ${isModernTpl
+      ? "#hns_body { display: block; }\n    #hns_body > .product-content, #hns_body > .board-content { width: 100%; max-width: 100%; }"
+      : "#hns_body { display: flex; justify-content: center; }\n    .board-content { max-width: var(--menu-width, 780px); }"}
   </style>
   ${gaScript}
 </head>
@@ -1422,7 +1558,7 @@ export async function GET(
   <div id="v_home_dft" class="c_v_home_dft">
     <div id="hns_header">${cleanedHeaderHtml}${menuHtml}</div>
     <div id="hns_menu"></div>
-    <div id="hns_body">${boardSectionHtml}</div>
+    <div id="hns_body">${cleanedBodyHtml}${boardSectionHtml}</div>
     <div id="hns_footer">${cleanedFooterHtml}${langSwitcherHtml}</div>
   </div>
   ${langBannerHtml}

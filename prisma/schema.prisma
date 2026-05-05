@@ -222,10 +222,59 @@ model Site {
   orders                  Order[]
   customers               Customer[]
   marketplaceIntegrations MarketplaceIntegration[]
+  inquiries               Inquiry[]
 
   @@index([userId])
   @@index([isTemplateStorage])
   @@index([prospectPhone])
+}
+
+/// Form submissions from the public site — both general contact-form
+/// posts and per-product "Send inquiry" requests. The /api/contact/submit
+/// endpoint creates these alongside dispatching the notification email,
+/// giving the site owner a persistent dashboard view of every lead.
+model Inquiry {
+  id          String   @id @default(cuid())
+  siteId      String
+  /// "contact" = generic page form; "product" = per-product inquiry button.
+  source      String   @default("contact")
+  /// When source = "product", the Prisma Product.id this lead is about.
+  productId   String?
+  /// When source = "product", the legacy numeric id (so the dashboard can
+  /// link straight to the product detail URL even for unmigrated rows).
+  productLegacyId Int?
+  /// Snapshot of the product name at submission time, so the inquiry list
+  /// stays readable even if the product is later renamed or deleted.
+  productName String?
+  /// Page URL the form was submitted from — useful when the same form is
+  /// embedded in multiple places.
+  pageUrl     String?  @db.Text
+  name        String?
+  email       String?
+  phone       String?
+  company     String?
+  message     String   @db.Text
+  /// NEW (unread), READ (opened in dashboard), REPLIED, ARCHIVED.
+  status      String   @default("NEW")
+  /// IP recorded for rate-limit / abuse review. Not shown in UI by default.
+  ip          String?
+  /// Reply payload — populated when admin sends a reply via the dashboard's
+  /// in-app composer (POST /api/inquiries/[id]/reply). Status auto-flips to
+  /// REPLIED on successful send. Single reply only for now (simple model);
+  /// extend to InquiryReply[] if multi-turn threads are needed later.
+  replySubject String? @db.Text
+  replyBody    String? @db.Text
+  repliedAt    DateTime?
+  /// User.id of the admin who sent the reply. Kept for audit; not enforced
+  /// as a relation to avoid cascade complications when an admin leaves.
+  repliedBy    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@index([siteId, status, createdAt])
+  @@index([siteId, source, createdAt])
 }
 
 model SiteHmf {

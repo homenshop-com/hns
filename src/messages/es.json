@@ -290,7 +290,7 @@
     "navAnalytics": "Estadísticas · Análisis",
     "navSoonTag": "SOON",
     "navOrders": "Pedidos",
-    "navBoards": "Consultas · Reservas",
+    "navBoards": "Tableros",
     "navDomains": "Dominios",
     "navIntegrations": "Integraciones de Marketplace",
     "navSectionAccount": "Cuenta",
@@ -364,7 +364,8 @@
     "planFree": "Gratis",
     "planPaid": "De pago",
     "planTest": "Prueba",
-    "planExpired": "Expirado"
+    "planExpired": "Expirado",
+    "navInquiries": "Consultas · Reservas"
   },
   "manage": {
     "pageTitle": "Gestión de datos",

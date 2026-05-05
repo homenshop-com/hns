@@ -290,7 +290,7 @@
     "navAnalytics": "统计 · 分析",
     "navSoonTag": "SOON",
     "navOrders": "订单管理",
-    "navBoards": "咨询 · 预约",
+    "navBoards": "留言板",
     "navDomains": "域名管理",
     "navIntegrations": "电商平台集成",
     "navSectionAccount": "账户",
@@ -364,7 +364,8 @@
     "planFree": "免费",
     "planPaid": "付费",
     "planTest": "测试",
-    "planExpired": "已过期"
+    "planExpired": "已过期",
+    "navInquiries": "咨询 · 预约"
   },
   "settings": {
     "pageTitle": "基本信息管理",

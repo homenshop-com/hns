@@ -19,7 +19,17 @@ export async function PUT(
   }
 
   const body = await request.json();
-  const { itemsPerRow, totalRows, thumbWidth, thumbHeight, detailWidth } = body;
+  const { itemsPerRow, totalRows, thumbWidth, thumbHeight, detailWidth, buttonMode } = body;
+
+  // buttonMode controls the CTA buttons rendered on the product detail page:
+  //   "sales"   — [구매하기] + [바로구매]  (general retail)
+  //   "inquiry" — [Send inquiry]           (export / B2B sites)
+  //   "none"    — no buttons (display-only catalog)
+  const validModes = ["sales", "inquiry", "none"] as const;
+  type ButtonMode = typeof validModes[number];
+  const safeButtonMode: ButtonMode = validModes.includes(buttonMode as ButtonMode)
+    ? (buttonMode as ButtonMode)
+    : "sales";
 
   const settings = {
     itemsPerRow: Math.max(1, Math.min(10, Number(itemsPerRow) || 4)),
@@ -27,6 +37,7 @@ export async function PUT(
     thumbWidth: Math.max(50, Math.min(500, Number(thumbWidth) || 135)),
     thumbHeight: Math.max(50, Math.min(500, Number(thumbHeight) || 135)),
     detailWidth: Math.max(100, Math.min(1200, Number(detailWidth) || 500)),
+    buttonMode: safeButtonMode,
   };
 
   await prisma.site.update({

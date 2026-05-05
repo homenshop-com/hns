@@ -95,13 +95,14 @@ export default async function SiteManagePage({
   if (!site || site.userId !== session.user.id) redirect("/dashboard");
 
   const productCount = site.products.length;
-  const ps = site.productSettings as Record<string, number> | null;
+  const ps = site.productSettings as (Record<string, number> & { buttonMode?: "sales" | "inquiry" | "none" }) | null;
   const productSettings = {
     itemsPerRow: ps?.itemsPerRow ?? 4,
     totalRows: ps?.totalRows ?? 10,
     thumbWidth: ps?.thumbWidth ?? 135,
     thumbHeight: ps?.thumbHeight ?? 135,
     detailWidth: ps?.detailWidth ?? 500,
+    buttonMode: ps?.buttonMode ?? ("sales" as const),
   };
   const boardCategories = await getBoardCategories(site.id);
   const boardPostCount = boardCategories.reduce((sum, b) => sum + b.cnt, 0);

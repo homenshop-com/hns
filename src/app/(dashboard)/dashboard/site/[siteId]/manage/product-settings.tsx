@@ -2,12 +2,15 @@
 
 import { useState } from "react";
 
+type ButtonMode = "sales" | "inquiry" | "none";
+
 interface ProductSettingsData {
   itemsPerRow: number;
   totalRows: number;
   thumbWidth: number;
   thumbHeight: number;
   detailWidth: number;
+  buttonMode?: ButtonMode;
 }
 
 interface ProductSettingsLabels {
@@ -50,8 +53,23 @@ const inputStyle: React.CSSProperties = {
   boxSizing: "border-box",
 };
 
+// Inline UI strings for the new "buttonMode" picker. Kept here (not in the
+// parent's labels prop) so we don't need to thread translations through the
+// manage page just to add one field; matches the existing `hint` pattern in
+// the v2 markup.
+const MODE_LABEL = "상세 페이지 버튼";
+const MODE_HINT = "상품 상세 페이지에 표시할 액션 버튼을 선택합니다.";
+const MODE_OPTIONS: { code: "sales" | "inquiry" | "none"; title: string; desc: string }[] = [
+  { code: "sales",   title: "구매 모드",   desc: "[구매하기] + [바로구매] — 일반 쇼핑몰" },
+  { code: "inquiry", title: "문의 모드",   desc: "[Send inquiry] — B2B / 해외 수출" },
+  { code: "none",    title: "표시 안 함",  desc: "버튼 없이 상세 정보만 노출" },
+];
+
 export default function ProductSettings({ siteId, initialSettings, labels, variant = "legacy" }: ProductSettingsProps) {
-  const [settings, setSettings] = useState<ProductSettingsData>(initialSettings);
+  const [settings, setSettings] = useState<ProductSettingsData>({
+    ...initialSettings,
+    buttonMode: initialSettings.buttonMode ?? "sales",
+  });
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -145,6 +163,46 @@ export default function ProductSettings({ siteId, initialSettings, labels, varia
             onChange={(e) => setSettings((s) => ({ ...s, detailWidth: Number(e.target.value) || 500 }))}
           />
         </div>
+
+        <div className="mv2-field" style={{ marginBottom: 12 }}>
+          <label style={{ display: "block", marginBottom: 4 }}>{MODE_LABEL}</label>
+          <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 8 }}>{MODE_HINT}</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {MODE_OPTIONS.map((opt) => {
+              const checked = (settings.buttonMode ?? "sales") === opt.code;
+              return (
+                <label
+                  key={opt.code}
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 10,
+                    padding: "10px 12px",
+                    border: `1px solid ${checked ? "#2563eb" : "#e5e7eb"}`,
+                    borderRadius: 6,
+                    background: checked ? "#eff6ff" : "#fff",
+                    cursor: "pointer",
+                    transition: "all 0.15s",
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="product-buttonMode"
+                    value={opt.code}
+                    checked={checked}
+                    onChange={() => setSettings((s) => ({ ...s, buttonMode: opt.code }))}
+                    style={{ marginTop: 3, accentColor: "#2563eb" }}
+                  />
+                  <div style={{ flex: 1, lineHeight: 1.4 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>{opt.title}</div>
+                    <div style={{ fontSize: 11.5, color: "#6b7280", marginTop: 2 }}>{opt.desc}</div>
+                  </div>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+
         <button onClick={handleSave} disabled={saving} className="mv2-form-submit">
           <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
             <path d="M4 3h10l3 3v10a1 1 0 01-1 1H4a1 1 0 01-1-1V4a1 1 0 011-1z" />

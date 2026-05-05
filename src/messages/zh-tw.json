@@ -290,7 +290,7 @@
     "navAnalytics": "統計 · 分析",
     "navSoonTag": "SOON",
     "navOrders": "訂單管理",
-    "navBoards": "諮詢 · 預約",
+    "navBoards": "留言板",
     "navDomains": "網域管理",
     "navIntegrations": "電商平台整合",
     "navSectionAccount": "帳戶",
@@ -364,7 +364,8 @@
     "planFree": "免費",
     "planPaid": "付費",
     "planTest": "測試",
-    "planExpired": "已過期"
+    "planExpired": "已過期",
+    "navInquiries": "諮詢 · 預約"
   },
   "settings": {
     "pageTitle": "基本資訊管理",

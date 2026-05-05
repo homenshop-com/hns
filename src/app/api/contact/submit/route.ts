@@ -31,6 +31,12 @@ type Body = {
   address?: string;
   message?: string;
   hp?: string; // honeypot — must be empty
+  /** Per-product inquiries pass these so the dashboard can group leads by product. */
+  source?: "contact" | "product";
+  productId?: string;       // Prisma Product.id
+  productLegacyId?: number; // legacy numeric id (for back-link)
+  productName?: string;     // snapshot at submit time
+  pageUrl?: string;         // page URL the form was submitted from
 };
 
 /** In-memory rate limit (Node process lifetime). Swap for Redis in prod scale. */
@@ -173,6 +179,41 @@ export async function POST(req: NextRequest) {
     `시각: ${new Date().toISOString()}`,
   ].join("\n");
 
+  // Persist the lead first — that way the owner still sees the inquiry in
+  // the dashboard even if email delivery later fails (Resend outage, bad
+  // recipient, etc). Wrap in try/catch so a DB hiccup doesn't kill the
+  // user's submit (we'd rather they get a "saved, email failed" experience
+  // than a hard 500).
+  let inquiryId: string | null = null;
+  try {
+    const source = body.source === "product" ? "product" : "contact";
+    const productLegacyId = Number.isFinite(Number(body.productLegacyId))
+      ? Number(body.productLegacyId)
+      : null;
+    const inq = await prisma.inquiry.create({
+      data: {
+        siteId: site.id,
+        source,
+        productId: body.productId?.trim() || null,
+        productLegacyId,
+        productName: body.productName?.trim().slice(0, 200) || null,
+        pageUrl: body.pageUrl?.trim().slice(0, 1000) || null,
+        name: name || null,
+        email: email || null,
+        phone: phone || null,
+        company: body.company?.trim().slice(0, 200) || null,
+        message,
+        ip,
+        status: "NEW",
+      },
+      select: { id: true },
+    });
+    inquiryId = inq.id;
+  } catch (e) {
+    console.error("[contact] failed to persist inquiry:", e);
+    // Don't bail — try to send the email anyway so the lead isn't lost.
+  }
+
   try {
     const resend = new Resend(process.env.RESEND_API_KEY);
     const { error } = await resend.emails.send({
@@ -186,14 +227,14 @@ export async function POST(req: NextRequest) {
     if (error) {
       console.error("[contact] Resend error:", error);
       return NextResponse.json(
-        { error: "send_failed", detail: String(error?.message || error) },
+        { error: "send_failed", detail: String(error?.message || error), inquiryId },
         { status: 502 },
       );
     }
-    console.log(`[contact] sent to ${to} for ${shopId} from ${ip}`);
-    return NextResponse.json({ ok: true });
+    console.log(`[contact] sent to ${to} for ${shopId} from ${ip} (inquiry ${inquiryId || "n/a"})`);
+    return NextResponse.json({ ok: true, inquiryId });
   } catch (e) {
     console.error("[contact] exception:", e);
-    return NextResponse.json({ error: "send_exception" }, { status: 500 });
+    return NextResponse.json({ error: "send_exception", inquiryId }, { status: 500 });
   }
 }
