@@ -16,6 +16,9 @@ interface TemplateItem {
   demoSiteId?: string | null;
   /** true = built mobile-responsive (newer templates). false = legacy fixed-width. */
   isResponsive?: boolean;
+  /** Languages with actual pages in pagesSnapshot. First entry = template's
+   *  intended primary language, used as the modal's default selection. */
+  languages?: string[];
 }
 
 interface TemplateGalleryProps {
@@ -341,6 +344,11 @@ export default function TemplateGallery({
     setSelectedTemplate(tpl);
     setModalStep("preview");
     setError("");
+    // Default the language picker to the template's intended primary
+    // language (first entry of pagesSnapshot's lang set). Avoids the
+    // "EN-only template / KO selected → empty pages" trap.
+    const first = tpl.languages?.[0];
+    if (first) setLanguage(first);
   }
 
   const [resending, setResending] = useState(false);
@@ -544,6 +552,18 @@ export default function TemplateGallery({
     { code: "es", label: labels.langEs },
   ];
 
+  // Compact label for the language badge on each template card.
+  // Empty / unknown → omit; single → "EN", multi → "KO/EN" or "Multi" when ≥3.
+  function langBadgeText(langs: string[] | undefined): string | null {
+    if (!langs || langs.length === 0) return null;
+    const codes = langs.map((l) =>
+      l === "zh-cn" ? "中(简)" : l === "zh-tw" ? "中(繁)" : l.toUpperCase(),
+    );
+    if (codes.length === 1) return codes[0];
+    if (codes.length === 2) return codes.join("/");
+    return `Multi · ${codes[0]}+${codes.length - 1}`;
+  }
+
   return (
     <>
       {/* TABS */}
@@ -704,6 +724,26 @@ export default function TemplateGallery({
                       Fix형
                     </span>
                   )}
+                  {(() => {
+                    const t = langBadgeText(tpl.languages);
+                    return t ? (
+                      <span
+                        className="tpl-badge"
+                        style={{
+                          left: 8,
+                          right: "auto",
+                          top: 36,
+                          background: "rgba(15,23,42,0.78)",
+                          color: "#fff",
+                          fontSize: 10,
+                          letterSpacing: "0.06em",
+                        }}
+                        title={`이 템플릿에 포함된 페이지 언어: ${tpl.languages?.join(", ")}`}
+                      >
+                        {t}
+                      </span>
+                    ) : null;
+                  })()}
                 </div>
                 <div className="tpl-card-body">
                   <span className="tpl-card-name">{tpl.name}</span>
@@ -821,6 +861,25 @@ export default function TemplateGallery({
                     <span className="tpl-badge" style={{ background: tpl.isPublic ? "#12b886" : "#228be6" }}>
                       {tpl.isPublic ? "PUBLIC" : "MY"}
                     </span>
+                    {(() => {
+                      const t = langBadgeText(tpl.languages);
+                      return t ? (
+                        <span
+                          className="tpl-badge"
+                          style={{
+                            left: 8,
+                            right: "auto",
+                            background: "rgba(15,23,42,0.78)",
+                            color: "#fff",
+                            fontSize: 10,
+                            letterSpacing: "0.06em",
+                          }}
+                          title={`이 템플릿에 포함된 페이지 언어: ${tpl.languages?.join(", ")}`}
+                        >
+                          {t}
+                        </span>
+                      ) : null;
+                    })()}
                   </div>
                   <div className="tpl-card-body">
                     <span className="tpl-card-name">{tpl.name}</span>
@@ -1072,6 +1131,33 @@ export default function TemplateGallery({
                     ))}
                   </select>
                 </div>
+                {(() => {
+                  const tplLangs = selectedTemplate?.languages ?? [];
+                  if (tplLangs.length === 0) return null;
+                  const inTemplate = tplLangs.includes(language);
+                  if (inTemplate) return null;
+                  const sourceLang = tplLangs[0];
+                  const sourceLabel =
+                    languages.find((l) => l.code === sourceLang)?.label ?? sourceLang;
+                  const targetLabel =
+                    languages.find((l) => l.code === language)?.label ?? language;
+                  return (
+                    <div
+                      style={{
+                        margin: "10px 0 0",
+                        padding: "10px 12px",
+                        background: "#fff8e1",
+                        border: "1px solid #fcd34d",
+                        borderRadius: 6,
+                        fontSize: 12,
+                        lineHeight: 1.55,
+                        color: "#78350f",
+                      }}
+                    >
+                      이 템플릿은 <b>{sourceLabel}</b> 페이지만 포함합니다. <b>{targetLabel}</b>(으)로 생성하시면, {sourceLabel} 페이지를 그대로 복제해 <b>{targetLabel}</b> 초안으로 사용합니다. 텍스트만 번역해서 사용하세요.
+                    </div>
+                  );
+                })()}
 
                 <h4 className="tpl-modal-subtitle">{labels.subdomainSetup}</h4>
                 <hr style={{ border: "none", borderTop: "1px solid #e2e8f0", margin: "12px 0" }} />

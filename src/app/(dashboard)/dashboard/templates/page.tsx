@@ -88,6 +88,19 @@ export default async function TemplatesPage({
     orderBy: { createdAt: "desc" },
   });
 
+  // Derive each template's available languages from its pagesSnapshot.
+  // Falls back to ["ko"] for legacy disk-only templates without a snapshot
+  // (we can't cheaply read disk languages from the page renderer).
+  function templateLanguages(snapshot: unknown): string[] {
+    if (!Array.isArray(snapshot) || snapshot.length === 0) return ["ko"];
+    const set = new Set<string>();
+    for (const p of snapshot as Array<{ lang?: unknown }>) {
+      const l = typeof p?.lang === "string" ? p.lang : null;
+      if (l) set.add(l);
+    }
+    return set.size > 0 ? Array.from(set) : ["ko"];
+  }
+
   return (
     <DashboardShell
       active="templates"
@@ -107,6 +120,7 @@ export default async function TemplatesPage({
             category: t.category,
             price: t.price,
             isResponsive: t.isResponsive,
+            languages: templateLanguages(t.pagesSnapshot),
           }))}
           myTemplates={myTemplates.map((t) => ({
             id: t.id,
@@ -118,6 +132,7 @@ export default async function TemplatesPage({
             isPublic: t.isPublic,
             demoSiteId: t.demoSiteId,
             isResponsive: t.isResponsive,
+            languages: templateLanguages(t.pagesSnapshot),
           }))}
           totalCount={templates.length}
           currentSort={sort}
