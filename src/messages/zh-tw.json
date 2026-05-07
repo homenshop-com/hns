@@ -146,7 +146,9 @@
       "forgotPassword": "忘記密碼？",
       "noAccount": "還不是會員？",
       "goRegister": "免費註冊",
-      "demoPage": "Demo Page"
+      "demoPage": "Demo Page",
+      "googleSignIn": "使用 Google 登入",
+      "or": "或"
     },
     "register": {
       "title": "註冊",
@@ -166,7 +168,9 @@
       "passwordMismatch": "兩次輸入的密碼不一致。",
       "passwordTooShort": "密碼至少需要8個字元。",
       "hasAccount": "已有帳號？",
-      "goLogin": "登入"
+      "goLogin": "登入",
+      "googleSignUp": "使用 Google 註冊",
+      "or": "或"
     }
   },
   "dashboard": {

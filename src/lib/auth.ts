@@ -1,7 +1,9 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import Google from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/db";
+import { grantCredits, SIGNUP_BONUS } from "@/lib/credits";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 
@@ -53,6 +55,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     signIn: "/login",
   },
   providers: [
+    Google({
+      clientId: process.env.AUTH_GOOGLE_ID,
+      clientSecret: process.env.AUTH_GOOGLE_SECRET,
+      // Google guarantees email_verified for the returned email, so it is
+      // safe to merge an OAuth login into an existing Credentials account
+      // sharing the same address. Without this, NextAuth throws
+      // OAuthAccountNotLinked on email collision.
+      allowDangerousEmailAccountLinking: true,
+    }),
     Credentials({
       name: "credentials",
       credentials: {
@@ -142,6 +153,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.preferredLanguage = token.preferredLanguage as string | undefined;
       }
       return session;
+    },
+  },
+  events: {
+    // Fires once per user, the first time PrismaAdapter inserts a row
+    // (i.e. first OAuth login for a brand-new email). Credentials signup
+    // grants the bonus inline in /api/auth/register, so this hook only
+    // covers the OAuth path. Fire-and-forget — credit bookkeeping must
+    // never block sign-in.
+    async createUser({ user }) {
+      if (!user.id) return;
+      grantCredits(user.id, {
+        kind: "SIGNUP_BONUS",
+        amount: SIGNUP_BONUS,
+        description: "가입 축하 크레딧",
+      }).catch((e) =>
+        console.error("[credits] OAuth signup bonus failed for", user.id, e),
+      );
     },
   },
 });

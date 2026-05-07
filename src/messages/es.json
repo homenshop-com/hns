@@ -146,7 +146,9 @@
       "forgotPassword": "¿Olvidaste tu contraseña?",
       "noAccount": "¿Aún no eres miembro?",
       "goRegister": "Registro gratuito",
-      "demoPage": "Demo Page"
+      "demoPage": "Demo Page",
+      "googleSignIn": "Iniciar sesión con Google",
+      "or": "o"
     },
     "register": {
       "title": "Registrarse",
@@ -166,7 +168,9 @@
       "passwordMismatch": "Las contraseñas no coinciden.",
       "passwordTooShort": "La contraseña debe tener al menos 8 caracteres.",
       "hasAccount": "¿Ya tienes una cuenta?",
-      "goLogin": "Iniciar sesión"
+      "goLogin": "Iniciar sesión",
+      "googleSignUp": "Registrarse con Google",
+      "or": "o"
     }
   },
   "dashboard": {

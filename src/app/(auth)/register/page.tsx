@@ -7,6 +7,7 @@ import { signIn } from "next-auth/react";
 import { useTranslations } from "next-intl";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import Turnstile from "@/components/turnstile";
+import GoogleSignInButton from "@/components/GoogleSignInButton";
 
 type OtpState =
   | { stage: "idle" }
@@ -217,6 +218,9 @@ export default function RegisterPage() {
       </div>
       <div className="auth-card register">
         <h1 className="auth-title">{t("title")}</h1>
+
+        <GoogleSignInButton label={t("googleSignUp")} />
+        <div className="auth-or">{t("or")}</div>
 
         <form onSubmit={handleSubmit}>
           {error && <div className="auth-error">{error}</div>}

@@ -146,7 +146,9 @@
       "forgotPassword": "Forgot password?",
       "noAccount": "Don't have an account yet?",
       "goRegister": "Free Sign Up",
-      "demoPage": "Demo Page"
+      "demoPage": "Demo Page",
+      "googleSignIn": "Sign in with Google",
+      "or": "or"
     },
     "register": {
       "title": "Register",
@@ -166,7 +168,9 @@
       "passwordMismatch": "Passwords do not match.",
       "passwordTooShort": "Password must be at least 8 characters.",
       "hasAccount": "Already have an account?",
-      "goLogin": "Login"
+      "goLogin": "Login",
+      "googleSignUp": "Sign up with Google",
+      "or": "or"
     }
   },
   "dashboard": {

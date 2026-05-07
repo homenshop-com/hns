@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import GoogleSignInButton from "@/components/GoogleSignInButton";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -85,6 +86,9 @@ export default function LoginPage() {
       </div>
       <div className="auth-card login">
         <h1 className="auth-title">{t("title")}</h1>
+
+        <GoogleSignInButton label={t("googleSignIn")} />
+        <div className="auth-or">{t("or")}</div>
 
         <form onSubmit={handleSubmit}>
           {error && <div className="auth-error">{error}</div>}

@@ -146,7 +146,9 @@
       "forgotPassword": "비밀번호 찾기?",
       "noAccount": "아직도 회원이 아니세요?",
       "goRegister": "무료회원가입",
-      "demoPage": "Demo Page"
+      "demoPage": "Demo Page",
+      "googleSignIn": "Google 계정으로 로그인",
+      "or": "또는"
     },
     "register": {
       "title": "회원가입",
@@ -166,7 +168,9 @@
       "passwordMismatch": "비밀번호가 일치하지 않습니다.",
       "passwordTooShort": "비밀번호는 8자 이상이어야 합니다.",
       "hasAccount": "이미 계정이 있으신가요?",
-      "goLogin": "로그인"
+      "goLogin": "로그인",
+      "googleSignUp": "Google 계정으로 가입하기",
+      "or": "또는"
     }
   },
   "dashboard": {

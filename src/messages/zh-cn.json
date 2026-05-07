@@ -146,7 +146,9 @@
       "forgotPassword": "忘记密码？",
       "noAccount": "还不是会员？",
       "goRegister": "免费注册",
-      "demoPage": "Demo Page"
+      "demoPage": "Demo Page",
+      "googleSignIn": "使用 Google 登录",
+      "or": "或"
     },
     "register": {
       "title": "注册",
@@ -166,7 +168,9 @@
       "passwordMismatch": "两次输入的密码不一致。",
       "passwordTooShort": "密码至少需要8个字符。",
       "hasAccount": "已有账号？",
-      "goLogin": "登录"
+      "goLogin": "登录",
+      "googleSignUp": "使用 Google 注册",
+      "or": "或"
     }
   },
   "dashboard": {

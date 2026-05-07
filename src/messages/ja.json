@@ -146,7 +146,9 @@
       "forgotPassword": "パスワードをお忘れですか？",
       "noAccount": "まだ会員ではないですか？",
       "goRegister": "無料会員登録",
-      "demoPage": "Demo Page"
+      "demoPage": "Demo Page",
+      "googleSignIn": "Googleでログイン",
+      "or": "または"
     },
     "register": {
       "title": "会員登録",
@@ -166,7 +168,9 @@
       "passwordMismatch": "パスワードが一致しません。",
       "passwordTooShort": "パスワードは8文字以上必要です。",
       "hasAccount": "すでにアカウントをお持ちですか？",
-      "goLogin": "ログイン"
+      "goLogin": "ログイン",
+      "googleSignUp": "Googleで登録",
+      "or": "または"
     }
   },
   "dashboard": {
