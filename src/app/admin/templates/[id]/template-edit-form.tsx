@@ -194,10 +194,10 @@ export default function TemplateEditForm({ template }: { template: Template }) {
           />
           <div className="flex-1 flex flex-col gap-1.5">
             <input
-              type="url"
+              type="text"
               value={form.thumbnailUrl}
               onChange={(e) => update("thumbnailUrl", e.target.value)}
-              placeholder="https://homenshop.com/api/img?q=… 또는 업로드한 이미지 URL"
+              placeholder="/uploads/… 또는 https://… (업로드 시 자동 입력)"
               className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#405189]/40"
             />
             <div className="flex items-center gap-2">
