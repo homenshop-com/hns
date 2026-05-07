@@ -29,6 +29,92 @@ const LayerPanel = lazy(() => import("./LayerPanel"));
 
 type Tab = "design" | "layers" | "proto";
 
+/* ───── Live DOM helpers — reflect rendered values into the panel ──
+ *
+ * The scene's `frame` and `style` only capture *inline overrides* (what
+ * was written as `style="left:...; top:...; color:..."` on the element).
+ * Flow text, CSS-positioned wrappers, and elements styled via stylesheet
+ * therefore land in the scene with `frame: {0,0,0,0}` and empty style
+ * fields — even though they render at a real size with a real color.
+ *
+ * To make the inspector reflect what the user *sees*, we read the live
+ * DOM element by id and snapshot its `offsetLeft/Top/Width/Height` plus
+ * `getComputedStyle` whenever selection or scene state changes. The
+ * inspector then displays the live value as the input's `value`; on
+ * commit, the user's typed value flows back through setFrame/setStyle
+ * and becomes an inline override that wins the cascade.
+ */
+
+interface LiveSnapshot {
+  frame: { x: number; y: number; w: number; h: number };
+  color: string;
+  background: string;
+  fontFamily: string;
+  fontSize: string;
+  fontWeight: string;
+  lineHeight: string;
+  letterSpacing: string;
+  textAlign: string;
+  opacity: string;
+  borderColor: string;
+  borderWidth: string;
+  borderRadius: string;
+  borderStyle: string;
+  boxShadow: string;
+  filter: string;
+}
+
+/** Convert "rgb(r,g,b)" or "rgba(r,g,b,a)" → "#rrggbb" (or "#rrggbbaa"
+ *  when alpha < 1). Returns the input unchanged if it isn't a parseable
+ *  rgb() string — keep "#abcdef", named colors, gradients verbatim. */
+function rgbToHex(input: string): string {
+  if (!input) return input;
+  const m = input.match(
+    /^rgba?\(\s*(\d+)\s*[,\s]\s*(\d+)\s*[,\s]\s*(\d+)\s*(?:[,/]\s*([\d.]+)\s*)?\)$/i,
+  );
+  if (!m) return input;
+  const [, r, g, b, a] = m;
+  const hex = (n: number) => n.toString(16).padStart(2, "0");
+  const base = `#${hex(+r)}${hex(+g)}${hex(+b)}`;
+  if (a == null) return base;
+  const av = Math.round(parseFloat(a) * 255);
+  if (av >= 255) return base;
+  return `${base}${hex(av)}`;
+}
+
+function readLiveSnapshot(layerId: LayerId | null): LiveSnapshot | null {
+  if (!layerId || typeof document === "undefined") return null;
+  const el = document.getElementById(layerId);
+  if (!el) return null;
+  const cs = window.getComputedStyle(el);
+  // Treat fully-transparent / "none" computed values as "unset" so the
+  // user sees an empty field rather than a placeholder rgba(0,0,0,0).
+  const isTransparent = cs.backgroundColor === "rgba(0, 0, 0, 0)" || cs.backgroundColor === "transparent";
+  return {
+    frame: {
+      x: Math.round(el.offsetLeft),
+      y: Math.round(el.offsetTop),
+      w: Math.round(el.offsetWidth),
+      h: Math.round(el.offsetHeight),
+    },
+    color: rgbToHex(cs.color),
+    background: isTransparent ? "" : rgbToHex(cs.backgroundColor),
+    fontFamily: cs.fontFamily,
+    fontSize: cs.fontSize,
+    fontWeight: cs.fontWeight,
+    lineHeight: cs.lineHeight === "normal" ? "" : cs.lineHeight,
+    letterSpacing: cs.letterSpacing === "normal" ? "" : cs.letterSpacing,
+    textAlign: cs.textAlign,
+    opacity: cs.opacity,
+    borderColor: rgbToHex(cs.borderColor),
+    borderWidth: cs.borderWidth === "0px" ? "" : cs.borderWidth,
+    borderRadius: cs.borderRadius === "0px" ? "" : cs.borderRadius,
+    borderStyle: cs.borderStyle === "none" ? "" : cs.borderStyle,
+    boxShadow: cs.boxShadow === "none" ? "" : cs.boxShadow,
+    filter: cs.filter === "none" ? "" : cs.filter,
+  };
+}
+
 /* ───── Helpers — walk the scene ─────────────────────────────────── */
 
 function findLayerAndPath(
@@ -105,6 +191,17 @@ export default function InspectorPanel({ enabled, siteId }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId, tick]);
 
+  // Snapshot the rendered geometry + computed styles of the selected
+  // element so the design tab can show pixel-accurate values for layers
+  // whose scene frame/style is unset (flow text, CSS-positioned wrappers).
+  // Refreshes on every store mutation since syncStoreToDom may have
+  // moved/resized the element.
+  const live = useMemo(
+    () => readLiveSnapshot(selectedId),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [selectedId, tick],
+  );
+
   return (
     <aside className="inspector-rail" aria-label={t("inspector.ariaLabel")}>
       {/* Tabs */}
@@ -129,7 +226,7 @@ export default function InspectorPanel({ enabled, siteId }: Props) {
 
       <div className="ins-scroll">
         {tab === "design" && (
-          <DesignTab layer={layer} path={path} siteId={siteId} />
+          <DesignTab layer={layer} path={path} siteId={siteId} live={live} />
         )}
 
         {tab === "layers" && (
@@ -152,9 +249,10 @@ interface DesignTabProps {
   layer: Layer | null;
   path: Array<{ id: string; name: string; type: string }>;
   siteId?: string;
+  live: LiveSnapshot | null;
 }
 
-function DesignTab({ layer, path, siteId }: DesignTabProps) {
+function DesignTab({ layer, path, siteId, live }: DesignTabProps) {
   const t = useTranslations("editor");
   if (!layer) {
     return (
@@ -173,7 +271,11 @@ function DesignTab({ layer, path, siteId }: DesignTabProps) {
   }
 
   const meta = layerMeta(layer.type);
-  const frame = layer.frame ?? { x: 0, y: 0, w: 0, h: 0 };
+  const sceneFrame = layer.frame ?? { x: 0, y: 0, w: 0, h: 0 };
+  // Prefer live geometry — the scene frame is only populated from inline
+  // left/top/width/height, but flow text and CSS-positioned elements only
+  // have a real bounding box at render time.
+  const frame = live?.frame ?? sceneFrame;
   const rotate = Math.round(layer.transform?.rotate ?? 0);
 
   return (
@@ -204,9 +306,9 @@ function DesignTab({ layer, path, siteId }: DesignTabProps) {
         return null;
       })()}
 
-      <TypographySection layer={layer} />
+      <TypographySection layer={layer} live={live} />
 
-      <FillSection layer={layer} />
+      <FillSection layer={layer} live={live} />
 
       {/* Background image editor — for box layers without an inner <img>,
           let the user set CSS `background-image: url(...)`. Boxes that
@@ -215,9 +317,9 @@ function DesignTab({ layer, path, siteId }: DesignTabProps) {
         <BackgroundImageSection layer={layer} siteId={siteId} />
       )}
 
-      <BorderSection layer={layer} />
+      <BorderSection layer={layer} live={live} />
 
-      <EffectSection layer={layer} />
+      <EffectSection layer={layer} live={live} />
     </>
   );
 }
@@ -664,30 +766,35 @@ function PositionSizeSection({ frame, rotate, layerId, disabled }: PosProps) {
 
 /* ─── Style-editing sections (Sprint 9k) ──────────────────────────── */
 
-function TypographySection({ layer }: { layer: Layer }) {
+function TypographySection({ layer, live }: { layer: Layer; live: LiveSnapshot | null }) {
   const t = useTranslations("editor");
   const setStyle = useEditorStore((s) => s.setStyle);
   const s = layer.style ?? {};
+  // Prefer the inline override; fall back to the rendered computed value.
+  // Empty string still wins over live so users can deliberately clear an
+  // override and have the next render re-populate from CSS.
   return (
     <Section title={t("inspector.typography.section")}>
       <div className="ins-prop-row">
         <FontPickerField
           label={t("inspector.typography.font")}
-          value={s.fontFamily ?? ""}
+          value={s.fontFamily ?? live?.fontFamily ?? ""}
           onChange={(v) => setStyle(layer.id, { fontFamily: v })}
         />
       </div>
       <div className="ins-prop-row">
         <DimensionField
           label={t("inspector.typography.size")}
-          value={s.fontSize ?? ""}
+          value={s.fontSize ?? live?.fontSize ?? ""}
           placeholder="16"
           defaultUnit="px"
           onCommit={(v) => setStyle(layer.id, { fontSize: v })}
         />
         <TextField
           label={t("inspector.typography.weight")}
-          value={s.fontWeight != null ? String(s.fontWeight) : ""}
+          value={
+            s.fontWeight != null ? String(s.fontWeight) : (live?.fontWeight ?? "")
+          }
           placeholder="400"
           onCommit={(v) => setStyle(layer.id, { fontWeight: v })}
         />
@@ -695,13 +802,13 @@ function TypographySection({ layer }: { layer: Layer }) {
       <div className="ins-prop-row">
         <TextField
           label={t("inspector.typography.lineHeight")}
-          value={s.lineHeight ?? ""}
+          value={s.lineHeight ?? live?.lineHeight ?? ""}
           placeholder="1.6"
           onCommit={(v) => setStyle(layer.id, { lineHeight: v })}
         />
         <DimensionField
           label={t("inspector.typography.letterSpacing")}
-          value={s.letterSpacing ?? ""}
+          value={s.letterSpacing ?? live?.letterSpacing ?? ""}
           placeholder="0"
           defaultUnit="em"
           onCommit={(v) => setStyle(layer.id, { letterSpacing: v })}
@@ -709,34 +816,40 @@ function TypographySection({ layer }: { layer: Layer }) {
       </div>
       <div className="ins-prop-row">
         <AlignToggle
-          value={s.textAlign ?? ""}
+          value={s.textAlign ?? live?.textAlign ?? ""}
           onChange={(v) => setStyle(layer.id, { textAlign: v as LayerStyle["textAlign"] })}
         />
       </div>
       <SwatchEditor
         label={t("inspector.typography.color")}
-        value={s.color ?? ""}
+        value={s.color ?? live?.color ?? ""}
         onChange={(v) => setStyle(layer.id, { color: v })}
       />
     </Section>
   );
 }
 
-function FillSection({ layer }: { layer: Layer }) {
+function FillSection({ layer, live }: { layer: Layer; live: LiveSnapshot | null }) {
   const t = useTranslations("editor");
   const setStyle = useEditorStore((s) => s.setStyle);
   const s = layer.style ?? {};
+  // Background may be a gradient or shorthand string (`url() center/cover`)
+  // — only fall back to the computed solid color when the layer has no
+  // inline background at all.
+  const bgValue = s.background ?? live?.background ?? "";
+  const opacityValue =
+    s.opacity != null ? String(s.opacity) : (live?.opacity ?? "");
   return (
     <Section title={t("inspector.fill.section")}>
       <SwatchEditor
         label={t("inspector.fill.bg")}
-        value={s.background ?? ""}
+        value={bgValue}
         onChange={(v) => setStyle(layer.id, { background: v })}
       />
       <div className="ins-prop-row">
         <TextField
           label={t("inspector.fill.opacity")}
-          value={s.opacity != null ? String(s.opacity) : ""}
+          value={opacityValue}
           placeholder="1"
           onCommit={(v) => {
             if (v === "") {
@@ -754,7 +867,7 @@ function FillSection({ layer }: { layer: Layer }) {
   );
 }
 
-function BorderSection({ layer }: { layer: Layer }) {
+function BorderSection({ layer, live }: { layer: Layer; live: LiveSnapshot | null }) {
   const t = useTranslations("editor");
   const setStyle = useEditorStore((s) => s.setStyle);
   const s = layer.style ?? {};
@@ -762,20 +875,20 @@ function BorderSection({ layer }: { layer: Layer }) {
     <Section title={t("inspector.border.section")}>
       <SwatchEditor
         label={t("inspector.border.color")}
-        value={s.borderColor ?? ""}
+        value={s.borderColor ?? live?.borderColor ?? ""}
         onChange={(v) => setStyle(layer.id, { borderColor: v })}
       />
       <div className="ins-prop-row">
         <DimensionField
           label={t("inspector.border.width")}
-          value={s.borderWidth ?? ""}
+          value={s.borderWidth ?? live?.borderWidth ?? ""}
           placeholder="1"
           defaultUnit="px"
           onCommit={(v) => setStyle(layer.id, { borderWidth: v })}
         />
         <DimensionField
           label={t("inspector.border.radius")}
-          value={s.borderRadius ?? ""}
+          value={s.borderRadius ?? live?.borderRadius ?? ""}
           placeholder="8"
           defaultUnit="px"
           onCommit={(v) => setStyle(layer.id, { borderRadius: v })}
@@ -784,7 +897,7 @@ function BorderSection({ layer }: { layer: Layer }) {
       <div className="ins-prop-row">
         <SelectField
           label={t("inspector.border.style")}
-          value={s.borderStyle ?? ""}
+          value={s.borderStyle ?? live?.borderStyle ?? ""}
           options={[
             ["", t("inspector.border.styleNone")],
             ["solid", "solid"],
@@ -801,7 +914,7 @@ function BorderSection({ layer }: { layer: Layer }) {
   );
 }
 
-function EffectSection({ layer }: { layer: Layer }) {
+function EffectSection({ layer, live }: { layer: Layer; live: LiveSnapshot | null }) {
   const t = useTranslations("editor");
   const setStyle = useEditorStore((s) => s.setStyle);
   const s = layer.style ?? {};
@@ -810,7 +923,7 @@ function EffectSection({ layer }: { layer: Layer }) {
       <div className="ins-prop-row">
         <TextField
           label="box-shadow"
-          value={s.boxShadow ?? ""}
+          value={s.boxShadow ?? live?.boxShadow ?? ""}
           placeholder="0 4px 10px rgba(0,0,0,.25)"
           onCommit={(v) => setStyle(layer.id, { boxShadow: v })}
           wide
@@ -819,7 +932,7 @@ function EffectSection({ layer }: { layer: Layer }) {
       <div className="ins-prop-row">
         <TextField
           label="filter"
-          value={s.filter ?? ""}
+          value={s.filter ?? live?.filter ?? ""}
           placeholder="blur(4px)"
           onCommit={(v) => setStyle(layer.id, { filter: v })}
           wide
