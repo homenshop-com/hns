@@ -14,6 +14,8 @@ interface Template {
   price: number;
   isActive: boolean;
   isPublic: boolean;
+  /** true = 반응형 (single layout). false = Fix형 (legacy fixed-width). */
+  isResponsive: boolean;
 }
 
 export default function TemplateEditForm({ template }: { template: Template }) {
@@ -80,6 +82,7 @@ export default function TemplateEditForm({ template }: { template: Template }) {
           price: form.price,
           isActive: form.isActive,
           isPublic: form.isPublic,
+          isResponsive: form.isResponsive,
         }),
       });
       if (!res.ok) {
@@ -138,6 +141,32 @@ export default function TemplateEditForm({ template }: { template: Template }) {
           />
         </Row>
       </div>
+
+      <Row label="레이아웃" hint="반응형 = 모바일 자동 대응 단일 레이아웃 / Fix형 = 데스크톱 고정폭 (레거시)">
+        <div className="inline-flex border border-slate-300 rounded-md overflow-hidden">
+          {([
+            { v: true,  label: "반응형", hint: "모든 화면 자동 대응" },
+            { v: false, label: "Fix형",  hint: "데스크톱 고정폭 (레거시)" },
+          ] as const).map((opt) => {
+            const active = form.isResponsive === opt.v;
+            return (
+              <button
+                key={String(opt.v)}
+                type="button"
+                onClick={() => update("isResponsive", opt.v)}
+                title={opt.hint}
+                className={`px-4 py-2 text-sm font-medium transition-colors ${
+                  active
+                    ? "bg-[#405189] text-white"
+                    : "bg-white text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+      </Row>
 
       <Row label="키워드" hint="쉼표로 구분. 검색에 사용됨.">
         <input

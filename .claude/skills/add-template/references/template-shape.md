@@ -15,6 +15,7 @@
   description: "설명 (~200자)",
   isActive: true,
   isPublic: false,                 // 공용 탭 노출은 별도 토글
+  isResponsive: true,              // 반응형(true) / Fix형(false) — 모던 템플릿은 항상 true
   sortOrder: 0,                    // 작을수록 최상단
   userId: null,                    // 시스템 템플릿
   demoSiteId: null,                // 관리자가 "디자인 수정" 클릭 시 자동 링크
@@ -127,3 +128,4 @@ obj_card_    → 카드 그룹 (de-group 필수)
 - [ ] 모든 이미지 절대 URL, Font Awesome 아이콘
 - [ ] 컨테이너 폭 `max-width: 100%`, `@media (max-width: 768px)` 블록 존재
 - [ ] 내부 링크 상대경로
+- [ ] `isResponsive: true` 명시 (모던 템플릿은 단일 레이아웃 + media query 사용 → 항상 true. 레거시 고정폭만 false)

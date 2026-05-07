@@ -69,7 +69,7 @@ export async function PUT(
   const body = await req.json() as Partial<{
     name: string; description: string; keywords: string; category: string;
     thumbnailUrl: string; sortOrder: number; price: number;
-    isActive: boolean; isPublic: boolean;
+    isActive: boolean; isPublic: boolean; isResponsive: boolean;
   }>;
 
   // Whitelist — admin can't tamper with headerHtml/cssText/pagesSnapshot
@@ -89,6 +89,7 @@ export async function PUT(
   }
   if (typeof body.isActive === "boolean") data.isActive = body.isActive;
   if (typeof body.isPublic === "boolean") data.isPublic = body.isPublic;
+  if (typeof body.isResponsive === "boolean") data.isResponsive = body.isResponsive;
 
   if (Object.keys(data).length === 0) {
     return NextResponse.json({ error: "no valid fields" }, { status: 400 });

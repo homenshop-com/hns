@@ -21,8 +21,8 @@ export default async function AdminTemplateEditPage({
     select: {
       id: true, name: true, path: true, thumbnailUrl: true, category: true,
       price: true, keywords: true, description: true, isActive: true,
-      isPublic: true, sortOrder: true, clicks: true, userId: true,
-      demoSiteId: true, createdAt: true, updatedAt: true,
+      isPublic: true, isResponsive: true, sortOrder: true, clicks: true,
+      userId: true, demoSiteId: true, createdAt: true, updatedAt: true,
     },
   });
   if (!template) notFound();
@@ -66,6 +66,7 @@ export default async function AdminTemplateEditPage({
             price: template.price,
             isActive: template.isActive,
             isPublic: template.isPublic,
+            isResponsive: template.isResponsive,
           }}
         />
 

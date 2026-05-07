@@ -395,6 +395,9 @@ export async function POST(req: NextRequest) {
       description: "Claude Design 번들에서 가져옴. 관리자에서 기본정보·썸네일 수정 후 공개 전환하세요.",
       isActive: true,
       isPublic: false,
+      // Claude Design 변환 결과는 항상 단일-레이아웃 반응형 — 시스템 프롬프트가
+      // max-width:100% / @media 블록을 강제. 관리자가 기본정보에서 필요시 변경.
+      isResponsive: true,
       sortOrder: 0,
       headerHtml,
       menuHtml,

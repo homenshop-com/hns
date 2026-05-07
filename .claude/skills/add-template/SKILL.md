@@ -103,6 +103,15 @@ Claude Design 의 번들 형식이 API 로 처리 안 되거나 (예: 다중 HTM
 - 아이콘: Font Awesome (`<i class="fa-solid fa-...">`), 이모지 금지
 - 아무 `.dragable` 에도 inline `position: absolute` 금지 (섹션은 flow)
 
+## 레이아웃 분류 (반응형 vs Fix형)
+
+`Template.isResponsive` 컬럼이 공용 템플릿 리스트의 **반응형 / Fix형** 뱃지를 결정합니다.
+
+- **Claude Design 임포트 (경로 A/B)**: 시스템 프롬프트가 `max-width:100%` + `@media (max-width:768px)` 블록을 강제하므로 `isResponsive: true` 가 기본. import-from-design route 가 자동 설정.
+- **CLI 시드 스크립트 (경로 C)**: 새로 작성하는 시드는 반드시 `isResponsive: true` 명시 (단일 레이아웃 + media query). 레거시 고정폭 템플릿 (예: 데스크톱 1280px 픽셀-퍼펙트 레거시) 만 `isResponsive: false`.
+- **관리자 토글**: `/admin/templates/[id]` 기본정보 페이지의 "레이아웃" 세그먼트 컨트롤로 사후 변경 가능. 반응형이 아닌데 토글하면 모바일에서 깨질 수 있으므로 콘텐츠 검증 후 변경.
+- **백필 (운영 DB)**: `UPDATE "Template" SET "isResponsive"=true WHERE keywords LIKE '%claude-design%' AND "isResponsive"=false;` — 과거 임포트분 일괄 보정용.
+
 ## 인증 / 권한
 
 모든 경로에서 **master@homenshop.com** 또는 **design@homenshop.com** 계정만 허용. 일반 admin 은 403.
