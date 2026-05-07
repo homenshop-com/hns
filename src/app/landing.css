@@ -2122,8 +2122,19 @@
      the container allows. On wide screens this can exceed 4 columns; on
      narrow it gracefully drops to 2/1. The @media overrides below handle
      the very-narrow mobile breakpoints. */
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 20px;
+  width: 100%;
+}
+
+/* Templates page wants the grid to use the full viewport width — the
+   default 1440px content cap leaves ~250-500px of empty space on wide
+   monitors. Bump the wrapping .dv2-content to no cap when the templates
+   gallery is in scope. Pair with .tpl-grid auto-fill so 5/6/7 columns
+   appear naturally on bigger screens. */
+.dv2-content:has(.tpl-grid),
+.dv2-content:has(.tpl-toolbar) {
+  max-width: none;
 }
 .tpl-card {
   background: #fff;
