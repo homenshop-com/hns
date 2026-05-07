@@ -2118,7 +2118,11 @@
 }
 .tpl-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  /* Container-width responsive: auto-fill + minmax fits as many cards as
+     the container allows. On wide screens this can exceed 4 columns; on
+     narrow it gracefully drops to 2/1. The @media overrides below handle
+     the very-narrow mobile breakpoints. */
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 20px;
 }
 .tpl-card {
