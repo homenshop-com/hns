@@ -1404,9 +1404,19 @@ export async function GET(
   }
 
   // Use item-level SEO if available, otherwise fall back to page-level
-  const finalSeoTitle = itemSeoTitle || (page as any).seoTitle || (page.title + ' - ' + site.name);
-  const finalSeoDesc = itemSeoDesc || (page as any).seoDescription || "";
-  const finalSeoKeywords = itemSeoKeywords || (page as any).seoKeywords || "";
+  // Site-wide SEO meta (managed by SEO/GEO 진단 → 자동 적용). Falls back
+  // ahead of the generic "{page} - {site}" title so values written by
+  // the audit's autofix actually surface on the page.
+  const _siteSeoMetaForPage =
+    site.seoMeta && typeof site.seoMeta === "object" && !Array.isArray(site.seoMeta)
+      ? (site.seoMeta as Record<string, unknown>)
+      : {};
+  const _siteMetaTitle = typeof _siteSeoMetaForPage.title === "string" ? _siteSeoMetaForPage.title : "";
+  const _siteMetaDesc = typeof _siteSeoMetaForPage.description === "string" ? _siteSeoMetaForPage.description : "";
+  const _siteMetaKeywords = typeof _siteSeoMetaForPage.keywords === "string" ? _siteSeoMetaForPage.keywords : "";
+  const finalSeoTitle = itemSeoTitle || (page as any).seoTitle || _siteMetaTitle || (page.title + ' - ' + site.name);
+  const finalSeoDesc = itemSeoDesc || (page as any).seoDescription || _siteMetaDesc || "";
+  const finalSeoKeywords = itemSeoKeywords || (page as any).seoKeywords || _siteMetaKeywords || "";
   const finalOgImage = itemOgImage || (page as any).ogImage || "";
 
   // SEO: Canonical URL and meta tags. For managed temp hosts we always

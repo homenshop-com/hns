@@ -494,7 +494,10 @@ export async function applyAutofixes(
 /* ───────── Tier 2 — Claude-driven HTML rewrite (10C) ───────── */
 
 const OPTIMIZE_MODEL = process.env.SEO_OPTIMIZE_MODEL || "claude-sonnet-4-6";
-const OPTIMIZE_MAX_TOKENS = 8000;
+// Patched HTML can be larger than input (added JSON-LD, alt texts, FAQ).
+// Real-world: 23K input → ~28K output. 8K was running out at stop_reason=max_tokens.
+const OPTIMIZE_MAX_TOKENS = 16000;
+const OPTIMIZE_MAX_HTML_BYTES = 60_000; // ~15K tokens — leaves headroom for output
 
 const OPTIMIZE_SYSTEM_PROMPT = `You are an SEO/GEO HTML editor. You receive:
 1. A homepage HTML body (rendered <body> innerHTML / Page.content)
@@ -590,7 +593,8 @@ export async function optimizeHomepageHtml(
   const homeBodyHtml = typeof homeContent.html === "string" ? homeContent.html : "";
 
   // Filter findings: severity ≥ minor, no autofix (Tier 1 handles those),
-  // not already applied. Cap at ~30 to keep prompt size bounded.
+  // not already applied. Critical/major first so a tight cap still hits
+  // the highest-value items. Capped at 15 to keep output budget healthy.
   const targets: Array<{ categoryKey: string; findingIndex: number; finding: AuditFinding }> = [];
   for (const cat of stored.categories) {
     cat.findings.forEach((f, idx) => {
@@ -600,7 +604,9 @@ export async function optimizeHomepageHtml(
       targets.push({ categoryKey: cat.key, findingIndex: idx, finding: f });
     });
   }
-  const focused = targets.slice(0, 30);
+  const sevRank = { critical: 0, major: 1, minor: 2, info: 3 } as const;
+  targets.sort((a, b) => sevRank[a.finding.severity] - sevRank[b.finding.severity]);
+  const focused = targets.slice(0, 15);
   if (focused.length === 0) {
     throw new SeoAuditError(
       "ai_failed",
@@ -612,7 +618,19 @@ export async function optimizeHomepageHtml(
     .map((t, i) => `[${i}] (${t.categoryKey}/${t.finding.severity}) ${t.finding.issue}\n     → ${t.finding.recommendation}`)
     .join("\n");
 
-  const userContent = `Findings to address:\n${findingsBlock}\n\n--- HOMEPAGE BODY HTML START ---\n${homeBodyHtml}\n--- HOMEPAGE BODY HTML END ---`;
+  // If HTML is too long, send only the head portion to Claude and append
+  // the untouched tail back after patching. The tail tends to be footer/
+  // trailing sections — losing edits there is acceptable; sending the
+  // whole thing risks blowing the output budget.
+  let htmlForPrompt = homeBodyHtml;
+  let untouchedTail = "";
+  if (htmlForPrompt.length > OPTIMIZE_MAX_HTML_BYTES) {
+    const cutAt = htmlForPrompt.lastIndexOf("</div>", OPTIMIZE_MAX_HTML_BYTES);
+    const split = cutAt > 0 ? cutAt + 6 : OPTIMIZE_MAX_HTML_BYTES;
+    untouchedTail = htmlForPrompt.slice(split);
+    htmlForPrompt = htmlForPrompt.slice(0, split);
+  }
+  const userContent = `Findings to address:\n${findingsBlock}\n\n--- HOMEPAGE BODY HTML START ---\n${htmlForPrompt}\n--- HOMEPAGE BODY HTML END ---${untouchedTail ? "\n\n[NOTE: HTML was truncated for budget. Patch only what's shown — server will re-append the rest verbatim.]" : ""}`;
 
   const apiRes = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -659,7 +677,7 @@ export async function optimizeHomepageHtml(
     pageId: homePage.id,
     pageSlug: homePage.slug,
     before: homeBodyHtml,
-    after: tool.input.patchedHtml,
+    after: tool.input.patchedHtml + untouchedTail,
     changes: Array.isArray(tool.input.changes) ? tool.input.changes : [],
     addressedFindings: Array.isArray(tool.input.addressedFindings) ? tool.input.addressedFindings : [],
     meta: {
