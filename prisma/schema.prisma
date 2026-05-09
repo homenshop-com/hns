@@ -507,6 +507,7 @@ enum CreditTransactionKind {
   AI_SITE_CREATE
   AI_EDIT
   AI_SEO_AUDIT
+  AI_SEO_OPTIMIZE
   AI_OTHER
   REFUND
   ADMIN_GRANT

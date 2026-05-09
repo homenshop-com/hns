@@ -15,10 +15,19 @@ import { useRouter } from "next/navigation";
 
 type Severity = "critical" | "major" | "minor" | "info";
 
+interface Autofix {
+  type: "seoMeta" | "site";
+  key?: string;
+  field?: string;
+  value: string;
+}
+
 interface Finding {
   severity: Severity;
   issue: string;
   recommendation: string;
+  autofix?: Autofix;
+  appliedAt?: string;
 }
 
 interface Category {
@@ -50,11 +59,23 @@ interface Props {
   mode: "admin" | "user";
   /** 5 — only used in user mode for the confirmation modal label. */
   costCredits: number;
+  /** 10 — cost of the Tier 2 HTML optimize call (user mode). */
+  optimizeCostCredits: number;
   /** User's current balance, only used in user mode. */
   balance: number;
   /** Existing stored result; null if never audited. */
   initialResult: AuditResultShape | null;
   initialAuditedAt: string | null;
+}
+
+interface OptimizePreview {
+  pageId: string;
+  pageSlug: string;
+  before: string;
+  after: string;
+  changes: string[];
+  addressedFindings: { categoryKey: string; findingIndex: number }[];
+  meta: { model: string; tokensIn: number; tokensOut: number; creditsCharged: number; runAt: string };
 }
 
 const SEV_STYLE: Record<Severity, { bg: string; text: string; label: string }> = {
@@ -84,6 +105,7 @@ export default function SeoAuditPanel({
   siteId,
   mode,
   costCredits,
+  optimizeCostCredits,
   balance,
   initialResult,
   initialAuditedAt,
@@ -97,6 +119,13 @@ export default function SeoAuditPanel({
   const [currentBalance, setCurrentBalance] = useState(balance);
   const [openCat, setOpenCat] = useState<string | null>(null);
   const [insufficient, setInsufficient] = useState<{ required: number; balance: number } | null>(null);
+  // Tier 1 + Tier 2 state
+  const [applyingAll, setApplyingAll] = useState(false);
+  const [optimizing, setOptimizing] = useState(false);
+  const [optimizeConfirm, setOptimizeConfirm] = useState(false);
+  const [preview, setPreview] = useState<OptimizePreview | null>(null);
+  const [committing, setCommitting] = useState(false);
+  const [toast, setToast] = useState<string>("");
 
   const isUser = mode === "user";
 
@@ -140,6 +169,122 @@ export default function SeoAuditPanel({
   }
 
   const hasResult = result !== null;
+
+  // Collect all autofix-able findings that haven't been applied yet
+  // — feeds the "전체 자동 적용" button at the top of the result.
+  const pendingAutofixes: { categoryKey: string; findingIndex: number }[] = result
+    ? result.categories.flatMap((c) =>
+        c.findings
+          .map((f, idx) => ({ f, idx }))
+          .filter(({ f }) => f.autofix && !f.appliedAt)
+          .map(({ idx }) => ({ categoryKey: c.key, findingIndex: idx })),
+      )
+    : [];
+  const pendingHtmlFindings = result
+    ? result.categories.reduce(
+        (n, c) => n + c.findings.filter((f) => !f.autofix && !f.appliedAt && f.severity !== "info").length,
+        0,
+      )
+    : 0;
+
+  function showToast(msg: string) {
+    setToast(msg);
+    window.setTimeout(() => setToast(""), 4000);
+  }
+
+  async function applyFixes(refs: { categoryKey: string; findingIndex: number }[], allButton = false) {
+    if (refs.length === 0) return;
+    if (allButton) setApplyingAll(true);
+    setError("");
+    try {
+      const res = await fetch("/api/seo-audit/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ siteId, fixes: refs }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "적용 실패");
+      setResult(data.result);
+      showToast(`${data.applied}개 적용 완료${data.skipped ? ` · ${data.skipped}개 건너뜀` : ""}${data.errors?.length ? ` · 오류 ${data.errors.length}` : ""}`);
+      router.refresh();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      if (allButton) setApplyingAll(false);
+    }
+  }
+
+  function onOptimizeClick() {
+    setError("");
+    if (mode === "user") setOptimizeConfirm(true);
+    else runOptimize();
+  }
+
+  async function runOptimize() {
+    setOptimizeConfirm(false);
+    setOptimizing(true);
+    setError("");
+    try {
+      const res = await fetch("/api/seo-audit/optimize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ siteId }),
+      });
+      const data = await res.json();
+      if (res.status === 402 && data.code === "INSUFFICIENT_CREDITS") {
+        setInsufficient({ required: data.required, balance: data.balance });
+        return;
+      }
+      if (!res.ok) throw new Error(data.error || "최적화 실패");
+      setPreview(data.preview);
+      if (mode === "user") setCurrentBalance(data.balanceAfter);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setOptimizing(false);
+    }
+  }
+
+  async function commitOptimize() {
+    if (!preview) return;
+    setCommitting(true);
+    setError("");
+    try {
+      const res = await fetch("/api/seo-audit/optimize/commit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          siteId,
+          pageId: preview.pageId,
+          patchedHtml: preview.after,
+          addressedFindings: preview.addressedFindings,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "저장 실패");
+      // Mark addressed findings as applied locally — server already
+      // persisted the same change, but we mirror it so the UI doesn't
+      // need a router.refresh() roundtrip to catch up.
+      if (result) {
+        const cloned = JSON.parse(JSON.stringify(result)) as AuditResultShape;
+        const nowIso = new Date().toISOString();
+        for (const ref of preview.addressedFindings) {
+          const cat = cloned.categories.find((c) => c.key === ref.categoryKey);
+          if (cat?.findings[ref.findingIndex] && !cat.findings[ref.findingIndex].appliedAt) {
+            cat.findings[ref.findingIndex].appliedAt = nowIso;
+          }
+        }
+        setResult(cloned);
+      }
+      setPreview(null);
+      showToast(`홈페이지 HTML 저장 완료 · ${preview.changes.length}개 변경 반영`);
+      router.refresh();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setCommitting(false);
+    }
+  }
 
   return (
     <div style={{
@@ -309,6 +454,68 @@ export default function SeoAuditPanel({
             </div>
           </div>
 
+          {/* Optimization action bar (Tier 1 + Tier 2) */}
+          {(pendingAutofixes.length > 0 || pendingHtmlFindings > 0) && (
+            <div style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 10,
+              padding: 12,
+              background: "linear-gradient(90deg, #eef2ff 0%, #fdf4ff 100%)",
+              border: "1px solid #c7d2fe",
+              borderRadius: 8,
+              marginBottom: 12,
+              alignItems: "center",
+            }}>
+              <div style={{ flex: 1, minWidth: 200, fontSize: 12, color: "#3730a3" }}>
+                <div style={{ fontWeight: 600, marginBottom: 2 }}>🪄 자동 최적화</div>
+                <div style={{ color: "#6366f1" }}>
+                  {pendingAutofixes.length > 0 && `데이터 ${pendingAutofixes.length}개 자동 적용 가능 (무료)`}
+                  {pendingAutofixes.length > 0 && pendingHtmlFindings > 0 && " · "}
+                  {pendingHtmlFindings > 0 && `HTML/콘텐츠 ${pendingHtmlFindings}개 권고 (Claude 재작성)`}
+                </div>
+              </div>
+              {pendingAutofixes.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => applyFixes(pendingAutofixes, true)}
+                  disabled={applyingAll}
+                  style={{
+                    padding: "8px 14px",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: "#fff",
+                    background: applyingAll ? "#94a3b8" : "#6366f1",
+                    border: "none",
+                    borderRadius: 6,
+                    cursor: applyingAll ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {applyingAll ? "적용 중…" : `전체 자동 적용 (무료)`}
+                </button>
+              )}
+              {pendingHtmlFindings > 0 && (
+                <button
+                  type="button"
+                  onClick={onOptimizeClick}
+                  disabled={optimizing}
+                  style={{
+                    padding: "8px 14px",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: "#fff",
+                    background: optimizing ? "#94a3b8" : "#a855f7",
+                    border: "none",
+                    borderRadius: 6,
+                    cursor: optimizing ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {optimizing ? "AI 작성 중…" : (mode === "user" ? `홈 HTML 최적화 (${optimizeCostCredits} 코인)` : "홈 HTML 최적화")}
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Category accordion */}
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {result.categories.map((cat) => {
@@ -380,14 +587,22 @@ export default function SeoAuditPanel({
                         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                           {cat.findings.map((f, i) => {
                             const sev = SEV_STYLE[f.severity];
+                            const isAutofix = Boolean(f.autofix);
+                            const isApplied = Boolean(f.appliedAt);
+                            const fixValue = f.autofix?.value || "";
+                            const fixTarget = f.autofix?.type === "site"
+                              ? `Site.${f.autofix.field}`
+                              : f.autofix?.type === "seoMeta"
+                                ? `seoMeta.${f.autofix.key}`
+                                : null;
                             return (
                               <div key={i} style={{
-                                background: "#fff",
-                                border: "1px solid #e5e7eb",
+                                background: isApplied ? "#f0fdf4" : "#fff",
+                                border: `1px solid ${isApplied ? "#bbf7d0" : "#e5e7eb"}`,
                                 borderRadius: 6,
                                 padding: 10,
                               }}>
-                                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, flexWrap: "wrap" }}>
                                   <span style={{
                                     fontSize: 10,
                                     fontWeight: 600,
@@ -398,6 +613,30 @@ export default function SeoAuditPanel({
                                   }}>
                                     {sev.label}
                                   </span>
+                                  {isAutofix && !isApplied && (
+                                    <span style={{
+                                      fontSize: 10,
+                                      fontWeight: 600,
+                                      padding: "2px 6px",
+                                      borderRadius: 4,
+                                      background: "#ede9fe",
+                                      color: "#6d28d9",
+                                    }}>
+                                      ✨ 자동 적용 가능
+                                    </span>
+                                  )}
+                                  {isApplied && (
+                                    <span style={{
+                                      fontSize: 10,
+                                      fontWeight: 600,
+                                      padding: "2px 6px",
+                                      borderRadius: 4,
+                                      background: "#dcfce7",
+                                      color: "#166534",
+                                    }}>
+                                      ✓ 적용됨
+                                    </span>
+                                  )}
                                   <span style={{ fontSize: 12, color: "#1e293b", fontWeight: 500 }}>
                                     {f.issue}
                                   </span>
@@ -405,6 +644,45 @@ export default function SeoAuditPanel({
                                 <div style={{ fontSize: 12, color: "#475569", lineHeight: 1.5, paddingLeft: 4 }}>
                                   💡 {f.recommendation}
                                 </div>
+                                {isAutofix && fixTarget && (
+                                  <div style={{
+                                    marginTop: 8,
+                                    padding: 8,
+                                    background: isApplied ? "#dcfce7" : "#faf5ff",
+                                    borderRadius: 4,
+                                    fontSize: 11,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "space-between",
+                                    gap: 8,
+                                    flexWrap: "wrap",
+                                  }}>
+                                    <div style={{ minWidth: 0, flex: 1 }}>
+                                      <span style={{ color: "#6b7280", fontFamily: "monospace" }}>{fixTarget}</span>
+                                      <span style={{ color: "#1f2937", margin: "0 6px" }}>=</span>
+                                      <span style={{ color: "#1f2937", fontWeight: 500, wordBreak: "break-all" }}>{fixValue}</span>
+                                    </div>
+                                    {!isApplied && (
+                                      <button
+                                        type="button"
+                                        onClick={() => applyFixes([{ categoryKey: cat.key, findingIndex: i }])}
+                                        style={{
+                                          padding: "4px 10px",
+                                          fontSize: 11,
+                                          fontWeight: 600,
+                                          color: "#fff",
+                                          background: "#6d28d9",
+                                          border: "none",
+                                          borderRadius: 4,
+                                          cursor: "pointer",
+                                          flexShrink: 0,
+                                        }}
+                                      >
+                                        적용
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             );
                           })}
@@ -417,6 +695,149 @@ export default function SeoAuditPanel({
             })}
           </div>
         </>
+      )}
+
+      {/* Toast (after apply / commit) */}
+      {toast && (
+        <div style={{
+          position: "fixed",
+          bottom: 24,
+          right: 24,
+          background: "#1e293b",
+          color: "#fff",
+          padding: "10px 16px",
+          borderRadius: 8,
+          fontSize: 13,
+          boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
+          zIndex: 1100,
+        }}>
+          ✓ {toast}
+        </div>
+      )}
+
+      {/* Optimize confirmation modal (Tier 2, user mode only) */}
+      {optimizeConfirm && isUser && (
+        <div
+          onClick={() => setOptimizeConfirm(false)}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.5)",
+            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000,
+          }}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{
+            background: "#fff", borderRadius: 12, padding: 24,
+            maxWidth: 420, width: "calc(100% - 32px)",
+            boxShadow: "0 20px 50px rgba(0, 0, 0, 0.3)",
+          }}>
+            <h3 style={{ fontSize: 16, fontWeight: 600, color: "#1e293b", margin: "0 0 12px" }}>
+              🪄 홈페이지 HTML 최적화
+            </h3>
+            <p style={{ fontSize: 13, color: "#64748b", margin: "0 0 16px", lineHeight: 1.5 }}>
+              Claude가 진단 결과(HTML 권고 {pendingHtmlFindings}개)를 바탕으로 홈페이지 HTML을 다시 작성합니다.
+              <br />
+              <strong>저장 전 미리보기</strong>가 표시되며, 취소해도 코인은 차감됩니다 (AI 호출 비용).
+            </p>
+            <div style={{
+              background: "#f8fafc", borderRadius: 8, padding: 12, marginBottom: 16, fontSize: 13,
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0" }}>
+                <span style={{ color: "#64748b" }}>비용</span>
+                <span style={{ fontWeight: 600, color: "#1e293b" }}>{optimizeCostCredits} 코인</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0" }}>
+                <span style={{ color: "#64748b" }}>현재 잔액</span>
+                <span style={{ color: "#1e293b" }}>{currentBalance} 코인</span>
+              </div>
+              <div style={{
+                display: "flex", justifyContent: "space-between", padding: "8px 0 4px",
+                borderTop: "1px solid #e5e7eb", marginTop: 4,
+              }}>
+                <span style={{ color: "#64748b" }}>실행 후 잔액</span>
+                <span style={{ fontWeight: 600, color: currentBalance - optimizeCostCredits < 0 ? "#dc2626" : "#059669" }}>
+                  {currentBalance - optimizeCostCredits} 코인
+                </span>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button type="button" onClick={() => setOptimizeConfirm(false)}
+                style={{ padding: "8px 16px", fontSize: 13, border: "1px solid #cbd5e1", borderRadius: 6, background: "#fff", color: "#475569", cursor: "pointer", fontWeight: 500 }}>
+                취소
+              </button>
+              <button type="button" onClick={runOptimize} disabled={currentBalance < optimizeCostCredits}
+                style={{ padding: "8px 16px", fontSize: 13, border: "none", borderRadius: 6, background: currentBalance < optimizeCostCredits ? "#cbd5e1" : "#a855f7", color: "#fff", cursor: currentBalance < optimizeCostCredits ? "not-allowed" : "pointer", fontWeight: 600 }}>
+                {optimizeCostCredits}코인 사용하고 실행
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Optimization preview modal */}
+      {preview && (
+        <div
+          onClick={() => !committing && setPreview(null)}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.6)",
+            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 16,
+          }}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{
+            background: "#fff", borderRadius: 12, padding: 24,
+            maxWidth: 800, width: "100%", maxHeight: "90vh", overflow: "auto",
+            boxShadow: "0 20px 50px rgba(0, 0, 0, 0.3)",
+          }}>
+            <h3 style={{ fontSize: 16, fontWeight: 600, color: "#1e293b", margin: "0 0 4px" }}>
+              🪄 홈페이지 HTML 최적화 미리보기
+            </h3>
+            <p style={{ fontSize: 12, color: "#64748b", margin: "0 0 16px" }}>
+              {preview.changes.length}개 변경 · {preview.addressedFindings.length}개 권고 반영 · 모델 {preview.meta.model}
+            </p>
+
+            {preview.changes.length > 0 && (
+              <div style={{
+                background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 8,
+                padding: 12, marginBottom: 16,
+              }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "#0c4a6e", marginBottom: 6 }}>
+                  변경 내역
+                </div>
+                <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: "#0369a1", lineHeight: 1.7 }}>
+                  {preview.changes.map((c, i) => <li key={i}>{c}</li>)}
+                </ul>
+              </div>
+            )}
+
+            <details style={{ marginBottom: 16 }}>
+              <summary style={{ fontSize: 12, color: "#64748b", cursor: "pointer", padding: 4 }}>
+                패치된 HTML 보기 ({preview.after.length.toLocaleString()} bytes)
+              </summary>
+              <pre style={{
+                background: "#0f172a", color: "#e2e8f0", padding: 12, borderRadius: 6,
+                fontSize: 11, overflow: "auto", maxHeight: 300, marginTop: 8,
+              }}>
+                {preview.after}
+              </pre>
+            </details>
+
+            <div style={{
+              background: "#fef3c7", border: "1px solid #fde68a", borderRadius: 6,
+              padding: 10, marginBottom: 16, fontSize: 12, color: "#854d0e",
+            }}>
+              ⚠️ 적용 후에는 디자인 에디터에서도 변경 사항이 보입니다. 원본 백업이 필요하면 적용 전 사이트를 복사해두세요.
+            </div>
+
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button type="button" onClick={() => setPreview(null)} disabled={committing}
+                style={{ padding: "10px 16px", fontSize: 13, border: "1px solid #cbd5e1", borderRadius: 6, background: "#fff", color: "#475569", cursor: committing ? "not-allowed" : "pointer", fontWeight: 500 }}>
+                취소
+              </button>
+              <button type="button" onClick={commitOptimize} disabled={committing}
+                style={{ padding: "10px 20px", fontSize: 13, border: "none", borderRadius: 6, background: committing ? "#94a3b8" : "#059669", color: "#fff", cursor: committing ? "not-allowed" : "pointer", fontWeight: 600 }}>
+                {committing ? "저장 중…" : "홈페이지에 적용"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* User confirmation modal */}

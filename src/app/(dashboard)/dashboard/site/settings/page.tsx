@@ -531,6 +531,7 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                       siteId={site.id}
                       mode="user"
                       costCredits={CREDIT_COSTS.AI_SEO_AUDIT}
+                      optimizeCostCredits={CREDIT_COSTS.AI_SEO_OPTIMIZE}
                       balance={credits}
                       initialResult={((site as typeof site & { seoAuditResult?: unknown }).seoAuditResult as AuditResultShape | null) ?? null}
                       initialAuditedAt={(site as typeof site & { seoAuditAt?: Date | null }).seoAuditAt?.toISOString() ?? null}

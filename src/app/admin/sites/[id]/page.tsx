@@ -420,6 +420,7 @@ export default async function AdminSiteDetailPage({
           siteId={site.id}
           mode="admin"
           costCredits={CREDIT_COSTS.AI_SEO_AUDIT}
+          optimizeCostCredits={CREDIT_COSTS.AI_SEO_OPTIMIZE}
           balance={0}
           initialResult={(site.seoAuditResult as AuditResultShape | null) ?? null}
           initialAuditedAt={site.seoAuditAt ? site.seoAuditAt.toISOString() : null}

@@ -39,6 +39,9 @@ export interface AuditFinding {
   autofix?:
     | { type: "seoMeta"; key: string; value: string }
     | { type: "site"; field: "publicEmail" | "publicPhone" | "publicAddress" | "logoUrl"; value: string };
+  /** Set when the autofix has been applied. Persisted in
+   *  Site.seoAuditResult so the UI shows ✓ on reload. */
+  appliedAt?: string;
 }
 
 export interface AuditCategory {
@@ -333,4 +336,397 @@ export async function runSeoAudit(siteId: string, opts: RunAuditOptions): Promis
 function clamp(n: number, min: number, max: number): number {
   if (typeof n !== "number" || !Number.isFinite(n)) return min;
   return Math.max(min, Math.min(max, Math.round(n)));
+}
+
+/* ───────── Tier 1 — Auto-apply data-field fixes (free) ───────── */
+
+export interface FixRef {
+  /** The category.key from the audit result (e.g. "title_meta"). */
+  categoryKey: string;
+  /** Index into category.findings. */
+  findingIndex: number;
+}
+
+export interface ApplyAutofixResult {
+  applied: number;
+  skipped: number;
+  errors: string[];
+  /** Updated audit result with appliedAt set on each successfully-applied finding. */
+  result: AuditResult;
+}
+
+/** Whitelist of seoMeta keys that may be written via autofix. Anything
+ *  outside this list is silently dropped — defends against a model that
+ *  invents new keys. Mirrors the keys documented on the schema's seoMeta
+ *  comment plus a couple of common SEO essentials. */
+const ALLOWED_SEOMETA_KEYS = new Set([
+  "alternateName",
+  "slogan",
+  "foundingDate",
+  "areaServed",
+  "sameAs",
+  "keywords",
+  "businessType",
+  "description",
+  "title",
+]);
+
+const ALLOWED_SITE_FIELDS = new Set(["publicEmail", "publicPhone", "publicAddress", "logoUrl"]);
+
+/**
+ * Apply one or more autofix-tagged findings from a stored audit. Each
+ * finding is looked up by (categoryKey, findingIndex), validated, and
+ * written either to a Site column or merged into Site.seoMeta JSON.
+ * Findings without an autofix are silently skipped.
+ *
+ * Free path — no credit interaction. Caller verifies authorization.
+ */
+export async function applyAutofixes(
+  siteId: string,
+  refs: FixRef[],
+): Promise<ApplyAutofixResult> {
+  const site = await prisma.site.findUnique({
+    where: { id: siteId },
+    select: {
+      id: true,
+      seoAuditResult: true,
+      seoMeta: true,
+      publicEmail: true,
+      publicPhone: true,
+      publicAddress: true,
+      logoUrl: true,
+    },
+  });
+  if (!site) throw new SeoAuditError("no_homepage", "사이트를 찾을 수 없습니다.");
+  const stored = site.seoAuditResult as unknown as AuditResult | null;
+  if (!stored || !Array.isArray(stored.categories)) {
+    throw new SeoAuditError("ai_failed", "먼저 진단을 실행해주세요.");
+  }
+
+  const errors: string[] = [];
+  let applied = 0;
+  let skipped = 0;
+
+  // Build the update payload incrementally so we apply everything in one
+  // Site.update — avoids partial-failure surprises if the DB hiccups.
+  const seoMetaPatch: Record<string, unknown> = {
+    ...(typeof site.seoMeta === "object" && site.seoMeta !== null ? (site.seoMeta as Record<string, unknown>) : {}),
+  };
+  const siteFieldPatch: Partial<{
+    publicEmail: string;
+    publicPhone: string;
+    publicAddress: string;
+    logoUrl: string;
+  }> = {};
+
+  // Clone stored result so we can mark applied without mutating the
+  // shared reference. Cheap — JSON serialization on small object.
+  const updated: AuditResult = JSON.parse(JSON.stringify(stored));
+
+  for (const ref of refs) {
+    const cat = updated.categories.find((c) => c.key === ref.categoryKey);
+    if (!cat) {
+      errors.push(`알 수 없는 카테고리: ${ref.categoryKey}`);
+      skipped++;
+      continue;
+    }
+    const finding = cat.findings[ref.findingIndex];
+    if (!finding) {
+      errors.push(`${ref.categoryKey}[${ref.findingIndex}] 항목 없음`);
+      skipped++;
+      continue;
+    }
+    if (!finding.autofix) {
+      skipped++;
+      continue;
+    }
+    if (finding.appliedAt) {
+      // Already applied — idempotent skip.
+      skipped++;
+      continue;
+    }
+    const fix = finding.autofix;
+    const value = String(fix.value ?? "").trim();
+    if (!value) {
+      errors.push(`${ref.categoryKey}[${ref.findingIndex}] 값이 비어있음`);
+      skipped++;
+      continue;
+    }
+    if (fix.type === "site") {
+      if (!ALLOWED_SITE_FIELDS.has(fix.field)) {
+        errors.push(`허용되지 않은 필드: ${fix.field}`);
+        skipped++;
+        continue;
+      }
+      siteFieldPatch[fix.field] = value;
+    } else if (fix.type === "seoMeta") {
+      if (!ALLOWED_SEOMETA_KEYS.has(fix.key)) {
+        errors.push(`허용되지 않은 seoMeta 키: ${fix.key}`);
+        skipped++;
+        continue;
+      }
+      seoMetaPatch[fix.key] = value;
+    } else {
+      errors.push(`알 수 없는 autofix type`);
+      skipped++;
+      continue;
+    }
+    finding.appliedAt = new Date().toISOString();
+    applied++;
+  }
+
+  if (applied > 0) {
+    await prisma.site.update({
+      where: { id: siteId },
+      data: {
+        ...siteFieldPatch,
+        ...(Object.keys(seoMetaPatch).length > 0
+          ? { seoMeta: seoMetaPatch as Prisma.InputJsonValue }
+          : {}),
+        seoAuditResult: updated as unknown as Prisma.InputJsonValue,
+      },
+    });
+  }
+
+  return { applied, skipped, errors, result: updated };
+}
+
+/* ───────── Tier 2 — Claude-driven HTML rewrite (10C) ───────── */
+
+const OPTIMIZE_MODEL = process.env.SEO_OPTIMIZE_MODEL || "claude-sonnet-4-6";
+const OPTIMIZE_MAX_TOKENS = 8000;
+
+const OPTIMIZE_SYSTEM_PROMPT = `You are an SEO/GEO HTML editor. You receive:
+1. A homepage HTML body (rendered <body> innerHTML / Page.content)
+2. A list of audit findings WITHOUT structured autofix — these need HTML/CSS/content changes
+
+Rewrite the HTML to address as many findings as possible while obeying every rule below.
+
+CRITICAL RULES:
+- Preserve the EXISTING structure: every \`class="dragable"\` element must keep the same id and outer wrapper. Position styles (top/left/width/height inline) MUST be preserved bit-for-bit.
+- You may modify text content, add/improve alt= on <img>, add hidden semantic tags (<h1> if missing, <h2>/<h3> hierarchy), inject a hidden "AI-readability" block at the END of the body (a <section style="position:relative; ..." class="ai-context" with key facts/FAQ — but ONLY if findings call for it).
+- You may add JSON-LD <script type="application/ld+json"> blocks at the end of the body for FAQ, BreadcrumbList, etc. Use schema.org formats. Use realistic content extracted from the page.
+- DO NOT change layout (no new positioned absolutes, no resizing existing elements).
+- DO NOT remove any existing element — only modify text/attributes or APPEND new elements at the end.
+- Korean output for new text content unless original is non-Korean.
+- Preserve all existing href= and src= URLs.
+
+Submit by calling submit_optimization with:
+- patchedHtml: the FULL rewritten body HTML (must be valid; existing dragable elements retained)
+- changes: 1-line Korean descriptions of each change ("alt 텍스트 5개 추가", "FAQ JSON-LD 주입" 등)
+- addressedFindings: array of {categoryKey, findingIndex} for each finding actually addressed
+`;
+
+const OPTIMIZE_TOOL = {
+  name: "submit_optimization",
+  description: "Submit the optimized HTML and a list of changes.",
+  input_schema: {
+    type: "object",
+    required: ["patchedHtml", "changes", "addressedFindings"],
+    properties: {
+      patchedHtml: { type: "string" },
+      changes: { type: "array", items: { type: "string" } },
+      addressedFindings: {
+        type: "array",
+        items: {
+          type: "object",
+          required: ["categoryKey", "findingIndex"],
+          properties: {
+            categoryKey: { type: "string" },
+            findingIndex: { type: "integer", minimum: 0 },
+          },
+        },
+      },
+    },
+  },
+};
+
+export interface OptimizePreview {
+  pageId: string;
+  pageSlug: string;
+  before: string;
+  after: string;
+  changes: string[];
+  addressedFindings: FixRef[];
+  meta: {
+    model: string;
+    tokensIn: number;
+    tokensOut: number;
+    creditsCharged: number;
+    runAt: string;
+  };
+}
+
+/**
+ * Tier 2 — Claude rewrites the home page HTML using the audit findings
+ * as guidance. Returns a preview; the caller is expected to either
+ * commit (commitOptimization) or discard. Credits are charged at this
+ * step (the Claude call is what costs money), not at commit time.
+ */
+export async function optimizeHomepageHtml(
+  siteId: string,
+  opts: { creditsCharged: number },
+): Promise<OptimizePreview> {
+  if (!ANTHROPIC_API_KEY) {
+    throw new SeoAuditError("no_api_key", "AI 기능이 설정되지 않았습니다.");
+  }
+  const site = await prisma.site.findUnique({
+    where: { id: siteId },
+    select: { id: true, defaultLanguage: true, seoAuditResult: true },
+  });
+  if (!site) throw new SeoAuditError("no_homepage", "사이트를 찾을 수 없습니다.");
+  const stored = site.seoAuditResult as unknown as AuditResult | null;
+  if (!stored) throw new SeoAuditError("ai_failed", "먼저 진단을 실행해주세요.");
+
+  const homePage = await prisma.page.findFirst({
+    where: { siteId, isHome: true, lang: site.defaultLanguage },
+    select: { id: true, slug: true, content: true },
+  });
+  if (!homePage) {
+    throw new SeoAuditError("no_homepage", "홈페이지를 찾을 수 없습니다.");
+  }
+  // Page.content is Json `{ html?: string, ...other }` — see published renderer.
+  const homeContent = (homePage.content ?? {}) as { html?: string; [k: string]: unknown };
+  const homeBodyHtml = typeof homeContent.html === "string" ? homeContent.html : "";
+
+  // Filter findings: severity ≥ minor, no autofix (Tier 1 handles those),
+  // not already applied. Cap at ~30 to keep prompt size bounded.
+  const targets: Array<{ categoryKey: string; findingIndex: number; finding: AuditFinding }> = [];
+  for (const cat of stored.categories) {
+    cat.findings.forEach((f, idx) => {
+      if (f.autofix) return;
+      if (f.appliedAt) return;
+      if (f.severity === "info") return;
+      targets.push({ categoryKey: cat.key, findingIndex: idx, finding: f });
+    });
+  }
+  const focused = targets.slice(0, 30);
+  if (focused.length === 0) {
+    throw new SeoAuditError(
+      "ai_failed",
+      "HTML 수정이 필요한 항목이 없습니다. (자동 적용 후 남은 권고가 모두 콘텐츠/이미지 외의 큰 변경입니다.)",
+    );
+  }
+
+  const findingsBlock = focused
+    .map((t, i) => `[${i}] (${t.categoryKey}/${t.finding.severity}) ${t.finding.issue}\n     → ${t.finding.recommendation}`)
+    .join("\n");
+
+  const userContent = `Findings to address:\n${findingsBlock}\n\n--- HOMEPAGE BODY HTML START ---\n${homeBodyHtml}\n--- HOMEPAGE BODY HTML END ---`;
+
+  const apiRes = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": ANTHROPIC_API_KEY,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: OPTIMIZE_MODEL,
+      max_tokens: OPTIMIZE_MAX_TOKENS,
+      system: [{ type: "text", text: OPTIMIZE_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
+      tools: [OPTIMIZE_TOOL],
+      tool_choice: { type: "tool", name: "submit_optimization" },
+      messages: [{ role: "user", content: userContent }],
+    }),
+  });
+
+  if (!apiRes.ok) {
+    const errText = await apiRes.text();
+    console.error("[seo-optimize] anthropic error", apiRes.status, errText);
+    throw new SeoAuditError("ai_failed", "AI 최적화 호출에 실패했습니다.");
+  }
+
+  const data = (await apiRes.json()) as {
+    content: Array<{ type: string; name?: string; input?: {
+      patchedHtml?: string;
+      changes?: string[];
+      addressedFindings?: FixRef[];
+    } }>;
+    stop_reason?: string;
+    usage?: { input_tokens: number; output_tokens: number };
+  };
+  const tool = data.content?.find((c) => c.type === "tool_use" && c.name === "submit_optimization");
+  if (!tool?.input?.patchedHtml) {
+    console.error("[seo-optimize] no tool_use", { stop_reason: data.stop_reason });
+    const why = data.stop_reason === "max_tokens"
+      ? "응답이 길이 제한에 도달했습니다."
+      : "AI 응답이 올바른 형식이 아닙니다.";
+    throw new SeoAuditError("ai_failed", why);
+  }
+
+  return {
+    pageId: homePage.id,
+    pageSlug: homePage.slug,
+    before: homeBodyHtml,
+    after: tool.input.patchedHtml,
+    changes: Array.isArray(tool.input.changes) ? tool.input.changes : [],
+    addressedFindings: Array.isArray(tool.input.addressedFindings) ? tool.input.addressedFindings : [],
+    meta: {
+      model: OPTIMIZE_MODEL,
+      tokensIn: data.usage?.input_tokens ?? 0,
+      tokensOut: data.usage?.output_tokens ?? 0,
+      creditsCharged: opts.creditsCharged,
+      runAt: new Date().toISOString(),
+    },
+  };
+}
+
+/**
+ * Save the previewed optimization to Page.content and mark addressed
+ * findings as applied. Free — credits were charged at preview time.
+ */
+export async function commitOptimization(
+  siteId: string,
+  pageId: string,
+  patchedHtml: string,
+  addressed: FixRef[],
+): Promise<{ ok: true }> {
+  // Verify pageId belongs to siteId AND read existing content so we
+  // preserve other keys (e.g. css, scripts) when overwriting html.
+  const page = await prisma.page.findFirst({
+    where: { id: pageId, siteId },
+    select: { id: true, content: true },
+  });
+  if (!page) throw new SeoAuditError("no_homepage", "페이지를 찾을 수 없습니다.");
+
+  const existingContent =
+    typeof page.content === "object" && page.content !== null && !Array.isArray(page.content)
+      ? (page.content as Record<string, unknown>)
+      : {};
+  const newContent: Record<string, unknown> = { ...existingContent, html: patchedHtml };
+
+  // Mark addressed findings as applied in the audit result.
+  const site = await prisma.site.findUnique({
+    where: { id: siteId },
+    select: { seoAuditResult: true },
+  });
+  let updatedAudit: AuditResult | null = null;
+  if (site?.seoAuditResult) {
+    const stored = site.seoAuditResult as unknown as AuditResult;
+    const cloned: AuditResult = JSON.parse(JSON.stringify(stored));
+    const nowIso = new Date().toISOString();
+    for (const ref of addressed) {
+      const cat = cloned.categories.find((c) => c.key === ref.categoryKey);
+      if (!cat) continue;
+      const finding = cat.findings[ref.findingIndex];
+      if (finding && !finding.appliedAt) finding.appliedAt = nowIso;
+    }
+    updatedAudit = cloned;
+  }
+
+  await prisma.$transaction([
+    prisma.page.update({
+      where: { id: pageId },
+      data: { content: newContent as Prisma.InputJsonValue },
+    }),
+    ...(updatedAudit
+      ? [prisma.site.update({
+          where: { id: siteId },
+          data: { seoAuditResult: updatedAudit as unknown as Prisma.InputJsonValue },
+        })]
+      : []),
+  ]);
+
+  return { ok: true };
 }
