@@ -1,10 +1,25 @@
 import { prisma } from "@/lib/db";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
+import { spawn } from "child_process";
 import { getTempDomain } from "@/lib/temp-domains";
 import { normalizePhoneDigits, formatKoreanPhone } from "@/lib/sms";
+import { auth } from "@/lib/auth";
 
 const ACCOUNT_TYPES: Record<string, string> = { "0": "Free", "1": "Paid", "2": "Test", "9": "Expired" };
+
+const DOMAIN_REGEX = /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/;
+const PROVISION_SCRIPT = "/root/scripts/provision-domain-ssl.sh";
+
+async function requireAdmin() {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Unauthorized");
+  const me = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { role: true },
+  });
+  if (me?.role !== "ADMIN") throw new Error("Forbidden");
+}
 
 async function updateSite(formData: FormData) {
   "use server";
@@ -61,12 +76,103 @@ async function deleteSite(formData: FormData) {
   redirect("/admin/sites");
 }
 
+// Add a new custom domain to this site, OR transfer an existing one
+// from another site/owner over to this site. Used by the admin to
+// reassign domains between accounts in a single operation — the form
+// in the Domains card calls this. Owner is auto-aligned to the site's
+// owner so the user-facing /dashboard/domains page sees the move too.
+async function addOrReassignDomain(formData: FormData) {
+  "use server";
+  await requireAdmin();
+  const siteId = formData.get("siteId") as string;
+  const raw = ((formData.get("domain") as string) || "").trim().toLowerCase();
+  if (!raw || !DOMAIN_REGEX.test(raw)) {
+    redirect(`/admin/sites/${siteId}?domainError=${encodeURIComponent("올바른 도메인 형식이 아닙니다.")}`);
+  }
+  const site = await prisma.site.findUnique({
+    where: { id: siteId },
+    select: { id: true, userId: true },
+  });
+  if (!site) redirect("/admin/sites");
+
+  const existing = await prisma.domain.findUnique({ where: { domain: raw } });
+  if (existing) {
+    if (existing.siteId === site!.id) {
+      redirect(`/admin/sites/${siteId}?domainError=${encodeURIComponent("이미 이 사이트에 연결된 도메인입니다.")}`);
+    }
+    // Transfer: keep cert/SSL state; just rebind site + owner. Nginx
+    // vhost still points at the old shopId until "Nginx 재구성" is run.
+    await prisma.domain.update({
+      where: { id: existing.id },
+      data: { siteId: site!.id, userId: site!.userId },
+    });
+    redirect(`/admin/sites/${siteId}?domainNotice=${encodeURIComponent(`${raw} 인계 완료. Nginx 재구성을 실행하세요.`)}`);
+  }
+
+  await prisma.domain.create({
+    data: {
+      domain: raw,
+      siteId: site!.id,
+      userId: site!.userId,
+      status: "PENDING",
+    },
+  });
+  redirect(`/admin/sites/${siteId}?domainNotice=${encodeURIComponent(`${raw} 추가됨. DNS A → 167.71.199.28 설정 후 SSL 발급.`)}`);
+}
+
+async function removeDomainFromSite(formData: FormData) {
+  "use server";
+  await requireAdmin();
+  const siteId = formData.get("siteId") as string;
+  const domainId = formData.get("domainId") as string;
+  await prisma.domain.delete({ where: { id: domainId } });
+  redirect(`/admin/sites/${siteId}?domainNotice=${encodeURIComponent("도메인이 삭제되었습니다.")}`);
+}
+
+// Re-run the provision script so the nginx vhost is rewritten with the
+// site's CURRENT shopId/lang. certbot is called with --keep-until-expiring
+// so a valid cert is reused; only the .conf gets rewritten and nginx -s
+// reload picks up the new proxy_pass target. There is a ~5–15s window
+// during which the domain serves an HTTP-only "provisioning" placeholder.
+async function regenerateDomainNginx(formData: FormData) {
+  "use server";
+  await requireAdmin();
+  const siteId = formData.get("siteId") as string;
+  const domainId = formData.get("domainId") as string;
+
+  const domain = await prisma.domain.findUnique({
+    where: { id: domainId },
+    include: { site: { select: { shopId: true, defaultLanguage: true } } },
+  });
+  if (!domain) {
+    redirect(`/admin/sites/${siteId}?domainError=${encodeURIComponent("도메인을 찾을 수 없습니다.")}`);
+  }
+
+  const child = spawn(
+    PROVISION_SCRIPT,
+    [domain!.domain, domain!.site.shopId, domain!.site.defaultLanguage || "en"],
+    {
+      detached: true,
+      stdio: "ignore",
+      env: { ...process.env, DB_PASSWORD: process.env.DB_PASSWORD || "HnsApp2026Secure" },
+    },
+  );
+  child.unref();
+
+  redirect(`/admin/sites/${siteId}?domainNotice=${encodeURIComponent(`${domain!.domain} Nginx 재구성 시작. 1~2분 후 새로고침.`)}`);
+}
+
 export default async function AdminSiteDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ domainError?: string; domainNotice?: string }>;
 }) {
   const { id } = await params;
+  const sp = await searchParams;
+  const domainError = sp.domainError || "";
+  const domainNotice = sp.domainNotice || "";
 
   const site = await prisma.site.findUnique({
     where: { id },
@@ -212,15 +318,72 @@ export default async function AdminSiteDetailPage({
           {/* Domains */}
           <div className="bg-white rounded-xl border border-slate-200 p-6">
             <h2 className="text-base font-semibold text-slate-800 mb-4">Domains ({site.domains.length})</h2>
+
+            {domainError && (
+              <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{domainError}</div>
+            )}
+            {domainNotice && (
+              <div className="mb-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">{domainNotice}</div>
+            )}
+
             {site.domains.length > 0 ? (
-              <ul className="space-y-2">
+              <ul className="space-y-2 mb-4">
                 {site.domains.map((d) => (
-                  <li key={d.id} className="text-sm"><a href={`https://${d.domain}`} target="_blank" rel="noopener noreferrer" className="text-[#405189] hover:text-[#405189]">{d.domain} ↗</a></li>
+                  <li key={d.id} className="flex items-center justify-between gap-2 rounded-md border border-slate-200 px-3 py-2">
+                    <div className="min-w-0 flex-1">
+                      <a href={`https://${d.domain}`} target="_blank" rel="noopener noreferrer" className="text-sm text-[#405189] hover:underline font-mono truncate block">
+                        {d.domain} ↗
+                      </a>
+                      <div className="mt-1 flex items-center gap-1.5 text-[11px]">
+                        <span className={`inline-block rounded px-1.5 py-0.5 ${
+                          d.status === "ACTIVE" ? "bg-emerald-50 text-emerald-700"
+                          : d.status === "EXPIRED" ? "bg-red-50 text-red-700"
+                          : "bg-amber-50 text-amber-700"
+                        }`}>{d.status}</span>
+                        <span className={`inline-block rounded px-1.5 py-0.5 ${
+                          d.sslEnabled ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"
+                        }`}>SSL {d.sslEnabled ? "ON" : "OFF"}</span>
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <form action={regenerateDomainNginx}>
+                        <input type="hidden" name="siteId" value={site.id} />
+                        <input type="hidden" name="domainId" value={d.id} />
+                        <button type="submit" className="rounded-md border border-[#405189]/30 bg-[#405189]/5 px-2 py-1 text-[11px] text-[#405189] hover:bg-[#405189]/10" title="이 도메인의 nginx vhost를 현재 shopId로 재작성합니다 (~5~15초)">Nginx 재구성</button>
+                      </form>
+                      <form action={removeDomainFromSite}>
+                        <input type="hidden" name="siteId" value={site.id} />
+                        <input type="hidden" name="domainId" value={d.id} />
+                        <button type="submit" className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-[11px] text-red-700 hover:bg-red-100" title="DB에서 도메인 매핑을 삭제합니다 (nginx 파일은 별도 삭제 필요)">삭제</button>
+                      </form>
+                    </div>
+                  </li>
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-slate-600">No custom domains</p>
+              <p className="text-sm text-slate-600 mb-4">No custom domains</p>
             )}
+
+            <form action={addOrReassignDomain} className="border-t border-slate-100 pt-4">
+              <input type="hidden" name="siteId" value={site.id} />
+              <label className="block text-xs text-slate-500 mb-1">도메인 추가 / 인계</label>
+              <div className="flex gap-2">
+                <input
+                  name="domain"
+                  type="text"
+                  required
+                  placeholder="example.com"
+                  className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                />
+                <button type="submit" className="rounded-lg bg-[#405189] px-4 py-2 text-sm font-medium text-white hover:bg-[#364574]">
+                  연결
+                </button>
+              </div>
+              <p className="mt-1 text-[11px] text-slate-500 leading-relaxed">
+                다른 사이트에 이미 등록된 도메인을 입력하면 이 사이트로 인계됩니다 (소유자도 자동 변경).
+                인계 후 <span className="font-medium">Nginx 재구성</span>을 눌러 vhost를 새 shopId로 새로 씁니다.
+              </p>
+            </form>
           </div>
 
           {/* Pages */}
