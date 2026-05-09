@@ -181,11 +181,37 @@ export default async function AdminSiteDetailPage({
     include: {
       user: { select: { id: true, email: true, name: true } },
       domains: true,
-      pages: { select: { id: true, title: true, slug: true }, orderBy: { sortOrder: "asc" } },
+      pages: {
+        select: {
+          id: true,
+          title: true,
+          slug: true,
+          isHome: true,
+          lang: true,
+          seoAuditAt: true,
+          seoAuditResult: true,
+        },
+        orderBy: [{ isHome: "desc" }, { sortOrder: "asc" }],
+      },
     },
   });
 
   if (!site) notFound();
+
+  // Filter pages to the site's default language so the panel doesn't
+  // show duplicate "Home (ko)" + "Home (en)" entries for multilingual
+  // sites. Per-language audit can be added later.
+  const auditPages = site.pages
+    .filter((p) => p.lang === site.defaultLanguage)
+    .map((p) => ({
+      id: p.id,
+      slug: p.slug,
+      title: p.title,
+      isHome: p.isHome,
+      lang: p.lang,
+      seoAuditAt: p.seoAuditAt ? p.seoAuditAt.toISOString() : null,
+      seoAuditResult: (p.seoAuditResult as AuditResultShape | null) ?? null,
+    }));
 
   const isExpired = site.expiresAt && new Date(site.expiresAt) < new Date();
   const prospectPhoneDisplay = site.prospectPhone
@@ -422,8 +448,7 @@ export default async function AdminSiteDetailPage({
           costCredits={CREDIT_COSTS.AI_SEO_AUDIT}
           optimizeCostCredits={CREDIT_COSTS.AI_SEO_OPTIMIZE}
           balance={0}
-          initialResult={(site.seoAuditResult as AuditResultShape | null) ?? null}
-          initialAuditedAt={site.seoAuditAt ? site.seoAuditAt.toISOString() : null}
+          pages={auditPages}
         />
       </div>
     </div>

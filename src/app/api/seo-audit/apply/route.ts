@@ -18,13 +18,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
   }
 
-  let body: { siteId?: string; fixes?: FixRef[] };
+  let body: { siteId?: string; pageId?: string; fixes?: FixRef[] };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "잘못된 요청입니다." }, { status: 400 });
   }
   const siteId = (body.siteId || "").trim();
+  const pageId = (body.pageId || "").trim() || null;
   const fixes = Array.isArray(body.fixes) ? body.fixes : [];
   if (!siteId || fixes.length === 0) {
     return NextResponse.json({ error: "siteId와 적용할 항목이 필요합니다." }, { status: 400 });
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const out = await applyAutofixes(site.id, fixes);
+    const out = await applyAutofixes(site.id, fixes, pageId);
     return NextResponse.json({ ok: true, ...out });
   } catch (err) {
     if (err instanceof SeoAuditError) {

@@ -56,17 +56,48 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
   const params = await searchParams;
   const siteId = params.id;
 
+  const _pageSelect = {
+    id: true,
+    isHome: true,
+    lang: true,
+    title: true,
+    slug: true,
+    sortOrder: true,
+    seoAuditAt: true,
+    seoAuditResult: true,
+  } as const;
+
   const site = siteId
     ? await prisma.site.findFirst({
         where: { id: siteId, userId: session.user.id },
-        include: { domains: true, pages: { select: { id: true, isHome: true, lang: true } } },
+        include: {
+          domains: true,
+          pages: { select: _pageSelect, orderBy: [{ isHome: "desc" }, { sortOrder: "asc" }] },
+        },
       })
     : await prisma.site.findFirst({
         where: { userId: session.user.id, isTemplateStorage: false },
-        include: { domains: true, pages: { select: { id: true, isHome: true, lang: true } } },
+        include: {
+          domains: true,
+          pages: { select: _pageSelect, orderBy: [{ isHome: "desc" }, { sortOrder: "asc" }] },
+        },
       });
 
   if (!site) redirect("/dashboard");
+
+  // Filter to default-language pages for the audit panel (multilingual
+  // sites would otherwise show duplicate Home/Company/etc. rows).
+  const auditPages = site.pages
+    .filter((p) => p.lang === site.defaultLanguage)
+    .map((p) => ({
+      id: p.id,
+      slug: p.slug,
+      title: p.title,
+      isHome: p.isHome,
+      lang: p.lang,
+      seoAuditAt: p.seoAuditAt ? p.seoAuditAt.toISOString() : null,
+      seoAuditResult: (p.seoAuditResult as AuditResultShape | null) ?? null,
+    }));
 
   const currentUser = await prisma.user.findUnique({
     where: { id: session.user.id },
@@ -533,8 +564,7 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                       costCredits={CREDIT_COSTS.AI_SEO_AUDIT}
                       optimizeCostCredits={CREDIT_COSTS.AI_SEO_OPTIMIZE}
                       balance={credits}
-                      initialResult={((site as typeof site & { seoAuditResult?: unknown }).seoAuditResult as AuditResultShape | null) ?? null}
-                      initialAuditedAt={(site as typeof site & { seoAuditAt?: Date | null }).seoAuditAt?.toISOString() ?? null}
+                      pages={auditPages}
                     />
                   </div>
                 </div>

@@ -20,7 +20,7 @@ import {
   InsufficientCreditsError,
   getBalance,
 } from "@/lib/credits";
-import { optimizeHomepageHtml, SeoAuditError } from "@/lib/seo-audit";
+import { optimizePageHtml, SeoAuditError } from "@/lib/seo-audit";
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -29,13 +29,14 @@ export async function POST(request: Request) {
   }
   const userId = session.user.id;
 
-  let body: { siteId?: string };
+  let body: { siteId?: string; pageId?: string };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "잘못된 요청입니다." }, { status: 400 });
   }
   const siteId = (body.siteId || "").trim();
+  const pageId = (body.pageId || "").trim() || null;
   if (!siteId) {
     return NextResponse.json({ error: "siteId가 필요합니다." }, { status: 400 });
   }
@@ -84,7 +85,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const preview = await optimizeHomepageHtml(site.id, { creditsCharged: cost });
+    const preview = await optimizePageHtml(site.id, { creditsCharged: cost, pageId });
     const balanceAfter = await getBalance(userId);
     return NextResponse.json({
       ok: true,

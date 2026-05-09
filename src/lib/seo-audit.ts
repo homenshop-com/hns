@@ -178,16 +178,21 @@ interface SiteForAudit {
 }
 
 /**
- * Build the public-facing homepage URL we'll fetch. Prefer an ACTIVE
+ * Build the public-facing URL for a page we'll fetch. Prefer an ACTIVE
  * custom domain (that's what AI crawlers actually see); fall back to
  * the temp domain. Always lang-prefixed so we hit the rendered page,
  * not a redirect chain.
+ *
+ * The page slug is appended literally; for "index" we still emit
+ * "index.html" so the renderer's slug-matching logic stays consistent.
  */
-export function getAuditUrl(site: SiteForAudit): string {
+export function getAuditUrl(site: SiteForAudit, pageSlug: string, pageLang?: string): string {
+  const lang = pageLang || site.defaultLanguage;
+  const slug = pageSlug || "index";
   const active = site.domains.find((d) => d.status === "ACTIVE");
-  if (active) return `https://${active.domain}/${site.defaultLanguage}/index.html`;
+  if (active) return `https://${active.domain}/${lang}/${slug}.html`;
   const temp = getTempDomain(site as Parameters<typeof getTempDomain>[0]);
-  return `https://${temp}/${site.shopId}/${site.defaultLanguage}/index.html`;
+  return `https://${temp}/${site.shopId}/${lang}/${slug}.html`;
 }
 
 async function fetchRenderedHtml(url: string): Promise<{ html: string; truncated: boolean }> {
@@ -217,6 +222,36 @@ async function fetchRenderedHtml(url: string): Promise<{ html: string; truncated
 interface RunAuditOptions {
   /** Credits charged for this run (0 for admin). Stored in result.meta. */
   creditsCharged: number;
+  /** Page to audit. Omit / null → falls back to the home page so older
+   *  callers and the simple "audit my site" flow keep working. */
+  pageId?: string | null;
+}
+
+/** Look up the page row to audit. Used by both runSeoAudit and the
+ *  optimize/apply paths so they all agree on what "this page" means. */
+async function resolveAuditPage(siteId: string, pageId?: string | null) {
+  if (pageId) {
+    const p = await prisma.page.findFirst({
+      where: { id: pageId, siteId },
+      select: { id: true, slug: true, title: true, lang: true, isHome: true },
+    });
+    if (p) return p;
+  }
+  // Fall back to the home page in the site's default language.
+  const site = await prisma.site.findUnique({
+    where: { id: siteId },
+    select: { defaultLanguage: true },
+  });
+  const home = await prisma.page.findFirst({
+    where: { siteId, isHome: true, lang: site?.defaultLanguage || "ko" },
+    select: { id: true, slug: true, title: true, lang: true, isHome: true },
+  });
+  if (home) return home;
+  // Last resort — any home regardless of lang.
+  return prisma.page.findFirst({
+    where: { siteId, isHome: true },
+    select: { id: true, slug: true, title: true, lang: true, isHome: true },
+  });
 }
 
 export async function runSeoAudit(siteId: string, opts: RunAuditOptions): Promise<AuditResult> {
@@ -236,7 +271,12 @@ export async function runSeoAudit(siteId: string, opts: RunAuditOptions): Promis
   });
   if (!site) throw new SeoAuditError("no_homepage", "사이트를 찾을 수 없습니다.");
 
-  const url = getAuditUrl(site);
+  const targetPage = await resolveAuditPage(siteId, opts.pageId);
+  if (!targetPage) {
+    throw new SeoAuditError("no_homepage", "진단할 페이지를 찾을 수 없습니다.");
+  }
+
+  const url = getAuditUrl(site, targetPage.slug, targetPage.lang);
   const { html, truncated } = await fetchRenderedHtml(url);
 
   const userContent = `Audit this homepage. URL: ${url}\nLanguage: ${site.defaultLanguage}\n\n--- HTML START ---\n${html}\n--- HTML END ---`;
@@ -322,8 +362,11 @@ export async function runSeoAudit(siteId: string, opts: RunAuditOptions): Promis
     },
   };
 
-  await prisma.site.update({
-    where: { id: siteId },
+  // Per-page storage. Site.seoAuditAt/Result columns are kept for back-
+  // compat (existing reads in admin pages) but no longer written to —
+  // each page's audit lives on its own Page row now.
+  await prisma.page.update({
+    where: { id: targetPage.id },
     data: {
       seoAuditAt: new Date(),
       seoAuditResult: result as unknown as Prisma.InputJsonValue,
@@ -382,20 +425,24 @@ const ALLOWED_SITE_FIELDS = new Set(["publicEmail", "publicPhone", "publicAddres
 /**
  * Apply one or more autofix-tagged findings from a stored audit. Each
  * finding is looked up by (categoryKey, findingIndex), validated, and
- * written either to a Site column or merged into Site.seoMeta JSON.
+ * written either to a Site column, the page's own Page columns
+ * (title/description/keywords), or merged into Site.seoMeta JSON.
  * Findings without an autofix are silently skipped.
  *
  * Free path — no credit interaction. Caller verifies authorization.
+ *
+ * pageId selects which page's audit to apply against. Omitted = home.
  */
 export async function applyAutofixes(
   siteId: string,
   refs: FixRef[],
+  pageId?: string | null,
 ): Promise<ApplyAutofixResult> {
   const site = await prisma.site.findUnique({
     where: { id: siteId },
     select: {
       id: true,
-      seoAuditResult: true,
+      defaultLanguage: true,
       seoMeta: true,
       publicEmail: true,
       publicPhone: true,
@@ -404,18 +451,20 @@ export async function applyAutofixes(
     },
   });
   if (!site) throw new SeoAuditError("no_homepage", "사이트를 찾을 수 없습니다.");
-  const stored = site.seoAuditResult as unknown as AuditResult | null;
-  if (!stored || !Array.isArray(stored.categories)) {
-    throw new SeoAuditError("ai_failed", "먼저 진단을 실행해주세요.");
-  }
 
-  // Find the home page once — page-level autofixes (title/description/
-  // keywords) target this row, since the audit runs on the homepage.
-  const homePageRow = await prisma.page.findFirst({
-    where: { siteId },
-    select: { id: true, isHome: true, lang: true },
-    orderBy: [{ isHome: "desc" }, { sortOrder: "asc" }],
+  const targetPage = await resolveAuditPage(siteId, pageId);
+  if (!targetPage) throw new SeoAuditError("no_homepage", "진단된 페이지를 찾을 수 없습니다.");
+
+  // Pull the stored audit from the target page — that's where runSeoAudit
+  // wrote it for any audit run after the per-page migration.
+  const pageRow = await prisma.page.findUnique({
+    where: { id: targetPage.id },
+    select: { seoAuditResult: true },
   });
+  const stored = pageRow?.seoAuditResult as unknown as AuditResult | null;
+  if (!stored || !Array.isArray(stored.categories)) {
+    throw new SeoAuditError("ai_failed", "먼저 이 페이지의 진단을 실행해주세요.");
+  }
 
   const errors: string[] = [];
   let applied = 0;
@@ -437,7 +486,10 @@ export async function applyAutofixes(
     publicAddress: string;
     logoUrl: string;
   }> = {};
-  const homePagePatch: Partial<{
+  // Per-page autofixes (title/description/keywords) write to the
+  // target page's own Page columns, not the home page — this lets the
+  // user audit /company.html and have its title-fix land on /company.
+  const pagePatch: Partial<{
     seoTitle: string;
     seoDescription: string;
     seoKeywords: string;
@@ -486,12 +538,7 @@ export async function applyAutofixes(
     } else if (fix.type === "seoMeta") {
       const pageColumn = PAGE_LEVEL_KEYS[fix.key];
       if (pageColumn) {
-        if (!homePageRow) {
-          errors.push(`홈 페이지를 찾을 수 없어 ${fix.key} 적용 불가`);
-          skipped++;
-          continue;
-        }
-        homePagePatch[pageColumn] = value;
+        pagePatch[pageColumn] = value;
       } else if (ALLOWED_SITE_SEOMETA_KEYS.has(fix.key)) {
         seoMetaPatch[fix.key] = value;
       } else {
@@ -510,23 +557,24 @@ export async function applyAutofixes(
 
   if (applied > 0) {
     const ops: Prisma.PrismaPromise<unknown>[] = [
+      // Site-level: business contact fields + brand seoMeta
       prisma.site.update({
         where: { id: siteId },
         data: {
           ...siteFieldPatch,
           seoMeta: seoMetaPatch as Prisma.InputJsonValue,
+        },
+      }),
+      // Page-level: this page's own SEO columns + updated audit JSON
+      // with appliedAt marks (so ✓ 적용됨 persists across reloads).
+      prisma.page.update({
+        where: { id: targetPage.id },
+        data: {
+          ...pagePatch,
           seoAuditResult: updated as unknown as Prisma.InputJsonValue,
         },
       }),
     ];
-    if (homePageRow && Object.keys(homePagePatch).length > 0) {
-      ops.push(
-        prisma.page.update({
-          where: { id: homePageRow.id },
-          data: homePagePatch,
-        }),
-      );
-    }
     await prisma.$transaction(ops);
   }
 
@@ -603,36 +651,47 @@ export interface OptimizePreview {
 }
 
 /**
- * Tier 2 — Claude rewrites the home page HTML using the audit findings
- * as guidance. Returns a preview; the caller is expected to either
+ * Tier 2 — Claude rewrites a page's HTML using the audit findings as
+ * guidance. Returns a preview; the caller is expected to either
  * commit (commitOptimization) or discard. Credits are charged at this
  * step (the Claude call is what costs money), not at commit time.
+ *
+ * pageId selects which page to rewrite. Omit to default to the home
+ * page (back-compat with the original "optimize the homepage" flow).
  */
-export async function optimizeHomepageHtml(
+export async function optimizePageHtml(
   siteId: string,
-  opts: { creditsCharged: number },
+  opts: { creditsCharged: number; pageId?: string | null },
 ): Promise<OptimizePreview> {
   if (!ANTHROPIC_API_KEY) {
     throw new SeoAuditError("no_api_key", "AI 기능이 설정되지 않았습니다.");
   }
   const site = await prisma.site.findUnique({
     where: { id: siteId },
-    select: { id: true, defaultLanguage: true, seoAuditResult: true },
+    select: { id: true, defaultLanguage: true },
   });
   if (!site) throw new SeoAuditError("no_homepage", "사이트를 찾을 수 없습니다.");
-  const stored = site.seoAuditResult as unknown as AuditResult | null;
-  if (!stored) throw new SeoAuditError("ai_failed", "먼저 진단을 실행해주세요.");
 
-  const homePage = await prisma.page.findFirst({
-    where: { siteId, isHome: true, lang: site.defaultLanguage },
-    select: { id: true, slug: true, content: true },
-  });
-  if (!homePage) {
-    throw new SeoAuditError("no_homepage", "홈페이지를 찾을 수 없습니다.");
+  const target = await resolveAuditPage(siteId, opts.pageId);
+  if (!target) {
+    throw new SeoAuditError("no_homepage", "페이지를 찾을 수 없습니다.");
   }
+
+  // Pull the target page's stored audit + content together.
+  const pageRow = await prisma.page.findUnique({
+    where: { id: target.id },
+    select: { id: true, slug: true, content: true, seoAuditResult: true },
+  });
+  if (!pageRow) {
+    throw new SeoAuditError("no_homepage", "페이지를 찾을 수 없습니다.");
+  }
+  const stored = pageRow.seoAuditResult as unknown as AuditResult | null;
+  if (!stored) throw new SeoAuditError("ai_failed", "먼저 이 페이지의 진단을 실행해주세요.");
+
   // Page.content is Json `{ html?: string, ...other }` — see published renderer.
-  const homeContent = (homePage.content ?? {}) as { html?: string; [k: string]: unknown };
+  const homeContent = (pageRow.content ?? {}) as { html?: string; [k: string]: unknown };
   const homeBodyHtml = typeof homeContent.html === "string" ? homeContent.html : "";
+  const homePage = pageRow;
 
   // Filter findings: severity ≥ minor, no autofix (Tier 1 handles those),
   // not already applied. Critical/major first so a tight cap still hits
@@ -742,11 +801,12 @@ export async function commitOptimization(
   patchedHtml: string,
   addressed: FixRef[],
 ): Promise<{ ok: true }> {
-  // Verify pageId belongs to siteId AND read existing content so we
-  // preserve other keys (e.g. css, scripts) when overwriting html.
+  // Verify pageId belongs to siteId AND read existing content + audit
+  // so we can preserve other content keys when overwriting html and
+  // mark findings as applied on the same page row.
   const page = await prisma.page.findFirst({
     where: { id: pageId, siteId },
-    select: { id: true, content: true },
+    select: { id: true, content: true, seoAuditResult: true },
   });
   if (!page) throw new SeoAuditError("no_homepage", "페이지를 찾을 수 없습니다.");
 
@@ -756,14 +816,10 @@ export async function commitOptimization(
       : {};
   const newContent: Record<string, unknown> = { ...existingContent, html: patchedHtml };
 
-  // Mark addressed findings as applied in the audit result.
-  const site = await prisma.site.findUnique({
-    where: { id: siteId },
-    select: { seoAuditResult: true },
-  });
+  // Mark addressed findings as applied in the audit result on the page row.
   let updatedAudit: AuditResult | null = null;
-  if (site?.seoAuditResult) {
-    const stored = site.seoAuditResult as unknown as AuditResult;
+  if (page.seoAuditResult) {
+    const stored = page.seoAuditResult as unknown as AuditResult;
     const cloned: AuditResult = JSON.parse(JSON.stringify(stored));
     const nowIso = new Date().toISOString();
     for (const ref of addressed) {
@@ -775,18 +831,15 @@ export async function commitOptimization(
     updatedAudit = cloned;
   }
 
-  await prisma.$transaction([
-    prisma.page.update({
-      where: { id: pageId },
-      data: { content: newContent as Prisma.InputJsonValue },
-    }),
-    ...(updatedAudit
-      ? [prisma.site.update({
-          where: { id: siteId },
-          data: { seoAuditResult: updatedAudit as unknown as Prisma.InputJsonValue },
-        })]
-      : []),
-  ]);
+  await prisma.page.update({
+    where: { id: pageId },
+    data: {
+      content: newContent as Prisma.InputJsonValue,
+      ...(updatedAudit
+        ? { seoAuditResult: updatedAudit as unknown as Prisma.InputJsonValue }
+        : {}),
+    },
+  });
 
   return { ok: true };
 }

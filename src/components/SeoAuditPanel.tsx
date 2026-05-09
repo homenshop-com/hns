@@ -54,6 +54,16 @@ export interface AuditResultShape {
   };
 }
 
+export interface AuditPageItem {
+  id: string;
+  slug: string;
+  title: string;
+  isHome: boolean;
+  lang: string;
+  seoAuditAt: string | null;
+  seoAuditResult: AuditResultShape | null;
+}
+
 interface Props {
   siteId: string;
   mode: "admin" | "user";
@@ -63,9 +73,9 @@ interface Props {
   optimizeCostCredits: number;
   /** User's current balance, only used in user mode. */
   balance: number;
-  /** Existing stored result; null if never audited. */
-  initialResult: AuditResultShape | null;
-  initialAuditedAt: string | null;
+  /** All pages of the site available for audit (one per row, per-lang).
+   *  The home page is selected by default. */
+  pages: AuditPageItem[];
 }
 
 interface OptimizePreview {
@@ -107,12 +117,25 @@ export default function SeoAuditPanel({
   costCredits,
   optimizeCostCredits,
   balance,
-  initialResult,
-  initialAuditedAt,
+  pages,
 }: Props) {
   const router = useRouter();
-  const [result, setResult] = useState<AuditResultShape | null>(initialResult);
-  const [auditedAt, setAuditedAt] = useState<string | null>(initialAuditedAt);
+
+  // Per-page state. We hold a working copy of each page's audit
+  // (mirrors what's in DB) so applying fixes / running new audits
+  // updates the visible result without a full router.refresh.
+  const [pagesState, setPagesState] = useState<AuditPageItem[]>(pages);
+  const initialSelected = pages.find((p) => p.isHome)?.id || pages[0]?.id || "";
+  const [selectedPageId, setSelectedPageId] = useState<string>(initialSelected);
+  const selectedPage = pagesState.find((p) => p.id === selectedPageId) || pagesState[0];
+  const result = selectedPage?.seoAuditResult ?? null;
+  const auditedAt = selectedPage?.seoAuditAt ?? null;
+  const setResult = (next: AuditResultShape | null) => {
+    setPagesState((prev) => prev.map((p) => p.id === selectedPageId ? { ...p, seoAuditResult: next } : p));
+  };
+  const setAuditedAt = (next: string | null) => {
+    setPagesState((prev) => prev.map((p) => p.id === selectedPageId ? { ...p, seoAuditAt: next } : p));
+  };
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
@@ -147,7 +170,7 @@ export default function SeoAuditPanel({
       const res = await fetch("/api/seo-audit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ siteId }),
+        body: JSON.stringify({ siteId, pageId: selectedPageId }),
       });
       const data = await res.json();
       if (res.status === 402 && data.code === "INSUFFICIENT_CREDITS") {
@@ -200,7 +223,7 @@ export default function SeoAuditPanel({
       const res = await fetch("/api/seo-audit/apply", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ siteId, fixes: refs }),
+        body: JSON.stringify({ siteId, pageId: selectedPageId, fixes: refs }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "적용 실패");
@@ -228,7 +251,7 @@ export default function SeoAuditPanel({
       const res = await fetch("/api/seo-audit/optimize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ siteId }),
+        body: JSON.stringify({ siteId, pageId: selectedPageId }),
       });
       const data = await res.json();
       if (res.status === 402 && data.code === "INSUFFICIENT_CREDITS") {
@@ -354,6 +377,82 @@ export default function SeoAuditPanel({
             : (isUser ? `진단 실행 (${costCredits} 코인)` : "진단 실행")}
         </button>
       </div>
+
+      {/* Page selector — pick which page to audit. Each page has its
+          own audit history; switching pages just swaps which result
+          is rendered (no API call). */}
+      {pagesState.length > 1 && (
+        <div style={{
+          display: "flex",
+          gap: 8,
+          flexWrap: "wrap",
+          marginBottom: 14,
+          paddingBottom: 14,
+          borderBottom: "1px solid #f1f5f9",
+        }}>
+          {pagesState.map((p) => {
+            const isActive = p.id === selectedPageId;
+            const pScore = p.seoAuditResult?.overallScore;
+            const hasAudit = p.seoAuditAt !== null;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setSelectedPageId(p.id)}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "6px 12px",
+                  fontSize: 12,
+                  fontWeight: 500,
+                  border: `1px solid ${isActive ? "#405189" : "#e2e8f0"}`,
+                  background: isActive ? "#405189" : "#fff",
+                  color: isActive ? "#fff" : "#475569",
+                  borderRadius: 999,
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {p.isHome ? "🏠 " : ""}{p.title}
+                <span style={{
+                  fontSize: 10,
+                  color: isActive ? "rgba(255,255,255,0.7)" : "#94a3b8",
+                }}>
+                  ({p.slug})
+                </span>
+                {hasAudit ? (
+                  <span style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    padding: "1px 6px",
+                    borderRadius: 8,
+                    background: isActive ? "rgba(255,255,255,0.2)" : (
+                      typeof pScore === "number" && pScore >= 80 ? "#dcfce7"
+                      : typeof pScore === "number" && pScore >= 60 ? "#fef3c7"
+                      : "#fee2e2"
+                    ),
+                    color: isActive ? "#fff" : (
+                      typeof pScore === "number" && pScore >= 80 ? "#166534"
+                      : typeof pScore === "number" && pScore >= 60 ? "#854d0e"
+                      : "#991b1b"
+                    ),
+                  }}>
+                    {pScore ?? "-"}
+                  </span>
+                ) : (
+                  <span style={{
+                    fontSize: 10,
+                    color: isActive ? "rgba(255,255,255,0.6)" : "#cbd5e1",
+                  }}>
+                    미진단
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {auditedAt && (
         <div style={{

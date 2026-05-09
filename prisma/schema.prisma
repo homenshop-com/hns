@@ -320,6 +320,14 @@ model Page {
   seoDescription String?  @db.Text
   seoKeywords    String?
   ogImage        String?
+  /// Last time SEO/GEO 진단 ran for this page (null = never).
+  /// Per-page so the user can audit/optimize each page independently;
+  /// the older Site.seoAuditAt is retained for backwards compatibility
+  /// but new audits write here.
+  seoAuditAt     DateTime?
+  /// Stored output of the last Claude SEO/GEO audit for this page.
+  /// Same shape as Site.seoAuditResult (overallScore/categories/findings/meta).
+  seoAuditResult Json?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
