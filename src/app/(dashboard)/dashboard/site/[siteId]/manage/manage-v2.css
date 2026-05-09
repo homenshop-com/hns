@@ -313,7 +313,16 @@
 }
 .dv2-app .mv2-activity-summary .lines b { color: var(--ink-1); }
 
-@media (max-width: 1200px) {
+/* Earlier breakpoint at 1400px (was 1200) — at typical 1430-1440 viewport
+   minus 210px sidebar minus 56px content padding, content area is ~1180px,
+   which divided by 4 gives 280px columns. Product settings column has
+   nested form fields + radio mode picker that look cramped at 280px (text
+   wraps per Korean syllable, fields squeeze). Drop to 3 cols earlier to
+   keep cards readable. */
+@media (max-width: 1400px) {
+  .dv2-app .mv2-data-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 1100px) {
   .dv2-app .mv2-kpi-row { grid-template-columns: repeat(2, 1fr); }
   .dv2-app .mv2-data-grid { grid-template-columns: repeat(2, 1fr); }
 }

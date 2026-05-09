@@ -183,6 +183,11 @@ export default function ProductSettings({ siteId, initialSettings, labels, varia
                     background: checked ? "#eff6ff" : "#fff",
                     cursor: "pointer",
                     transition: "all 0.15s",
+                    // Narrow data-grid columns (~280px) can squeeze radio
+                    // labels enough that Korean syllables wrap one char per
+                    // line. Keep words intact.
+                    wordBreak: "keep-all",
+                    overflowWrap: "anywhere",
                   }}
                 >
                   <input
@@ -191,11 +196,11 @@ export default function ProductSettings({ siteId, initialSettings, labels, varia
                     value={opt.code}
                     checked={checked}
                     onChange={() => setSettings((s) => ({ ...s, buttonMode: opt.code }))}
-                    style={{ marginTop: 3, accentColor: "#2563eb" }}
+                    style={{ marginTop: 3, accentColor: "#2563eb", flexShrink: 0 }}
                   />
-                  <div style={{ flex: 1, lineHeight: 1.4 }}>
+                  <div style={{ flex: 1, minWidth: 0, lineHeight: 1.4, wordBreak: "keep-all" }}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>{opt.title}</div>
-                    <div style={{ fontSize: 11.5, color: "#6b7280", marginTop: 2 }}>{opt.desc}</div>
+                    <div style={{ fontSize: 11.5, color: "#6b7280", marginTop: 2, wordBreak: "keep-all" }}>{opt.desc}</div>
                   </div>
                 </label>
               );
