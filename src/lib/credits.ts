@@ -35,6 +35,7 @@ import type { Prisma, CreditTransactionKind } from "@/generated/prisma/client";
 export const CREDIT_COSTS = {
   AI_SITE_CREATE: 50,
   AI_EDIT: 5,
+  AI_SEO_AUDIT: 5,
   AI_OTHER: 2,
 } as const;
 
@@ -89,7 +90,7 @@ type TxClient = Prisma.TransactionClient;
 type DbClient = typeof prisma | TxClient;
 
 export interface ConsumeOptions {
-  kind: Extract<CreditTransactionKind, "AI_SITE_CREATE" | "AI_EDIT" | "AI_OTHER">;
+  kind: Extract<CreditTransactionKind, "AI_SITE_CREATE" | "AI_EDIT" | "AI_SEO_AUDIT" | "AI_OTHER">;
   amount: number;
   refSiteId?: string;
   aiModel?: string;

@@ -10,6 +10,8 @@ import LanguageGridV2 from "./language-grid-v2";
 import DeleteSiteButton from "./delete-site-button";
 import SitemapRefreshButton from "./sitemap-refresh-button";
 import CopyButton from "./copy-button";
+import SeoAuditPanel, { type AuditResultShape } from "@/components/SeoAuditPanel";
+import { CREDIT_COSTS } from "@/lib/credits";
 import { DashboardIconSprite, Icon } from "../../dashboard-icons";
 import DashboardShell from "../../dashboard-shell";
 import SupportUnreadIndicator from "../../support-unread-indicator";
@@ -520,6 +522,18 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                       initialUrlCount={sitemapUrlCount}
                       initialLastModified={sitemapLastMod}
                       hasCustomDomain={Boolean(activeDomain)}
+                    />
+                  </div>
+
+                  {/* SEO/GEO 진단 — Claude AI 분석, 5코인 차감 */}
+                  <div style={{ marginTop: 16 }}>
+                    <SeoAuditPanel
+                      siteId={site.id}
+                      mode="user"
+                      costCredits={CREDIT_COSTS.AI_SEO_AUDIT}
+                      balance={credits}
+                      initialResult={((site as typeof site & { seoAuditResult?: unknown }).seoAuditResult as AuditResultShape | null) ?? null}
+                      initialAuditedAt={(site as typeof site & { seoAuditAt?: Date | null }).seoAuditAt?.toISOString() ?? null}
                     />
                   </div>
                 </div>

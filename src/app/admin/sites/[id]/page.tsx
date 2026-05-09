@@ -5,6 +5,8 @@ import { spawn } from "child_process";
 import { getTempDomain } from "@/lib/temp-domains";
 import { normalizePhoneDigits, formatKoreanPhone } from "@/lib/sms";
 import { auth } from "@/lib/auth";
+import SeoAuditPanel, { type AuditResultShape } from "@/components/SeoAuditPanel";
+import { CREDIT_COSTS } from "@/lib/credits";
 
 const ACCOUNT_TYPES: Record<string, string> = { "0": "Free", "1": "Paid", "2": "Test", "9": "Expired" };
 
@@ -410,6 +412,18 @@ export default async function AdminSiteDetailPage({
             </form>
           </div>
         </div>
+      </div>
+
+      {/* SEO/GEO Audit (full-width, admin = free) */}
+      <div className="mt-6">
+        <SeoAuditPanel
+          siteId={site.id}
+          mode="admin"
+          costCredits={CREDIT_COSTS.AI_SEO_AUDIT}
+          balance={0}
+          initialResult={(site.seoAuditResult as AuditResultShape | null) ?? null}
+          initialAuditedAt={site.seoAuditAt ? site.seoAuditAt.toISOString() : null}
+        />
       </div>
     </div>
   );
