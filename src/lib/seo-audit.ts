@@ -25,7 +25,9 @@ const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 // (entity coverage, FAQ schema gaps), Opus is overkill for the rubric.
 const AUDIT_MODEL = process.env.SEO_AUDIT_MODEL || "claude-sonnet-4-6";
 const MAX_HTML_BYTES = 80_000; // ~20K tokens worst case; trims long pages
-const MAX_TOKENS = 4000;
+// 8 categories × ~5 findings × Korean (≈1.5x English token density) +
+// summary; 4000 was getting truncated at the categories array.
+const MAX_TOKENS = 8000;
 
 export const SEO_AUDIT_VERSION = 1;
 
@@ -262,29 +264,48 @@ export async function runSeoAudit(siteId: string, opts: RunAuditOptions): Promis
   }
 
   const data = (await apiRes.json()) as {
-    content: Array<{ type: string; name?: string; input?: ToolInput }>;
+    content: Array<{ type: string; name?: string; input?: Partial<ToolInput> }>;
+    stop_reason?: string;
     usage?: { input_tokens: number; output_tokens: number };
   };
   const toolBlock = data.content?.find((c) => c.type === "tool_use" && c.name === "submit_audit");
   if (!toolBlock?.input) {
+    console.error("[seo-audit] no tool_use block", { stop_reason: data.stop_reason, content: data.content });
     throw new SeoAuditError("ai_failed", "AI 응답이 올바른 형식이 아닙니다.");
   }
 
   const input = toolBlock.input;
+
+  // Defensive parsing: if Claude truncated mid-array (max_tokens) or
+  // omitted a field, fail with a useful message instead of a TypeError.
+  if (!Array.isArray(input.categories) || input.categories.length === 0) {
+    console.error("[seo-audit] missing categories", {
+      stop_reason: data.stop_reason,
+      keys: Object.keys(input),
+      tokensOut: data.usage?.output_tokens,
+    });
+    const why = data.stop_reason === "max_tokens"
+      ? "응답이 길이 제한에 도달했습니다."
+      : "AI가 카테고리를 반환하지 않았습니다.";
+    throw new SeoAuditError("ai_failed", `${why} 다시 시도해주세요.`);
+  }
+
   const result: AuditResult = {
     version: SEO_AUDIT_VERSION,
-    overallScore: clamp(input.overallScore, 0, 100),
-    summary: input.summary,
+    overallScore: clamp(input.overallScore ?? 0, 0, 100),
+    summary: input.summary ?? "",
     categories: input.categories.map((c) => ({
-      key: c.key,
-      label: c.label,
-      score: clamp(c.score, 0, 100),
-      findings: (c.findings || []).map((f) => ({
-        severity: f.severity,
-        issue: f.issue,
-        recommendation: f.recommendation,
-        autofix: f.autofix,
-      })),
+      key: c.key ?? "unknown",
+      label: c.label ?? c.key ?? "unknown",
+      score: clamp(c.score ?? 0, 0, 100),
+      findings: Array.isArray(c.findings)
+        ? c.findings.map((f) => ({
+            severity: f.severity,
+            issue: f.issue,
+            recommendation: f.recommendation,
+            autofix: f.autofix,
+          }))
+        : [],
     })),
     meta: {
       model: AUDIT_MODEL,
