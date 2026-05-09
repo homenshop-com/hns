@@ -355,20 +355,26 @@ export interface ApplyAutofixResult {
   result: AuditResult;
 }
 
-/** Whitelist of seoMeta keys that may be written via autofix. Anything
- *  outside this list is silently dropped — defends against a model that
- *  invents new keys. Mirrors the keys documented on the schema's seoMeta
- *  comment plus a couple of common SEO essentials. */
-const ALLOWED_SEOMETA_KEYS = new Set([
+/** seoMeta keys that map to PER-PAGE columns (Page.seoTitle/seoDescription/
+ *  seoKeywords). The audit runs on the homepage so these route to the
+ *  home page; storing them in Site.seoMeta would clone the homepage's
+ *  title onto every other page (= what was happening before this fix). */
+const PAGE_LEVEL_KEYS: Record<string, "seoTitle" | "seoDescription" | "seoKeywords"> = {
+  title: "seoTitle",
+  description: "seoDescription",
+  keywords: "seoKeywords",
+};
+
+/** Whitelist of TRULY site-wide seoMeta keys — these are the brand/
+ *  organization-level fields that legitimately belong in Site.seoMeta
+ *  because they're identical for every page (Organization JSON-LD inputs). */
+const ALLOWED_SITE_SEOMETA_KEYS = new Set([
   "alternateName",
   "slogan",
   "foundingDate",
   "areaServed",
   "sameAs",
-  "keywords",
   "businessType",
-  "description",
-  "title",
 ]);
 
 const ALLOWED_SITE_FIELDS = new Set(["publicEmail", "publicPhone", "publicAddress", "logoUrl"]);
@@ -403,20 +409,38 @@ export async function applyAutofixes(
     throw new SeoAuditError("ai_failed", "먼저 진단을 실행해주세요.");
   }
 
+  // Find the home page once — page-level autofixes (title/description/
+  // keywords) target this row, since the audit runs on the homepage.
+  const homePageRow = await prisma.page.findFirst({
+    where: { siteId },
+    select: { id: true, isHome: true, lang: true },
+    orderBy: [{ isHome: "desc" }, { sortOrder: "asc" }],
+  });
+
   const errors: string[] = [];
   let applied = 0;
   let skipped = 0;
 
-  // Build the update payload incrementally so we apply everything in one
-  // Site.update — avoids partial-failure surprises if the DB hiccups.
+  // Build the update payload incrementally so we apply everything in
+  // one Site.update — avoids partial-failure surprises if the DB hiccups.
   const seoMetaPatch: Record<string, unknown> = {
     ...(typeof site.seoMeta === "object" && site.seoMeta !== null ? (site.seoMeta as Record<string, unknown>) : {}),
   };
+  // Strip any legacy page-level keys that were written into Site.seoMeta
+  // before this routing change — they're inert for the homepage (Page
+  // columns now win) but cause confusion if left around.
+  for (const k of Object.keys(PAGE_LEVEL_KEYS)) delete seoMetaPatch[k];
+
   const siteFieldPatch: Partial<{
     publicEmail: string;
     publicPhone: string;
     publicAddress: string;
     logoUrl: string;
+  }> = {};
+  const homePagePatch: Partial<{
+    seoTitle: string;
+    seoDescription: string;
+    seoKeywords: string;
   }> = {};
 
   // Clone stored result so we can mark applied without mutating the
@@ -460,12 +484,21 @@ export async function applyAutofixes(
       }
       siteFieldPatch[fix.field] = value;
     } else if (fix.type === "seoMeta") {
-      if (!ALLOWED_SEOMETA_KEYS.has(fix.key)) {
+      const pageColumn = PAGE_LEVEL_KEYS[fix.key];
+      if (pageColumn) {
+        if (!homePageRow) {
+          errors.push(`홈 페이지를 찾을 수 없어 ${fix.key} 적용 불가`);
+          skipped++;
+          continue;
+        }
+        homePagePatch[pageColumn] = value;
+      } else if (ALLOWED_SITE_SEOMETA_KEYS.has(fix.key)) {
+        seoMetaPatch[fix.key] = value;
+      } else {
         errors.push(`허용되지 않은 seoMeta 키: ${fix.key}`);
         skipped++;
         continue;
       }
-      seoMetaPatch[fix.key] = value;
     } else {
       errors.push(`알 수 없는 autofix type`);
       skipped++;
@@ -476,16 +509,25 @@ export async function applyAutofixes(
   }
 
   if (applied > 0) {
-    await prisma.site.update({
-      where: { id: siteId },
-      data: {
-        ...siteFieldPatch,
-        ...(Object.keys(seoMetaPatch).length > 0
-          ? { seoMeta: seoMetaPatch as Prisma.InputJsonValue }
-          : {}),
-        seoAuditResult: updated as unknown as Prisma.InputJsonValue,
-      },
-    });
+    const ops: Prisma.PrismaPromise<unknown>[] = [
+      prisma.site.update({
+        where: { id: siteId },
+        data: {
+          ...siteFieldPatch,
+          seoMeta: seoMetaPatch as Prisma.InputJsonValue,
+          seoAuditResult: updated as unknown as Prisma.InputJsonValue,
+        },
+      }),
+    ];
+    if (homePageRow && Object.keys(homePagePatch).length > 0) {
+      ops.push(
+        prisma.page.update({
+          where: { id: homePageRow.id },
+          data: homePagePatch,
+        }),
+      );
+    }
+    await prisma.$transaction(ops);
   }
 
   return { applied, skipped, errors, result: updated };

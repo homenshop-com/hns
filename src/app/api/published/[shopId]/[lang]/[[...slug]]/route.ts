@@ -1404,16 +1404,21 @@ export async function GET(
   }
 
   // Use item-level SEO if available, otherwise fall back to page-level
-  // Site-wide SEO meta (managed by SEO/GEO 진단 → 자동 적용). Falls back
-  // ahead of the generic "{page} - {site}" title so values written by
-  // the audit's autofix actually surface on the page.
+  // SEO meta source priority:
+  //   1. item-level (product/board read pages) — most specific
+  //   2. Page.seoTitle / seoDescription / seoKeywords — per-page override
+  //   3. Site.seoMeta.title / description / keywords — ONLY for the home
+  //      page. The audit runs on the homepage so its meta is homepage-
+  //      scoped; applying it site-wide would clone the home title onto
+  //      /company.html, /business.html, etc.
+  //   4. fallback "{page.title} - {site.name}"
   const _siteSeoMetaForPage =
     site.seoMeta && typeof site.seoMeta === "object" && !Array.isArray(site.seoMeta)
       ? (site.seoMeta as Record<string, unknown>)
       : {};
-  const _siteMetaTitle = typeof _siteSeoMetaForPage.title === "string" ? _siteSeoMetaForPage.title : "";
-  const _siteMetaDesc = typeof _siteSeoMetaForPage.description === "string" ? _siteSeoMetaForPage.description : "";
-  const _siteMetaKeywords = typeof _siteSeoMetaForPage.keywords === "string" ? _siteSeoMetaForPage.keywords : "";
+  const _siteMetaTitle = page.isHome && typeof _siteSeoMetaForPage.title === "string" ? _siteSeoMetaForPage.title : "";
+  const _siteMetaDesc = page.isHome && typeof _siteSeoMetaForPage.description === "string" ? _siteSeoMetaForPage.description : "";
+  const _siteMetaKeywords = page.isHome && typeof _siteSeoMetaForPage.keywords === "string" ? _siteSeoMetaForPage.keywords : "";
   const finalSeoTitle = itemSeoTitle || (page as any).seoTitle || _siteMetaTitle || (page.title + ' - ' + site.name);
   const finalSeoDesc = itemSeoDesc || (page as any).seoDescription || _siteMetaDesc || "";
   const finalSeoKeywords = itemSeoKeywords || (page as any).seoKeywords || _siteMetaKeywords || "";
