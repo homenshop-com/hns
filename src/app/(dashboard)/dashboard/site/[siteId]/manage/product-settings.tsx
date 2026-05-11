@@ -183,11 +183,13 @@ export default function ProductSettings({ siteId, initialSettings, labels, varia
                     background: checked ? "#eff6ff" : "#fff",
                     cursor: "pointer",
                     transition: "all 0.15s",
-                    // Narrow data-grid columns (~280px) can squeeze radio
-                    // labels enough that Korean syllables wrap one char per
-                    // line. Keep words intact.
+                    // Narrow data-grid columns (~280px) squeeze radio labels.
+                    // keep-all keeps Korean syllables together. Avoid
+                    // overflow-wrap:anywhere — it lets browsers break ANY
+                    // word (including descriptive ASCII like "[구매하기]")
+                    // one char per line, ballooning the row height.
                     wordBreak: "keep-all",
-                    overflowWrap: "anywhere",
+                    overflow: "hidden",
                   }}
                 >
                   <input
@@ -196,11 +198,41 @@ export default function ProductSettings({ siteId, initialSettings, labels, varia
                     value={opt.code}
                     checked={checked}
                     onChange={() => setSettings((s) => ({ ...s, buttonMode: opt.code }))}
-                    style={{ marginTop: 3, accentColor: "#2563eb", flexShrink: 0 }}
+                    /* Pin to 14px so no inherited font-size or accent-color
+                       quirk scales it up into the giant circle bug. */
+                    style={{ width: 14, height: 14, marginTop: 3, accentColor: "#2563eb", flexShrink: 0 }}
                   />
                   <div style={{ flex: 1, minWidth: 0, lineHeight: 1.4, wordBreak: "keep-all" }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>{opt.title}</div>
-                    <div style={{ fontSize: 11.5, color: "#6b7280", marginTop: 2, wordBreak: "keep-all" }}>{opt.desc}</div>
+                    <div
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: "#111827",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {opt.title}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 11.5,
+                        color: "#6b7280",
+                        marginTop: 2,
+                        wordBreak: "keep-all",
+                        /* Clamp to 2 lines max with ellipsis — even at the
+                           narrowest 1-col mobile breakpoint, the row stays
+                           a predictable height instead of growing to
+                           accommodate per-char-stacked text. */
+                        display: "-webkit-box",
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: "vertical",
+                        overflow: "hidden",
+                      }}
+                    >
+                      {opt.desc}
+                    </div>
                   </div>
                 </label>
               );
