@@ -596,7 +596,7 @@ export default async function DashboardPage() {
                   </div>
 
                   <div className="dv2-site-list">
-                    {sites.map((s) => {
+                    {sites.map((s, index) => {
                       const plan = PLAN_TAG[s.accountType] || PLAN_TAG["0"];
                       const isExpired = isSiteExpired(s);
                       const remainingDays = daysUntilExpiry(s);
@@ -618,13 +618,16 @@ export default async function DashboardPage() {
                         : `https://${sTemp}/${s.shopId}/`;
                       const publicLabel = activeDomain ? activeDomain.domain : `${sTemp}/${s.shopId}`;
 
+                      // Rotate one of 4 monogram tints so the table feels
+                      // varied but stays inside the calm slate aesthetic
+                      // (no per-site gradient stripes anymore).
+                      const monoTints = ["", "alt-a", "alt-b", "alt-c"];
+                      const monoTint = monoTints[index % monoTints.length];
+
                       return (
                         <div key={s.id} className="dv2-site-row">
                           <div className="dv2-site-main">
-                            <div
-                              className="dv2-site-thumb"
-                              style={{ background: `linear-gradient(135deg, ${gradA}, ${gradB})` }}
-                            >
+                            <div className={`dv2-site-thumb ${monoTint}`.trim()}>
                               {isExpired ? (
                                 <span className="paused" />
                               ) : (
