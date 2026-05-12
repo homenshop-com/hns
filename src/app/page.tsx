@@ -400,7 +400,7 @@ export default async function Home() {
               <div className="pricing-badge">{t("pricingBadge")}</div>
               <div className="pricing-plan">{t("pricing1yrPlan")}</div>
               <div className="pricing-price">
-                {t("pricing1yrPrice")}<span className="pricing-price-unit">{t("pricingWon")}</span>
+                {t("pricing1yrPrice")}<span className="pricing-price-unit">{t("pricingWon")}</span><span className="pricing-price-unit">{t("pricingPerMonth")}</span>
               </div>
               <div className="pricing-period">{t("pricing1yrPeriod")}</div>
               <ul className="pricing-features">
@@ -421,7 +421,7 @@ export default async function Home() {
               <div className="pricing-discount-badge">{t("pricing2yrDiscount")}</div>
               <div className="pricing-plan">{t("pricing2yrPlan")}</div>
               <div className="pricing-price">
-                {t("pricing2yrPrice")}<span className="pricing-price-unit">{t("pricingWon")}</span>
+                {t("pricing2yrPrice")}<span className="pricing-price-unit">{t("pricingWon")}</span><span className="pricing-price-unit">{t("pricingPerMonth")}</span>
               </div>
               <div className="pricing-period">{t("pricing2yrPeriod")}</div>
               <ul className="pricing-features">
@@ -442,7 +442,7 @@ export default async function Home() {
               <div className="pricing-discount-badge">{t("pricing3yrDiscount")}</div>
               <div className="pricing-plan">{t("pricing3yrPlan")}</div>
               <div className="pricing-price">
-                {t("pricing3yrPrice")}<span className="pricing-price-unit">{t("pricingWon")}</span>
+                {t("pricing3yrPrice")}<span className="pricing-price-unit">{t("pricingWon")}</span><span className="pricing-price-unit">{t("pricingPerMonth")}</span>
               </div>
               <div className="pricing-period">{t("pricing3yrPeriod")}</div>
               <ul className="pricing-features">
