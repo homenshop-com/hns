@@ -1,16 +1,24 @@
-/* ── Landing Page Styles ── */
+/* ── Landing Page Styles ── DESIGN.md Toss palette (2026-05-12).
+   --blue/--blue-dark legacy names retained as aliases for cascade reach
+   into .auth-* and .tpl-* sections that still reference them. */
 .landing-page {
-  --blue: #4a90d9;
-  --blue-dark: #357abd;
-  --blue-light: #eef5fc;
-  --text: #1a1a2e;
-  --text-sub: #495057;
-  --text-muted: #868e96;
-  --border: #e2e8f0;
-  --bg: #f0f2f5;
+  --blue: #3182f6;          /* was #4a90d9 — Toss Blue */
+  --blue-dark: #1b64da;     /* was #357abd — accent-hover */
+  --blue-deep: #1e40af;     /* pressed */
+  --blue-light: #e8f3ff;    /* was #eef5fc — accent-soft */
+  --text: #191f28;
+  --text-sub: #333d4b;
+  --text-muted: #6b7684;
+  --text-dim: #8b95a1;
+  --border: #e5e8eb;
+  --border-strong: #d1d6db;
+  --bg: #ffffff;
+  --bg-alt: #f9fafb;
+  --surface: #f2f4f6;
   --white: #ffffff;
   --radius: 12px;
-  --shadow: 0 2px 20px rgba(0, 0, 0, 0.07);
+  --radius-btn: 7px;
+  --shadow: 0 1px 3px rgba(25, 31, 40, 0.04);
   font-family: "Pretendard Variable", Pretendard, -apple-system,
     BlinkMacSystemFont, system-ui, "Apple SD Gothic Neo", "Malgun Gothic",
     "맑은 고딕", sans-serif;
@@ -126,10 +134,11 @@
   border-color: rgba(255, 255, 255, 0.8);
 }
 
-/* ── HERO ── */
+/* ── HERO ── DESIGN.md: bright white canvas, single Toss Blue accent,
+   no gradient fills. Hero now uses a tinted blue surface with ink text. */
 .lp-hero {
-  background: linear-gradient(135deg, #1e3a5f 0%, #2d6ab4 50%, #4a90d9 100%);
-  color: #fff;
+  background: var(--blue-light);
+  color: var(--text);
   padding: 90px 24px 100px;
   text-align: center;
   overflow: hidden;
@@ -163,14 +172,15 @@
 }
 .hero-badge {
   display: inline-block;
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(49, 130, 246, 0.10);
+  border: 1px solid rgba(49, 130, 246, 0.22);
   border-radius: 20px;
   padding: 5px 16px;
   font-size: 13px;
   font-weight: 600;
   margin-bottom: 24px;
   letter-spacing: 0.3px;
+  color: var(--blue-deep);
 }
 .hero-title {
   font-size: 48px;
@@ -180,13 +190,14 @@
   letter-spacing: -1px;
   word-break: keep-all;
   white-space: pre-line;
+  color: var(--text);
 }
 .hero-highlight {
-  color: #93c5fd;
+  color: var(--blue);
 }
 .hero-sub {
   font-size: 18px;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--text-sub);
   margin-bottom: 40px;
   line-height: 1.7;
   word-break: keep-all;
@@ -204,15 +215,17 @@
   justify-content: center;
   margin-top: 60px;
   padding-top: 40px;
-  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  border-top: 1px solid rgba(25, 31, 40, 0.10);
 }
 .hero-stat-num {
   font-size: 32px;
   font-weight: 800;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
 }
 .hero-stat-label {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--text-muted);
   margin-top: 2px;
 }
 
@@ -259,7 +272,7 @@
 /* ── SOLUTION ── */
 .lp-solution {
   padding: 80px 24px;
-  background: linear-gradient(180deg, #f8fafc 0%, #eef5fc 100%);
+  background: var(--bg-alt);
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
 }
@@ -607,7 +620,7 @@
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--blue) 0%, var(--blue-dark) 100%);
+  background: var(--blue);
   color: #fff;
   font-size: 20px;
   font-weight: 800;
@@ -768,9 +781,9 @@
   }
 }
 
-/* ── CTA BANNER ── */
+/* ── CTA BANNER ── Toss flat fill: solid blue, no gradient. */
 .lp-cta-banner {
-  background: linear-gradient(135deg, #1e3a5f 0%, #4a90d9 100%);
+  background: var(--blue);
   color: #fff;
   text-align: center;
   padding: 80px 24px;
@@ -850,14 +863,17 @@
   margin: 0 6px;
 }
 
-/* ── AUTH PAGES ── */
+/* ── AUTH PAGES ── Toss palette (mirror of .landing-page) */
 .auth-page {
-  --blue: #4a90d9;
-  --blue-dark: #357abd;
-  --text: #1a1a2e;
-  --text-sub: #495057;
-  --text-muted: #868e96;
-  --border: #e2e8f0;
+  --blue: #3182f6;
+  --blue-dark: #1b64da;
+  --blue-deep: #1e40af;
+  --blue-light: #e8f3ff;
+  --text: #191f28;
+  --text-sub: #333d4b;
+  --text-muted: #6b7684;
+  --border: #e5e8eb;
+  --border-strong: #d1d6db;
   min-height: 100vh;
   display: flex;
   align-items: center;
@@ -1109,13 +1125,15 @@
   text-decoration: underline;
 }
 
-/* ── DASHBOARD ── */
+/* ── DASHBOARD ── Toss palette (mirror of .landing-page) */
 .dash-page {
-  --blue: #4a90d9;
-  --blue-dark: #357abd;
-  --text: #1a1a2e;
-  --text-sub: #495057;
-  --text-muted: #868e96;
+  --blue: #3182f6;
+  --blue-dark: #1b64da;
+  --blue-deep: #1e40af;
+  --blue-light: #e8f3ff;
+  --text: #191f28;
+  --text-sub: #333d4b;
+  --text-muted: #6b7684;
   --border: #e2e8f0;
   min-height: 100vh;
   display: flex;
@@ -1184,19 +1202,19 @@
   padding: 6px 12px 6px 10px;
   font-size: 13px;
   font-weight: 700;
-  color: #6d28d9;
-  background: linear-gradient(135deg, #f3e8ff 0%, #ede9fe 100%);
-  border: 1px solid #ddd6fe;
+  color: var(--blue-deep);
+  background: var(--blue-light);
+  border: 1px solid #d6e8ff;
   border-radius: 999px;
   text-decoration: none;
   transition: all 0.15s;
   cursor: pointer;
 }
 .dash-credit-badge:hover {
-  background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%);
-  border-color: #c4b5fd;
+  background: #d6e8ff;
+  border-color: #b8d8ff;
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.15);
+  box-shadow: 0 2px 8px rgba(49, 130, 246, 0.15);
 }
 .dash-credit-icon {
   font-size: 13px;
