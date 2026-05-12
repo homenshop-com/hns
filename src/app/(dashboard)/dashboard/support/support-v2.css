@@ -27,7 +27,7 @@
 }
 .dv2-app .sp2-head .admin-avatar {
   width: 34px; height: 34px; border-radius: 50%;
-  background: linear-gradient(135deg, #3b5bff, #7b5cff);
+  background: var(--accent);
   display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 12px;
   flex-shrink: 0;
 }
@@ -41,7 +41,7 @@
 .dv2-app .sp2-body {
   flex: 1; overflow-y: auto; padding: 18px 18px 8px;
   display: flex; flex-direction: column; gap: 10px;
-  background: linear-gradient(180deg, var(--panel-2) 0%, var(--panel) 40%);
+  background: var(--panel);
 }
 
 .dv2-app .sp2-empty {
@@ -74,10 +74,10 @@
   font-weight: 700; font-size: 11px; flex-shrink: 0;
 }
 .dv2-app .sp2-msg.mine .avatar {
-  background: linear-gradient(135deg, #3b5bff, #2545e0);
+  background: var(--accent);
 }
 .dv2-app .sp2-msg.admin .avatar {
-  background: linear-gradient(135deg, #7b5cff, #5d41e0);
+  background: var(--accent-deep);
 }
 .dv2-app .sp2-msg .bubble {
   padding: 10px 14px; border-radius: 14px;
@@ -162,7 +162,7 @@
 .sp2-admin-row:hover { background: #fafbfd; }
 .sp2-admin-row .av {
   width: 36px; height: 36px; border-radius: 50%;
-  background: linear-gradient(135deg, #3b5bff, #7b5cff);
+  background: var(--accent);
   display: grid; place-items: center;
   color: #fff; font-weight: 700; font-size: 13px;
 }

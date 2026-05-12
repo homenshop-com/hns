@@ -234,13 +234,13 @@
 
 /* DNS guide */
 .dv2-app .dm2-dns-guide {
-  border: 1px solid #c8d4ff; border-radius: 12px;
-  background: linear-gradient(180deg, #f4f7ff 0%, #fafbff 100%); overflow: hidden;
+  border: 1px solid var(--accent-soft-2); border-radius: 12px;
+  background: var(--accent-soft); overflow: hidden;
 }
 .dv2-app .dm2-dns-guide-head {
   display: flex; align-items: center; gap: 10px; padding: 12px 16px;
-  border-bottom: 1px solid #dde4ff;
-  background: linear-gradient(180deg, #eef2ff, #f4f7ff);
+  border-bottom: 1px solid var(--accent-soft-2);
+  background: var(--accent-soft);
 }
 .dv2-app .dm2-dns-guide-head .ic {
   width: 24px; height: 24px; border-radius: 6px; background: var(--brand);

@@ -10,56 +10,45 @@
 }
 .dv2-app .cr2-back:hover { color: var(--ai); }
 
-/* ── Balance hero ── */
+/* ── Balance hero ── Flattened from heavy radial purple to Toss
+   tinted-blue surface (DESIGN.md: no gradient fills, single accent). */
 .dv2-app .cr2-balance {
   position: relative; overflow: hidden;
-  border-radius: 22px; padding: 38px 32px;
-  background: radial-gradient(ellipse at 20% 30%, #4d41c8 0%, #2a1d7a 60%, #1a1258 100%);
-  color: #fff;
-  box-shadow: 0 30px 60px -28px #2a1d7a99, 0 8px 16px -8px #2a1d7a44;
+  border-radius: var(--r-xl, 14px); padding: 32px 28px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-soft-2);
+  color: var(--ink-0);
+  box-shadow: var(--shadow-sm);
   display: flex; align-items: center; gap: 28px;
   margin-bottom: 28px;
 }
-.dv2-app .cr2-balance::before {
-  content: ""; position: absolute; inset: 0; opacity: .35; pointer-events: none;
-  background-image:
-    radial-gradient(circle at 90% 20%, #a897ff 0%, transparent 30%),
-    radial-gradient(circle at 100% 80%, #7b5cff 0%, transparent 35%);
-}
-.dv2-app .cr2-balance::after {
-  content: ""; position: absolute; inset: 0; opacity: .15; pointer-events: none;
-  background-image:
-    linear-gradient(90deg, #ffffff22 1px, transparent 1px),
-    linear-gradient(0deg,  #ffffff22 1px, transparent 1px);
-  background-size: 48px 48px;
-  mask-image: radial-gradient(ellipse at 50% 50%, black 30%, transparent 75%);
-  -webkit-mask-image: radial-gradient(ellipse at 50% 50%, black 30%, transparent 75%);
-}
+.dv2-app .cr2-balance::before,
+.dv2-app .cr2-balance::after { content: none; }
 .dv2-app .cr2-bal-left {
   position: relative; z-index: 1; flex: 1;
   display: flex; flex-direction: column; gap: 6px;
 }
 .dv2-app .cr2-bal-label {
-  font-size: 12px; font-weight: 600; letter-spacing: .06em;
-  text-transform: uppercase; color: #d4cbff;
+  font-size: 11.5px; font-weight: 600; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--accent-deep);
   display: inline-flex; align-items: center; gap: 8px;
 }
 .dv2-app .cr2-bal-label::before {
   content: ""; width: 6px; height: 6px; border-radius: 50%;
-  background: #a897ff; box-shadow: 0 0 10px #a897ffaa;
+  background: var(--accent); box-shadow: none;
 }
 .dv2-app .cr2-bal-amount {
   display: flex; align-items: baseline; gap: 10px; margin: 6px 0 4px;
 }
 .dv2-app .cr2-bal-num {
-  font-size: 72px; font-weight: 800; letter-spacing: -.04em; line-height: 1;
-  font-family: "JetBrains Mono", monospace;
-  background: linear-gradient(180deg, #fff 0%, #d4cbff 100%);
-  -webkit-background-clip: text; background-clip: text; color: transparent;
+  font-size: 64px; font-weight: 700; letter-spacing: -.03em; line-height: 1;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  color: var(--ink-0); background: none;
+  -webkit-background-clip: initial; background-clip: initial;
   font-variant-numeric: tabular-nums;
 }
 .dv2-app .cr2-bal-unit {
-  font-size: 26px; font-weight: 700; color: #d4cbff; letter-spacing: -.02em;
+  font-size: 22px; font-weight: 600; color: var(--ink-2); letter-spacing: -.01em;
 }
 .dv2-app .cr2-bal-meta {
   font-size: 13px; color: #d4cbff;
@@ -148,11 +137,11 @@
 .dv2-app .cr2-pkg.on {
   border-color: var(--ai, #7b5cff);
   box-shadow: 0 16px 34px -14px #7b5cff44, 0 0 0 3px #7b5cff1a, var(--shadow-sm);
-  background: linear-gradient(180deg, #fbfaff 0%, #ffffff 40%);
+  background: var(--panel);
 }
 .dv2-app .cr2-pkg .reco-tag {
   position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
-  background: linear-gradient(135deg, #7b5cff, #5d41e0);
+  background: var(--accent);
   color: #fff; font-size: 11px; font-weight: 700;
   padding: 4px 12px; border-radius: 999px;
   box-shadow: 0 4px 10px -2px #7b5cff88; letter-spacing: .04em;

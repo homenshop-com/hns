@@ -136,10 +136,10 @@
 .dv2-app .mnv2-info-card .ic {
   width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0;
   display: grid; place-items: center; color: #fff;
-  background: linear-gradient(135deg, #3b5bff, #6e86ff);
+  background: var(--accent);
 }
 .dv2-app .mnv2-info-card.ai .ic {
-  background: linear-gradient(135deg, #7b5cff, #5d41e0);
+  background: var(--accent);
 }
 .dv2-app .mnv2-info-card .tt {
   font-size: 13px; font-weight: 700; color: var(--ink-0);

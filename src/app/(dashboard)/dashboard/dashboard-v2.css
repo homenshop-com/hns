@@ -91,10 +91,11 @@
 }
 .dv2-brand { display: flex; align-items: center; gap: 10px; padding: 6px 8px 14px; }
 .dv2-brand-mark {
-  width: 30px; height: 30px; border-radius: 9px;
-  background: linear-gradient(135deg, #3b5bff, #6e86ff);
+  width: 30px; height: 30px; border-radius: 8px;
+  background: var(--accent);
   color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 15px;
-  box-shadow: 0 4px 10px -2px #3b5bff55;
+  box-shadow: none;
+  letter-spacing: -.02em;
 }
 .dv2-brand-name { font-weight: 800; font-size: 16px; letter-spacing: -.02em; }
 .dv2-brand-name .ns { color: var(--brand); }
@@ -121,25 +122,25 @@
 
 .dv2-side-footer { margin-top: auto; padding-top: 12px; border-top: 1px solid var(--line-2); }
 .dv2-coin-card {
-  background: linear-gradient(135deg, #f0ebff, #e9e3ff);
-  border: 1px solid #e0d8ff;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
   border-radius: var(--r-m); padding: 12px;
 }
 .dv2-coin-card .row { display: flex; align-items: center; gap: 8px; }
 .dv2-coin-card .ball {
   width: 28px; height: 28px; border-radius: 50%;
-  background: linear-gradient(135deg, #b89cff, #7b5cff);
+  background: var(--accent);
   display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 12px;
-  box-shadow: inset 0 -2px 4px #00000020, 0 2px 6px #9b7bff55;
+  box-shadow: none;
 }
-.dv2-coin-card .num { font-weight: 700; font-size: 16px; color: #4b2ecc; }
-.dv2-coin-card .cap { font-size: 11px; color: #6b4ed9; }
+.dv2-coin-card .num { font-weight: 700; font-size: 16px; color: var(--ink-0); font-variant-numeric: tabular-nums; }
+.dv2-coin-card .cap { font-size: 11px; color: var(--ink-3); }
 .dv2-coin-card .go {
   margin-top: 10px; display: flex; justify-content: space-between; align-items: center;
-  height: 28px; padding: 0 10px; border-radius: 7px; background: #ffffff; color: #4b2ecc;
-  font-size: 11.5px; font-weight: 600; border: 1px solid #e0d8ff;
+  height: 28px; padding: 0 10px; border-radius: var(--r-btn, 7px); background: var(--panel); color: var(--ink-1);
+  font-size: 11.5px; font-weight: 600; border: 1px solid var(--line);
 }
-.dv2-coin-card .go:hover { background: #faf8ff; }
+.dv2-coin-card .go:hover { background: var(--panel-2); border-color: var(--line-strong); }
 
 /* ── Main ── */
 .dv2-main { display: flex; flex-direction: column; min-width: 0; }
@@ -172,14 +173,15 @@
 
 .dv2-coin-pill {
   display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px 0 6px; border-radius: 999px;
-  background: var(--coin-soft); border: 1px solid #e3dbff; color: #4b2ecc; font-weight: 600; font-size: 13px;
+  background: var(--accent-soft); border: 1px solid var(--accent-soft-2); color: var(--accent-deep); font-weight: 600; font-size: 13px;
+  font-variant-numeric: tabular-nums;
 }
 .dv2-coin-pill .ball {
   width: 22px; height: 22px; border-radius: 50%;
-  background: linear-gradient(135deg, #b89cff, #7b5cff); color: #fff; display: grid; place-items: center; font-size: 11px; font-weight: 700;
-  box-shadow: inset 0 -1px 3px #00000020;
+  background: var(--accent); color: #fff; display: grid; place-items: center; font-size: 11px; font-weight: 700;
+  box-shadow: none;
 }
-.dv2-coin-pill .c { font-size: 10.5px; color: #7b5cff; }
+.dv2-coin-pill .c { font-size: 10.5px; color: var(--accent); }
 
 .dv2-lang {
   height: 34px; padding: 0 10px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel);

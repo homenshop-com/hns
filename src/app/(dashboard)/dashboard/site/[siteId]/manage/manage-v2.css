@@ -60,7 +60,7 @@
 .dv2-app .mv2-url-banner {
   display: flex; align-items: center; gap: 18px;
   padding: 16px 20px;
-  background: linear-gradient(135deg, #ffffff 0%, #f8faff 100%);
+  background: var(--panel);
   border: 1px solid var(--line); border-radius: var(--r-xl);
   margin-bottom: 20px; box-shadow: var(--shadow-sm);
   flex-wrap: wrap;
@@ -178,10 +178,12 @@
   background: #ffffff28; backdrop-filter: blur(4px);
   display: grid; place-items: center; flex-shrink: 0;
 }
-.dv2-app .hd-orange { background: linear-gradient(135deg, #ff7a2b 0%, #e55a0a 100%); }
-.dv2-app .hd-green  { background: linear-gradient(135deg, #22c77b 0%, #0d8b4f 100%); }
-.dv2-app .hd-blue   { background: linear-gradient(135deg, #3b5bff 0%, #1e3dd9 100%); }
-.dv2-app .hd-slate  { background: linear-gradient(135deg, #454a63 0%, #282c40 100%); }
+/* DESIGN.md: multi-accent decorative ribbons disallowed (Toss single-
+   accent rule). Collapse the four ribbons onto a flat Toss accent. */
+.dv2-app .hd-orange,
+.dv2-app .hd-green,
+.dv2-app .hd-blue,
+.dv2-app .hd-slate { background: var(--accent); color: #fff; }
 
 /* List rows (board categories, product links, etc.) */
 .dv2-app .mv2-list { display: flex; flex-direction: column; }
