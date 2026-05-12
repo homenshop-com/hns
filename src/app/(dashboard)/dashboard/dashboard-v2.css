@@ -5,51 +5,59 @@
  * ─────────────────────────────────────────────────────────────── */
 
 .dv2-app {
-  /* Calm, trustworthy palette — slate neutrals with one deep-indigo
-     accent. Mirrors Claude Design "Admin Dashboard v2" bundle.
-     2026-05-12 tone update: replaced vivid brand blue (#3b5bff) and
-     decorative cta-2/3/ai/coin variants. Color is reserved for state
-     (ok/warn/danger) and the single quiet --accent. */
-  --bg: #fbfbfc;
+  /* Toss-inspired palette (see /DESIGN.md). Single confident Toss Blue
+     accent paired with a tinted blue --surface-2 for the secondary
+     button hierarchy. Status colors (ok/warn/danger) are state-only,
+     never decorative. 2026-05-12 pivot from indigo. */
+  --bg: #ffffff;
+  --bg-alt: #f9fafb;
   --panel: #ffffff;
-  --panel-2: #f7f8fa;
-  --line: #ececf0;
-  --line-2: #f1f2f5;
-  --ink-0: #16181d;
-  --ink-1: #3a3d47;
-  --ink-2: #666b78;
-  --ink-3: #9197a3;
-  --ink-4: #c4c8d1;
-  --accent: #3a4778;
-  --accent-2: #26305a;
-  --accent-soft: #eef0f7;
-  --accent-soft-2: #e3e6ef;
-  /* Legacy aliases — many components still reference --brand-*. Map them
-     onto the accent so existing markup stays readable while we migrate. */
+  --panel-2: #f9fafb;
+  --surface: #f2f4f6;
+  --surface-2: #e8f3ff;
+  --line: #e5e8eb;
+  --line-2: #f0f2f4;
+  --line-strong: #d1d6db;
+  /* Text scale — Toss "near-ink" through "dim". */
+  --ink-0: #191f28;
+  --ink-1: #333d4b;
+  --ink-2: #6b7684;
+  --ink-3: #8b95a1;
+  --ink-4: #b0b8c1;
+  /* Toss Blue — primary action + brand. */
+  --accent: #3182f6;
+  --accent-hover: #1b64da;
+  --accent-deep: #1e40af;
+  --accent-soft: #e8f3ff;
+  --accent-soft-2: #d6e8ff;
+  --accent-2: var(--accent-deep);
+  /* Legacy aliases — existing markup still references --brand-*. */
   --brand: var(--accent);
-  --brand-ink: var(--accent-2);
+  --brand-ink: var(--accent-hover);
   --brand-soft: var(--accent-soft);
   --ai: var(--accent);
   --ai-soft: var(--accent-soft);
   --cta-2: var(--accent);
-  --cta-3: #a8722b;
-  --ok: #1f8a5b;
-  --ok-soft: #eaf3ee;
-  --warn: #a8722b;
-  --warn-soft: #f7efe2;
-  --danger: #a8364a;
-  --danger-soft: #f5eaec;
+  --cta-3: var(--accent);
+  --ok: #00c896;
+  --ok-soft: #e0f8f1;
+  --warn: #ff9500;
+  --warn-soft: #fff1de;
+  --danger: #f04452;
+  --danger-soft: #fde8ea;
   --coin: var(--accent);
   --coin-soft: var(--accent-soft);
+  /* Toss radius scale — 7px on buttons, 12px on cards, no soft-pill > 16. */
   --r-s: 6px;
   --r-m: 8px;
-  --r-l: 10px;
-  --r-xl: 12px;
-  /* Hairline-only shadows — the new aesthetic relies on 1px lines
-     for separation, NOT drop shadows. */
-  --shadow-sm: 0 1px 0 #16181d05;
-  --shadow-md: 0 1px 0 #16181d08;
-  --shadow-lg: 0 22px 40px -20px #16181d18, 0 4px 8px #16181d06;
+  --r-l: 12px;
+  --r-xl: 14px;
+  --r-btn: 7px;
+  /* Toss shadow scale — soft single shadow on cards, slightly deeper on
+     modals. Hairlines (1px line) still do most of the separation work. */
+  --shadow-sm: 0 1px 3px rgba(25, 31, 40, 0.04);
+  --shadow-md: 0 1px 3px rgba(25, 31, 40, 0.04);
+  --shadow-lg: 0 8px 24px rgba(25, 31, 40, 0.08);
 
   display: grid;
   grid-template-columns: 240px 1fr;
@@ -318,22 +326,28 @@
 .dv2-site-row:hover { background: #fafbfd; }
 
 .dv2-site-main { display: flex; align-items: center; gap: 14px; min-width: 0; }
-/* Monogram tile — calm tinted background, no live gradient. Three soft
-   tints (default indigo + sage + sand + smoke) rotate via .alt-{a,b,c}
-   so the table isn't monochrome but stays in the slate aesthetic. */
+/* Monogram tile — single Toss-Blue tinted background. DESIGN.md §homenshop
+   adaptations #5: "Site monogram tiles MUST use --accent-soft, do not
+   rotate through multiple hues — Toss's single confident blue rule wins."
+   The .alt-{a,b,c} variants are no-ops now (kept for legacy markup but
+   collapse onto the same accent palette). */
 .dv2-site-thumb {
   width: 40px; height: 40px; border-radius: 9px; flex-shrink: 0;
   background: var(--accent-soft) !important;
   border: 1px solid var(--accent-soft-2);
-  color: var(--accent-2);
+  color: var(--accent-deep);
   font-size: 11.5px; font-weight: 700; letter-spacing: .04em;
   display: grid; place-items: center;
   position: relative;
   overflow: hidden;
 }
-.dv2-site-thumb.alt-a { background: #eef3ed !important; color: #3a5a3a; border-color: #dde5dc; }
-.dv2-site-thumb.alt-b { background: #f4eee5 !important; color: #7a5a2e; border-color: #ebe1cd; }
-.dv2-site-thumb.alt-c { background: #e9eaf0 !important; color: #3a3d5a; border-color: #dcdde5; }
+.dv2-site-thumb.alt-a,
+.dv2-site-thumb.alt-b,
+.dv2-site-thumb.alt-c {
+  background: var(--accent-soft) !important;
+  color: var(--accent-deep);
+  border-color: var(--accent-soft-2);
+}
 .dv2-site-thumb .live {
   position: absolute; left: -3px; top: -3px; width: 10px; height: 10px; border-radius: 50%; background: var(--ok);
   border: 2px solid var(--panel);
