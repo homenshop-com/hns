@@ -103,20 +103,42 @@ export function atomizeBodyHtml(bodyHtml: string, pageSlug: string): string {
     return el.querySelector(".dragable") !== null;
   }
 
+  // True when `el` is a "tight" dragable wrapper around a single atomic —
+  // i.e. it already follows the atomized convention
+  // `<div class="dragable" id="obj_img_1"><img></div>`. We must NOT
+  // re-wrap atomics that already sit alone inside such a wrapper.
+  function isTightDragableWrapper(el: Element | null): boolean {
+    return !!el && isAlreadyDragable(el) && el.childElementCount === 1;
+  }
+
   // First pass: collect atomic + shape + svg candidates in one walk.
-  // When we find a shape/svg we don't recurse into it (its inner empty
-  // markup is part of the decoration, not separate atomics).
+  // CRITICAL: when we hit an already-dragable element we still RECURSE
+  // into it — only the wrap itself is skipped. Sections that arrive
+  // pre-wrapped as `.dragable` (AI-generated sites, partially-migrated
+  // sites) used to have their inner img/title/text left un-atomized
+  // because the walker `continue`d past them entirely — the editor then
+  // could select the whole section but none of its contents. Recursing
+  // in fixes that; the tight-wrapper guard below prevents double-wrapping
+  // atomics that are already correctly atomized.
   const atomicCandidates: Element[] = [];
   const shapeCandidates: Element[] = [];
   const svgCandidates: Element[] = [];
   function collect(node: Element): void {
     for (const child of Array.from(node.children)) {
-      if (isAlreadyDragable(child)) continue;
+      if (isAlreadyDragable(child)) {
+        // Don't re-wrap, but descend so nested atomics get atomized.
+        collect(child);
+        continue;
+      }
       if (isAtomicCandidate(child)) {
+        // Skip if this atomic is already the sole child of a tight
+        // dragable wrapper — that's the correct atomized form.
+        if (isTightDragableWrapper(child.parentElement)) continue;
         atomicCandidates.push(child);
         continue;
       }
       if (isStandaloneSvg(child)) {
+        if (isTightDragableWrapper(child.parentElement)) continue;
         svgCandidates.push(child);
         continue;
       }
