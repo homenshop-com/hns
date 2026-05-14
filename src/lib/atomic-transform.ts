@@ -111,6 +111,49 @@ export function atomizeBodyHtml(bodyHtml: string, pageSlug: string): string {
     return !!el && isAlreadyDragable(el) && el.childElementCount === 1;
   }
 
+  // Pre-pass: CSS background-image → real <img> object.
+  // AI-generated and Claude-Designs cards frequently put the hero photo
+  // on a div as `style="background-image:url(...)"`. The editor only
+  // treats <img> tags as selectable/swappable image objects, so a bg
+  // photo is invisible to the layer panel + image picker. We extract the
+  // url into an absolutely-positioned <img>, wrap it in its own
+  // .dragable, and insert it as the first child of the host (badges /
+  // overlays inside already use z-index so they stay on top). The host
+  // keeps its box but loses the background declaration.
+  function extractBackgroundImages(): void {
+    const hosts = Array.from(root!.querySelectorAll('[style*="background-image"]'));
+    for (const el of hosts) {
+      const style = el.getAttribute("style") || "";
+      const m = /background-image\s*:\s*url\(\s*['"]?([^'")]+)['"]?\s*\)/i.exec(style);
+      if (!m) continue;
+      const url = m[1].replace(/&amp;/g, "&").trim();
+      // Skip data URIs and gradient stacks — not real swappable photos.
+      if (!url || /^data:/i.test(url)) continue;
+      // Don't double-process if a dragable img wrapper is already first child.
+      const first = el.firstElementChild;
+      if (first && isAlreadyDragable(first) && first.querySelector("img")) continue;
+
+      // Strip the background-image declaration; ensure positioning context.
+      let newStyle = style.replace(/background-image\s*:\s*url\([^)]*\)\s*;?/i, "").trim();
+      if (!/position\s*:/i.test(newStyle)) {
+        newStyle = `${newStyle}${newStyle && !newStyle.endsWith(";") ? ";" : ""}position:relative;`;
+      }
+      el.setAttribute("style", newStyle);
+
+      const wrapper = doc.createElement("div");
+      wrapper.className = "dragable";
+      wrapper.id = newId("img");
+      wrapper.setAttribute("style", "position:absolute;inset:0;z-index:0;");
+      const img = doc.createElement("img");
+      img.setAttribute("src", url);
+      img.setAttribute("alt", "");
+      img.setAttribute("style", "width:100%;height:100%;object-fit:cover;display:block;");
+      wrapper.appendChild(img);
+      el.insertBefore(wrapper, el.firstChild);
+    }
+  }
+  extractBackgroundImages();
+
   // First pass: collect atomic + shape + svg candidates in one walk.
   // CRITICAL: when we hit an already-dragable element we still RECURSE
   // into it — only the wrap itself is skipped. Sections that arrive
