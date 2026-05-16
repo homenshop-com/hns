@@ -16,7 +16,9 @@ import { Icon } from "./dashboard-icons";
  */
 export default function MobileBottomNav({ unreadInquiries }: { unreadInquiries?: number }) {
   const pathname = usePathname() ?? "";
-  const t = useTranslations("common.nav");
+  // 네비 라벨은 dashboard.* 네임스페이스에 있음 (common.nav.* 아님).
+  // 잘못된 네임스페이스 → "common.nav.navAdminMain" 같은 raw key가 노출되던 버그 수정.
+  const t = useTranslations("dashboard");
 
   const isActive = (prefix: string) =>
     prefix === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(prefix);

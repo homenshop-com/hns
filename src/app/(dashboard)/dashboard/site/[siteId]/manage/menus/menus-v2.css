@@ -156,6 +156,71 @@
 }
 
 /* ────────────────────────────────────────────────────────────
+ * Menu row — mobile optimization (≤640px)
+ * 문제: 페이지 메뉴 행 우측의 디자인/수정/삭제 버튼이 좁은
+ * 모바일 폭에서 한글 한 글자씩 세로로 적층되고 오른쪽이 잘림.
+ * 해결: 행을 column-flex로 전환 → 상단 left content, 하단
+ * action 행이 가로 균등 분배(flex:1). FA 아이콘 + 라벨로 통일.
+ * ──────────────────────────────────────────────────────────── */
+.dv2-app .mnv2-mracts > [data-mact] { font-size: 12.5px; }
+
+@media (max-width: 640px) {
+  /* row를 column으로 재배치 */
+  .dv2-app .mnv2-mrow {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+    padding: 12px 4px !important;
+  }
+  /* 좌측 content 영역도 wrap 허용 */
+  .dv2-app .mnv2-mleft {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+    width: 100% !important;
+  }
+  .dv2-app .mnv2-mleft span,
+  .dv2-app .mnv2-mleft a { word-break: keep-all; }
+
+  /* action 행: 카드 너비 100% + 가로 균등 분배 */
+  .dv2-app .mnv2-mracts {
+    width: 100% !important;
+    gap: 6px !important;
+    justify-content: stretch !important;
+  }
+  /* 모든 액션 버튼 통일 — 높이 34, flex:1, 중앙정렬, nowrap */
+  .dv2-app .mnv2-mracts > [data-mact] {
+    height: 34px !important;
+    padding: 0 8px !important;
+    font-size: 12px !important;
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    justify-content: center !important;
+    white-space: nowrap !important;
+    border-radius: 7px !important;
+  }
+  /* 보기 토글은 정사각형 유지 (아이콘 전용) */
+  .dv2-app .mnv2-mracts > [data-mact="vis"] {
+    flex: 0 0 34px !important;
+    width: 34px !important;
+    padding: 0 !important;
+  }
+  /* 라벨이 너무 길면 한 글자씩 세로 적층되지 않도록 강제 */
+  .dv2-app .mnv2-mracts > [data-mact] .lbl,
+  .dv2-app .mnv2-mracts > [data-mact] span {
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+/* 매우 좁은 화면 — 라벨 숨김, 아이콘 전용 */
+@media (max-width: 380px) {
+  .dv2-app .mnv2-mracts > [data-mact] .lbl { display: none !important; }
+  .dv2-app .mnv2-mracts > [data-mact] { gap: 0 !important; }
+}
+
+/* ────────────────────────────────────────────────────────────
  * Embedded-mode visual overrides for the legacy client
  * Uses the .mnv2-root wrapper the client gets when embedded=true.
  * We tone down the client's inline white cards so they feel like

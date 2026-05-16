@@ -816,6 +816,7 @@ export default function MenuManagerClient({
               return (
               <div
                 key={page.id}
+                className="mnv2-mrow"
                 draggable
                 onDragStart={(e) => handleDragStart(e, index)}
                 onDragEnter={() => handleDragEnter(index)}
@@ -837,7 +838,7 @@ export default function MenuManagerClient({
                   background: page.level > 0 ? "#fafbfc" : isDropTarget && dragNestIntent ? "#f5f3ff" : "transparent",
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
+                <div className="mnv2-mleft" style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
                   {/* Drag handle + arrows */}
                   <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                     <span style={{ cursor: "grab", color: "#9ca3af", fontSize: 16, userSelect: "none" }} title="드래그">
@@ -939,10 +940,11 @@ export default function MenuManagerClient({
                 </div>
 
                 {/* Actions */}
-                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <div className="mnv2-mracts" style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
                   {/* Show/hide toggle */}
                   <button
                     onClick={() => toggleShowInMenu(page)}
+                    data-mact="vis"
                     title={page.showInMenu ? "메뉴에서 숨기기" : "메뉴에 표시하기"}
                     style={{
                       width: 32,
@@ -951,18 +953,21 @@ export default function MenuManagerClient({
                       borderRadius: 6,
                       background: page.showInMenu ? "#fff" : "#f3f4f6",
                       cursor: "pointer",
-                      fontSize: 16,
+                      fontSize: 14,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
+                      color: page.showInMenu ? "#374151" : "#9ca3af",
+                      flexShrink: 0,
                     }}
                   >
-                    {page.showInMenu ? "👁" : "👁‍🗨"}
+                    <i className={page.showInMenu ? "fa-solid fa-eye" : "fa-solid fa-eye-slash"} />
                   </button>
 
                   {page.menuType !== "external" && (
                     <Link
                       href={`/dashboard/site/pages/${page.id}/edit`}
+                      data-mact="design"
                       style={{
                         padding: "7px 14px",
                         background: "#2563eb",
@@ -974,13 +979,18 @@ export default function MenuManagerClient({
                         textDecoration: "none",
                         display: "inline-flex",
                         alignItems: "center",
+                        gap: 5,
+                        whiteSpace: "nowrap",
+                        flexShrink: 0,
                       }}
                     >
-                      디자인
+                      <i className="fa-solid fa-palette" style={{ fontSize: 12 }} />
+                      <span className="lbl">디자인</span>
                     </Link>
                   )}
                   <button
                     onClick={() => openEdit(page)}
+                    data-mact="edit"
                     style={{
                       padding: "7px 14px",
                       background: "#fff",
@@ -990,13 +1000,20 @@ export default function MenuManagerClient({
                       fontSize: 13,
                       cursor: "pointer",
                       fontWeight: 500,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 5,
+                      whiteSpace: "nowrap",
+                      flexShrink: 0,
                     }}
                   >
-                    수정
+                    <i className="fa-solid fa-pen" style={{ fontSize: 11 }} />
+                    <span className="lbl">수정</span>
                   </button>
                   {!page.isHome && (
                     <button
                       onClick={() => handleDelete(page.id, page.isHome)}
+                      data-mact="del"
                       style={{
                         padding: "7px 12px",
                         background: "#fff",
@@ -1005,9 +1022,15 @@ export default function MenuManagerClient({
                         borderRadius: 6,
                         fontSize: 13,
                         cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 5,
+                        whiteSpace: "nowrap",
+                        flexShrink: 0,
                       }}
                     >
-                      삭제
+                      <i className="fa-solid fa-trash" style={{ fontSize: 11 }} />
+                      <span className="lbl">삭제</span>
                     </button>
                   )}
                 </div>
