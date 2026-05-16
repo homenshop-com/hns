@@ -500,8 +500,10 @@
 @media (max-width: 1200px) {
   .dv2-quick { grid-template-columns: 1fr 1fr; }
   .dv2-stats { grid-template-columns: repeat(2, 1fr); }
-  .dv2-site-thead, .dv2-site-row { grid-template-columns: minmax(0, 2fr) 120px 120px 280px 42px; }
-  .dv2-site-thead .col-stat, .dv2-site-row .col-stat { display: none; }
+  /* 태블릿: pages 컬럼 + 날짜 폭 축소, 액션 버튼은 유지 (메뉴 접근성) */
+  .dv2-site-thead, .dv2-site-row { grid-template-columns: minmax(0, 1.6fr) 110px 80px 140px minmax(0, 1fr) 36px; }
+  .dv2-row-actions { gap: 4px; }
+  .dv2-row-btn { padding: 0 8px; font-size: 11.5px; }
   .dv2-bottom { grid-template-columns: 1fr; }
 }
 @media (max-width: 900px) {
@@ -513,7 +515,10 @@
   .dv2-quick { grid-template-columns: 1fr; }
   .dv2-site-thead, .dv2-site-row { grid-template-columns: 1fr; padding: 14px; }
   .dv2-site-thead { display: none; }
-  .dv2-row-actions { flex-wrap: wrap; justify-content: flex-start; }
+  /* col-stat 강제 노출 — 3개 액션 메뉴는 모바일에서 더더욱 필요 */
+  .dv2-site-row .col-stat { display: flex !important; }
+  .dv2-row-actions { flex-wrap: wrap; justify-content: flex-start; gap: 6px; }
+  .dv2-row-actions .dv2-row-btn { flex: 1 1 auto; justify-content: center; }
   .dv2-content { padding: 16px; }
   .dv2-topbar { padding: 10px 16px; }
   .dv2-search { display: none; }
@@ -727,11 +732,35 @@
 
   /* 행 버튼 컴팩트 */
   .dv2-row-btn, .row-actions .a {
-    height: 28px !important;
+    height: 32px !important;
     padding: 0 10px !important;
     font-size: 11.5px !important;
+    flex: 1 1 0 !important;
+    justify-content: center !important;
+    min-width: 0 !important;
   }
   .dv2-row-btn svg, .row-actions .a svg { width: 11px; height: 11px; }
+  .dv2-row-btn i { font-size: 11px !important; }
+
+  /* 모바일에서 col-stat 강제 노출 — 디자인/데이터/기본정보 3개 버튼 */
+  .dv2-site-row .col-stat,
+  .dv2-site-row .dv2-row-actions.col-stat {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    gap: 6px !important;
+    width: 100% !important;
+    justify-content: stretch !important;
+    margin-top: 4px !important;
+  }
+  /* 카드 안에 모인 메타(플랜/페이지/날짜)는 inline chip-row 스타일 */
+  .dv2-site-row > .dv2-stat-mini,
+  .dv2-site-row > .dv2-since {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+  }
+  /* 모바일에서 kebab 숨김 — col-stat 버튼이 3종 메뉴 노출 */
+  .dv2-site-row .dv2-kebab { display: none !important; }
 
   /* 섹션 카드 헤더 */
   .dv2-panel-head, .section-head { padding: 14px 16px !important; }
@@ -739,6 +768,9 @@
 
   /* 새 홈페이지 추가 버튼 */
   .dv2-site-row.add { margin: 10px 0 !important; padding: 14px !important; }
+  .dv2-site-row.add .dv2-row-actions.col-stat,
+  .dv2-site-row.add .dv2-stat-mini,
+  .dv2-site-row.add .dv2-since { display: none !important; }
 }
 
 /* 매우 작은 viewport (≤380px) — iPhone SE 등. Sidebar는 이미 ≤640에서
