@@ -258,17 +258,17 @@ export function rewriteAssetUrls(html: string, templatePath: string): string {
  */
 export function rewriteApiImgUrls(input: string): string {
   const apiBase = "https://homenshop.com";
-  // /uploads/ paths are served by the published-site host (home.*) — when
-  // the same page is rendered for a custom domain (e.g. ybsurplus.com),
-  // a relative `/uploads/...` resolves to the custom host where the path
-  // is not mapped → broken image. Absolutize so any host loads correctly.
-  const uploadBase = "https://home.homenshop.com";
   return input
     // <img src="/api/img?…">, <a href="/api/img?…">, style="background: url(/api/img?…)"
     .replace(/(["'(])\/api\/img(?=[?)"'\s])/g, (_m, open) => `${open}${apiBase}/api/img`)
     // CSS url(/api/img?…) without quotes
-    .replace(/url\(\/api\/img/g, `url(${apiBase}/api/img`)
-    // <img src="/uploads/…"> and CSS url("/uploads/…")
-    .replace(/(["'(])\/uploads\//g, (_m, open) => `${open}${uploadBase}/uploads/`)
-    .replace(/url\(\/uploads\//g, `url(${uploadBase}/uploads/`);
+    .replace(/url\(\/api\/img/g, `url(${apiBase}/api/img`);
+  // NOTE: /uploads/ paths are intentionally LEFT relative — each custom
+  // domain nginx config aliases `location /uploads/ { alias /var/www/uploads/; }`
+  // so images load same-origin (better SEO, no platform leak, no CSP
+  // friction). The provision-domain-ssl.sh script adds this stanza to
+  // every new custom domain. Sites without the alias yet should be
+  // migrated rather than absolutized — absolutizing to home.homenshop.com
+  // attributes images to the platform host in Google Image Search and
+  // exposes the hosting backend.
 }
