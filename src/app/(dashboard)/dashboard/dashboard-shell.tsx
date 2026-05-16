@@ -7,6 +7,7 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import ImpersonationBanner from "@/components/ImpersonationBanner";
 import SignOutButton from "./sign-out-button";
+import MobileBottomNav from "./mobile-bottom-nav";
 import SupportUnreadIndicator from "./support-unread-indicator";
 import { DashboardIconSprite, Icon } from "./dashboard-icons";
 import "./dashboard-v2.css";
@@ -239,6 +240,10 @@ export default async function DashboardShell({
 
           <div className="dv2-content">{children}</div>
         </div>
+
+        {/* Mobile-only bottom-tab nav — hidden on desktop via CSS.
+            Sidebar is hidden in parallel at ≤640px (dashboard-v2.css). */}
+        <MobileBottomNav unreadInquiries={badges?.inquiries} />
       </div>
     </>
   );

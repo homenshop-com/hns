@@ -522,21 +522,145 @@
 }
 
 /* ─────────────────────────────────────────────────────────────────
- * Mobile (≤640px) — sidebar 더 좁게 + 콘텐츠 풀폭 활용
- * 헤더/필터/사이트 행 모두 컴팩트해서 좁은 viewport에서도 가독.
+ * SignOutButton v2 (replaces legacy .dash-header-btn from landing.css)
+ * Inline with topbar actions, neutral outline button.
+ * ───────────────────────────────────────────────────────────────── */
+.dv2-app .dv2-signout {
+  height: 30px;
+  padding: 0 11px;
+  background: var(--panel);
+  color: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-btn, 7px);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all .12s;
+}
+.dv2-app .dv2-signout:hover {
+  background: var(--panel-2);
+  color: var(--ink-0);
+  border-color: var(--line-strong);
+}
+
+/* ─────────────────────────────────────────────────────────────────
+ * Mobile bottom-tab nav (≤640px). Hidden on desktop.
+ * 56px tall, safe-area aware, 5 evenly-distributed tabs.
+ * ───────────────────────────────────────────────────────────────── */
+.dv2-mobile-nav { display: none; }
+
+@media (max-width: 640px) {
+  .dv2-mobile-nav {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    height: calc(56px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: saturate(140%) blur(10px);
+    -webkit-backdrop-filter: saturate(140%) blur(10px);
+    border-top: 1px solid var(--line);
+    z-index: 50;
+  }
+  .dv2-mobile-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    text-decoration: none;
+    color: var(--ink-3);
+    font-size: 10.5px;
+    font-weight: 500;
+    transition: color .12s;
+    position: relative;
+  }
+  .dv2-mobile-tab.active { color: var(--accent); font-weight: 600; }
+  .dv2-mobile-tab .ic {
+    position: relative;
+    width: 22px; height: 22px;
+    display: grid; place-items: center;
+  }
+  .dv2-mobile-tab .ic i { font-size: 19px; }
+  .dv2-mobile-tab .lb { line-height: 1; }
+  .dv2-mobile-tab .badge {
+    position: absolute;
+    top: -4px;
+    right: -10px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    background: var(--danger);
+    color: #fff;
+    font-size: 9.5px;
+    font-weight: 700;
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+    line-height: 1;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────
+ * Mobile (≤640px) — sidebar 완전 hide + 하단 nav로 대체.
+ * 데스크톱 shell 축소 패턴이 아닌 mobile-first 셸.
  * ───────────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
-  .dv2-app { grid-template-columns: 48px 1fr; }
-  .dv2-side { padding: 12px 4px; }
-  .dv2-brand-mark { width: 26px; height: 26px; font-size: 13px; }
-  .dv2-nav a { height: 32px; }
-  .dv2-nav .ic { width: 18px; height: 18px; font-size: 16px; }
+  /* Sidebar 완전 hide → 하단 nav가 대체 */
+  .dv2-app { grid-template-columns: 1fr !important; }
+  .dv2-side { display: none !important; }
 
-  /* 모든 grid 강제 1-col */
-  .dv2-stats, .dv2-quick { grid-template-columns: 1fr !important; gap: 10px !important; }
+  /* Topbar: 코인 + 프로필만. 나머지 (지원, 로그아웃, 검색)는 숨김 —
+     하단 nav + 프로필 페이지에서 접근. */
+  .dv2-search { display: none !important; }
+  .dv2-icon-btn { display: none !important; }
+  .dv2-signout { display: none !important; }
+  .dv2-user .name, .dv2-user .role { display: none !important; }
+  .dv2-user { background: transparent !important; padding: 0 !important; gap: 0 !important; }
 
-  /* 콘텐츠 패딩 최소화 */
-  .dv2-content { padding: 12px 12px 40px !important; }
+  /* 콘텐츠는 하단 nav 만큼 padding-bottom 확보 */
+  .dv2-content {
+    padding: 14px 14px 80px !important;
+    max-width: 100% !important;
+  }
+
+  /* KPI 2x2 grid — 데스크톱 4열 strip이 모바일에선 2x2로 펼침 */
+  .dv2-stats {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0 !important;
+    border-radius: var(--r-l, 10px) !important;
+  }
+  .dv2-stat {
+    padding: 14px 14px !important;
+    /* 하단/우측 hairline만 (2x2에서 자연스러운 grid line) */
+    border-right: 1px solid var(--line-2) !important;
+    border-bottom: 1px solid var(--line-2) !important;
+  }
+  .dv2-stat:nth-child(2n) { border-right: 0 !important; }
+  .dv2-stat:nth-last-child(-n+2) { border-bottom: 0 !important; }
+  .dv2-stat .lbl { font-size: 11px !important; }
+  .dv2-stat .val {
+    font-size: 22px !important;
+    margin-top: 6px !important;
+    display: block !important;
+    text-align: left !important;
+    grid-column: auto !important;
+    grid-row: auto !important;
+    justify-self: start !important;
+  }
+  .dv2-stat .val .unit { font-size: 11.5px !important; }
+  .dv2-stat .d, .dv2-stat .foot {
+    font-size: 10.5px !important;
+    margin-top: 6px !important;
+    grid-column: auto !important;
+    grid-row: auto !important;
+  }
+  /* Reset earlier 좌우 분할 override — 2x2에선 vertical layout */
+  .dv2-stat { display: block !important; }
+
+  /* Quick action 카드 1-col */
+  .dv2-quick { grid-template-columns: 1fr !important; gap: 10px !important; }
 
   /* 페이지 헤딩 */
   .dv2-h1, .dv2-page-title { font-size: 18px !important; }
@@ -586,40 +710,14 @@
     white-space: nowrap !important;
   }
 
-  /* KPI strip 안 stat — 1-col에서 우측 빈 공간 활용하기 위해 좌우 분할:
-     좌: 라벨 + 세부, 우: 큰 숫자. */
-  .dv2-stat {
-    padding: 14px 16px !important;
-    display: grid !important;
-    grid-template-columns: 1fr auto !important;
-    align-items: center !important;
-    column-gap: 14px !important;
-    row-gap: 4px !important;
-  }
-  .dv2-stat .lbl {
-    font-size: 11.5px !important;
-    grid-column: 1 !important;
-    grid-row: 1 !important;
-  }
-  .dv2-stat .val {
-    font-size: 26px !important;
-    margin-top: 0 !important;
-    grid-column: 2 !important;
-    grid-row: 1 / span 2 !important;
-    justify-self: end !important;
-    text-align: right !important;
-  }
-  .dv2-stat .d, .dv2-stat .foot {
-    font-size: 10.5px !important;
-    grid-column: 1 !important;
-    grid-row: 2 !important;
-    margin-top: 0 !important;
-  }
+  /* (이전 좌우 분할 KPI 룰 제거 — 2x2 grid로 대체됨) */
 
-  /* 사이트 카드 행 - 모바일에서 카드형 */
+  /* 사이트 카드 행 - 모바일 전용 카드 (테이블 collapse 아님) */
   .dv2-site-row {
-    padding: 12px 14px !important;
+    padding: 14px !important;
     gap: 10px !important;
+    display: flex !important;
+    flex-direction: column !important;
   }
   .dv2-site-main { gap: 10px !important; }
   .dv2-site-thumb { width: 36px !important; height: 36px !important; font-size: 10px !important; }
@@ -643,12 +741,16 @@
   .dv2-site-row.add { margin: 10px 0 !important; padding: 14px !important; }
 }
 
-/* 매우 작은 viewport (≤380px) — iPhone SE 등 */
+/* 매우 작은 viewport (≤380px) — iPhone SE 등. Sidebar는 이미 ≤640에서
+   hidden, 하단 nav가 메뉴 담당. */
 @media (max-width: 380px) {
-  .dv2-app { grid-template-columns: 44px 1fr; }
-  .dv2-content { padding: 10px 8px 32px !important; }
+  .dv2-content { padding: 10px 10px 80px !important; }
   .dv2-h1, .dv2-page-title { font-size: 16px !important; }
-  .dv2-topbar { padding: 6px 8px !important; height: 48px !important; }
+  .dv2-topbar { padding: 6px 10px !important; height: 48px !important; }
   .dv2-crumbs { display: none !important; }
-  .dv2-stat .val { font-size: 20px !important; }
+  .dv2-stat .val { font-size: 18px !important; }
+  .dv2-stat { padding: 12px !important; }
+  /* 하단 탭 라벨 더 작게 */
+  .dv2-mobile-tab .lb { font-size: 9.5px !important; }
+  .dv2-mobile-tab .ic i { font-size: 17px !important; }
 }
