@@ -586,11 +586,35 @@
     white-space: nowrap !important;
   }
 
-  /* KPI strip 안 stat */
-  .dv2-stat { padding: 14px 16px !important; }
-  .dv2-stat .lbl { font-size: 11px !important; }
-  .dv2-stat .val { font-size: 22px !important; margin-top: 6px !important; }
-  .dv2-stat .d, .dv2-stat .foot { font-size: 10.5px !important; }
+  /* KPI strip 안 stat — 1-col에서 우측 빈 공간 활용하기 위해 좌우 분할:
+     좌: 라벨 + 세부, 우: 큰 숫자. */
+  .dv2-stat {
+    padding: 14px 16px !important;
+    display: grid !important;
+    grid-template-columns: 1fr auto !important;
+    align-items: center !important;
+    column-gap: 14px !important;
+    row-gap: 4px !important;
+  }
+  .dv2-stat .lbl {
+    font-size: 11.5px !important;
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+  }
+  .dv2-stat .val {
+    font-size: 26px !important;
+    margin-top: 0 !important;
+    grid-column: 2 !important;
+    grid-row: 1 / span 2 !important;
+    justify-self: end !important;
+    text-align: right !important;
+  }
+  .dv2-stat .d, .dv2-stat .foot {
+    font-size: 10.5px !important;
+    grid-column: 1 !important;
+    grid-row: 2 !important;
+    margin-top: 0 !important;
+  }
 
   /* 사이트 카드 행 - 모바일에서 카드형 */
   .dv2-site-row {
