@@ -1,11 +1,91 @@
 /**
- * Inline SVG icon sprite for the redesigned dashboard (v2).
- * Import once at the top of the page tree, then reference icons via
- * <Icon id="i-home" size={18} />.
+ * Icon component for the dashboard (v2).
  *
- * All icons use currentColor stroke so they inherit from CSS.
+ * 2026-05-16: switched from inline SVG <symbol> sprite to Font Awesome 6
+ * Free per DESIGN.md "Icons — Font Awesome 6 Free Only". FA is loaded
+ * globally via `import "@fortawesome/fontawesome-free/css/all.min.css"`
+ * in src/app/layout.tsx.
+ *
+ * Backward-compatible: existing call sites use <Icon id="i-home" /> etc.
+ * The id is mapped to its FA counterpart below. The sprite component is
+ * now a no-op (kept exported so callers don't break) — remove later
+ * once nothing imports it.
  */
 
+import type React from "react";
+
+// Mapping from legacy sprite ids → Font Awesome 6 Free classes.
+// Default style is "solid"; specify "brands" or "regular" via tuple.
+type FaSpec = string | { style: "solid" | "regular" | "brands"; name: string };
+
+const ICON_MAP: Record<string, FaSpec> = {
+  "i-home": "house",
+  "i-grid": "table-cells-large",
+  "i-analytics": "chart-column",
+  "i-bag": "bag-shopping",
+  "i-mail": "envelope",
+  "i-users": "users",
+  "i-credit": "credit-card",
+  "i-settings": "gear",
+  "i-help": "circle-question",
+  "i-life": "life-ring",
+  "i-search": "magnifying-glass",
+  "i-bell": "bell",
+  "i-chev-down": "chevron-down",
+  "i-chev-right": "chevron-right",
+  "i-chev-left": "chevron-left",
+  "i-plus": "plus",
+  "i-sparkle": "wand-magic-sparkles",
+  "i-template": "table-cells",
+  "i-handshake": "handshake",
+  "i-arr-right": "arrow-right",
+  "i-palette": "palette",
+  "i-database": "database",
+  "i-info": "circle-info",
+  "i-more": "ellipsis",
+  "i-star": "star",
+  "i-list": "list",
+  "i-globe": "globe",
+  "i-publish": "upload",
+  "i-edit": "pen-to-square",
+  "i-menu": "bars",
+  "i-board": "clipboard-list",
+  "i-package": "box",
+  "i-eye": "eye",
+  "i-save": "floppy-disk",
+  "i-user": "user",
+  "i-copy": "copy",
+  "i-check": "check",
+  "i-refresh": "arrows-rotate",
+  "i-sitemap": "sitemap",
+  "i-warn": "triangle-exclamation",
+  "i-trash": "trash",
+  "i-external": "arrow-up-right-from-square",
+  "i-google": { style: "brands", name: "google" },
+  "i-lang": "language",
+  "i-lock": "lock",
+  "i-shield": "shield-halved",
+  "i-clock": "clock",
+  "i-bulb": "lightbulb",
+  "i-book": "book",
+  "i-pin": "thumbtack",
+  "i-link": "link",
+  "i-coin": "coins",
+  "i-bolt": "bolt",
+  "i-gift": "gift",
+  "i-receipt": "receipt",
+  "i-chat": "comment",
+  "i-hash": "hashtag",
+  "i-card": "credit-card",
+  "i-key": "key",
+  "i-phone": "phone",
+};
+
+// Sprite — kept for backward compatibility with 53+ direct
+// `<svg><use href="#i-...">` call sites that haven't been migrated to
+// the <Icon> component yet. New code should use <Icon id="..." /> which
+// renders via Font Awesome (DESIGN.md). Migrate the remaining direct
+// <use> sites over time, then remove this sprite.
 export function DashboardIconSprite() {
   return (
     <svg
@@ -29,6 +109,7 @@ export function DashboardIconSprite() {
         <symbol id="i-bell" viewBox="0 0 20 20"><path className="i" d="M5 14V9a5 5 0 0110 0v5l1.5 2h-13L5 14z" /><path className="i" d="M8.5 17a1.5 1.5 0 003 0" /></symbol>
         <symbol id="i-chev-down" viewBox="0 0 20 20"><path className="i" d="M5 8l5 5 5-5" /></symbol>
         <symbol id="i-chev-right" viewBox="0 0 20 20"><path className="i" d="M8 5l5 5-5 5" /></symbol>
+        <symbol id="i-chev-left" viewBox="0 0 20 20"><path className="i" d="M12 5l-5 5 5 5" /></symbol>
         <symbol id="i-plus" viewBox="0 0 20 20"><path className="i" d="M10 4v12M4 10h12" /></symbol>
         <symbol id="i-sparkle" viewBox="0 0 20 20"><path className="if" d="M10 1l1.5 5.5L17 8l-5.5 1.5L10 15l-1.5-5.5L3 8l5.5-1.5L10 1z" /></symbol>
         <symbol id="i-template" viewBox="0 0 20 20"><rect className="i" x="3" y="3" width="14" height="4" rx="1" /><rect className="i" x="3" y="9" width="6" height="8" rx="1" /><rect className="i" x="11" y="9" width="6" height="8" rx="1" /></symbol>
@@ -71,7 +152,6 @@ export function DashboardIconSprite() {
         <symbol id="i-receipt" viewBox="0 0 20 20"><path className="i" d="M4 2h12v16l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L4 18V2zM7 6h6M7 9h6M7 12h4" /></symbol>
         <symbol id="i-chat" viewBox="0 0 20 20"><path className="i" d="M4 4h12a1 1 0 011 1v9a1 1 0 01-1 1H9l-4 3v-3H4a1 1 0 01-1-1V5a1 1 0 011-1z" /></symbol>
         <symbol id="i-hash" viewBox="0 0 20 20"><path className="i" d="M7 3l-2 14M15 3l-2 14M3 7h14M3 13h14" /></symbol>
-        <symbol id="i-chev-left" viewBox="0 0 20 20"><path className="i" d="M12 5l-5 5 5 5" /></symbol>
         <symbol id="i-card" viewBox="0 0 20 20"><rect className="i" x="2" y="5" width="16" height="11" rx="1.5" /><path className="i" d="M2 9h16M5 13h3" /></symbol>
         <symbol id="i-key" viewBox="0 0 20 20"><circle className="i" cx="7" cy="10" r="4" /><path className="i" d="M11 10h7M15 10v3M18 10v2" /></symbol>
         <symbol id="i-phone" viewBox="0 0 20 20"><rect className="i" x="6" y="2" width="8" height="16" rx="1.5" /><path className="i" d="M9 15.5h2" /></symbol>
@@ -80,10 +160,31 @@ export function DashboardIconSprite() {
   );
 }
 
-export function Icon({ id, size = 18, style }: { id: string; size?: number; style?: React.CSSProperties }) {
+export function Icon({
+  id,
+  size = 18,
+  style,
+  className,
+}: {
+  id: string;
+  size?: number;
+  style?: React.CSSProperties;
+  className?: string;
+}) {
+  const spec = ICON_MAP[id];
+  if (!spec) {
+    // Unknown id — render an invisible placeholder of the requested size
+    // so layout doesn't shift. Surfaces missing mapping in dev tools.
+    return <i aria-hidden="true" style={{ display: "inline-block", width: size, height: size, ...style }} data-missing-icon={id} />;
+  }
+  const faStyle = typeof spec === "string" ? "solid" : spec.style;
+  const faName = typeof spec === "string" ? spec : spec.name;
+  const faClass = `fa-${faStyle} fa-${faName}`;
   return (
-    <svg width={size} height={size} style={style} aria-hidden="true">
-      <use href={`#${id}`} />
-    </svg>
+    <i
+      className={`${faClass}${className ? " " + className : ""}`}
+      aria-hidden="true"
+      style={{ fontSize: size, lineHeight: 1, display: "inline-block", ...style }}
+    />
   );
 }
