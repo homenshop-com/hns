@@ -520,3 +520,103 @@
   .dv2-user .name, .dv2-user .role, .dv2-lang { display: none; }
   .dv2-user { padding: 0; background: transparent; }
 }
+
+/* ─────────────────────────────────────────────────────────────────
+ * Mobile (≤640px) — sidebar 더 좁게 + 콘텐츠 풀폭 활용
+ * 헤더/필터/사이트 행 모두 컴팩트해서 좁은 viewport에서도 가독.
+ * ───────────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .dv2-app { grid-template-columns: 48px 1fr; }
+  .dv2-side { padding: 12px 4px; }
+  .dv2-brand-mark { width: 26px; height: 26px; font-size: 13px; }
+  .dv2-nav a { height: 32px; }
+  .dv2-nav .ic { width: 18px; height: 18px; font-size: 16px; }
+
+  /* 모든 grid 강제 1-col */
+  .dv2-stats, .dv2-quick { grid-template-columns: 1fr !important; gap: 10px !important; }
+
+  /* 콘텐츠 패딩 최소화 */
+  .dv2-content { padding: 12px 12px 40px !important; }
+
+  /* 페이지 헤딩 */
+  .dv2-h1, .dv2-page-title { font-size: 18px !important; }
+  .dv2-page-head { margin-bottom: 14px !important; }
+  .dv2-page-sub, .dv2-h-sub { font-size: 12px !important; }
+
+  /* Topbar 컴팩트 */
+  .dv2-topbar {
+    padding: 8px 12px !important;
+    height: 52px !important;
+    gap: 6px !important;
+  }
+  .dv2-crumbs { font-size: 11px !important; gap: 4px !important; }
+  .dv2-crumbs a:not(.cur) { display: none !important; }
+  .dv2-topbar-actions { gap: 4px !important; }
+  .dv2-icon-btn { width: 30px !important; height: 30px !important; }
+  .dv2-coin-pill {
+    font-size: 11px !important; height: 28px !important;
+    padding: 0 8px 0 4px !important; gap: 4px !important;
+  }
+  .dv2-coin-pill .ball { width: 18px !important; height: 18px !important; font-size: 9px !important; }
+  .dv2-coin-pill .c { display: none !important; }
+  .dv2-user-chip, .dv2-user { height: 30px !important; padding: 0 4px !important; }
+
+  /* Filter pills — 가로 스크롤, 적층 금지 */
+  .filter-pills, .dv2-filter-pills, [class*="filter-pills"] {
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .filter-pills::-webkit-scrollbar,
+  .dv2-filter-pills::-webkit-scrollbar { display: none; }
+  .filter-pills button, .dv2-filter-pills button {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+    padding: 0 10px !important;
+    font-size: 11.5px !important;
+    height: 26px !important;
+  }
+
+  /* KPI strip 안 stat */
+  .dv2-stat { padding: 14px 16px !important; }
+  .dv2-stat .lbl { font-size: 11px !important; }
+  .dv2-stat .val { font-size: 22px !important; margin-top: 6px !important; }
+  .dv2-stat .d, .dv2-stat .foot { font-size: 10.5px !important; }
+
+  /* 사이트 카드 행 - 모바일에서 카드형 */
+  .dv2-site-row {
+    padding: 12px 14px !important;
+    gap: 10px !important;
+  }
+  .dv2-site-main { gap: 10px !important; }
+  .dv2-site-thumb { width: 36px !important; height: 36px !important; font-size: 10px !important; }
+  .dv2-site-name { font-size: 13.5px !important; }
+  .dv2-site-meta { font-size: 11px !important; gap: 6px !important; flex-wrap: wrap; }
+  .dv2-site-meta .handle { font-size: 10.5px !important; }
+
+  /* 행 버튼 컴팩트 */
+  .dv2-row-btn, .row-actions .a {
+    height: 28px !important;
+    padding: 0 10px !important;
+    font-size: 11.5px !important;
+  }
+  .dv2-row-btn svg, .row-actions .a svg { width: 11px; height: 11px; }
+
+  /* 섹션 카드 헤더 */
+  .dv2-panel-head, .section-head { padding: 14px 16px !important; }
+  .dv2-panel-head h2, .section-title { font-size: 14px !important; }
+
+  /* 새 홈페이지 추가 버튼 */
+  .dv2-site-row.add { margin: 10px 0 !important; padding: 14px !important; }
+}
+
+/* 매우 작은 viewport (≤380px) — iPhone SE 등 */
+@media (max-width: 380px) {
+  .dv2-app { grid-template-columns: 44px 1fr; }
+  .dv2-content { padding: 10px 8px 32px !important; }
+  .dv2-h1, .dv2-page-title { font-size: 16px !important; }
+  .dv2-topbar { padding: 6px 8px !important; height: 48px !important; }
+  .dv2-crumbs { display: none !important; }
+  .dv2-stat .val { font-size: 20px !important; }
+}
