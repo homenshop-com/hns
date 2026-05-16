@@ -128,7 +128,14 @@ export default function TemplateGallery({ userId }: { userId: string }) {
                 onClick={() => handleSelect(tpl.id)}
                 disabled={loading !== null}
               >
-                {loading === tpl.id ? "..." : "[디자인선택]"}
+                {loading === tpl.id ? (
+                  <i className="fa-solid fa-spinner fa-spin" aria-hidden="true" />
+                ) : (
+                  <>
+                    <i className="fa-solid fa-wand-magic-sparkles" aria-hidden="true" />
+                    <span>디자인선택</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

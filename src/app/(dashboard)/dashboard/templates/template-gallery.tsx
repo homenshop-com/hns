@@ -758,7 +758,8 @@ export default function TemplateGallery({
                     className="tpl-select-btn"
                     onClick={() => openPreview(tpl)}
                   >
-                    [{labels.selectTemplate}]
+                    <i className="fa-solid fa-wand-magic-sparkles" aria-hidden="true" />
+                    <span>{labels.selectTemplate}</span>
                   </button>
                 </div>
               </div>
