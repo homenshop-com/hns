@@ -257,10 +257,18 @@ export function rewriteAssetUrls(html: string, templatePath: string): string {
  * Exported so the published route can apply it to pageCss / siteCss too.
  */
 export function rewriteApiImgUrls(input: string): string {
-  const base = "https://homenshop.com";
+  const apiBase = "https://homenshop.com";
+  // /uploads/ paths are served by the published-site host (home.*) — when
+  // the same page is rendered for a custom domain (e.g. ybsurplus.com),
+  // a relative `/uploads/...` resolves to the custom host where the path
+  // is not mapped → broken image. Absolutize so any host loads correctly.
+  const uploadBase = "https://home.homenshop.com";
   return input
     // <img src="/api/img?…">, <a href="/api/img?…">, style="background: url(/api/img?…)"
-    .replace(/(["'(])\/api\/img(?=[?)"'\s])/g, (_m, open) => `${open}${base}/api/img`)
+    .replace(/(["'(])\/api\/img(?=[?)"'\s])/g, (_m, open) => `${open}${apiBase}/api/img`)
     // CSS url(/api/img?…) without quotes
-    .replace(/url\(\/api\/img/g, `url(${base}/api/img`);
+    .replace(/url\(\/api\/img/g, `url(${apiBase}/api/img`)
+    // <img src="/uploads/…"> and CSS url("/uploads/…")
+    .replace(/(["'(])\/uploads\//g, (_m, open) => `${open}${uploadBase}/uploads/`)
+    .replace(/url\(\/uploads\//g, `url(${uploadBase}/uploads/`);
 }
