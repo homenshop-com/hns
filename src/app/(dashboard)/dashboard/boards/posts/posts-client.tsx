@@ -169,7 +169,18 @@ export default function BoardPostsClient() {
   }
 
   const totalPages = Math.ceil(total / limit);
-  const inputCls = "w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100";
+  const inputCls = "w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#3182f6] dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100";
+  /* Toss button presets — 2026-05-16 사용자 요청: 토스스타일 버튼화.
+     기존: bg-zinc-900 (검정) → 라벨이 검정 사각형에 묻혀 보이지 않음.
+     primary = Toss Blue fill + soft shadow + active scale.
+     secondary = white surface + zinc-200 border (보조).
+     pill = primary/secondary 작은 필터 변형. */
+  const btnPrimary =
+    "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-[#3182f6] px-4 h-10 sm:h-10 text-sm font-semibold text-white shadow-[0_1px_2px_rgba(49,130,246,0.25),0_2px_6px_rgba(49,130,246,0.18)] transition hover:bg-[#1b64da] hover:shadow-[0_2px_4px_rgba(49,130,246,0.35),0_4px_12px_rgba(49,130,246,0.22)] active:translate-y-px active:bg-[#1e40af] disabled:opacity-50 disabled:cursor-not-allowed";
+  const btnSecondary =
+    "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-white border border-zinc-200 px-4 h-10 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 hover:border-zinc-300 active:bg-zinc-100 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800";
+  const btnDanger =
+    "inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-md border border-[#fecaca] px-2.5 h-7 text-xs font-medium text-[#dc2626] transition hover:bg-[#fef2f2] active:bg-[#fee2e2]";
 
   return (
     <div>
@@ -179,8 +190,10 @@ export default function BoardPostsClient() {
           </Link>
         </div>
 
-        <div className="flex items-center justify-between mb-6">
-          <div>
+        {/* 모바일: 타이틀 + 액션 행이 wrap. 액션은 가로 균등 분배(grid-cols-2)
+            로 토스블루 CTA가 좁은 화면에서도 잘리지 않게 함. */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+          <div className="min-w-0">
             <h2 className="text-2xl font-bold">게시물 관리</h2>
             <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
               총 {total}건
@@ -189,18 +202,17 @@ export default function BoardPostsClient() {
               )}
             </p>
           </div>
-          <div className="flex gap-2">
-            <Link
-              href="/dashboard/boards/categories"
-              className="rounded-lg border border-zinc-300 px-4 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
-            >
-              카테고리 관리
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:gap-2 sm:flex-shrink-0">
+            <Link href="/dashboard/boards/categories" className={btnSecondary}>
+              <i className="fa-solid fa-folder-tree" aria-hidden="true" />
+              <span>카테고리 관리</span>
             </Link>
             <button
               onClick={() => { setShowNew(!showNew); setEditPost(null); }}
-              className="rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+              className={btnPrimary}
             >
-              {showNew ? "취소" : "+ 게시물 등록"}
+              <i className={showNew ? "fa-solid fa-xmark" : "fa-solid fa-plus"} aria-hidden="true" />
+              <span>{showNew ? "취소" : "게시물 등록"}</span>
             </button>
           </div>
         </div>
@@ -211,7 +223,7 @@ export default function BoardPostsClient() {
             <span className="text-xs text-zinc-500">카테고리:</span>
             <button
               onClick={() => { setFilterCat(""); setPage(1); }}
-              className={`px-2.5 py-1 rounded text-xs font-medium ${!filterCat ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900" : "border border-zinc-300 text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-400"}`}
+              className={`px-3 h-7 rounded-full text-xs font-medium transition ${!filterCat ? "bg-[#3182f6] text-white shadow-sm" : "bg-white border border-zinc-200 text-zinc-600 hover:border-[#3182f6] hover:text-[#3182f6] dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-400"}`}
             >
               전체
             </button>
@@ -219,7 +231,7 @@ export default function BoardPostsClient() {
               <button
                 key={c.id}
                 onClick={() => { setFilterCat(c.id); setPage(1); }}
-                className={`px-2.5 py-1 rounded text-xs font-medium ${filterCat === c.id ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900" : "border border-zinc-300 text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-400"}`}
+                className={`px-3 h-7 rounded-full text-xs font-medium transition ${filterCat === c.id ? "bg-[#3182f6] text-white shadow-sm" : "bg-white border border-zinc-200 text-zinc-600 hover:border-[#3182f6] hover:text-[#3182f6] dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-400"}`}
               >
                 {c.category} ({c.cnt})
               </button>
@@ -262,9 +274,9 @@ export default function BoardPostsClient() {
                 </Suspense>
               </div>
               <div className="flex gap-2 justify-end">
-                <button onClick={() => setShowNew(false)} className="rounded-lg border border-zinc-300 px-4 py-2 text-sm text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800">취소</button>
-                <button onClick={handleCreate} disabled={saving || !newTitle.trim()} className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900">
-                  {saving ? "저장중..." : "등록"}
+                <button onClick={() => setShowNew(false)} className={btnSecondary}>취소</button>
+                <button onClick={handleCreate} disabled={saving || !newTitle.trim()} className={btnPrimary}>
+                  {saving ? (<><i className="fa-solid fa-spinner fa-spin" /><span>저장중...</span></>) : (<><i className="fa-solid fa-check" /><span>등록</span></>)}
                 </button>
               </div>
             </div>
@@ -301,9 +313,9 @@ export default function BoardPostsClient() {
                 </Suspense>
               </div>
               <div className="flex gap-2 justify-end">
-                <button onClick={() => setEditPost(null)} className="rounded-lg border border-zinc-300 px-4 py-2 text-sm text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800">취소</button>
-                <button onClick={handleUpdate} disabled={saving} className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900">
-                  {saving ? "저장중..." : "저장"}
+                <button onClick={() => setEditPost(null)} className={btnSecondary}>취소</button>
+                <button onClick={handleUpdate} disabled={saving} className={btnPrimary}>
+                  {saving ? (<><i className="fa-solid fa-spinner fa-spin" /><span>저장중...</span></>) : (<><i className="fa-solid fa-floppy-disk" /><span>저장</span></>)}
                 </button>
               </div>
             </div>
@@ -385,10 +397,10 @@ export default function BoardPostsClient() {
                   <button
                     key={p}
                     onClick={() => setPage(p as number)}
-                    className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
+                    className={`rounded-lg px-3 h-9 inline-flex items-center text-sm font-medium transition ${
                       p === page
-                        ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
-                        : "border border-zinc-300 text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                        ? "bg-[#3182f6] text-white shadow-sm"
+                        : "bg-white border border-zinc-200 text-zinc-600 hover:border-[#3182f6] hover:text-[#3182f6] dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-400"
                     }`}
                   >
                     {p}
