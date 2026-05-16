@@ -124,6 +124,72 @@ Reject: dark-mode marketing as default, multi-accent palettes, gradient fills, d
 
 ---
 
+## Icons — Font Awesome 6 Free Only
+
+**Single icon system across the entire product.** System UI (admin, dashboard, marketing), user-facing published sites, and AI-generated / Claude-Designs imported templates ALL use Font Awesome 6 Free.
+
+**Why:** consistency at the visual level, single CDN payload, no emoji-vs-SVG-vs-IconJar fragmentation, no licensing risk (Free tier covers our needs), and the publisher already loads Font Awesome globally so user sites get it without extra config.
+
+**How to use:**
+
+```html
+<!-- Solid (default, most icons) -->
+<i class="fa-solid fa-bullseye"></i>
+<i class="fa-solid fa-truck"></i>
+<i class="fa-solid fa-magnifying-glass"></i>
+
+<!-- Regular / outline -->
+<i class="fa-regular fa-star"></i>
+<i class="fa-regular fa-heart"></i>
+
+<!-- Brand logos -->
+<i class="fa-brands fa-instagram"></i>
+<i class="fa-brands fa-youtube"></i>
+<i class="fa-brands fa-google"></i>
+```
+
+**Sizing & color:** set on the `<i>` via CSS (`font-size: 14-22px` typical; `color: var(--accent)` etc). Don't inline `style="font-size:..."` unless it's a one-off decorative size.
+
+**Loading:** publisher route `src/app/api/published/.../route.ts` injects
+`<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">`
+on every published page. The admin / dashboard layout (`src/app/layout.tsx` or per-section) does the same.
+
+**Common pairings (use the right semantic icon, not just "something round"):**
+| Domain | Icon |
+|---|---|
+| cafe | `fa-mug-hot` |
+| shop / cart | `fa-bag-shopping` / `fa-cart-shopping` |
+| delivery | `fa-truck` |
+| phone | `fa-phone` |
+| email | `fa-envelope` |
+| address | `fa-location-dot` |
+| time | `fa-clock` |
+| service / star | `fa-star` |
+| settings | `fa-sliders` / `fa-gear` |
+| people / team | `fa-users` |
+| award | `fa-award` |
+| check / done | `fa-check` |
+| search | `fa-magnifying-glass` |
+| globe / language | `fa-earth-asia` |
+| image / photo | `fa-image` |
+| download / upload | `fa-download` / `fa-cloud-arrow-up` |
+| edit | `fa-pen-to-square` |
+| delete | `fa-trash` |
+| menu / hamburger | `fa-bars` |
+| chevrons | `fa-chevron-right`, `fa-chevron-down` |
+| social | `fa-brands fa-instagram` / `fa-facebook` / `fa-youtube` / `fa-tiktok` / `fa-x-twitter` |
+| Kakao (no FA brand) | `fa-comment` (fallback) |
+
+**Forbidden:**
+- ❌ **Emoji as icons** (🎨📱🌐 etc.) — inconsistent across OS/font, breaks visual unity. Marketing copy emojis are OK but never as chrome icons.
+- ❌ **Inline `<svg>` glyph definitions** for primitive icons — use Font Awesome. (Inline SVG is fine for true illustrations, charts, or brand marks.)
+- ❌ **Other icon libraries** (Heroicons, Lucide, Material Icons, Bootstrap Icons, etc.) — pick one, and we picked FA.
+- ❌ **Pro / Sharp tier icons** that require a paid subscription. Stick to the Free style set (solid / regular / brands).
+
+**AI sites / template creation:** the AI sites system prompt (`src/app/api/sites/create-from-ai/route.ts`) already mandates Font Awesome — keep it that way. Any new template-generation path (zip upload atomize, future AI flows) must follow the same rule.
+
+---
+
 ## homenshop.com — Project Adaptations
 
 These deviations from canonical Toss apply to homenshop.com specifically:
