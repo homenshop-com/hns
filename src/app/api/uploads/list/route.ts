@@ -37,17 +37,25 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "siteId 누락 또는 형식 오류." }, { status: 400 });
   }
 
-  // Verify the user owns this site. Without this, knowing a siteId
-  // would let any logged-in user see another site's uploads.
+  // Verify the user owns this site + resolve to shopId. Without this,
+  // knowing a siteId would let any logged-in user see another site's
+  // uploads. Accepts either internal siteId (cuid) or shopId.
   const site = await prisma.site.findFirst({
-    where: { id: siteId, userId: session.user.id },
-    select: { id: true },
+    where: {
+      OR: [{ id: siteId }, { shopId: siteId }],
+      userId: session.user.id,
+    },
+    select: { id: true, shopId: true },
   });
   if (!site) {
     return NextResponse.json({ error: "사이트 권한 없음." }, { status: 403 });
   }
 
-  const scopedDir = join(UPLOAD_DIR, "site-uploads", siteId);
+  // shopId-keyed folder (e.g. /uploads/site-uploads/ybsurplus-com/).
+  // Falls back to siteId-keyed folder for sites not yet migrated — both
+  // are scanned and merged. Migration script renames the old folder.
+  const shopDir = join(UPLOAD_DIR, "site-uploads", site.shopId);
+  const legacySiteDir = join(UPLOAD_DIR, "site-uploads", site.id);
   const legacyDir = join(UPLOAD_DIR, "site-uploads");
 
   type Item = { url: string; name: string; mtime: number; size: number };
@@ -80,9 +88,11 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  await collect(scopedDir, `${UPLOAD_URL}/site-uploads/${siteId}`);
-  // Legacy fallback: include unscoped uploads only if the scoped folder
-  // is empty (avoids cluttering newly-scoped sites with shared bucket).
+  await collect(shopDir, `${UPLOAD_URL}/site-uploads/${site.shopId}`);
+  // Legacy: pre-migration siteId-keyed folder (cuid). Merge so old URLs
+  // still surface in the asset picker until the migration script runs.
+  await collect(legacySiteDir, `${UPLOAD_URL}/site-uploads/${site.id}`);
+  // Legacy fallback: unscoped uploads only if nothing else found.
   if (items.length === 0) {
     await collect(legacyDir, `${UPLOAD_URL}/site-uploads`);
   }

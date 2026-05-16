@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 import { uploadFile, uploadImageCompressed, uploadImageWithResize } from "@/lib/storage";
 
 const ALLOWED_TYPES = new Set([
@@ -47,15 +48,29 @@ export async function POST(request: NextRequest) {
 
     const folderRaw = (formData.get("folder") as string) || "uploads";
     const siteIdRaw = formData.get("siteId");
-    // siteId scopes uploads to /uploads/site-uploads/{siteId}/ so the
-    // 에셋 tab can list a site's media without leaking other sites'
-    // assets. Whitelist a-z 0-9 _ - to prevent path traversal.
-    const siteId = typeof siteIdRaw === "string" && /^[a-z0-9_-]+$/i.test(siteIdRaw)
+    // siteId scopes uploads to /uploads/site-uploads/{shopId}/ so the
+    // 에셋 tab can list a site's media + each customer's folder is named
+    // by their human-readable shopId (e.g. ybsurplus-com) — much easier
+    // to migrate when a customer leaves the platform. Whitelist a-z 0-9
+    // _ - to prevent path traversal.
+    const siteIdParam = typeof siteIdRaw === "string" && /^[a-z0-9_-]+$/i.test(siteIdRaw)
       ? siteIdRaw
       : null;
-    const folder = siteId && folderRaw === "site-uploads"
-      ? `site-uploads/${siteId}`
-      : folderRaw;
+    // Resolve siteId (cuid) → shopId via DB, and verify ownership.
+    // Accepts either the internal siteId or the shopId as input — both
+    // map to the same shopId-keyed folder.
+    let scopedSlug: string | null = null;
+    if (siteIdParam && folderRaw === "site-uploads") {
+      const site = await prisma.site.findFirst({
+        where: {
+          OR: [{ id: siteIdParam }, { shopId: siteIdParam }],
+          userId: session.user.id,
+        },
+        select: { shopId: true },
+      });
+      if (site) scopedSlug = site.shopId;
+    }
+    const folder = scopedSlug ? `site-uploads/${scopedSlug}` : folderRaw;
     const resize = formData.get("resize") === "true";
     const compress = formData.get("compress") === "true";
 
