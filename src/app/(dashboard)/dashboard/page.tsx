@@ -716,8 +716,11 @@ export default async function DashboardPage() {
                       );
                     })}
 
-                    {/* Add row */}
-                    <Link href="/dashboard/templates" className="dv2-site-row add">
+                    {/* Add row — 2026-05-16 사용자 요청: 템플릿 갤러리가
+                        아니라 사이트 목록 페이지(/dashboard/sites)로 이동
+                        (사이트 목록 안에서 AI/템플릿/zip 등 모든 신규 생성
+                        진입점을 통합 노출). */}
+                    <Link href="/dashboard/sites" className="dv2-site-row add">
                       <div className="dv2-add-inner">
                         <span className="plus"><Icon id="i-plus" size={14} /></span>
                         {t("sitesAddNew")}
