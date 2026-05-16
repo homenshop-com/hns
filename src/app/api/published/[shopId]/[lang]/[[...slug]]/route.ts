@@ -1179,7 +1179,18 @@ export async function GET(
   // Clean editor artifacts from published HTML
   const cleanHtml = (h: string) => h
     .replace(/<div class="de-resize-handle[^"]*"[^>]*><\/div>/g, "")
-    .replace(/\bde-selected\b/g, "");
+    .replace(/\bde-selected\b/g, "")
+    // Strip inline width/height/position styles from the root hns_header
+    // /hns_menu/hns_footer wrappers. The design editor sometimes records
+    // computed pixel widths (e.g. `style="width:1159px;height:113px;"`)
+    // on these wrappers when the user drags/resizes the header. Those
+    // pixel widths then force horizontal overflow on mobile because no
+    // media query targets them. Children .dragable elements keep their
+    // own inline styles — we only neutralize the three root wrappers.
+    .replace(
+      /(<(?:div|header)\s+id="hns_(?:header|menu|footer)"[^>]*?)\s+style="[^"]*"/gi,
+      "$1",
+    );
   const cleanedBodyHtml = rewriteInternalLinks(cleanHtml(processedBodyHtml));
   const cleanedHeaderHtml = rewriteInternalLinks(cleanHtml(headerHtml));
   const cleanedFooterHtml = rewriteInternalLinks(cleanHtml(footerHtml));
