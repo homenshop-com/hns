@@ -561,21 +561,29 @@
   .dv2-coin-pill .c { display: none !important; }
   .dv2-user-chip, .dv2-user { height: 30px !important; padding: 0 4px !important; }
 
-  /* Filter pills — 가로 스크롤, 적층 금지 */
-  .filter-pills, .dv2-filter-pills, [class*="filter-pills"] {
+  /* Filter chips (실제 클래스 .dv2-chip-group / .dv2-chip) +
+     filter-pills 별칭 — 자식 button까지 nowrap 강제 + 가로 스크롤 */
+  .dv2-chip-group, .filter-pills, .dv2-filter-pills, [class*="filter-pills"] {
+    display: flex !important;
     overflow-x: auto !important;
     flex-wrap: nowrap !important;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
+    max-width: 100% !important;
   }
+  .dv2-chip-group::-webkit-scrollbar,
   .filter-pills::-webkit-scrollbar,
   .dv2-filter-pills::-webkit-scrollbar { display: none; }
-  .filter-pills button, .dv2-filter-pills button {
+  .dv2-chip, .filter-pills button, .dv2-filter-pills button {
     flex-shrink: 0 !important;
     white-space: nowrap !important;
     padding: 0 10px !important;
     font-size: 11.5px !important;
     height: 26px !important;
+    min-width: max-content !important;
+  }
+  .dv2-chip *, .filter-pills button *, .dv2-filter-pills button * {
+    white-space: nowrap !important;
   }
 
   /* KPI strip 안 stat */
