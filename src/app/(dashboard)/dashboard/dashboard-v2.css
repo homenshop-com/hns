@@ -35,6 +35,15 @@
   --brand: var(--accent);
   --brand-ink: var(--accent-hover);
   --brand-soft: var(--accent-soft);
+  /* Legacy --blue/--blue-* aliases — landing.css scopes these only in
+     .landing-page/.auth-page/.dash-page. Shared .tpl-* / .dash-* classes
+     rendered inside .dv2-app would otherwise lose their fill. 2026-05-16
+     사용자 보고: 디자인선택 버튼이 텍스트처럼 보임 — var(--blue)이 빈
+     값으로 떨어져 배경이 사라지던 회귀 수정. */
+  --blue: var(--accent);
+  --blue-dark: var(--accent-hover);
+  --blue-deep: var(--accent-deep);
+  --blue-light: var(--accent-soft);
   --ai: var(--accent);
   --ai-soft: var(--accent-soft);
   --cta-2: var(--accent);
