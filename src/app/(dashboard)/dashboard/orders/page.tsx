@@ -99,7 +99,14 @@ export default async function DashboardOrdersPage({
     orderBy: [{ channel: "asc" }, { createdAt: "asc" }],
   });
 
-  const where: Prisma.OrderWhereInput = { userId: session.user.id };
+  /* 2026-05-17 사용자 보고: /dashboard/orders가 CREDIT_PACK(크레딧 충전
+     결제 내역)을 함께 노출 → 통합 주문관리 의도와 맞지 않음.
+     orderType=PRODUCT 만 표시. 크레딧 결제는 /dashboard/credits에서 관리,
+     구독은 /dashboard/profile billing 영역에서 관리. */
+  const where: Prisma.OrderWhereInput = {
+    userId: session.user.id,
+    orderType: "PRODUCT",
+  };
   if (filterSiteId) where.siteId = filterSiteId;
   if (filterChannel && filterChannel !== "ALL") {
     where.channel = filterChannel as OrderChannel;
@@ -126,14 +133,27 @@ export default async function DashboardOrdersPage({
     },
   });
 
-  // Channel facet counts for the chip bar (across all sites/statuses for this user).
+  // Channel facet counts for the chip bar — PRODUCT orders only
+  // (across all sites/statuses for this user, scoped by site filter).
   const channelCounts = await prisma.order.groupBy({
     by: ["channel"],
-    where: { userId: session.user.id, ...(filterSiteId ? { siteId: filterSiteId } : {}) },
+    where: {
+      userId: session.user.id,
+      orderType: "PRODUCT",
+      ...(filterSiteId ? { siteId: filterSiteId } : {}),
+    },
     _count: { _all: true },
   });
   const totalAcrossAllChannels = channelCounts.reduce((s, c) => s + c._count._all, 0);
   const countByChannel = new Map(channelCounts.map((c) => [c.channel, c._count._all]));
+
+  // 크레딧/구독 결제 건수는 별도 카운트만 (사용자에게 안내용).
+  const platformOrderCount = await prisma.order.count({
+    where: {
+      userId: session.user.id,
+      orderType: { in: ["CREDIT_PACK", "SUBSCRIPTION"] },
+    },
+  });
 
   function qs(overrides: Record<string, string | undefined>) {
     const params = new URLSearchParams();
@@ -172,13 +192,19 @@ export default async function DashboardOrdersPage({
         <div>
           <h1 className="dv2-page-title">{t("title")}</h1>
           <div className="dv2-page-sub">
-            {t("subtitle")}{" "}
-            {t("totalDisplaying", { count: orders.length })}
-            {t("subtitleSuffix")}
-            <Link href="/dashboard/integrations" style={{ color: "var(--brand)" }}>
-              {t("integrationsLink")}
+            내 쇼핑몰 사이트 + 연동된 외부 마켓플레이스의 고객 주문을 한 곳에서
+            확인합니다. 총 <b>{orders.length}</b>건 표시 ·{" "}
+            <Link href="/dashboard/integrations" style={{ color: "var(--brand)", fontWeight: 600 }}>
+              <i className="fa-solid fa-link" style={{ fontSize: 11, marginRight: 4 }} />외부 마켓 연동
             </Link>
-            {t("subtitleTail")}
+            {platformOrderCount > 0 && (
+              <>
+                {" · "}
+                <Link href="/dashboard/credits" style={{ color: "var(--ink-3)" }}>
+                  크레딧·구독 결제 내역 ({platformOrderCount})
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -247,13 +273,52 @@ export default async function DashboardOrdersPage({
 
       {orders.length === 0 ? (
         <section className="dv2-panel">
-          <div className="dv2-empty">
-            <div className="t">{t("emptyTitle")}</div>
-            <div className="d">
-              {filterSiteId || filterChannel
-                ? t("emptyFiltered")
-                : t("emptyDefault")}
+          <div className="dv2-empty" style={{ padding: "48px 24px", textAlign: "center" }}>
+            <div style={{
+              width: 64, height: 64, borderRadius: 16, margin: "0 auto 16px",
+              background: "linear-gradient(135deg, #e8f3ff 0%, #d6e8ff 100%)",
+              display: "grid", placeItems: "center", color: "#3182f6",
+            }}>
+              <i className="fa-solid fa-bag-shopping" style={{ fontSize: 28 }} />
             </div>
+            <div className="t" style={{ fontSize: 18, fontWeight: 700, color: "var(--ink-0)", marginBottom: 6 }}>
+              {filterSiteId || filterChannel || filterIntegrationId
+                ? "이 조건에 해당하는 주문이 없습니다"
+                : "아직 들어온 주문이 없습니다"}
+            </div>
+            <div className="d" style={{ fontSize: 14, color: "var(--ink-2)", lineHeight: 1.6, maxWidth: 480, margin: "0 auto 20px" }}>
+              {filterSiteId || filterChannel || filterIntegrationId
+                ? "필터를 해제하거나 다른 사이트/채널을 선택해보세요."
+                : "내 사이트에서 상품을 등록하면 고객 주문이 여기 자동으로 누적됩니다. Shopify·쿠팡·아마존 등 외부 마켓 주문도 통합 관리할 수 있습니다."}
+            </div>
+            {!filterSiteId && !filterChannel && !filterIntegrationId && (
+              <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
+                <Link
+                  href="/dashboard/sites"
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 7,
+                    height: 40, padding: "0 18px", background: "#3182f6", color: "#fff",
+                    fontSize: 14, fontWeight: 600, borderRadius: 8, textDecoration: "none",
+                    boxShadow: "0 1px 2px rgba(49,130,246,0.25), 0 2px 6px rgba(49,130,246,0.18)",
+                  }}
+                >
+                  <i className="fa-solid fa-store" style={{ fontSize: 12 }} />
+                  내 사이트로 가기
+                </Link>
+                <Link
+                  href="/dashboard/integrations"
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 7,
+                    height: 40, padding: "0 18px", background: "#fff", color: "var(--ink-1)",
+                    border: "1px solid var(--line-strong, #d1d6db)",
+                    fontSize: 14, fontWeight: 600, borderRadius: 8, textDecoration: "none",
+                  }}
+                >
+                  <i className="fa-solid fa-link" style={{ fontSize: 12 }} />
+                  외부 마켓 연동하기
+                </Link>
+              </div>
+            )}
           </div>
         </section>
       ) : (
