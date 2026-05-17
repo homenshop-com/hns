@@ -750,18 +750,58 @@
 
   /* (이전 좌우 분할 KPI 룰 제거 — 2x2 grid로 대체됨) */
 
-  /* 사이트 카드 행 - 모바일 전용 카드 (테이블 collapse 아님) */
+  /* 사이트 카드 행 - 모바일 전용 카드 (테이블 collapse 아님)
+     2026-05-17 사용자 요청: 메타(플랜/만료/페이지/날짜)는 카드 내에서
+     **한 줄 가로 배치**. 사이트 정보는 위, 액션 버튼은 아래로 분리.
+     flex-wrap을 이용해 폭이 부족할 때만 wrap 허용. */
   .dv2-site-row {
     padding: 14px !important;
-    gap: 10px !important;
+    gap: 8px 10px !important;
     display: flex !important;
-    flex-direction: column !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
   }
-  .dv2-site-main { gap: 10px !important; }
+  /* 위쪽 사이트 정보 라인 — 전체 폭 차지 */
+  .dv2-site-main {
+    flex: 0 0 100% !important;
+    width: 100% !important;
+    gap: 10px !important;
+  }
   .dv2-site-thumb { width: 36px !important; height: 36px !important; font-size: 10px !important; }
   .dv2-site-name { font-size: 13.5px !important; }
   .dv2-site-meta { font-size: 11px !important; gap: 6px !important; flex-wrap: wrap; }
   .dv2-site-meta .handle { font-size: 10.5px !important; }
+
+  /* 메타 한 줄 (plan/expiry/pages/since) — 가로 배치 + 가운데 점 구분 */
+  .dv2-site-row .dv2-site-plan-cell {
+    flex: 0 0 auto !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 6px !important;
+  }
+  .dv2-site-row > .dv2-stat-mini,
+  .dv2-site-row > .dv2-since {
+    flex: 0 0 auto !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    margin: 0 !important;
+    font-size: 12px !important;
+  }
+  /* dot separator (·) — 플랜셀과 페이지카운트 사이, 페이지카운트와 날짜 사이 */
+  .dv2-site-row .dv2-site-plan-cell + .dv2-stat-mini::before,
+  .dv2-site-row .dv2-stat-mini + .dv2-since::before {
+    content: "·";
+    color: var(--ink-4);
+    margin-right: 4px;
+    font-weight: 600;
+  }
+  /* since 안의 언어 라벨은 inline (한 줄에 같이) */
+  .dv2-site-row > .dv2-since .d {
+    display: inline !important;
+    margin: 0 0 0 4px !important;
+  }
 
   /* 행 버튼 컴팩트 */
   .dv2-row-btn, .row-actions .a {
@@ -775,22 +815,17 @@
   .dv2-row-btn svg, .row-actions .a svg { width: 11px; height: 11px; }
   .dv2-row-btn i { font-size: 11px !important; }
 
-  /* 모바일에서 col-stat 강제 노출 — 디자인/데이터/기본정보 3개 버튼 */
+  /* 모바일에서 col-stat 강제 노출 — 디자인/데이터/기본정보 3개 버튼.
+     액션 row는 항상 카드 하단 full-width (메타 라인 다음). */
   .dv2-site-row .col-stat,
   .dv2-site-row .dv2-row-actions.col-stat {
     display: flex !important;
     flex-wrap: nowrap !important;
     gap: 6px !important;
+    flex: 0 0 100% !important;
     width: 100% !important;
     justify-content: stretch !important;
     margin-top: 4px !important;
-  }
-  /* 카드 안에 모인 메타(플랜/페이지/날짜)는 inline chip-row 스타일 */
-  .dv2-site-row > .dv2-stat-mini,
-  .dv2-site-row > .dv2-since {
-    display: inline-flex !important;
-    align-items: center !important;
-    gap: 4px !important;
   }
   /* 모바일에서 kebab 숨김 — col-stat 버튼이 3종 메뉴 노출 */
   .dv2-site-row .dv2-kebab { display: none !important; }
