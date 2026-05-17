@@ -38,6 +38,11 @@ export default function CategoriesClient() {
   const [saving, setSaving] = useState(false);
   const [defaultLang, setDefaultLang] = useState("ko");
   const [filterLang, setFilterLang] = useState("");
+  /* 2026-05-17 사용자 보고: 언어 선택 후 셀렉터가 사라지는 버그.
+     원인: langs를 현재 categories에서 파생 → 필터 적용 후 langs.length=1
+     이 되어 selector 자체가 unmount됨. 해결: 전체 언어 목록은 별도 state
+     로 보관하고 filter 없이 fetch한 결과로만 업데이트. */
+  const [allLangs, setAllLangs] = useState<string[]>([]);
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -48,6 +53,11 @@ export default function CategoriesClient() {
       const data = await res.json();
       if (data.categories) {
         setCategories(data.categories);
+        // 전체 fetch일 때만 allLangs 업데이트 (선택바 안 사라지게)
+        if (!filterLang) {
+          const ls = [...new Set((data.categories as Category[]).map((c) => c.lang))].sort();
+          setAllLangs(ls);
+        }
         if (data.defaultLanguage) {
           setDefaultLang(data.defaultLanguage);
           if (!newLang) setNewLang(data.defaultLanguage);
@@ -62,8 +72,8 @@ export default function CategoriesClient() {
 
   useEffect(() => { fetchCategories(); }, [fetchCategories]);
 
-  // Unique languages in categories
-  const langs = [...new Set(categories.map(c => c.lang))].sort();
+  // 전체 언어 목록 — filter와 무관하게 항상 같은 값
+  const langs = allLangs;
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -175,7 +185,7 @@ export default function CategoriesClient() {
               <span className="text-xs text-zinc-500">언어:</span>
               <button
                 onClick={() => setFilterLang("")}
-                className={`px-2.5 py-1 rounded text-xs font-medium ${!filterLang ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900" : "border border-zinc-300 text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-400"}`}
+                className={`px-3 h-7 rounded-full text-xs font-medium transition ${!filterLang ? "bg-[#3182f6] text-white shadow-sm" : "bg-white border border-zinc-200 text-zinc-600 hover:border-[#3182f6] hover:text-[#3182f6] dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-400"}`}
               >
                 전체
               </button>
@@ -183,7 +193,7 @@ export default function CategoriesClient() {
                 <button
                   key={l}
                   onClick={() => setFilterLang(l)}
-                  className={`px-2.5 py-1 rounded text-xs font-medium ${filterLang === l ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900" : "border border-zinc-300 text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-400"}`}
+                  className={`px-3 h-7 rounded-full text-xs font-medium transition ${filterLang === l ? "bg-[#3182f6] text-white shadow-sm" : "bg-white border border-zinc-200 text-zinc-600 hover:border-[#3182f6] hover:text-[#3182f6] dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-400"}`}
                 >
                   {l.toUpperCase()}
                 </button>
@@ -240,9 +250,10 @@ export default function CategoriesClient() {
           <button
             type="submit"
             disabled={saving || !newName.trim()}
-            className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
+            className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-[#3182f6] px-4 h-10 text-sm font-semibold text-white shadow-[0_1px_2px_rgba(49,130,246,0.25),0_2px_6px_rgba(49,130,246,0.18)] transition hover:bg-[#1b64da] active:translate-y-px disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            추가
+            <i className="fa-solid fa-plus" aria-hidden="true" />
+            <span>추가</span>
           </button>
         </form>
 
@@ -322,22 +333,26 @@ export default function CategoriesClient() {
                         {isEditing ? (
                           <span className="flex gap-1 justify-end">
                             <button onClick={() => handleUpdate(cat.id)} disabled={saving}
-                              className="rounded bg-zinc-900 px-2.5 py-1 text-xs font-medium text-white hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900">
+                              className="inline-flex items-center gap-1 rounded bg-[#3182f6] px-2.5 py-1 text-xs font-semibold text-white shadow-sm hover:bg-[#1b64da] active:translate-y-px disabled:opacity-50">
+                              <i className="fa-solid fa-check" aria-hidden="true" />
                               저장
                             </button>
                             <button onClick={() => setEditId(null)}
-                              className="rounded border border-zinc-300 px-2.5 py-1 text-xs hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800">
+                              className="inline-flex items-center gap-1 rounded border border-zinc-200 bg-white px-2.5 py-1 text-xs text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300">
+                              <i className="fa-solid fa-xmark" aria-hidden="true" />
                               취소
                             </button>
                           </span>
                         ) : (
                           <span className="flex gap-1 justify-end">
                             <button onClick={() => startEdit(cat)}
-                              className="rounded border border-zinc-300 px-2.5 py-1 text-xs text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800">
+                              className="inline-flex items-center gap-1 rounded border border-zinc-200 bg-white px-2.5 py-1 text-xs text-zinc-600 hover:bg-zinc-50 hover:border-[#3182f6] hover:text-[#3182f6]">
+                              <i className="fa-solid fa-pen" aria-hidden="true" />
                               수정
                             </button>
                             <button onClick={() => handleDelete(cat.id, cat.category)}
-                              className="rounded border border-red-200 px-2.5 py-1 text-xs text-red-500 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-950">
+                              className="inline-flex items-center gap-1 rounded border border-red-200 bg-white px-2.5 py-1 text-xs text-red-500 hover:bg-red-50">
+                              <i className="fa-solid fa-trash" aria-hidden="true" />
                               삭제
                             </button>
                           </span>
