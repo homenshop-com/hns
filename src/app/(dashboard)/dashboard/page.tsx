@@ -654,14 +654,16 @@ export default async function DashboardPage() {
                               </div>
                             </div>
                           </div>
-                          <div>
+                          {/* 2026-05-17 사용자 보고: 임시도메인+뱃지 겹침.
+                              원인: 인라인 배치(plan + expiry margin-left 6)가
+                              130px 컬럼 폭 넘침. 세로 스택으로 변경. */}
+                          <div className="dv2-site-plan-cell">
                             <span className={`dv2-plan-tag ${plan.cls}`}>{t(plan.key)}</span>
                             {s.accountType === "0" && remainingDays !== null && (
                               <span
                                 className="dv2-expiry-chip"
                                 style={{
                                   display: "inline-block",
-                                  marginLeft: 6,
                                   padding: "2px 8px",
                                   borderRadius: 10,
                                   fontSize: 11,

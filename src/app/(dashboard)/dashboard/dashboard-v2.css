@@ -334,17 +334,17 @@
 .dv2-tool-btn:hover { background: #f7f8fc; }
 
 .dv2-site-thead {
-  display: grid; grid-template-columns: minmax(0, 2fr) 130px 140px 150px 340px 42px;
+  display: grid; grid-template-columns: minmax(0, 2fr) 110px 90px 150px 340px 42px;
   padding: 10px 20px; background: var(--panel-2); border-bottom: 1px solid var(--line-2);
-  font-size: 10.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3);
-  align-items: center; gap: 8px;
+  font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3);
+  align-items: center; gap: 12px;
 }
 .dv2-site-thead .right { text-align: right; }
 
 .dv2-site-list { display: flex; flex-direction: column; }
 .dv2-site-row {
-  display: grid; grid-template-columns: minmax(0, 2fr) 130px 140px 150px 340px 42px;
-  align-items: center; gap: 8px; padding: 16px 20px; border-bottom: 1px solid var(--line-2);
+  display: grid; grid-template-columns: minmax(0, 2fr) 110px 90px 150px 340px 42px;
+  align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--line-2);
   transition: background .12s;
 }
 .dv2-site-row:last-child { border-bottom: 0; }
@@ -389,12 +389,21 @@
 
 .dv2-site-info { min-width: 0; }
 .dv2-site-name { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; letter-spacing: -.01em; line-height: 1.4; }
-.dv2-site-meta { display: flex; align-items: center; gap: 10px; margin-top: 4px; font-size: 12.5px; color: var(--ink-2); flex-wrap: wrap; line-height: 1.5; }
-.dv2-site-meta .dot { width: 3px; height: 3px; border-radius: 50%; background: var(--ink-4); }
-.dv2-site-meta .handle { color: var(--ink-3); font-family: "JetBrains Mono", monospace; font-size: 12px; }
-.dv2-site-meta .url { color: var(--brand); font-weight: 500; }
+.dv2-site-meta { display: flex; align-items: center; gap: 10px; margin-top: 4px; font-size: 12.5px; color: var(--ink-2); flex-wrap: wrap; line-height: 1.5; min-width: 0; }
+.dv2-site-meta .dot { width: 3px; height: 3px; border-radius: 50%; background: var(--ink-4); flex-shrink: 0; }
+.dv2-site-meta .handle { color: var(--ink-3); font-family: "JetBrains Mono", monospace; font-size: 12px; flex-shrink: 0; }
+.dv2-site-meta .url { color: var(--brand); font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 .dv2-site-meta .url:hover { text-decoration: underline; }
-.dv2-site-meta .warn { color: var(--warn); font-weight: 500; }
+.dv2-site-meta .warn { color: var(--warn); font-weight: 500; flex-shrink: 0; }
+
+/* 2026-05-17 사용자 보고: 무료계정 + 29일 남음 두 뱃지가 130px 컬럼 폭을
+   넘어 임시도메인 URL과 겹침. 해결: 세로 스택 + 상단 align + 컬럼 폭
+   wide. 시각적 위계도 향상 (플랜 위 → 만료 아래). */
+.dv2-site-plan-cell {
+  display: flex; flex-direction: column; gap: 5px; align-items: flex-start;
+  align-self: center; min-width: 0;
+}
+.dv2-site-plan-cell .dv2-expiry-chip { margin-left: 0 !important; }
 
 .dv2-plan-tag {
   display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 9px; border-radius: 5px;
@@ -523,8 +532,9 @@
 @media (max-width: 1200px) {
   .dv2-quick { grid-template-columns: 1fr 1fr; }
   .dv2-stats { grid-template-columns: repeat(2, 1fr); }
-  /* 태블릿: pages 컬럼 + 날짜 폭 축소, 액션 버튼은 유지 (메뉴 접근성) */
-  .dv2-site-thead, .dv2-site-row { grid-template-columns: minmax(0, 1.6fr) 110px 80px 140px minmax(0, 1fr) 36px; }
+  /* 태블릿: pages 컬럼 + 날짜 폭 축소, 액션 버튼은 유지 (메뉴 접근성).
+     플랜 셀은 세로 스택이라 110px로 충분 (만료 칩 '오늘 만료' 6자 fit). */
+  .dv2-site-thead, .dv2-site-row { grid-template-columns: minmax(0, 1.6fr) 100px 70px 130px minmax(0, 1fr) 36px; }
   .dv2-row-actions { gap: 4px; }
   .dv2-row-btn { padding: 0 8px; font-size: 11.5px; }
   .dv2-bottom { grid-template-columns: 1fr; }

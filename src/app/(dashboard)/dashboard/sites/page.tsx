@@ -308,14 +308,15 @@ export default async function SitesPage() {
                         </div>
                       </div>
                     </div>
-                    <div>
+                    {/* 2026-05-17 사용자 보고: 임시도메인+뱃지 겹침.
+                        세로 스택으로 변경 — dashboard-v2.css .dv2-site-plan-cell 참조 */}
+                    <div className="dv2-site-plan-cell">
                       <span className={`dv2-plan-tag ${plan.cls}`}>{t(plan.key)}</span>
                       {s.accountType === "0" && remainingDays !== null && (
                         <span
                           className="dv2-expiry-chip"
                           style={{
                             display: "inline-block",
-                            marginLeft: 6,
                             padding: "2px 8px",
                             borderRadius: 10,
                             fontSize: 11,
