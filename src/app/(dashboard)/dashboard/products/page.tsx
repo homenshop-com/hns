@@ -155,18 +155,21 @@ export default async function ProductsPage({
               {cat && cat !== "ALL" && categoryMap[cat] && <span> &middot; {categoryMap[cat]}</span>}
             </p>
           </div>
+          {/* 2026-05-17 사용자 요청: bg-violet-600 (보라) → Toss Blue 통일 */}
           <div className="flex gap-2">
             <Link
               href="/dashboard/products/categories"
-              className="rounded-lg border border-zinc-300 px-4 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+              className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-white border border-zinc-200 px-4 h-10 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 hover:border-zinc-300 active:bg-zinc-100 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300"
             >
+              <i className="fa-solid fa-folder-tree" aria-hidden="true" />
               카테고리 관리
             </Link>
             <Link
               href="/dashboard/products/new"
-              className="rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-violet-700 dark:bg-violet-500 dark:hover:bg-violet-400"
+              className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-[#3182f6] px-4 h-10 text-sm font-semibold text-white shadow-[0_1px_2px_rgba(49,130,246,0.25),0_2px_6px_rgba(49,130,246,0.18)] transition hover:bg-[#1b64da] hover:shadow-[0_2px_4px_rgba(49,130,246,0.35),0_4px_12px_rgba(49,130,246,0.22)] active:translate-y-px"
             >
-              + 상품 등록
+              <i className="fa-solid fa-plus" aria-hidden="true" />
+              상품 등록
             </Link>
           </div>
         </div>
@@ -179,13 +182,13 @@ export default async function ProductsPage({
               name="q"
               defaultValue={q || ""}
               placeholder="상품명 검색..."
-              className="flex-1 min-w-[200px] rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+              className="flex-1 min-w-[200px] rounded-lg border border-zinc-300 bg-white px-4 h-10 text-sm outline-none transition focus:border-[#3182f6] focus:ring-2 focus:ring-[#3182f6]/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
             />
             {categoryOptions.length > 0 && (
               <select
                 name="cat"
                 defaultValue={cat || "ALL"}
-                className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+                className="rounded-lg border border-zinc-300 bg-white px-3 h-10 text-sm outline-none transition focus:border-[#3182f6] dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
               >
                 <option value="ALL">전체 카테고리</option>
                 {categoryOptions.map(c => (
@@ -196,7 +199,7 @@ export default async function ProductsPage({
             <select
               name="status"
               defaultValue={status || "ALL"}
-              className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+              className="rounded-lg border border-zinc-300 bg-white px-3 h-10 text-sm outline-none transition focus:border-[#3182f6] dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
             >
               <option value="ALL">전체 상태</option>
               <option value="ACTIVE">판매중</option>
@@ -205,15 +208,17 @@ export default async function ProductsPage({
             </select>
             <button
               type="submit"
-              className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-violet-700 dark:bg-violet-500 dark:hover:bg-violet-400"
+              className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-[#3182f6] px-4 h-10 text-sm font-semibold text-white shadow-[0_1px_2px_rgba(49,130,246,0.25),0_2px_6px_rgba(49,130,246,0.18)] transition hover:bg-[#1b64da] active:translate-y-px"
             >
+              <i className="fa-solid fa-magnifying-glass" aria-hidden="true" />
               검색
             </button>
             {(q || (status && status !== "ALL") || (cat && cat !== "ALL")) && (
               <Link
                 href="/dashboard/products"
-                className="rounded-lg border border-zinc-300 px-4 py-2 text-sm text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-white border border-zinc-200 px-4 h-10 text-sm text-zinc-600 transition hover:bg-zinc-50 hover:border-zinc-300 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-400"
               >
+                <i className="fa-solid fa-rotate-left" aria-hidden="true" />
                 초기화
               </Link>
             )}
@@ -221,29 +226,31 @@ export default async function ProductsPage({
         )}
 
         {!site && (
-          <div className="rounded-xl border border-zinc-200 bg-white p-8 text-center dark:border-zinc-800 dark:bg-zinc-900">
-            <p className="text-zinc-500 dark:text-zinc-400">
+          <div className="rounded-xl border border-zinc-200 bg-white p-10 text-center dark:border-zinc-800 dark:bg-zinc-900">
+            <p className="text-zinc-500 dark:text-zinc-400 mb-4">
               사이트를 먼저 생성해주세요.
             </p>
             <Link
-              href="/dashboard/site"
-              className="mt-3 inline-block text-sm font-medium text-zinc-900 hover:underline dark:text-zinc-100"
+              href="/dashboard/sites"
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#3182f6] px-5 h-10 text-sm font-semibold text-white shadow-[0_1px_2px_rgba(49,130,246,0.25),0_2px_6px_rgba(49,130,246,0.18)] transition hover:bg-[#1b64da] active:translate-y-px"
             >
+              <i className="fa-solid fa-store" aria-hidden="true" />
               사이트 만들기
             </Link>
           </div>
         )}
 
         {site && products.length === 0 && (
-          <div className="rounded-xl border border-zinc-200 bg-white p-8 text-center dark:border-zinc-800 dark:bg-zinc-900">
-            <p className="text-zinc-500 dark:text-zinc-400">
+          <div className="rounded-xl border border-zinc-200 bg-white p-10 text-center dark:border-zinc-800 dark:bg-zinc-900">
+            <p className="text-zinc-500 dark:text-zinc-400 mb-4">
               {q ? `"${q}" 검색 결과가 없습니다.` : "등록된 상품이 없습니다."}
             </p>
             {!q && (
               <Link
                 href="/dashboard/products/new"
-                className="mt-3 inline-block text-sm font-medium text-zinc-900 hover:underline dark:text-zinc-100"
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#3182f6] px-5 h-10 text-sm font-semibold text-white shadow-[0_1px_2px_rgba(49,130,246,0.25),0_2px_6px_rgba(49,130,246,0.18)] transition hover:bg-[#1b64da] active:translate-y-px"
               >
+                <i className="fa-solid fa-plus" aria-hidden="true" />
                 첫 상품 등록하기
               </Link>
             )}
@@ -382,10 +389,10 @@ export default async function ProductsPage({
                   <Link
                     key={p}
                     href={`/dashboard/products${qs({ page: String(p) })}`}
-                    className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
+                    className={`rounded-lg px-3 h-9 inline-flex items-center text-sm font-medium transition ${
                       p === currentPage
-                        ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
-                        : "border border-zinc-300 text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                        ? "bg-[#3182f6] text-white shadow-sm"
+                        : "bg-white border border-zinc-200 text-zinc-600 hover:border-[#3182f6] hover:text-[#3182f6] dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-400"
                     }`}
                   >
                     {p}
