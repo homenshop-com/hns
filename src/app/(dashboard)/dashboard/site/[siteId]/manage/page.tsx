@@ -77,7 +77,7 @@ export default async function SiteManagePage({
 
   const { siteId } = await params;
 
-  const [site, currentUser] = await Promise.all([
+  const [site, currentUser, siteOrderStats, recentOrders] = await Promise.all([
     prisma.site.findUnique({
       where: { id: siteId },
       include: {
@@ -89,6 +89,31 @@ export default async function SiteManagePage({
     prisma.user.findUnique({
       where: { id: session.user.id },
       select: { name: true, email: true, credits: true },
+    }),
+    // 사이트 주문 통계 (PRODUCT only). 2026-05-17 사용자 요청: 이 사이트의
+    // 주문 리스트 섹션 추가.
+    prisma.order.groupBy({
+      by: ["status"],
+      where: { siteId, orderType: "PRODUCT" },
+      _count: { _all: true },
+      _sum: { totalAmount: true },
+    }),
+    prisma.order.findMany({
+      where: { siteId, orderType: "PRODUCT" },
+      orderBy: { createdAt: "desc" },
+      take: 6,
+      select: {
+        id: true,
+        orderNumber: true,
+        channel: true,
+        status: true,
+        totalAmount: true,
+        createdAt: true,
+        items: {
+          select: { product: { select: { name: true } }, externalName: true },
+          take: 1,
+        },
+      },
     }),
   ]);
 
@@ -123,6 +148,55 @@ export default async function SiteManagePage({
 
   const siteName = site.name || site.shopId;
   const unreadInquiries = boardCategories.find((b) => b.id === 13)?.cnt ?? 0;
+
+  // 주문 통계 집계
+  const totalOrders = siteOrderStats.reduce((s, g) => s + g._count._all, 0);
+  const pendingOrders = (siteOrderStats.find((g) => g.status === "PENDING")?._count._all) ?? 0;
+  const shippingOrders =
+    ((siteOrderStats.find((g) => g.status === "PAID")?._count._all) ?? 0) +
+    ((siteOrderStats.find((g) => g.status === "SHIPPING")?._count._all) ?? 0);
+  const deliveredOrders = (siteOrderStats.find((g) => g.status === "DELIVERED")?._count._all) ?? 0;
+  const revenue = siteOrderStats
+    .filter((g) => g.status !== "CANCELLED" && g.status !== "REFUNDED")
+    .reduce((s, g) => s + (g._sum.totalAmount ?? 0), 0);
+
+  const ORDER_STATUS_LABELS: Record<string, string> = {
+    PENDING: "결제대기",
+    PAID: "결제완료",
+    SHIPPING: "배송중",
+    DELIVERED: "배송완료",
+    CANCELLED: "취소",
+    REFUNDED: "환불",
+  };
+  const ORDER_STATUS_COLORS: Record<string, { bg: string; fg: string }> = {
+    PENDING: { bg: "#fef3c7", fg: "#92400e" },
+    PAID: { bg: "#dbeafe", fg: "#1e40af" },
+    SHIPPING: { bg: "#ede9fe", fg: "#5b21b6" },
+    DELIVERED: { bg: "#dcfce7", fg: "#166534" },
+    CANCELLED: { bg: "#fee2e2", fg: "#991b1b" },
+    REFUNDED: { bg: "#f1f5f9", fg: "#475569" },
+  };
+  const CHANNEL_LABELS: Record<string, string> = {
+    STOREFRONT: "내 사이트",
+    SHOPIFY: "Shopify",
+    COUPANG: "쿠팡",
+    AMAZON: "Amazon",
+    QOO10: "Qoo10",
+    RAKUTEN: "Rakuten",
+    TIKTOKSHOP: "TikTok",
+  };
+  function relTime(d: Date): string {
+    const diff = Date.now() - new Date(d).getTime();
+    const m = Math.floor(diff / 60000);
+    if (m < 1) return "방금";
+    if (m < 60) return `${m}분 전`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}시간 전`;
+    const day = Math.floor(h / 24);
+    if (day < 7) return `${day}일 전`;
+    const dt = new Date(d);
+    return `${dt.getFullYear()}.${String(dt.getMonth() + 1).padStart(2, "0")}.${String(dt.getDate()).padStart(2, "0")}`;
+  }
 
   return (
     <DashboardShell
@@ -375,6 +449,73 @@ export default async function SiteManagePage({
                 />
               </div>
 
+              {/* Order management (per-site) — 2026-05-17 사용자 요청 */}
+              <div className="dv2-panel mv2-data-col">
+                <div className="mv2-hd-ribbon" style={{ background: "linear-gradient(180deg,#e8f3ff 0%,#fff 80%)", borderBottom: "1px solid #d6e8ff" }}>
+                  <div className="ic" style={{ background: "#3182f6", color: "#fff" }}>
+                    <i className="fa-solid fa-bag-shopping" style={{ fontSize: 13 }} />
+                  </div>
+                  <h3>주문 관리</h3>
+                  <div className="meta">{totalOrders}건</div>
+                </div>
+                <div className="mv2-list">
+                  <Link href={`/dashboard/orders?siteId=${site.id}`} className="mv2-list-item">
+                    <div className="li-title"><span className="n">전체 주문 보기</span></div>
+                    <div className="li-right">
+                      <span className="count">{totalOrders}</span>
+                      <span>건</span>
+                      <span className="chev"><Icon id="i-chev-right" size={12} /></span>
+                    </div>
+                  </Link>
+                  <Link
+                    href={`/dashboard/orders?siteId=${site.id}&status=PENDING`}
+                    className={`mv2-list-item${pendingOrders > 0 ? " highlight" : " empty"}`}
+                  >
+                    <div className="li-title"><span className="n">결제대기</span></div>
+                    <div className="li-right">
+                      <span className="count">{pendingOrders}</span>
+                      <span>건</span>
+                      <span className="chev"><Icon id="i-chev-right" size={12} /></span>
+                    </div>
+                  </Link>
+                  <Link
+                    href={`/dashboard/orders?siteId=${site.id}&status=SHIPPING`}
+                    className={`mv2-list-item${shippingOrders === 0 ? " empty" : ""}`}
+                  >
+                    <div className="li-title"><span className="n">결제완료·배송중</span></div>
+                    <div className="li-right">
+                      <span className="count">{shippingOrders}</span>
+                      <span>건</span>
+                      <span className="chev"><Icon id="i-chev-right" size={12} /></span>
+                    </div>
+                  </Link>
+                  <Link
+                    href={`/dashboard/orders?siteId=${site.id}&status=DELIVERED`}
+                    className={`mv2-list-item${deliveredOrders === 0 ? " empty" : ""}`}
+                  >
+                    <div className="li-title"><span className="n">배송완료</span></div>
+                    <div className="li-right">
+                      <span className="count">{deliveredOrders}</span>
+                      <span>건</span>
+                      <span className="chev"><Icon id="i-chev-right" size={12} /></span>
+                    </div>
+                  </Link>
+                </div>
+
+                {/* 누적 매출 요약 */}
+                <div className="mv2-activity-summary">
+                  <h4>누적 매출</h4>
+                  <div className="lines">
+                    <div style={{ fontSize: 22, fontWeight: 800, color: "#191f28", letterSpacing: "-.02em", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+                      ₩{revenue.toLocaleString()}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: "var(--ink-3)", marginTop: 4 }}>
+                      취소·환불 제외 합계
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Member management */}
               <div className="dv2-panel mv2-data-col">
                 <div className="mv2-hd-ribbon hd-slate">
@@ -412,6 +553,101 @@ export default async function SiteManagePage({
                 </div>
               </div>
             </div>
+
+            {/* 최근 주문 — 사이트 스코프, 빠르게 스캔 */}
+            <section className="dv2-panel" style={{ marginTop: 16, overflow: "hidden" }}>
+              <div className="dv2-panel-head">
+                <h2>
+                  최근 주문 <span className="count">{totalOrders}건 중 최근 {recentOrders.length}건</span>
+                </h2>
+                <div className="tools">
+                  <Link href={`/dashboard/orders?siteId=${site.id}`} className="dv2-tool-btn">
+                    <i className="fa-solid fa-arrow-right-long" style={{ fontSize: 11 }} /> 전체 보기
+                  </Link>
+                </div>
+              </div>
+
+              {recentOrders.length === 0 ? (
+                <div style={{ padding: "40px 24px", textAlign: "center" }}>
+                  <div style={{
+                    width: 48, height: 48, borderRadius: 12, margin: "0 auto 12px",
+                    background: "linear-gradient(135deg, #e8f3ff, #d6e8ff)",
+                    display: "grid", placeItems: "center", color: "#3182f6",
+                  }}>
+                    <i className="fa-solid fa-bag-shopping" style={{ fontSize: 20 }} />
+                  </div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--ink-1)", marginBottom: 4 }}>
+                    아직 주문이 없습니다
+                  </div>
+                  <div style={{ fontSize: 13, color: "var(--ink-3)" }}>
+                    상품이 등록되면 고객 주문이 여기에 자동으로 누적됩니다.
+                  </div>
+                </div>
+              ) : (
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", fontSize: 13.5, borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr style={{ background: "var(--panel-2)", borderBottom: "1px solid var(--line-2)" }}>
+                        <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: 11.5, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".06em" }}>주문번호</th>
+                        <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: 600, fontSize: 11.5, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".06em" }}>채널</th>
+                        <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: 600, fontSize: 11.5, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".06em" }}>상품</th>
+                        <th style={{ padding: "10px 12px", textAlign: "right", fontWeight: 600, fontSize: 11.5, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".06em" }}>금액</th>
+                        <th style={{ padding: "10px 12px", textAlign: "center", fontWeight: 600, fontSize: 11.5, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".06em" }}>상태</th>
+                        <th style={{ padding: "10px 16px", textAlign: "right", fontWeight: 600, fontSize: 11.5, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".06em" }}>주문일</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {recentOrders.map((o) => {
+                        const sc = ORDER_STATUS_COLORS[o.status] ?? { bg: "#f1f5f9", fg: "#475569" };
+                        const itemLabel =
+                          o.items[0]?.product?.name ?? o.items[0]?.externalName ?? "—";
+                        return (
+                          <tr key={o.id} style={{ borderBottom: "1px solid var(--line-2)" }}>
+                            <td style={{ padding: "12px 16px" }}>
+                              <Link
+                                href={`/dashboard/orders/${o.id}`}
+                                style={{
+                                  fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+                                  fontSize: 12.5, fontWeight: 600,
+                                  color: "var(--brand)", textDecoration: "none",
+                                }}
+                              >
+                                {o.orderNumber}
+                              </Link>
+                            </td>
+                            <td style={{ padding: "12px 12px", color: "var(--ink-1)" }}>
+                              {CHANNEL_LABELS[o.channel] ?? o.channel}
+                            </td>
+                            <td style={{ padding: "12px 12px", color: "var(--ink-1)", maxWidth: 280, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {itemLabel}
+                            </td>
+                            <td style={{ padding: "12px 12px", textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 600 }}>
+                              ₩{o.totalAmount.toLocaleString()}
+                            </td>
+                            <td style={{ padding: "12px 12px", textAlign: "center" }}>
+                              <span style={{
+                                display: "inline-block",
+                                padding: "3px 10px",
+                                borderRadius: 999,
+                                fontSize: 11.5,
+                                fontWeight: 600,
+                                background: sc.bg,
+                                color: sc.fg,
+                              }}>
+                                {ORDER_STATUS_LABELS[o.status] ?? o.status}
+                              </span>
+                            </td>
+                            <td style={{ padding: "12px 16px", textAlign: "right", color: "var(--ink-2)", fontSize: 12.5, whiteSpace: "nowrap" }}>
+                              {relTime(o.createdAt)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
     </DashboardShell>
   );
 }
