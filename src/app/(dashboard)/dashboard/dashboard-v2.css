@@ -73,10 +73,22 @@
   min-height: 100vh;
   background: var(--bg);
   color: var(--ink-0);
-  font-family: Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-size: 13.5px;
-  line-height: 1.5;
+  /* AWS Console (Cloudscape) 가독성 매칭 — 2026-05-17.
+     /AWS_CONSOLE_DESIGN.md 참조. Amazon Ember는 proprietary라 Open Sans →
+     system → Korean(Pretendard) fallback chain으로 미러링. Base 14px /
+     line-height 1.43 = Cloudscape body-m-text 표준. */
+  font-family:
+    "Open Sans",
+    "Helvetica Neue", Roboto, Arial,
+    "Pretendard Variable", Pretendard,
+    "Apple SD Gothic Neo", "Noto Sans KR",
+    -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 14px;
+  line-height: 1.43;
+  font-feature-settings: "kern" 1, "calt" 1, "ss03";
+  text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 .dv2-app * { box-sizing: border-box; }
 .dv2-app a { color: inherit; text-decoration: none; }
@@ -111,23 +123,23 @@
 
 .dv2-side-section { margin-top: 10px; }
 .dv2-side-label {
-  padding: 4px 10px 8px; font-size: 10.5px; font-weight: 600; color: var(--ink-4);
+  padding: 4px 10px 8px; font-size: 11px; font-weight: 600; color: var(--ink-4);
   letter-spacing: .1em; text-transform: uppercase;
 }
 .dv2-nav { display: flex; flex-direction: column; gap: 2px; }
 .dv2-nav a {
-  display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 10px; border-radius: 8px;
-  color: var(--ink-1); font-size: 13.5px; font-weight: 500;
+  display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border-radius: 8px;
+  color: var(--ink-1); font-size: 14px; font-weight: 500;
 }
 .dv2-nav a:hover { background: #f2f4fa; }
 .dv2-nav a.active { background: var(--brand-soft); color: var(--brand-ink); font-weight: 600; }
 .dv2-nav a.active .ic { color: var(--brand); }
 .dv2-nav .ic { width: 18px; height: 18px; color: var(--ink-3); display: grid; place-items: center; flex-shrink: 0; }
-.dv2-nav .badge { margin-left: auto; background: var(--brand); color: #fff; border-radius: 10px; padding: 1px 7px; font-size: 10.5px; font-weight: 600; }
+.dv2-nav .badge { margin-left: auto; background: var(--brand); color: #fff; border-radius: 10px; padding: 1px 7px; font-size: 11px; font-weight: 600; }
 .dv2-nav .badge.g { background: var(--ok); }
 .dv2-nav a.soon { color: var(--ink-3); cursor: not-allowed; }
 .dv2-nav a.soon:hover { background: transparent; }
-.dv2-nav a.soon .soon-tag { margin-left: auto; font-size: 9.5px; color: var(--ink-4); font-weight: 600; letter-spacing: .05em; }
+.dv2-nav a.soon .soon-tag { margin-left: auto; font-size: 10.5px; color: var(--ink-4); font-weight: 600; letter-spacing: .05em; }
 
 .dv2-side-footer { margin-top: auto; padding-top: 12px; border-top: 1px solid var(--line-2); }
 .dv2-coin-card {
@@ -143,7 +155,7 @@
   box-shadow: none;
 }
 .dv2-coin-card .num { font-weight: 700; font-size: 16px; color: var(--ink-0); font-variant-numeric: tabular-nums; }
-.dv2-coin-card .cap { font-size: 11px; color: var(--ink-3); }
+.dv2-coin-card .cap { font-size: 12px; color: var(--ink-3); }
 .dv2-coin-card .go {
   margin-top: 10px; display: flex; justify-content: space-between; align-items: center;
   height: 28px; padding: 0 10px; border-radius: var(--r-btn, 7px); background: var(--panel); color: var(--ink-1);
@@ -159,7 +171,7 @@
   border-bottom: 1px solid var(--line);
   display: flex; align-items: center; gap: 12px; padding: 10px 28px; height: 56px;
 }
-.dv2-crumbs { display: flex; align-items: center; gap: 6px; color: var(--ink-3); font-size: 12.5px; }
+.dv2-crumbs { display: flex; align-items: center; gap: 6px; color: var(--ink-3); font-size: 13px; }
 .dv2-crumbs .sep { opacity: .5; }
 .dv2-crumbs .cur { color: var(--ink-1); font-weight: 600; }
 .dv2-search {
@@ -167,7 +179,7 @@
   background: #f2f4fa; border-radius: 10px; color: var(--ink-3);
   width: 320px; max-width: 34vw; margin-left: 18px;
 }
-.dv2-search input { all: unset; flex: 1; color: var(--ink-0); font-size: 13px; }
+.dv2-search input { all: unset; flex: 1; color: var(--ink-0); font-size: 14px; }
 .dv2-search input::placeholder { color: var(--ink-3); }
 .dv2-search .kbd { font-family: "JetBrains Mono", monospace; font-size: 10.5px; padding: 1px 6px; background: #fff; border: 1px solid var(--line); border-radius: 5px; color: var(--ink-3); }
 .dv2-spacer { flex: 1; }
@@ -201,8 +213,8 @@
   display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 4px 0 12px; border-radius: 999px;
   background: #f7f8fc;
 }
-.dv2-user .name { font-size: 12.5px; color: var(--ink-1); font-weight: 600; }
-.dv2-user .role { font-size: 10.5px; color: var(--ink-3); }
+.dv2-user .name { font-size: 13px; color: var(--ink-1); font-weight: 600; }
+.dv2-user .role { font-size: 11.5px; color: var(--ink-3); }
 .dv2-avatar {
   width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #3b5bff, #7b5cff);
   display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 11px;
@@ -212,14 +224,16 @@
 .dv2-content { padding: 24px 28px 56px; max-width: 1440px; width: 100%; }
 
 .dv2-page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 22px; flex-wrap: wrap; }
-.dv2-page-title { font-size: 24px; font-weight: 800; letter-spacing: -.02em; margin: 0; }
-.dv2-page-sub { margin-top: 6px; color: var(--ink-2); font-size: 13.5px; }
+/* AWS Cloudscape heading-xl-text: 28px / 36px / weight 700 (we use 700 not
+   400 to keep our Korean glyph rhythm consistent). letter-spacing 살짝 완화. */
+.dv2-page-title { font-size: 28px; font-weight: 700; letter-spacing: -.015em; line-height: 1.28; margin: 0; }
+.dv2-page-sub { margin-top: 6px; color: var(--ink-2); font-size: 14px; line-height: 1.5; }
 .dv2-page-sub b { color: var(--ink-0); font-weight: 600; }
 
 .dv2-chip-group { display: inline-flex; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 4px; gap: 2px; box-shadow: var(--shadow-sm); }
 .dv2-chip {
-  height: 30px; padding: 0 14px; border: 0; background: transparent; border-radius: 999px;
-  font-size: 12.5px; color: var(--ink-2); font-weight: 500; display: inline-flex; align-items: center; gap: 6px;
+  height: 32px; padding: 0 14px; border: 0; background: transparent; border-radius: 999px;
+  font-size: 13px; color: var(--ink-2); font-weight: 500; display: inline-flex; align-items: center; gap: 6px;
 }
 .dv2-chip:hover { color: var(--ink-0); }
 .dv2-chip.on { background: var(--brand); color: #fff; font-weight: 600; box-shadow: 0 2px 6px -1px #3b5bff55; }
@@ -290,7 +304,7 @@
   overflow: hidden;
 }
 .dv2-stat:last-child { border-right: 0; }
-.dv2-stat .lbl { font-size: 11.5px; color: var(--ink-2); font-weight: 500; display: flex; align-items: center; gap: 6px; }
+.dv2-stat .lbl { font-size: 12px; color: var(--ink-2); font-weight: 500; display: flex; align-items: center; gap: 6px; }
 .dv2-stat .val {
   font-size: 28px; font-weight: 700; letter-spacing: -.03em; line-height: 1.1;
   margin-top: 10px; font-variant-numeric: tabular-nums;
@@ -307,7 +321,7 @@
 /* Sites panel */
 .dv2-panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-xl); box-shadow: var(--shadow-sm); overflow: hidden; }
 .dv2-panel-head { display: flex; align-items: center; gap: 14px; padding: 16px 20px; border-bottom: 1px solid var(--line-2); }
-.dv2-panel-head h2 { margin: 0; font-size: 15.5px; font-weight: 700; letter-spacing: -.01em; display: flex; align-items: center; gap: 10px; }
+.dv2-panel-head h2 { margin: 0; font-size: 16px; font-weight: 700; letter-spacing: -.01em; display: flex; align-items: center; gap: 10px; line-height: 1.25; }
 .dv2-panel-head h2 .count {
   font-family: "JetBrains Mono", monospace; font-size: 11.5px; font-weight: 500; color: var(--ink-3);
   padding: 2px 7px; border-radius: 6px; background: #f2f4fa;
@@ -374,10 +388,10 @@
 }
 
 .dv2-site-info { min-width: 0; }
-.dv2-site-name { display: flex; align-items: center; gap: 8px; font-size: 14.5px; font-weight: 700; letter-spacing: -.01em; }
-.dv2-site-meta { display: flex; align-items: center; gap: 10px; margin-top: 4px; font-size: 12px; color: var(--ink-2); flex-wrap: wrap; }
+.dv2-site-name { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; letter-spacing: -.01em; line-height: 1.4; }
+.dv2-site-meta { display: flex; align-items: center; gap: 10px; margin-top: 4px; font-size: 12.5px; color: var(--ink-2); flex-wrap: wrap; line-height: 1.5; }
 .dv2-site-meta .dot { width: 3px; height: 3px; border-radius: 50%; background: var(--ink-4); }
-.dv2-site-meta .handle { color: var(--ink-3); font-family: "JetBrains Mono", monospace; font-size: 11.5px; }
+.dv2-site-meta .handle { color: var(--ink-3); font-family: "JetBrains Mono", monospace; font-size: 12px; }
 .dv2-site-meta .url { color: var(--brand); font-weight: 500; }
 .dv2-site-meta .url:hover { text-decoration: underline; }
 .dv2-site-meta .warn { color: var(--warn); font-weight: 500; }
@@ -392,11 +406,11 @@
 .dv2-plan-tag.expired { background: #ffeef0; color: #c83545; }
 .dv2-plan-tag.test { background: #fff7e6; color: #9a5a0b; }
 
-.dv2-stat-mini { font-size: 12.5px; color: var(--ink-1); }
+.dv2-stat-mini { font-size: 13px; color: var(--ink-1); }
 .dv2-stat-mini .n { font-weight: 700; font-variant-numeric: tabular-nums; }
-.dv2-stat-mini .muted { color: var(--ink-3); font-size: 11px; }
+.dv2-stat-mini .muted { color: var(--ink-3); font-size: 12px; }
 
-.dv2-since { font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.dv2-since { font-size: 12.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
 .dv2-since .d { color: var(--ink-3); font-size: 11px; margin-top: 2px; display: block; }
 
 .dv2-row-actions { display: flex; gap: 6px; justify-content: flex-end; }
