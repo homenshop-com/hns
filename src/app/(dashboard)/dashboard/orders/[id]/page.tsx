@@ -243,10 +243,10 @@ export default async function DashboardOrderDetailPage({
         )}
 
         {order.orderType === "CREDIT_PACK" && (
-          <div className="mt-6 rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50 to-white p-6 dark:border-violet-900 dark:from-violet-950 dark:to-zinc-900">
+          <div className="mt-6 rounded-xl border border-[#d6e8ff] bg-gradient-to-br from-[#e8f3ff] to-white p-6 dark:border-blue-900 dark:from-blue-950 dark:to-zinc-900">
             <h3 className="text-lg font-semibold mb-4">주문 내용 — 크레딧 팩</h3>
             <div className="flex items-center gap-4 flex-wrap">
-              <div className="w-14 h-14 rounded-xl bg-violet-600 text-white grid place-items-center text-xl font-bold shrink-0">
+              <div className="w-14 h-14 rounded-xl bg-[#3182f6] text-white grid place-items-center text-xl font-bold shrink-0 shadow-[0_2px_6px_rgba(49,130,246,0.3)]">
                 C
               </div>
               <div className="flex-1 min-w-0">

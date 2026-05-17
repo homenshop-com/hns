@@ -92,13 +92,14 @@ export default async function SearchPage({
                 name="q"
                 defaultValue={q}
                 placeholder="검색어를 입력하세요..."
-                className="h-11 w-full rounded-lg border border-zinc-200 bg-white pl-10 pr-4 text-sm outline-none transition-colors focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:focus:border-zinc-500"
+                className="h-11 w-full rounded-lg border border-zinc-200 bg-white pl-10 pr-4 text-sm outline-none transition focus:border-[#3182f6] focus:ring-2 focus:ring-[#3182f6]/20 dark:border-zinc-700 dark:bg-zinc-900 dark:focus:border-[#3182f6]"
               />
             </div>
             <button
               type="submit"
-              className="rounded-lg bg-zinc-900 px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+              className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-[#3182f6] px-6 h-11 text-sm font-semibold text-white shadow-[0_1px_2px_rgba(49,130,246,0.25),0_2px_6px_rgba(49,130,246,0.18)] transition hover:bg-[#1b64da] active:translate-y-px"
             >
+              <i className="fa-solid fa-magnifying-glass" aria-hidden="true" />
               검색
             </button>
           </div>
