@@ -299,7 +299,7 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                   </h3>
                 </div>
                 <div className="sv2-card-body">
-                  <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--ink-3)" }}>
+                  <p style={{ margin: "0 0 12px", fontSize: 13.5, lineHeight: 1.5, color: "var(--ink-2)" }}>
                     커스텀 도메인이 연결되기 전까지 사용하는 공개 주소입니다. 선택한 도메인이 canonical/sitemap에 반영됩니다.
                   </p>
                   <TempDomainSelect
@@ -361,24 +361,43 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                         <div key={d.id} className="sv2-domain-row">
                           <span className="dot warn" />
                           <span className="host">{d.domain}</span>
-                          <span style={{ fontSize: 11, color: "var(--warn)", fontWeight: 600 }}>{d.status}</span>
+                          <span style={{ fontSize: 12.5, color: "var(--warn)", fontWeight: 600 }}>{d.status}</span>
                         </div>
                       ))}
-                      <Link href={`/dashboard/domains?siteId=${site.id}`} className="primary-link" style={{ fontSize: 12 }}>
+                      <Link href={`/dashboard/domains?siteId=${site.id}`} className="primary-link" style={{ fontSize: 13.5, fontWeight: 600 }}>
                         {t("domainManage")} →
                       </Link>
                     </>
                   ) : (
                     <>
                       <div className="sv2-empty-domain">
-                        <p style={{ margin: "0 0 8px" }}>{t("noDomains")}</p>
-                        <p style={{ margin: 0, fontSize: 11, color: "var(--ink-4)" }}>
+                        <p style={{ margin: "0 0 8px", fontSize: 14, fontWeight: 600, color: "var(--ink-1)" }}>{t("noDomains")}</p>
+                        <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: "var(--ink-3)" }}>
                           커스텀 도메인 연결 시 브랜드 주소로 사이트를 운영할 수 있습니다.
                         </p>
                       </div>
-                      <div className="sv2-links-row">
-                        <Link href={`/dashboard/domains?siteId=${site.id}`} className="primary-link">
-                          도메인 연결하기 →
+                      {/* 2026-05-17 사용자 요청: '도메인 연결하기' 텍스트 링크
+                          → 명확한 Toss Blue 버튼으로 (커스텀 도메인 세팅 진입 CTA) */}
+                      <div className="sv2-links-row" style={{ marginTop: 12 }}>
+                        <Link
+                          href={`/dashboard/domains?siteId=${site.id}`}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 7,
+                            height: 40,
+                            padding: "0 18px",
+                            background: "#3182f6",
+                            color: "#fff",
+                            fontSize: 14,
+                            fontWeight: 600,
+                            borderRadius: 8,
+                            textDecoration: "none",
+                            boxShadow: "0 1px 2px rgba(49,130,246,0.25), 0 2px 6px rgba(49,130,246,0.18)",
+                          }}
+                        >
+                          <i className="fa-solid fa-link" aria-hidden="true" style={{ fontSize: 12 }} />
+                          도메인 연결하기
                         </Link>
                       </div>
                     </>
