@@ -197,33 +197,9 @@ export default async function SitesPage() {
         </div>
       </div>
 
-      {/* Quick actions — moved here from main dashboard */}
-      <div className="dv2-quick">
-        <AICreateButton emailVerified={isEmailVerifiedForAI} labels={aiLabels} renderAsCard />
-        <Link className="dv2-action tpl" href="/dashboard/templates">
-          <div className="ai-bg" /><div className="glow" />
-          <div className="inner">
-            <div className="ic"><Icon id="i-template" size={22} style={{ color: "#fff" }} /></div>
-            <div className="text">
-              <div className="ttl">{t("btnNewSite")} <span className="tag">{allSiteTemplates}+</span></div>
-              <div className="desc">{tTpl("breadcrumbTemplates")}</div>
-            </div>
-            <div className="arr"><Icon id="i-arr-right" size={20} /></div>
-          </div>
-        </Link>
-        <Link className="dv2-action order" href="/dashboard/orders">
-          <div className="ai-bg" /><div className="glow" />
-          <div className="inner">
-            <div className="ic"><Icon id="i-handshake" size={22} style={{ color: "#fff" }} /></div>
-            <div className="text">
-              <div className="ttl">{t("btnCustomOrder")} <span className="tag">PRO</span></div>
-              <div className="desc">1:1</div>
-            </div>
-            <div className="arr"><Icon id="i-arr-right" size={20} /></div>
-          </div>
-        </Link>
-      </div>
-
+      {/* 2026-05-17 사용자 요청: 홈페이지 계정 리스트를 상단으로, AI/템플릿/
+          주문제작 의뢰 카드는 하단으로 순서 교체. 기존 사이트 관리가 1차
+          작업이고 신규 사이트 생성 옵션은 보조 액션이므로 자연스러운 흐름. */}
       <section className="dv2-panel">
         <div className="dv2-panel-head">
           <h2>
@@ -381,6 +357,34 @@ export default async function SitesPage() {
           </>
         )}
       </section>
+
+      {/* Quick actions — 사이트 리스트 아래로 이동 (2026-05-17 사용자 요청).
+          신규 사이트 추가/AI 제작/주문제작은 보조 액션 흐름. */}
+      <div className="dv2-quick" style={{ marginTop: 16 }}>
+        <AICreateButton emailVerified={isEmailVerifiedForAI} labels={aiLabels} renderAsCard />
+        <Link className="dv2-action tpl" href="/dashboard/templates">
+          <div className="ai-bg" /><div className="glow" />
+          <div className="inner">
+            <div className="ic"><Icon id="i-template" size={22} style={{ color: "#fff" }} /></div>
+            <div className="text">
+              <div className="ttl">{t("btnNewSite")} <span className="tag">{allSiteTemplates}+</span></div>
+              <div className="desc">{tTpl("breadcrumbTemplates")}</div>
+            </div>
+            <div className="arr"><Icon id="i-arr-right" size={20} /></div>
+          </div>
+        </Link>
+        <Link className="dv2-action order" href="/dashboard/orders">
+          <div className="ai-bg" /><div className="glow" />
+          <div className="inner">
+            <div className="ic"><Icon id="i-handshake" size={22} style={{ color: "#fff" }} /></div>
+            <div className="text">
+              <div className="ttl">{t("btnCustomOrder")} <span className="tag">PRO</span></div>
+              <div className="desc">1:1</div>
+            </div>
+            <div className="arr"><Icon id="i-arr-right" size={20} /></div>
+          </div>
+        </Link>
+      </div>
 
       {/* 별도 섹션: 마켓플레이스 연동 요약 + 전용 페이지 링크 */}
       {canAccessIntegrations(currentUser?.email) && (
