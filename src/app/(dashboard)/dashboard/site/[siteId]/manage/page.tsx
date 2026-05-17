@@ -77,7 +77,7 @@ export default async function SiteManagePage({
 
   const { siteId } = await params;
 
-  const [site, currentUser, siteOrderStats, recentOrders] = await Promise.all([
+  const [site, currentUser, siteOrderStats, recentOrders, newOrders24h, newOrders7d] = await Promise.all([
     prisma.site.findUnique({
       where: { id: siteId },
       include: {
@@ -113,6 +113,22 @@ export default async function SiteManagePage({
           select: { product: { select: { name: true } }, externalName: true },
           take: 1,
         },
+      },
+    }),
+    // 2026-05-17 사용자 요청: 신규 주문 요약 KPI 추가.
+    // 최근 24시간 + 7일 기준 신규 주문 수를 가볍게 카운트.
+    prisma.order.count({
+      where: {
+        siteId,
+        orderType: "PRODUCT",
+        createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+      },
+    }),
+    prisma.order.count({
+      where: {
+        siteId,
+        orderType: "PRODUCT",
+        createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
       },
     }),
   ]);
@@ -306,6 +322,43 @@ export default async function SiteManagePage({
                   SOON
                 </span>
               </div>
+              {/* 신규 주문 KPI — 2026-05-17 사용자 요청 */}
+              <Link
+                href={`/dashboard/orders?siteId=${site.id}`}
+                className={`mv2-kpi${newOrders24h === 0 ? " empty" : ""}`}
+                style={{ textDecoration: "none", color: "inherit", position: "relative" }}
+              >
+                <div className="kpi-top">
+                  신규 주문
+                  <div className="ic" style={{ background: "#e8f3ff", color: "#3182f6" }}>
+                    <i className="fa-solid fa-bag-shopping" style={{ fontSize: 13 }} />
+                  </div>
+                </div>
+                <div className="v">
+                  {newOrders24h}
+                  {newOrders24h > 0 && <span className="unit">건</span>}
+                </div>
+                {pendingOrders > 0 ? (
+                  <div className="sub" style={{ color: "#92400e", fontWeight: 600 }}>
+                    <i className="fa-solid fa-circle-exclamation" style={{ fontSize: 10, marginRight: 4 }} />
+                    결제대기 {pendingOrders}건
+                  </div>
+                ) : newOrders24h > 0 ? (
+                  <div className="sub">
+                    오늘 신규 · 최근 7일 <b>{newOrders7d}</b>건
+                  </div>
+                ) : newOrders7d > 0 ? (
+                  <div className="sub">
+                    오늘은 신규 없음 · 최근 7일 <b>{newOrders7d}</b>건
+                  </div>
+                ) : (
+                  <>
+                    <div className="sub">최근 7일간 신규 주문 없음</div>
+                    <span className="kpi-action">주문 페이지 →</span>
+                  </>
+                )}
+              </Link>
+
               <div className="mv2-kpi">
                 <div className="kpi-top">
                   {tm("statStorage")}
