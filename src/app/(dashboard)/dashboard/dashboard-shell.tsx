@@ -102,11 +102,14 @@ export default async function DashboardShell({
                 <span className="badge">{badges.sites}</span>
               )}
             </Link>
-            <a className="soon" aria-disabled="true">
+            {/* 2026-05-18 사용자 요청: 통계·분석 메뉴 숨김 처리.
+                기능이 SOON 상태(미구현)라 현재 placeholder만 노출되어
+                있어 사용자 혼선만 유발. 실제 구현 완료 시 복원. */}
+            {/* <a className="soon" aria-disabled="true">
               <span className="ic"><Icon id="i-analytics" /></span>
               <span className="label">{t("navAnalytics")}</span>
               <span className="soon-tag">{t("navSoonTag")}</span>
-            </a>
+            </a> */}
             <Link className={cls("orders")} href="/dashboard/orders">
               <span className="ic"><Icon id="i-bag" /></span>
               <span className="label">{t("navOrders")}</span>
