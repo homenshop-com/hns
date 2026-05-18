@@ -1,17 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import Turnstile from "@/components/turnstile";
+
+const TURNSTILE_ENABLED = !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
 export default function DemoSignInPage() {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const [turnstileKey, setTurnstileKey] = useState(0);
   const t = useTranslations("auth.login");
+
+  const handleTurnstileVerify = useCallback((token: string) => {
+    setTurnstileToken(token);
+  }, []);
+  const handleTurnstileExpire = useCallback(() => {
+    setTurnstileToken("");
+  }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -23,6 +35,7 @@ export default function DemoSignInPage() {
     const result = await signIn("credentials", {
       email: formData.get("email"),
       password: formData.get("password"),
+      turnstileToken,
       redirect: false,
     });
 
@@ -30,6 +43,10 @@ export default function DemoSignInPage() {
 
     if (result?.error) {
       setError(t("error"));
+      if (TURNSTILE_ENABLED) {
+        setTurnstileToken("");
+        setTurnstileKey((k) => k + 1);
+      }
     } else {
       router.push("/dashboard");
       router.refresh();
@@ -78,7 +95,19 @@ export default function DemoSignInPage() {
             <Link href="/forgot-password">{t("forgotPassword")}</Link>
           </div>
 
-          <button type="submit" disabled={loading} className="auth-btn">
+          {TURNSTILE_ENABLED && (
+            <Turnstile
+              key={turnstileKey}
+              onVerify={handleTurnstileVerify}
+              onExpire={handleTurnstileExpire}
+            />
+          )}
+
+          <button
+            type="submit"
+            disabled={loading || (TURNSTILE_ENABLED && !turnstileToken)}
+            className="auth-btn"
+          >
             {loading ? t("submitting") : t("submit")}
           </button>
         </form>

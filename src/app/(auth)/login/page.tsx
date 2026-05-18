@@ -1,12 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
+import Turnstile from "@/components/turnstile";
+
+const TURNSTILE_ENABLED = !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,7 +18,18 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState("");
+  // Tokens are one-shot — on failed login we bump this key to remount the
+  // widget and obtain a fresh token for the next attempt.
+  const [turnstileKey, setTurnstileKey] = useState(0);
   const t = useTranslations("auth.login");
+
+  const handleTurnstileVerify = useCallback((token: string) => {
+    setTurnstileToken(token);
+  }, []);
+  const handleTurnstileExpire = useCallback(() => {
+    setTurnstileToken("");
+  }, []);
 
   // Pre-fill email from URL params (impersonation or post-registration).
   // For impersonation flow, fetch the master password from an admin-only
@@ -55,6 +69,7 @@ export default function LoginPage() {
     const result = await signIn("credentials", {
       email: loginEmail,
       password: loginPassword,
+      turnstileToken,
       redirect: false,
     });
 
@@ -62,6 +77,12 @@ export default function LoginPage() {
 
     if (result?.error) {
       setError(t("error"));
+      // Burned token — reset so the user can retry without being silently
+      // blocked by an already-consumed challenge.
+      if (TURNSTILE_ENABLED) {
+        setTurnstileToken("");
+        setTurnstileKey((k) => k + 1);
+      }
     } else {
       const session = await fetch("/api/auth/session").then((r) => r.json());
       if (session?.user?.role === "ADMIN") {
@@ -125,7 +146,19 @@ export default function LoginPage() {
             <Link href="/forgot-password">{t("forgotPassword")}</Link>
           </div>
 
-          <button type="submit" disabled={loading} className="auth-btn">
+          {TURNSTILE_ENABLED && (
+            <Turnstile
+              key={turnstileKey}
+              onVerify={handleTurnstileVerify}
+              onExpire={handleTurnstileExpire}
+            />
+          )}
+
+          <button
+            type="submit"
+            disabled={loading || (TURNSTILE_ENABLED && !turnstileToken)}
+            className="auth-btn"
+          >
             {loading ? t("submitting") : t("submit")}
           </button>
         </form>

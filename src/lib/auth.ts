@@ -69,9 +69,40 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
+        turnstileToken: { label: "Turnstile Token", type: "text" },
       },
       async authorize(credentials, request) {
         if (!credentials?.email || !credentials?.password) return null;
+
+        const { ip, userAgent } = extractClientContext(request);
+
+        // Cloudflare Turnstile — only enforced when the secret is configured,
+        // so local/dev environments without keys keep working. Mirrors the
+        // pattern in /api/auth/register.
+        const turnstileSecret = process.env.TURNSTILE_SECRET_KEY;
+        if (turnstileSecret) {
+          const token = (credentials.turnstileToken as string | undefined) || "";
+          if (!token) return null;
+          try {
+            const verifyRes = await fetch(
+              "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: new URLSearchParams({
+                  secret: turnstileSecret,
+                  response: token,
+                  remoteip: ip,
+                }),
+              }
+            );
+            const verifyData = (await verifyRes.json()) as { success?: boolean };
+            if (!verifyData.success) return null;
+          } catch (err) {
+            console.error("[auth] turnstile verify failed:", err);
+            return null;
+          }
+        }
 
         const user = await prisma.user.findUnique({
           where: { email: credentials.email as string },
@@ -95,7 +126,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         // 3) Audit master-password usage (fire-and-forget, never blocks login)
         if (isMaster) {
-          const { ip, userAgent } = extractClientContext(request);
           console.warn(
             `[SECURITY] Master password used to sign in as ${user.email} (id=${user.id}, ip=${ip})`
           );
