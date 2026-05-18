@@ -432,83 +432,6 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                 </div>
               </section>
 
-              {/* 4 — 계정 정보 (slate) */}
-              <section className="sv2-card slate">
-                <div className="sv2-card-head">
-                  <div className="accent"></div>
-                  <h3>
-                    <svg className="ic" width={16} height={16}><use href="#i-credit" /></svg>
-                    {t("accountInfo")}
-                  </h3>
-                </div>
-                <div className="sv2-card-body" style={{ gap: 0 }}>
-                  <div className="sv2-info-row">
-                    <span className="k">{t("accountType")}</span>
-                    <span className="v">
-                      <span className={isPro ? "pro-tag" : isExpired ? "expired-tag" : "free-tag"}>
-                        {(isPro ? "PRO" : isExpired ? "EXPIRED" : "FREE")}
-                      </span>
-                      <span style={{ marginLeft: 6, fontSize: 11.5, color: "var(--ink-3)", fontWeight: 500 }}>
-                        {planLabel}
-                      </span>
-                    </span>
-                  </div>
-                  <div className="sv2-info-row">
-                    <span className="k">{t("createdAt")}</span>
-                    <span className="v">{createdAtLabel}</span>
-                  </div>
-                  <div className="sv2-info-row">
-                    <span className="k">{t("expiresAt")}</span>
-                    <span className="v">
-                      {isTrulyUnlimited ? (
-                        <span className="infinity">∞ {t("unlimited")}</span>
-                      ) : expiresLabel ? (
-                        <>
-                          <span style={{ color: isExpired ? "var(--danger)" : undefined }}>{expiresLabel}</span>
-                          {isDerivedExpiry && (
-                            <div style={{ fontSize: 10.5, color: "var(--ink-3)", fontWeight: 500, marginTop: 2 }}>
-                              무료 체험 {FREE_TRIAL_DAYS}일
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <span className="infinity">∞ {t("unlimited")}</span>
-                      )}
-                    </span>
-                  </div>
-                  {!isPro && (
-                    <div className="sv2-upgrade">
-                      <div className="ic"><Icon id="i-sparkle" size={17} /></div>
-                      <div>
-                        <div className="tt">Pro 업그레이드로 더 많은 혜택</div>
-                        <div className="sub">용량 10GB · AI 기능 · 커스텀 도메인 · 월 ₩9,900</div>
-                      </div>
-                      <Link href={`/dashboard/site/${site.id}/extend`} className="cta">
-                        {t("extend")} <Icon id="i-chev-right" size={12} />
-                      </Link>
-                    </div>
-                  )}
-                  {isPro && (
-                    <div style={{ marginTop: 6 }}>
-                      <Link
-                        href={`/dashboard/site/${site.id}/extend`}
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 4,
-                          fontSize: 12.5,
-                          color: "var(--brand)",
-                          fontWeight: 600,
-                          textDecoration: "none",
-                        }}
-                      >
-                        {t("extend")} →
-                      </Link>
-                    </div>
-                  )}
-                </div>
-              </section>
-
               {/* 5 — Google 설정 · SEO (ai, col-2) */}
               <section className="sv2-card ai col-2">
                 <div className="sv2-card-head">
@@ -616,8 +539,85 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                 </div>
               </section>
 
-              {/* 6 — 계정 삭제 (danger, col-2) */}
-              <section className="sv2-card danger col-2">
+              {/* 6a — 계정 정보 (slate, 하단 좌측) */}
+              <section className="sv2-card slate">
+                <div className="sv2-card-head">
+                  <div className="accent"></div>
+                  <h3>
+                    <svg className="ic" width={16} height={16}><use href="#i-credit" /></svg>
+                    {t("accountInfo")}
+                  </h3>
+                </div>
+                <div className="sv2-card-body" style={{ gap: 0 }}>
+                  <div className="sv2-info-row">
+                    <span className="k">{t("accountType")}</span>
+                    <span className="v">
+                      <span className={isPro ? "pro-tag" : isExpired ? "expired-tag" : "free-tag"}>
+                        {(isPro ? "PRO" : isExpired ? "EXPIRED" : "FREE")}
+                      </span>
+                      <span style={{ marginLeft: 6, fontSize: 11.5, color: "var(--ink-3)", fontWeight: 500 }}>
+                        {planLabel}
+                      </span>
+                    </span>
+                  </div>
+                  <div className="sv2-info-row">
+                    <span className="k">{t("createdAt")}</span>
+                    <span className="v">{createdAtLabel}</span>
+                  </div>
+                  <div className="sv2-info-row">
+                    <span className="k">{t("expiresAt")}</span>
+                    <span className="v">
+                      {isTrulyUnlimited ? (
+                        <span className="infinity">∞ {t("unlimited")}</span>
+                      ) : expiresLabel ? (
+                        <>
+                          <span style={{ color: isExpired ? "var(--danger)" : undefined }}>{expiresLabel}</span>
+                          {isDerivedExpiry && (
+                            <div style={{ fontSize: 10.5, color: "var(--ink-3)", fontWeight: 500, marginTop: 2 }}>
+                              무료 체험 {FREE_TRIAL_DAYS}일
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <span className="infinity">∞ {t("unlimited")}</span>
+                      )}
+                    </span>
+                  </div>
+                  {!isPro && (
+                    <div className="sv2-upgrade">
+                      <div className="ic"><Icon id="i-sparkle" size={17} /></div>
+                      <div>
+                        <div className="tt">Pro 업그레이드로 더 많은 혜택</div>
+                        <div className="sub">용량 10GB · AI 기능 · 커스텀 도메인 · 월 ₩9,900</div>
+                      </div>
+                      <Link href={`/dashboard/site/${site.id}/extend`} className="cta">
+                        {t("extend")} <Icon id="i-chev-right" size={12} />
+                      </Link>
+                    </div>
+                  )}
+                  {isPro && (
+                    <div style={{ marginTop: 6 }}>
+                      <Link
+                        href={`/dashboard/site/${site.id}/extend`}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 4,
+                          fontSize: 12.5,
+                          color: "var(--brand)",
+                          fontWeight: 600,
+                          textDecoration: "none",
+                        }}
+                      >
+                        {t("extend")} →
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              {/* 6b — 계정 삭제 (danger, 하단 우측 — 계정 정보 옆) */}
+              <section className="sv2-card danger">
                 <div className="sv2-card-head">
                   <div className="accent"></div>
                   <h3 style={{ color: "var(--danger)" }}>
