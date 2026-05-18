@@ -290,30 +290,127 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                 </div>
               </section>
 
-              {/* 3a — 임시 도메인 선택 */}
+              {/* 3 — 도메인 (임시 + 커스텀 통합 — QR 생성기와 높이 매칭) */}
               <section className="sv2-card blue">
                 <div className="sv2-card-head">
                   <div className="accent"></div>
                   <h3>
                     <svg className="ic" width={16} height={16}><use href="#i-globe" /></svg>
-                    임시 도메인
+                    도메인
                   </h3>
+                  {activeDomain ? (
+                    <span className="status ok">커스텀 연결됨</span>
+                  ) : site.domains.length > 0 ? (
+                    <span className="status warn">대기중</span>
+                  ) : null}
                 </div>
-                <div className="sv2-card-body">
-                  <p style={{ margin: "0 0 12px", fontSize: 13.5, lineHeight: 1.5, color: "var(--ink-2)" }}>
-                    커스텀 도메인이 연결되기 전까지 사용하는 공개 주소입니다. 선택한 도메인이 canonical/sitemap에 반영됩니다.
-                  </p>
-                  <TempDomainSelect
-                    siteId={site.id}
-                    shopId={site.shopId}
-                    defaultLanguage={site.defaultLanguage}
-                    options={[...TEMP_DOMAINS]}
-                    initialValue={sTemp}
-                  />
+                <div className="sv2-card-body" style={{ gap: 18 }}>
+                  {/* — 임시 도메인 서브섹션 — */}
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 700, color: "var(--ink-1)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.3 }}>
+                      <i className="fa-solid fa-cloud" aria-hidden="true" style={{ fontSize: 11, color: "var(--ink-3)" }} />
+                      임시 도메인
+                    </div>
+                    <p style={{ margin: "0 0 10px", fontSize: 13, lineHeight: 1.5, color: "var(--ink-2)" }}>
+                      커스텀 도메인이 연결되기 전까지 사용하는 공개 주소입니다. 선택한 도메인이 canonical/sitemap에 반영됩니다.
+                    </p>
+                    <TempDomainSelect
+                      siteId={site.id}
+                      shopId={site.shopId}
+                      defaultLanguage={site.defaultLanguage}
+                      options={[...TEMP_DOMAINS]}
+                      initialValue={sTemp}
+                    />
+                  </div>
+
+                  <div style={{ height: 1, background: "var(--line, #e5e8eb)" }} />
+
+                  {/* — 커스텀 도메인 서브섹션 — */}
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 700, color: "var(--ink-1)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.3 }}>
+                      <i className="fa-solid fa-link" aria-hidden="true" style={{ fontSize: 11, color: "var(--ink-3)" }} />
+                      {t("customDomain")}
+                    </div>
+                    {activeDomain ? (
+                      <>
+                        <div className="sv2-domain-row">
+                          <span className="dot" />
+                          <span className="host">{activeDomain.domain}</span>
+                          {activeDomain.sslEnabled && <span className="sv2-ssl-tag">SSL</span>}
+                          <Link href={`/dashboard/domains?siteId=${site.id}`} className="sv2-tiny-btn">
+                            <svg width={11} height={11}><use href="#i-edit" /></svg>편집
+                          </Link>
+                        </div>
+                        <div className="sv2-dns-rec">
+                          <span className="k">A</span>
+                          <span style={{ color: "var(--ink-3)" }}>@ →</span>
+                          <span className="v">167.71.199.28</span>
+                          <span style={{ color: "var(--ink-3)", marginLeft: "auto" }}>
+                            {activeDomain.sslEnabled ? "✓ 전파 완료" : "⏳ 전파 중"}
+                          </span>
+                        </div>
+                        <div className="sv2-links-row">
+                          <Link href={`/dashboard/domains?siteId=${site.id}`} className="primary-link">
+                            {t("domainManage")} →
+                          </Link>
+                          <span className="sep">·</span>
+                          <a href="#" className="muted">DNS 설정 가이드</a>
+                          <span className="sep">·</span>
+                          <Link href={`/dashboard/domains?siteId=${site.id}`} className="muted">SSL 재발급</Link>
+                        </div>
+                      </>
+                    ) : site.domains.length > 0 ? (
+                      <>
+                        {site.domains.map((d) => (
+                          <div key={d.id} className="sv2-domain-row">
+                            <span className="dot warn" />
+                            <span className="host">{d.domain}</span>
+                            <span style={{ fontSize: 12.5, color: "var(--warn)", fontWeight: 600 }}>{d.status}</span>
+                          </div>
+                        ))}
+                        <Link href={`/dashboard/domains?siteId=${site.id}`} className="primary-link" style={{ fontSize: 13.5, fontWeight: 600 }}>
+                          {t("domainManage")} →
+                        </Link>
+                      </>
+                    ) : (
+                      <>
+                        <div className="sv2-empty-domain">
+                          <p style={{ margin: "0 0 8px", fontSize: 14, fontWeight: 600, color: "var(--ink-1)" }}>{t("noDomains")}</p>
+                          <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: "var(--ink-3)" }}>
+                            커스텀 도메인 연결 시 브랜드 주소로 사이트를 운영할 수 있습니다.
+                          </p>
+                        </div>
+                        {/* 2026-05-17 사용자 요청: '도메인 연결하기' 텍스트 링크
+                            → 명확한 Toss Blue 버튼으로 (커스텀 도메인 세팅 진입 CTA) */}
+                        <div className="sv2-links-row" style={{ marginTop: 12 }}>
+                          <Link
+                            href={`/dashboard/domains?siteId=${site.id}`}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 7,
+                              height: 40,
+                              padding: "0 18px",
+                              background: "#3182f6",
+                              color: "#fff",
+                              fontSize: 14,
+                              fontWeight: 600,
+                              borderRadius: 8,
+                              textDecoration: "none",
+                              boxShadow: "0 1px 2px rgba(49,130,246,0.25), 0 2px 6px rgba(49,130,246,0.18)",
+                            }}
+                          >
+                            <i className="fa-solid fa-link" aria-hidden="true" style={{ fontSize: 12 }} />
+                            도메인 연결하기
+                          </Link>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
               </section>
 
-              {/* 3b — QR 코드 생성기 */}
+              {/* 3b — QR 코드 생성기 (도메인 카드와 같은 행) */}
               <section className="sv2-card blue">
                 <div className="sv2-card-head">
                   <div className="accent"></div>
@@ -332,99 +429,6 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                         : []),
                     ]}
                   />
-                </div>
-              </section>
-
-              {/* 3 — 커스텀 도메인 (blue) */}
-              <section className="sv2-card blue">
-                <div className="sv2-card-head">
-                  <div className="accent"></div>
-                  <h3>
-                    <svg className="ic" width={16} height={16}><use href="#i-globe" /></svg>
-                    {t("customDomain")}
-                  </h3>
-                  {activeDomain ? (
-                    <span className="status ok">연결됨</span>
-                  ) : site.domains.length > 0 ? (
-                    <span className="status warn">대기중</span>
-                  ) : null}
-                </div>
-                <div className="sv2-card-body">
-                  {activeDomain ? (
-                    <>
-                      <div className="sv2-domain-row">
-                        <span className="dot" />
-                        <span className="host">{activeDomain.domain}</span>
-                        {activeDomain.sslEnabled && <span className="sv2-ssl-tag">SSL</span>}
-                        <Link href={`/dashboard/domains?siteId=${site.id}`} className="sv2-tiny-btn">
-                          <svg width={11} height={11}><use href="#i-edit" /></svg>편집
-                        </Link>
-                      </div>
-                      <div className="sv2-dns-rec">
-                        <span className="k">A</span>
-                        <span style={{ color: "var(--ink-3)" }}>@ →</span>
-                        <span className="v">167.71.199.28</span>
-                        <span style={{ color: "var(--ink-3)", marginLeft: "auto" }}>
-                          {activeDomain.sslEnabled ? "✓ 전파 완료" : "⏳ 전파 중"}
-                        </span>
-                      </div>
-                      <div className="sv2-links-row">
-                        <Link href={`/dashboard/domains?siteId=${site.id}`} className="primary-link">
-                          {t("domainManage")} →
-                        </Link>
-                        <span className="sep">·</span>
-                        <a href="#" className="muted">DNS 설정 가이드</a>
-                        <span className="sep">·</span>
-                        <Link href={`/dashboard/domains?siteId=${site.id}`} className="muted">SSL 재발급</Link>
-                      </div>
-                    </>
-                  ) : site.domains.length > 0 ? (
-                    <>
-                      {site.domains.map((d) => (
-                        <div key={d.id} className="sv2-domain-row">
-                          <span className="dot warn" />
-                          <span className="host">{d.domain}</span>
-                          <span style={{ fontSize: 12.5, color: "var(--warn)", fontWeight: 600 }}>{d.status}</span>
-                        </div>
-                      ))}
-                      <Link href={`/dashboard/domains?siteId=${site.id}`} className="primary-link" style={{ fontSize: 13.5, fontWeight: 600 }}>
-                        {t("domainManage")} →
-                      </Link>
-                    </>
-                  ) : (
-                    <>
-                      <div className="sv2-empty-domain">
-                        <p style={{ margin: "0 0 8px", fontSize: 14, fontWeight: 600, color: "var(--ink-1)" }}>{t("noDomains")}</p>
-                        <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: "var(--ink-3)" }}>
-                          커스텀 도메인 연결 시 브랜드 주소로 사이트를 운영할 수 있습니다.
-                        </p>
-                      </div>
-                      {/* 2026-05-17 사용자 요청: '도메인 연결하기' 텍스트 링크
-                          → 명확한 Toss Blue 버튼으로 (커스텀 도메인 세팅 진입 CTA) */}
-                      <div className="sv2-links-row" style={{ marginTop: 12 }}>
-                        <Link
-                          href={`/dashboard/domains?siteId=${site.id}`}
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 7,
-                            height: 40,
-                            padding: "0 18px",
-                            background: "#3182f6",
-                            color: "#fff",
-                            fontSize: 14,
-                            fontWeight: 600,
-                            borderRadius: 8,
-                            textDecoration: "none",
-                            boxShadow: "0 1px 2px rgba(49,130,246,0.25), 0 2px 6px rgba(49,130,246,0.18)",
-                          }}
-                        >
-                          <i className="fa-solid fa-link" aria-hidden="true" style={{ fontSize: 12 }} />
-                          도메인 연결하기
-                        </Link>
-                      </div>
-                    </>
-                  )}
                 </div>
               </section>
 
