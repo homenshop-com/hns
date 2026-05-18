@@ -18,6 +18,7 @@ import SupportUnreadIndicator from "../../support-unread-indicator";
 import { resolveExpiresAt, FREE_TRIAL_DAYS } from "@/lib/site-expiration";
 import { getTempDomain, TEMP_DOMAINS } from "@/lib/temp-domains";
 import TempDomainSelect from "./temp-domain-select";
+import QrCodeGenerator from "./qr-code-generator";
 import "../../dashboard-v2.css";
 import "../[siteId]/manage/manage-v2.css";
 import "./settings-v2.css";
@@ -308,6 +309,28 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                     defaultLanguage={site.defaultLanguage}
                     options={[...TEMP_DOMAINS]}
                     initialValue={sTemp}
+                  />
+                </div>
+              </section>
+
+              {/* 3b — QR 코드 생성기 */}
+              <section className="sv2-card blue">
+                <div className="sv2-card-head">
+                  <div className="accent"></div>
+                  <h3>
+                    <i className="fa-solid fa-qrcode" aria-hidden="true" style={{ fontSize: 14, marginRight: 6 }} />
+                    QR 코드 생성기
+                  </h3>
+                </div>
+                <div className="sv2-card-body">
+                  <QrCodeGenerator
+                    shopId={site.shopId}
+                    defaultUrl={publicUrl}
+                    alternateUrls={[
+                      ...(activeDomain
+                        ? [{ label: "임시 URL", url: `https://${defaultUrlLabel}` }]
+                        : []),
+                    ]}
                   />
                 </div>
               </section>
