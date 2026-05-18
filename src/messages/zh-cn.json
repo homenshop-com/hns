@@ -113,7 +113,7 @@
     "footerPrivacy": "隐私政策",
     "footerContact": "联系我们",
     "geoEyebrow": "AI-Ready",
-    "geoTitle": "让 ChatGPT・Claude・Perplexity\n引用您的网站",
+    "geoTitle": "让 ChatGPT・Gemini・Claude・Perplexity\n引用您的网站",
     "geoSub": "每个网站都自动按照生成式AI引擎优化(GEO, Generative Engine Optimization)的结构发布。无需额外设置，发布即被AI准确理解并在回答中引用。",
     "geoFeat1Title": "结构化数据自动注入",
     "geoFeat1Desc": "Organization・Product・Article・FAQ・BreadcrumbList 的 schema.org JSON-LD 自动注入每个页面，AI 可准确提取产品和公司信息。",

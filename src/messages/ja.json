@@ -113,7 +113,7 @@
     "footerPrivacy": "プライバシーポリシー",
     "footerContact": "お問い合わせ",
     "geoEyebrow": "AI-Ready",
-    "geoTitle": "ChatGPT・Claude・Perplexityに\nあなたのサイトが引用される",
+    "geoTitle": "ChatGPT・Gemini・Claude・Perplexityに\nあなたのサイトが引用される",
     "geoSub": "生成AI検索エンジン(GEO, Generative Engine Optimization)に最適化された構造で自動公開されます。追加設定なしで、公開した瞬間からAIがサイト情報を正確に理解し、回答に引用します。",
     "geoFeat1Title": "構造化データの自動挿入",
     "geoFeat1Desc": "Organization・Product・Article・FAQ・BreadcrumbListのschema.org JSON-LDがすべてのページに自動挿入され、AIが製品・会社情報を事実として抽出できます。",

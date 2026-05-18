@@ -284,6 +284,7 @@ export default async function Home() {
 
           <div className="geo-logo-strip">
             <div className="geo-logo" title="ChatGPT"><span className="geo-logo-dot" style={{ background: "#10a37f" }} />ChatGPT</div>
+            <div className="geo-logo" title="Gemini"><span className="geo-logo-dot" style={{ background: "#1c69ff" }} />Gemini</div>
             <div className="geo-logo" title="Claude"><span className="geo-logo-dot" style={{ background: "#cc785c" }} />Claude</div>
             <div className="geo-logo" title="Perplexity"><span className="geo-logo-dot" style={{ background: "#20808d" }} />Perplexity</div>
             <div className="geo-logo" title="Google AI Overview"><span className="geo-logo-dot" style={{ background: "#4285f4" }} />Google AI</div>
