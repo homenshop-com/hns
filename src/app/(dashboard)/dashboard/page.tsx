@@ -397,11 +397,14 @@ export default async function DashboardPage() {
               <span className="label">{t("navMySites")}</span>
               {sites.length > 0 && <span className="badge">{sites.length}</span>}
             </Link>
-            <a className="soon" aria-disabled="true">
+            {/* 2026-05-18 사용자 요청: 통계·분석 메뉴 숨김 처리.
+                dashboard-shell.tsx과 동일 변경 — 메인 dashboard/page.tsx도
+                자체 inline sidebar를 가지고 있어 별도 처리 필요. */}
+            {/* <a className="soon" aria-disabled="true">
               <span className="ic"><Icon id="i-analytics" /></span>
               <span className="label">{t("navAnalytics")}</span>
               <span className="soon-tag">{t("navSoonTag")}</span>
-            </a>
+            </a> */}
             <Link href="/dashboard/orders">
               <span className="ic"><Icon id="i-bag" /></span>
               <span className="label">{t("navOrders")}</span>
