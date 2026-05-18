@@ -562,184 +562,16 @@ export default async function DashboardPage() {
               </div>
             </div>
 
-            {/* Sites Panel */}
-            <section className="dv2-panel">
-              <div className="dv2-panel-head">
-                <h2>
-                  {t("panelHomepageAccounts")}
-                  <span className="count">{t("panelHomepageAccountsCount", { count: sites.length, total: Math.max(sites.length, 5) })}</span>
-                </h2>
-                <div className="tools">
-                  <Link href="/dashboard/domains" className="dv2-tool-btn">
-                    <Icon id="i-globe" size={14} /> {t("btnDomainsTool")}
-                  </Link>
-                </div>
-              </div>
-
-              {sites.length === 0 ? (
-                <div className="dv2-empty">
-                  <div className="t">{t("sitesEmptyTitle")}</div>
-                  <div className="d">{t("sitesEmptyDesc")}</div>
-                  <Link href="/dashboard/sites" className="dv2-row-btn primary">
-                    {t("sitesCreateBtn")} <Icon id="i-chev-right" size={12} />
-                  </Link>
-                </div>
-              ) : (
-                <>
-                  <div className="dv2-site-thead">
-                    <div>{t("siteColHomepage")}</div>
-                    <div>{t("siteColPlan")}</div>
-                    <div>{t("siteColPages")}</div>
-                    <div>{t("siteColLastModified")}</div>
-                    <div className="right col-stat">{t("siteColManage")}</div>
-                    <div />
-                  </div>
-
-                  <div className="dv2-site-list">
-                    {sites.map((s, index) => {
-                      const plan = PLAN_TAG[s.accountType] || PLAN_TAG["0"];
-                      const isExpired = isSiteExpired(s);
-                      const remainingDays = daysUntilExpiry(s);
-                      const warnExpiry = shouldShowExpirationWarning(s);
-                      const [gradA, gradB] = pickGradient(s.shopId);
-                      const initials = initialsFrom(s.name || s.shopId);
-                      const homePage =
-                        s.pages.find((p) => p.isHome && p.lang === s.defaultLanguage) ||
-                        s.pages.find((p) => p.isHome) ||
-                        s.pages[0];
-                      const lastModified = s.pages.reduce<Date>(
-                        (acc, p) => (p.updatedAt > acc ? p.updatedAt : acc),
-                        s.updatedAt,
-                      );
-                      const activeDomain = s.domains[0];
-                      const sTemp = getTempDomain(s);
-                      const publicUrl = activeDomain
-                        ? `https://${activeDomain.domain}`
-                        : `https://${sTemp}/${s.shopId}/`;
-                      const publicLabel = activeDomain ? activeDomain.domain : `${sTemp}/${s.shopId}`;
-
-                      // Rotate one of 4 monogram tints so the table feels
-                      // varied but stays inside the calm slate aesthetic
-                      // (no per-site gradient stripes anymore).
-                      const monoTints = ["", "alt-a", "alt-b", "alt-c"];
-                      const monoTint = monoTints[index % monoTints.length];
-
-                      return (
-                        <div key={s.id} className="dv2-site-row">
-                          <div className="dv2-site-main">
-                            <div className={`dv2-site-thumb ${monoTint}`.trim()}>
-                              {isExpired ? (
-                                <span className="paused" />
-                              ) : (
-                                <span className="live" />
-                              )}
-                              {initials}
-                            </div>
-                            <div className="dv2-site-info">
-                              <div className="dv2-site-name">
-                                {s.name || s.shopId}
-                              </div>
-                              <div className="dv2-site-meta">
-                                <span className="handle">@{s.shopId}</span>
-                                <span className="dot" />
-                                <a className="url" href={publicUrl} target="_blank" rel="noopener noreferrer">
-                                  {publicLabel}
-                                </a>
-                                {!activeDomain && (
-                                  <>
-                                    <span className="dot" />
-                                    <span className="warn">{t("siteWarnNoCustomDomain")}</span>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                          {/* 2026-05-17 사용자 보고: 임시도메인+뱃지 겹침.
-                              원인: 인라인 배치(plan + expiry margin-left 6)가
-                              130px 컬럼 폭 넘침. 세로 스택으로 변경. */}
-                          <div className="dv2-site-plan-cell">
-                            <span className={`dv2-plan-tag ${plan.cls}`}>{t(plan.key)}</span>
-                            {s.accountType === "0" && remainingDays !== null && (
-                              <span
-                                className="dv2-expiry-chip"
-                                style={{
-                                  display: "inline-block",
-                                  padding: "2px 8px",
-                                  borderRadius: 10,
-                                  fontSize: 11,
-                                  fontWeight: 600,
-                                  background: isExpired
-                                    ? "#fee2e2"
-                                    : warnExpiry
-                                      ? "#fef3c7"
-                                      : "#f1f5f9",
-                                  color: isExpired
-                                    ? "#b91c1c"
-                                    : warnExpiry
-                                      ? "#92400e"
-                                      : "#64748b",
-                                }}
-                                title={t("siteExpiryDateTooltip", { date: s.expiresAt ? new Date(s.expiresAt).toLocaleDateString() : "-" })}
-                              >
-                                {isExpired
-                                  ? t("siteExpiryExpired")
-                                  : remainingDays === 0
-                                    ? t("siteExpiryToday")
-                                    : t("siteExpiryDaysLeft", { days: remainingDays })}
-                              </span>
-                            )}
-                          </div>
-                          <div className="dv2-stat-mini">
-                            <span className="n">{s.pages.length}</span>
-                            <span className="muted"> {t("siteColPagesUnit")}</span>
-                          </div>
-                          <div className="dv2-since">
-                            {timeAgo(t, lastModified)}
-                            <span className="d">{s.defaultLanguage.toUpperCase()}</span>
-                          </div>
-                          <div className="dv2-row-actions col-stat">
-                            <Link
-                              href={homePage ? `/dashboard/site/pages/${homePage.id}/edit` : "/dashboard/site/pages"}
-                              className="dv2-row-btn primary"
-                            >
-                              <Icon id="i-palette" size={13} /> {t("btnDesign")}
-                            </Link>
-                            <Link href={`/dashboard/site/${s.id}/manage`} className="dv2-row-btn">
-                              <Icon id="i-database" size={13} /> {t("btnData")}
-                            </Link>
-                            <Link href={`/dashboard/site/settings?id=${s.id}`} className="dv2-row-btn">
-                              <Icon id="i-info" size={13} /> {t("btnInfo")}
-                            </Link>
-                          </div>
-                          <Link href={`/dashboard/site/settings?id=${s.id}`} className="dv2-kebab">
-                            <Icon id="i-more" size={16} />
-                          </Link>
-                        </div>
-                      );
-                    })}
-
-                    {/* Add row — 2026-05-16 사용자 요청: 템플릿 갤러리가
-                        아니라 사이트 목록 페이지(/dashboard/sites)로 이동
-                        (사이트 목록 안에서 AI/템플릿/zip 등 모든 신규 생성
-                        진입점을 통합 노출). */}
-                    <Link href="/dashboard/sites" className="dv2-site-row add">
-                      <div className="dv2-add-inner">
-                        <span className="plus"><Icon id="i-plus" size={14} /></span>
-                        {t("sitesAddNew")}
-                      </div>
-                    </Link>
-                  </div>
-                </>
-              )}
-            </section>
-
-            {/* 주문 / 예약 / 문의 — 3-column list panels */}
+            {/* 주문 / 예약 / 문의 — 3-column list panels (2026-05-18 사용자
+                요청: 홈페이지 계정 리스트 위로 이동. 사용자가 메인 진입
+                시 최근 활동을 먼저 확인하고, 그다음 사이트 관리 진행). */}
             {sites.length > 0 && (
               <div
                 style={{
                   display: "grid",
                   gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
                   gap: 16,
+                  marginBottom: 16,
                 }}
               >
                 {/* 최근 주문 */}
@@ -917,6 +749,178 @@ export default async function DashboardPage() {
                 </section>
               </div>
             )}
+
+            {/* Sites Panel */}
+            <section className="dv2-panel">
+              <div className="dv2-panel-head">
+                <h2>
+                  {t("panelHomepageAccounts")}
+                  <span className="count">{t("panelHomepageAccountsCount", { count: sites.length, total: Math.max(sites.length, 5) })}</span>
+                </h2>
+                <div className="tools">
+                  <Link href="/dashboard/domains" className="dv2-tool-btn">
+                    <Icon id="i-globe" size={14} /> {t("btnDomainsTool")}
+                  </Link>
+                </div>
+              </div>
+
+              {sites.length === 0 ? (
+                <div className="dv2-empty">
+                  <div className="t">{t("sitesEmptyTitle")}</div>
+                  <div className="d">{t("sitesEmptyDesc")}</div>
+                  <Link href="/dashboard/sites" className="dv2-row-btn primary">
+                    {t("sitesCreateBtn")} <Icon id="i-chev-right" size={12} />
+                  </Link>
+                </div>
+              ) : (
+                <>
+                  <div className="dv2-site-thead">
+                    <div>{t("siteColHomepage")}</div>
+                    <div>{t("siteColPlan")}</div>
+                    <div>{t("siteColPages")}</div>
+                    <div>{t("siteColLastModified")}</div>
+                    <div className="right col-stat">{t("siteColManage")}</div>
+                    <div />
+                  </div>
+
+                  <div className="dv2-site-list">
+                    {sites.map((s, index) => {
+                      const plan = PLAN_TAG[s.accountType] || PLAN_TAG["0"];
+                      const isExpired = isSiteExpired(s);
+                      const remainingDays = daysUntilExpiry(s);
+                      const warnExpiry = shouldShowExpirationWarning(s);
+                      const [gradA, gradB] = pickGradient(s.shopId);
+                      const initials = initialsFrom(s.name || s.shopId);
+                      const homePage =
+                        s.pages.find((p) => p.isHome && p.lang === s.defaultLanguage) ||
+                        s.pages.find((p) => p.isHome) ||
+                        s.pages[0];
+                      const lastModified = s.pages.reduce<Date>(
+                        (acc, p) => (p.updatedAt > acc ? p.updatedAt : acc),
+                        s.updatedAt,
+                      );
+                      const activeDomain = s.domains[0];
+                      const sTemp = getTempDomain(s);
+                      const publicUrl = activeDomain
+                        ? `https://${activeDomain.domain}`
+                        : `https://${sTemp}/${s.shopId}/`;
+                      const publicLabel = activeDomain ? activeDomain.domain : `${sTemp}/${s.shopId}`;
+
+                      // Rotate one of 4 monogram tints so the table feels
+                      // varied but stays inside the calm slate aesthetic
+                      // (no per-site gradient stripes anymore).
+                      const monoTints = ["", "alt-a", "alt-b", "alt-c"];
+                      const monoTint = monoTints[index % monoTints.length];
+
+                      return (
+                        <div key={s.id} className="dv2-site-row">
+                          <div className="dv2-site-main">
+                            <div className={`dv2-site-thumb ${monoTint}`.trim()}>
+                              {isExpired ? (
+                                <span className="paused" />
+                              ) : (
+                                <span className="live" />
+                              )}
+                              {initials}
+                            </div>
+                            <div className="dv2-site-info">
+                              <div className="dv2-site-name">
+                                {s.name || s.shopId}
+                              </div>
+                              <div className="dv2-site-meta">
+                                <span className="handle">@{s.shopId}</span>
+                                <span className="dot" />
+                                <a className="url" href={publicUrl} target="_blank" rel="noopener noreferrer">
+                                  {publicLabel}
+                                </a>
+                                {!activeDomain && (
+                                  <>
+                                    <span className="dot" />
+                                    <span className="warn">{t("siteWarnNoCustomDomain")}</span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          {/* 2026-05-17 사용자 보고: 임시도메인+뱃지 겹침.
+                              원인: 인라인 배치(plan + expiry margin-left 6)가
+                              130px 컬럼 폭 넘침. 세로 스택으로 변경. */}
+                          <div className="dv2-site-plan-cell">
+                            <span className={`dv2-plan-tag ${plan.cls}`}>{t(plan.key)}</span>
+                            {s.accountType === "0" && remainingDays !== null && (
+                              <span
+                                className="dv2-expiry-chip"
+                                style={{
+                                  display: "inline-block",
+                                  padding: "2px 8px",
+                                  borderRadius: 10,
+                                  fontSize: 11,
+                                  fontWeight: 600,
+                                  background: isExpired
+                                    ? "#fee2e2"
+                                    : warnExpiry
+                                      ? "#fef3c7"
+                                      : "#f1f5f9",
+                                  color: isExpired
+                                    ? "#b91c1c"
+                                    : warnExpiry
+                                      ? "#92400e"
+                                      : "#64748b",
+                                }}
+                                title={t("siteExpiryDateTooltip", { date: s.expiresAt ? new Date(s.expiresAt).toLocaleDateString() : "-" })}
+                              >
+                                {isExpired
+                                  ? t("siteExpiryExpired")
+                                  : remainingDays === 0
+                                    ? t("siteExpiryToday")
+                                    : t("siteExpiryDaysLeft", { days: remainingDays })}
+                              </span>
+                            )}
+                          </div>
+                          <div className="dv2-stat-mini">
+                            <span className="n">{s.pages.length}</span>
+                            <span className="muted"> {t("siteColPagesUnit")}</span>
+                          </div>
+                          <div className="dv2-since">
+                            {timeAgo(t, lastModified)}
+                            <span className="d">{s.defaultLanguage.toUpperCase()}</span>
+                          </div>
+                          <div className="dv2-row-actions col-stat">
+                            <Link
+                              href={homePage ? `/dashboard/site/pages/${homePage.id}/edit` : "/dashboard/site/pages"}
+                              className="dv2-row-btn primary"
+                            >
+                              <Icon id="i-palette" size={13} /> {t("btnDesign")}
+                            </Link>
+                            <Link href={`/dashboard/site/${s.id}/manage`} className="dv2-row-btn">
+                              <Icon id="i-database" size={13} /> {t("btnData")}
+                            </Link>
+                            <Link href={`/dashboard/site/settings?id=${s.id}`} className="dv2-row-btn">
+                              <Icon id="i-info" size={13} /> {t("btnInfo")}
+                            </Link>
+                          </div>
+                          <Link href={`/dashboard/site/settings?id=${s.id}`} className="dv2-kebab">
+                            <Icon id="i-more" size={16} />
+                          </Link>
+                        </div>
+                      );
+                    })}
+
+                    {/* Add row — 2026-05-16 사용자 요청: 템플릿 갤러리가
+                        아니라 사이트 목록 페이지(/dashboard/sites)로 이동
+                        (사이트 목록 안에서 AI/템플릿/zip 등 모든 신규 생성
+                        진입점을 통합 노출). */}
+                    <Link href="/dashboard/sites" className="dv2-site-row add">
+                      <div className="dv2-add-inner">
+                        <span className="plus"><Icon id="i-plus" size={14} /></span>
+                        {t("sitesAddNew")}
+                      </div>
+                    </Link>
+                  </div>
+                </>
+              )}
+            </section>
+
           </div>
         </div>
       </div>
