@@ -474,12 +474,8 @@ export default async function SiteManagePage({
                       <span className="chev"><Icon id="i-chev-right" size={12} /></span>
                     </div>
                   </Link>
-                  <Link href="/dashboard/orders" className="mv2-list-item">
-                    <div className="li-title"><span className="n">{tm("orderList")}</span></div>
-                    <div className="li-right">
-                      <span className="chev"><Icon id="i-chev-right" size={12} /></span>
-                    </div>
-                  </Link>
+                  {/* 2026-05-18 주문 리스트 링크 제거: 하단 "최근 주문"
+                      패널 + 상단 신규주문 KPI에서 통합 노출하므로 중복. */}
                 </div>
                 <ProductSettings
                   siteId={siteId}
@@ -502,72 +498,12 @@ export default async function SiteManagePage({
                 />
               </div>
 
-              {/* Order management (per-site) — 2026-05-17 사용자 요청 */}
-              <div className="dv2-panel mv2-data-col">
-                <div className="mv2-hd-ribbon" style={{ background: "linear-gradient(180deg,#e8f3ff 0%,#fff 80%)", borderBottom: "1px solid #d6e8ff" }}>
-                  <div className="ic" style={{ background: "#3182f6", color: "#fff" }}>
-                    <i className="fa-solid fa-bag-shopping" style={{ fontSize: 13 }} />
-                  </div>
-                  <h3>주문 관리</h3>
-                  <div className="meta">{totalOrders}건</div>
-                </div>
-                <div className="mv2-list">
-                  <Link href={`/dashboard/orders?siteId=${site.id}`} className="mv2-list-item">
-                    <div className="li-title"><span className="n">전체 주문 보기</span></div>
-                    <div className="li-right">
-                      <span className="count">{totalOrders}</span>
-                      <span>건</span>
-                      <span className="chev"><Icon id="i-chev-right" size={12} /></span>
-                    </div>
-                  </Link>
-                  <Link
-                    href={`/dashboard/orders?siteId=${site.id}&status=PENDING`}
-                    className={`mv2-list-item${pendingOrders > 0 ? " highlight" : " empty"}`}
-                  >
-                    <div className="li-title"><span className="n">결제대기</span></div>
-                    <div className="li-right">
-                      <span className="count">{pendingOrders}</span>
-                      <span>건</span>
-                      <span className="chev"><Icon id="i-chev-right" size={12} /></span>
-                    </div>
-                  </Link>
-                  <Link
-                    href={`/dashboard/orders?siteId=${site.id}&status=SHIPPING`}
-                    className={`mv2-list-item${shippingOrders === 0 ? " empty" : ""}`}
-                  >
-                    <div className="li-title"><span className="n">결제완료·배송중</span></div>
-                    <div className="li-right">
-                      <span className="count">{shippingOrders}</span>
-                      <span>건</span>
-                      <span className="chev"><Icon id="i-chev-right" size={12} /></span>
-                    </div>
-                  </Link>
-                  <Link
-                    href={`/dashboard/orders?siteId=${site.id}&status=DELIVERED`}
-                    className={`mv2-list-item${deliveredOrders === 0 ? " empty" : ""}`}
-                  >
-                    <div className="li-title"><span className="n">배송완료</span></div>
-                    <div className="li-right">
-                      <span className="count">{deliveredOrders}</span>
-                      <span>건</span>
-                      <span className="chev"><Icon id="i-chev-right" size={12} /></span>
-                    </div>
-                  </Link>
-                </div>
-
-                {/* 누적 매출 요약 */}
-                <div className="mv2-activity-summary">
-                  <h4>누적 매출</h4>
-                  <div className="lines">
-                    <div style={{ fontSize: 22, fontWeight: 800, color: "#191f28", letterSpacing: "-.02em", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
-                      ₩{revenue.toLocaleString()}
-                    </div>
-                    <div style={{ fontSize: 11.5, color: "var(--ink-3)", marginTop: 4 }}>
-                      취소·환불 제외 합계
-                    </div>
-                  </div>
-                </div>
-              </div>
+              {/* 2026-05-18 사용자 요청 정리: 주문 진입점이 5군데 산만했음.
+                  → 5번째 컬럼 "주문 관리" 제거.
+                  · 신규 주문 알림 = 상단 KPI 카드 (한 곳)
+                  · 상세 리스트 + 상태별 필터 + 누적 매출 = 하단 "최근 주문" 패널 (한 곳)
+                  · 전역 진입 = 좌측 사이드바 (한 곳)
+                  3 역할 분담 명확. */}
 
               {/* Member management */}
               <div className="dv2-panel mv2-data-col">
@@ -607,17 +543,77 @@ export default async function SiteManagePage({
               </div>
             </div>
 
-            {/* 최근 주문 — 사이트 스코프, 빠르게 스캔 */}
+            {/* 주문 관리 통합 패널 — 사이트 스코프. 2026-05-18 사용자 요청에
+                따라 5번째 컬럼 + 상품관리 내부 링크 제거하고 이 패널 하나로 통합.
+                상태 필터 + 누적 매출 + 최근 6건 + 전체 보기 — 모든 주문 관련
+                진입점을 한 곳에 모음. */}
             <section className="dv2-panel" style={{ marginTop: 16, overflow: "hidden" }}>
-              <div className="dv2-panel-head">
-                <h2>
-                  최근 주문 <span className="count">{totalOrders}건 중 최근 {recentOrders.length}건</span>
-                </h2>
+              <div className="dv2-panel-head" style={{ alignItems: "flex-start" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h2 style={{ marginBottom: 4 }}>
+                    <i className="fa-solid fa-bag-shopping" style={{ fontSize: 12, marginRight: 6, color: "#3182f6" }} />
+                    주문 관리
+                    <span className="count">{totalOrders}건</span>
+                  </h2>
+                  {/* 누적 매출 inline (이전 5번째 컬럼에 있었던 정보 통합) */}
+                  <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 2 }}>
+                    누적 매출{" "}
+                    <span style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontWeight: 700, color: "var(--ink-0)", fontSize: 13 }}>
+                      ₩{revenue.toLocaleString()}
+                    </span>
+                    <span style={{ marginLeft: 4 }}>(취소·환불 제외)</span>
+                  </div>
+                </div>
                 <div className="tools">
                   <Link href={`/dashboard/orders?siteId=${site.id}`} className="dv2-tool-btn">
                     <i className="fa-solid fa-arrow-right-long" style={{ fontSize: 11 }} /> 전체 보기
                   </Link>
                 </div>
+              </div>
+
+              {/* 상태 필터 칩 (이전 5번째 컬럼에 있던 4-row 리스트를 칩으로 압축) */}
+              <div style={{
+                padding: "10px 20px", borderBottom: "1px solid var(--line-2)",
+                background: "var(--panel-2)",
+                display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center",
+              }}>
+                <span style={{ fontSize: 11.5, color: "var(--ink-3)", fontWeight: 600 }}>상태별 바로가기 ·</span>
+                <Link
+                  href={`/dashboard/orders?siteId=${site.id}&status=PENDING`}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 5,
+                    padding: "4px 10px", borderRadius: 999, fontSize: 12, fontWeight: 600,
+                    background: pendingOrders > 0 ? "#fef3c7" : "#fff",
+                    color: pendingOrders > 0 ? "#92400e" : "var(--ink-2)",
+                    border: pendingOrders > 0 ? "1px solid #fde68a" : "1px solid var(--line)",
+                    textDecoration: "none",
+                  }}
+                >
+                  {pendingOrders > 0 && <i className="fa-solid fa-circle-exclamation" style={{ fontSize: 10 }} />}
+                  결제대기 <b style={{ fontVariantNumeric: "tabular-nums" }}>{pendingOrders}</b>
+                </Link>
+                <Link
+                  href={`/dashboard/orders?siteId=${site.id}&status=SHIPPING`}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 5,
+                    padding: "4px 10px", borderRadius: 999, fontSize: 12, fontWeight: 600,
+                    background: "#fff", color: "var(--ink-2)",
+                    border: "1px solid var(--line)", textDecoration: "none",
+                  }}
+                >
+                  결제완료·배송중 <b style={{ fontVariantNumeric: "tabular-nums" }}>{shippingOrders}</b>
+                </Link>
+                <Link
+                  href={`/dashboard/orders?siteId=${site.id}&status=DELIVERED`}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 5,
+                    padding: "4px 10px", borderRadius: 999, fontSize: 12, fontWeight: 600,
+                    background: "#fff", color: "var(--ink-2)",
+                    border: "1px solid var(--line)", textDecoration: "none",
+                  }}
+                >
+                  배송완료 <b style={{ fontVariantNumeric: "tabular-nums" }}>{deliveredOrders}</b>
+                </Link>
               </div>
 
               {recentOrders.length === 0 ? (

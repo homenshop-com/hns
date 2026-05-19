@@ -164,10 +164,12 @@
 }
 .dv2-app .mv2-kpi .kpi-action:hover { text-decoration: underline; }
 
-/* Data grid — 5 columns (메뉴/게시판/상품/주문/회원) since 2026-05-17.
-   사용자 요청: 사이트 관리 페이지에 이 사이트의 주문 섹션 추가. */
+/* Data grid — 4 columns (메뉴/게시판/상품/회원) since 2026-05-18.
+   2026-05-17에 잠시 5컬럼(주문 추가)으로 늘렸으나 주문 진입점이
+   너무 산만하다는 사용자 피드백 → 5번째 컬럼 제거하고 주문은 하단
+   "주문 관리" 통합 패널 + 상단 KPI로만 처리. */
 .dv2-app .mv2-data-grid {
-  display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
 }
 .dv2-app .mv2-data-col { display: flex; flex-direction: column; }
 
@@ -330,9 +332,6 @@
    nested form fields + radio mode picker that look cramped at 280px (text
    wraps per Korean syllable, fields squeeze). Drop to 3 cols earlier to
    keep cards readable. */
-@media (max-width: 1600px) {
-  .dv2-app .mv2-data-grid { grid-template-columns: repeat(4, 1fr); }
-}
 @media (max-width: 1400px) {
   .dv2-app .mv2-kpi-row { grid-template-columns: repeat(4, 1fr); }
   .dv2-app .mv2-data-grid { grid-template-columns: repeat(3, 1fr); }
