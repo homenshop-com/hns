@@ -347,12 +347,9 @@ export default async function SitesPage() {
                 );
               })}
 
-              <Link href="/dashboard/templates" className="dv2-site-row add">
-                <div className="dv2-add-inner">
-                  <span className="plus"><Icon id="i-plus" size={14} /></span>
-                  {t("sitesAddNew")}
-                </div>
-              </Link>
+              {/* 2026-05-19 사용자 요청: + 새 홈페이지/쇼핑몰 추가 행 제거.
+                  이 페이지 하단의 AI/템플릿/주문제작 CTA 카드가 동일 역할을
+                  더 풍부하게 제공하므로 중복. */}
             </div>
           </>
         )}
