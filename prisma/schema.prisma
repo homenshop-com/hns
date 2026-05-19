@@ -1074,8 +1074,14 @@ model InboundEmail {
   headers     Json?
   attachments Json?
   forwarded   Boolean  @default(false)
+  isSpam      Boolean  @default(false)
+  isRead      Boolean  @default(false)
+  tags        String[] @default([])
+  deletedAt   DateTime?
   createdAt   DateTime @default(now())
 
   @@index([toEmail])
   @@index([createdAt])
+  @@index([isSpam])
+  @@index([deletedAt])
 }

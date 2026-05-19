@@ -1,133 +1,133 @@
-import Link from "next/link";
 import { prisma } from "@/lib/db";
+import type { Prisma } from "@/generated/prisma/client";
+import InboxClient, {
+  type InboxRow,
+  type SelectedEmail,
+} from "./inbox-client";
 
 export const dynamic = "force-dynamic";
+
+type View = "inbox" | "spam" | "trash" | "all";
+
+function parseView(v: string | undefined): View {
+  if (v === "spam" || v === "trash" || v === "all") return v;
+  return "inbox";
+}
+
+function whereForView(view: View): Prisma.InboundEmailWhereInput {
+  switch (view) {
+    case "spam":
+      return { isSpam: true, deletedAt: null };
+    case "trash":
+      return { deletedAt: { not: null } };
+    case "all":
+      return {};
+    case "inbox":
+    default:
+      return { isSpam: false, deletedAt: null };
+  }
+}
+
+async function markRead(id: string) {
+  await prisma.inboundEmail
+    .update({ where: { id }, data: { isRead: true } })
+    .catch(() => null);
+}
 
 export default async function InboxPage({
   searchParams,
 }: {
-  searchParams: Promise<{ id?: string }>;
+  searchParams: Promise<{ id?: string; view?: string }>;
 }) {
-  const { id } = await searchParams;
+  const { id, view: viewParam } = await searchParams;
+  const view = parseView(viewParam);
 
-  const emails = await prisma.inboundEmail.findMany({
-    orderBy: { createdAt: "desc" },
-    take: 100,
-    select: {
-      id: true,
-      fromEmail: true,
-      fromName: true,
-      toEmail: true,
-      subject: true,
-      forwarded: true,
-      createdAt: true,
-    },
-  });
+  const [rows, selectedRaw, counts, tagAgg] = await Promise.all([
+    prisma.inboundEmail.findMany({
+      where: whereForView(view),
+      orderBy: { createdAt: "desc" },
+      take: 200,
+      select: {
+        id: true,
+        fromEmail: true,
+        fromName: true,
+        toEmail: true,
+        subject: true,
+        forwarded: true,
+        isSpam: true,
+        isRead: true,
+        tags: true,
+        deletedAt: true,
+        createdAt: true,
+      },
+    }),
+    id ? prisma.inboundEmail.findUnique({ where: { id } }) : null,
+    Promise.all([
+      prisma.inboundEmail.count({ where: whereForView("inbox") }),
+      prisma.inboundEmail.count({ where: whereForView("spam") }),
+      prisma.inboundEmail.count({ where: whereForView("trash") }),
+      prisma.inboundEmail.count({ where: whereForView("all") }),
+    ]),
+    prisma.inboundEmail.findMany({
+      where: { tags: { isEmpty: false } },
+      select: { tags: true },
+      take: 500,
+    }),
+  ]);
 
-  const selected = id
-    ? await prisma.inboundEmail.findUnique({ where: { id } })
+  if (selectedRaw && !selectedRaw.isRead) {
+    await markRead(selectedRaw.id);
+  }
+
+  const emails: InboxRow[] = rows.map((r) => ({
+    id: r.id,
+    fromEmail: r.fromEmail,
+    fromName: r.fromName,
+    toEmail: r.toEmail,
+    subject: r.subject,
+    forwarded: r.forwarded,
+    isSpam: r.isSpam,
+    isRead: r.isRead,
+    tags: r.tags,
+    deletedAt: r.deletedAt ? r.deletedAt.toISOString() : null,
+    createdAt: r.createdAt.toISOString(),
+  }));
+
+  const selected: SelectedEmail | null = selectedRaw
+    ? {
+        id: selectedRaw.id,
+        subject: selectedRaw.subject,
+        fromEmail: selectedRaw.fromEmail,
+        fromName: selectedRaw.fromName,
+        toEmail: selectedRaw.toEmail,
+        cc: selectedRaw.cc,
+        text: selectedRaw.text,
+        html: selectedRaw.html,
+        isSpam: selectedRaw.isSpam,
+        tags: selectedRaw.tags,
+        deletedAt: selectedRaw.deletedAt
+          ? selectedRaw.deletedAt.toISOString()
+          : null,
+        createdAt: selectedRaw.createdAt.toISOString(),
+      }
     : null;
 
-  return (
-    <div>
-      <h1 className="text-2xl font-bold mb-6">이메일 수신함</h1>
-      <div className="grid grid-cols-12 gap-4 bg-white rounded-lg border border-slate-200 overflow-hidden">
-        <div className="col-span-5 border-r border-slate-200 max-h-[70vh] overflow-auto">
-          {emails.length === 0 ? (
-            <div className="p-8 text-center text-slate-400 text-sm">
-              수신된 이메일이 없습니다.
-            </div>
-          ) : (
-            <ul className="divide-y divide-slate-100">
-              {emails.map((e) => (
-                <li key={e.id}>
-                  <Link
-                    href={`/admin/inbox?id=${e.id}`}
-                    className={`block px-4 py-3 hover:bg-slate-50 ${
-                      selected?.id === e.id ? "bg-slate-100" : ""
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="text-sm font-medium text-slate-800 truncate">
-                        {e.fromName || e.fromEmail}
-                      </div>
-                      <div className="text-xs text-slate-400 shrink-0">
-                        {fmtDate(e.createdAt)}
-                      </div>
-                    </div>
-                    <div className="text-xs text-slate-500 truncate">
-                      → {e.toEmail}
-                    </div>
-                    <div className="text-sm text-slate-700 truncate mt-0.5">
-                      {e.subject || "(제목 없음)"}
-                    </div>
-                    {!e.forwarded && (
-                      <div className="text-[10px] text-amber-600 mt-0.5">
-                        전달 실패
-                      </div>
-                    )}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-        <div className="col-span-7 p-6 max-h-[70vh] overflow-auto">
-          {!selected ? (
-            <div className="text-slate-400 text-sm">
-              왼쪽에서 이메일을 선택하세요.
-            </div>
-          ) : (
-            <div>
-              <h2 className="text-lg font-semibold text-slate-800 mb-2">
-                {selected.subject || "(제목 없음)"}
-              </h2>
-              <div className="text-sm text-slate-500 space-y-0.5 mb-4 pb-4 border-b border-slate-100">
-                <div>
-                  <span className="text-slate-400">From: </span>
-                  {selected.fromName
-                    ? `${selected.fromName} <${selected.fromEmail}>`
-                    : selected.fromEmail}
-                </div>
-                <div>
-                  <span className="text-slate-400">To: </span>
-                  {selected.toEmail}
-                </div>
-                {selected.cc && (
-                  <div>
-                    <span className="text-slate-400">Cc: </span>
-                    {selected.cc}
-                  </div>
-                )}
-                <div>
-                  <span className="text-slate-400">Date: </span>
-                  {selected.createdAt.toLocaleString("ko-KR")}
-                </div>
-              </div>
-              {selected.html ? (
-                <iframe
-                  title="email body"
-                  srcDoc={selected.html}
-                  sandbox=""
-                  className="w-full min-h-[400px] border-0"
-                />
-              ) : (
-                <pre className="whitespace-pre-wrap text-sm text-slate-700 font-sans">
-                  {selected.text || "(본문 없음)"}
-                </pre>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
+  const allTags = Array.from(
+    new Set(tagAgg.flatMap((r) => r.tags))
+  ).sort();
 
-function fmtDate(d: Date): string {
-  const now = new Date();
-  const sameDay = d.toDateString() === now.toDateString();
-  return sameDay
-    ? d.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })
-    : d.toLocaleDateString("ko-KR", { month: "2-digit", day: "2-digit" });
+  return (
+    <InboxClient
+      emails={emails}
+      selected={selected}
+      view={view}
+      counts={{
+        inbox: counts[0],
+        spam: counts[1],
+        trash: counts[2],
+        all: counts[3],
+      }}
+      allTags={allTags}
+    />
+  );
 }
