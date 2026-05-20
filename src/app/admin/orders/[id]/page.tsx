@@ -16,7 +16,7 @@ const STATUS_LABELS: Record<string, string> = {
 const STATUS_COLORS: Record<string, string> = {
   PENDING:
     "bg-amber-50 text-amber-700",
-  PAID: "bg-[#405189]/10 text-[#405189]",
+  PAID: "bg-[#3182f6]/10 text-[#3182f6]",
   SHIPPING:
     "bg-violet-50 text-violet-700",
   DELIVERED:
@@ -170,7 +170,7 @@ export default function AdminOrderDetailPage() {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
         <p className="text-slate-500">{error || "주문을 찾을 수 없습니다."}</p>
-        <Link href="/admin/orders" className="text-[#405189] hover:text-[#405189]">
+        <Link href="/admin/orders" className="text-[#3182f6] hover:text-[#3182f6]">
           주문 목록으로 돌아가기
         </Link>
       </div>
@@ -277,7 +277,7 @@ export default function AdminOrderDetailPage() {
             <button
               onClick={handleStatusChange}
               disabled={saving || selectedStatus === order.status}
-              className="w-full rounded-lg bg-[#405189] px-4 py-2 text-sm font-medium text-white hover:bg-[#364574] disabled:opacity-50 transition-colors"
+              className="w-full rounded-lg bg-[#3182f6] px-4 py-2 text-sm font-medium text-white hover:bg-[#364574] disabled:opacity-50 transition-colors"
             >
               {saving ? "변경 중..." : "상태 변경"}
             </button>
@@ -420,7 +420,7 @@ export default function AdminOrderDetailPage() {
               {order.subscriptionSite && (
                 <Link
                   href={`/admin/sites/${order.subscriptionSite.id}`}
-                  className="text-xs text-[#405189] hover:underline mt-1 inline-block"
+                  className="text-xs text-[#3182f6] hover:underline mt-1 inline-block"
                 >
                   사이트 상세 보기 →
                 </Link>

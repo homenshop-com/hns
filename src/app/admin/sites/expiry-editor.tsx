@@ -123,7 +123,7 @@ export default function ExpiryEditor({
     <div className="relative inline-block">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-[#405189] ml-1"
+        className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-[#3182f6] ml-1"
         title="만료일/계정 유형 조정"
         type="button"
       >
@@ -252,7 +252,7 @@ export default function ExpiryEditor({
             <button
               onClick={saveManual}
               disabled={isBusy}
-              className="rounded bg-[#405189] px-3 py-1 text-xs font-medium text-white hover:bg-[#364574] disabled:opacity-50"
+              className="rounded bg-[#3182f6] px-3 py-1 text-xs font-medium text-white hover:bg-[#364574] disabled:opacity-50"
               type="button"
             >
               {isBusy ? "저장중…" : "저장"}

@@ -111,13 +111,13 @@ export default function MemberTable({ users, search }: { users: Member[]; search
   return (
     <>
       {selected.size > 0 && (
-        <div className="mb-4 flex items-center gap-3 rounded-lg bg-[#405189]/5 border border-[#405189]/20 px-4 py-3 flex-wrap">
-          <span className="text-sm text-[#405189] font-semibold">
+        <div className="mb-4 flex items-center gap-3 rounded-lg bg-[#3182f6]/5 border border-[#3182f6]/20 px-4 py-3 flex-wrap">
+          <span className="text-sm text-[#3182f6] font-semibold">
             {selected.size}명 선택됨
           </span>
           <button
             onClick={startMessage}
-            className="rounded-lg bg-[#405189] px-4 py-1.5 text-sm font-medium text-white hover:bg-[#364574] transition-colors inline-flex items-center gap-1.5"
+            className="rounded-lg bg-[#3182f6] px-4 py-1.5 text-sm font-medium text-white hover:bg-[#364574] transition-colors inline-flex items-center gap-1.5"
           >
             <svg width={13} height={13} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.6}>
               <path d="M4 4h12a1 1 0 011 1v9a1 1 0 01-1 1H9l-4 3v-3H4a1 1 0 01-1-1V5a1 1 0 011-1z" strokeLinecap="round" strokeLinejoin="round" />
@@ -165,7 +165,7 @@ export default function MemberTable({ users, search }: { users: Member[]; search
                 placeholder="메시지를 입력하세요 (최대 4,000자)"
                 maxLength={4000}
                 rows={6}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#405189] focus:ring-2 focus:ring-[#405189]/20 resize-y"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#3182f6] focus:ring-2 focus:ring-[#3182f6]/20 resize-y"
               />
               <div className="mt-1 text-xs text-slate-400 text-right">
                 {messageBody.length} / 4,000자
@@ -187,7 +187,7 @@ export default function MemberTable({ users, search }: { users: Member[]; search
                 type="button"
                 onClick={sendBroadcast}
                 disabled={sending || !messageBody.trim()}
-                className="rounded-lg bg-[#405189] px-4 py-2 text-sm font-medium text-white hover:bg-[#364574] disabled:opacity-50"
+                className="rounded-lg bg-[#3182f6] px-4 py-2 text-sm font-medium text-white hover:bg-[#364574] disabled:opacity-50"
               >
                 {sending ? "전송 중…" : `${selected.size}명에게 전송`}
               </button>
@@ -205,7 +205,7 @@ export default function MemberTable({ users, search }: { users: Member[]; search
                   type="checkbox"
                   checked={allSelected}
                   onChange={toggleAll}
-                  className="accent-[#405189] w-4 h-4 cursor-pointer"
+                  className="accent-[#3182f6] w-4 h-4 cursor-pointer"
                 />
               </th>
               <th className="px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wider">이름</th>
@@ -220,7 +220,7 @@ export default function MemberTable({ users, search }: { users: Member[]; search
             {users.map((user) => (
               <tr
                 key={user.id}
-                className={`border-b border-slate-100 last:border-0 hover:bg-slate-50 ${selected.has(user.id) ? "bg-[#405189]/5" : ""}`}
+                className={`border-b border-slate-100 last:border-0 hover:bg-slate-50 ${selected.has(user.id) ? "bg-[#3182f6]/5" : ""}`}
               >
                 <td className="px-3 py-3">
                   {user.role !== "ADMIN" ? (
@@ -228,7 +228,7 @@ export default function MemberTable({ users, search }: { users: Member[]; search
                       type="checkbox"
                       checked={selected.has(user.id)}
                       onChange={() => toggle(user.id)}
-                      className="accent-[#405189] w-4 h-4 cursor-pointer"
+                      className="accent-[#3182f6] w-4 h-4 cursor-pointer"
                     />
                   ) : (
                     <span className="text-slate-600 text-xs">-</span>
@@ -237,7 +237,7 @@ export default function MemberTable({ users, search }: { users: Member[]; search
                 <td className="px-4 py-3">
                   <Link
                     href={`/admin/members/${user.id}`}
-                    className="text-[#405189] hover:text-[#405189]"
+                    className="text-[#3182f6] hover:text-[#3182f6]"
                   >
                     {user.name || "-"}
                   </Link>
@@ -257,7 +257,7 @@ export default function MemberTable({ users, search }: { users: Member[]; search
                       href={`https://home.homenshop.com/${user.shopId}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-[#405189] hover:text-[#405189]"
+                      className="text-[#3182f6] hover:text-[#3182f6]"
                     >
                       {user.shopId} ↗
                     </a>
@@ -291,7 +291,7 @@ export default function MemberTable({ users, search }: { users: Member[]; search
 
 function RoleBadge({ role }: { role: string }) {
   const colors: Record<string, string> = {
-    ADMIN: "bg-[#405189]/10 text-[#405189] ring-1 ring-inset ring-blue-600/20",
+    ADMIN: "bg-[#3182f6]/10 text-[#3182f6] ring-1 ring-inset ring-blue-600/20",
     RESELLER: "bg-violet-50 text-violet-700 ring-1 ring-inset ring-purple-600/20",
     MEMBER: "bg-slate-50 text-slate-600 ring-1 ring-inset ring-slate-500/20",
   };

@@ -195,7 +195,7 @@ export default function AdminMemberDetailPage() {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
         <p className="text-slate-500">{error || "회원을 찾을 수 없습니다."}</p>
-        <Link href="/admin/members" className="text-[#405189] hover:text-[#405189]">회원 목록으로 돌아가기</Link>
+        <Link href="/admin/members" className="text-[#3182f6] hover:text-[#3182f6]">회원 목록으로 돌아가기</Link>
       </div>
     );
   }
@@ -203,7 +203,7 @@ export default function AdminMemberDetailPage() {
   return (
     <div>
       <div className="mb-6">
-        <Link href="/admin/members" className="text-sm text-slate-500 hover:text-[#405189] transition-colors">
+        <Link href="/admin/members" className="text-sm text-slate-500 hover:text-[#3182f6] transition-colors">
           &larr; 회원 목록
         </Link>
       </div>
@@ -232,7 +232,7 @@ export default function AdminMemberDetailPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-[#405189] focus:outline-none"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-[#3182f6] focus:outline-none"
               />
               <div className="mt-2 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
@@ -260,7 +260,7 @@ export default function AdminMemberDetailPage() {
                   className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors disabled:opacity-50 ${
                     member.emailVerified
                       ? "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-                      : "bg-[#405189] text-white hover:bg-[#364574]"
+                      : "bg-[#3182f6] text-white hover:bg-[#364574]"
                   }`}
                 >
                   {verifyingEmail ? "처리 중..." : member.emailVerified ? "인증 해제" : "인증 완료 처리"}
@@ -273,7 +273,7 @@ export default function AdminMemberDetailPage() {
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-[#405189] focus:outline-none"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-[#3182f6] focus:outline-none"
               />
             </div>
             <div>
@@ -282,7 +282,7 @@ export default function AdminMemberDetailPage() {
                 type="text"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-[#405189] focus:outline-none"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-[#3182f6] focus:outline-none"
                 placeholder="-"
               />
             </div>
@@ -308,7 +308,7 @@ export default function AdminMemberDetailPage() {
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-[#405189] focus:outline-none"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-[#3182f6] focus:outline-none"
               >
                 <option value="MEMBER">MEMBER (일반 회원)</option>
                 <option value="RESELLER">RESELLER (리셀러)</option>
@@ -320,7 +320,7 @@ export default function AdminMemberDetailPage() {
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-[#405189] focus:outline-none"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-[#3182f6] focus:outline-none"
               >
                 <option value="ACTIVE">ACTIVE (활성)</option>
                 <option value="SUSPENDED">SUSPENDED (정지)</option>
@@ -344,7 +344,7 @@ export default function AdminMemberDetailPage() {
             <button
               onClick={handleSave}
               disabled={saving}
-              className="w-full rounded-lg bg-[#405189] px-4 py-2 text-sm font-medium text-white hover:bg-[#364574] disabled:opacity-50 transition-colors"
+              className="w-full rounded-lg bg-[#3182f6] px-4 py-2 text-sm font-medium text-white hover:bg-[#364574] disabled:opacity-50 transition-colors"
             >
               {saving ? "저장 중..." : "변경사항 저장"}
             </button>
@@ -383,19 +383,19 @@ export default function AdminMemberDetailPage() {
                 value={adjustAmount}
                 onChange={(e) => setAdjustAmount(e.target.value)}
                 placeholder="금액 (예: +100, -50)"
-                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-[#405189] focus:outline-none"
+                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-[#3182f6] focus:outline-none"
               />
               <input
                 type="text"
                 value={adjustDesc}
                 onChange={(e) => setAdjustDesc(e.target.value)}
                 placeholder="사유 (내역에 기록됨)"
-                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-[#405189] focus:outline-none"
+                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-[#3182f6] focus:outline-none"
               />
               <button
                 onClick={handleAdjust}
                 disabled={adjustSaving || !adjustAmount}
-                className="rounded-lg bg-[#405189] px-4 py-2 text-sm font-medium text-white hover:bg-[#364574] disabled:opacity-50 transition-colors"
+                className="rounded-lg bg-[#3182f6] px-4 py-2 text-sm font-medium text-white hover:bg-[#364574] disabled:opacity-50 transition-colors"
               >
                 {adjustSaving ? "처리 중..." : "적용"}
               </button>
@@ -468,7 +468,7 @@ export default function AdminMemberDetailPage() {
                   {member.sites.map((site) => (
                     <tr key={site.id} className="hover:bg-slate-50">
                       <td className="px-4 py-3 text-slate-800">{site.name}</td>
-                      <td className="px-4 py-3 font-mono text-xs"><a href={`https://${site.tempDomain || "home.homenshop.com"}/${site.shopId}`} target="_blank" rel="noopener noreferrer" className="text-[#405189] hover:text-[#405189]">{site.shopId} ↗</a></td>
+                      <td className="px-4 py-3 font-mono text-xs"><a href={`https://${site.tempDomain || "home.homenshop.com"}/${site.shopId}`} target="_blank" rel="noopener noreferrer" className="text-[#3182f6] hover:text-[#3182f6]">{site.shopId} ↗</a></td>
                       <td className="px-4 py-3">
                         {site.published ? (
                           <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset bg-emerald-50 text-emerald-700 ring-emerald-200">공개</span>
@@ -477,7 +477,7 @@ export default function AdminMemberDetailPage() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <Link href={`/admin/sites/${site.id}`} className="text-xs text-[#405189] hover:text-[#405189]">
+                        <Link href={`/admin/sites/${site.id}`} className="text-xs text-[#3182f6] hover:text-[#3182f6]">
                           View &rarr;
                         </Link>
                       </td>

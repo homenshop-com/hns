@@ -44,7 +44,7 @@ export default async function AdminResellersPage({
           </span>
           <Link
             href="/admin/resellers/new"
-            className="rounded-lg bg-[#405189] px-4 py-2 text-sm font-medium text-white hover:bg-[#364574] transition-colors"
+            className="rounded-lg bg-[#3182f6] px-4 py-2 text-sm font-medium text-white hover:bg-[#364574] transition-colors"
           >
             리셀러 추가
           </Link>
@@ -59,11 +59,11 @@ export default async function AdminResellersPage({
             name="search"
             defaultValue={search}
             placeholder="도메인 또는 사이트명으로 검색..."
-            className="flex-1 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-800 placeholder-slate-500 focus:border-[#405189] focus:outline-none"
+            className="flex-1 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-800 placeholder-slate-500 focus:border-[#3182f6] focus:outline-none"
           />
           <button
             type="submit"
-            className="rounded-lg bg-[#405189] px-4 py-2 text-sm font-medium text-white hover:bg-[#364574] transition-colors"
+            className="rounded-lg bg-[#3182f6] px-4 py-2 text-sm font-medium text-white hover:bg-[#364574] transition-colors"
           >
             검색
           </button>
@@ -101,7 +101,7 @@ export default async function AdminResellersPage({
                 <td className="px-6 py-3">
                   <Link
                     href={`/admin/resellers/${reseller.id}`}
-                    className="font-mono text-[#405189] hover:text-[#405189]"
+                    className="font-mono text-[#3182f6] hover:text-[#3182f6]"
                   >
                     {reseller.domain}
                   </Link>

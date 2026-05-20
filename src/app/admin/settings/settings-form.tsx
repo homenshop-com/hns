@@ -67,7 +67,7 @@ export default function SettingsForm({
               onClick={() => handleToggle(s.key, !values[s.key])}
               disabled={saving === s.key}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                values[s.key] ? "bg-[#405189]" : "bg-slate-600"
+                values[s.key] ? "bg-[#3182f6]" : "bg-slate-600"
               }`}
             >
               <span
@@ -76,7 +76,7 @@ export default function SettingsForm({
                 }`}
               />
             </button>
-            <span className={`text-xs font-medium ${values[s.key] ? "text-[#405189]" : "text-slate-500"}`}>
+            <span className={`text-xs font-medium ${values[s.key] ? "text-[#3182f6]" : "text-slate-500"}`}>
               {values[s.key] ? "ON" : "OFF"}
             </span>
           </div>

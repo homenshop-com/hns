@@ -105,7 +105,7 @@ export default function AdminDomainDetailPage() {
         <p className="text-slate-500">
           {error || "도메인을 찾을 수 없습니다."}
         </p>
-        <Link href="/admin/domains" className="text-[#405189] hover:text-[#405189]">
+        <Link href="/admin/domains" className="text-[#3182f6] hover:text-[#3182f6]">
           도메인 목록으로 돌아가기
         </Link>
       </div>
@@ -142,7 +142,7 @@ export default function AdminDomainDetailPage() {
         <div className="rounded-xl border border-slate-200 bg-white p-6">
           <h2 className="text-base font-semibold text-slate-800 mb-4">도메인 정보</h2>
           <dl className="space-y-3">
-            <div className="flex justify-between items-center"><dt className="text-sm text-slate-500">도메인</dt><dd className="text-sm text-slate-800 font-mono text-xs"><a href={`https://${domain.domain}`} target="_blank" rel="noopener noreferrer" className="text-[#405189] hover:text-[#405189]">{domain.domain} ↗</a></dd></div>
+            <div className="flex justify-between items-center"><dt className="text-sm text-slate-500">도메인</dt><dd className="text-sm text-slate-800 font-mono text-xs"><a href={`https://${domain.domain}`} target="_blank" rel="noopener noreferrer" className="text-[#3182f6] hover:text-[#3182f6]">{domain.domain} ↗</a></dd></div>
             <InfoRow label="ID" value={domain.id} mono />
             <InfoRow
               label="등록일"
@@ -166,7 +166,7 @@ export default function AdminDomainDetailPage() {
           <div className="mt-4">
             <Link
               href={`/admin/members/${domain.user.id}`}
-              className="text-sm text-[#405189] hover:text-[#405189]"
+              className="text-sm text-[#3182f6] hover:text-[#3182f6]"
             >
               회원 상세보기
             </Link>
@@ -221,7 +221,7 @@ export default function AdminDomainDetailPage() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="mt-6 rounded-lg bg-[#405189] px-6 py-2 text-sm font-medium text-white hover:bg-[#364574] disabled:opacity-50 transition-colors"
+            className="mt-6 rounded-lg bg-[#3182f6] px-6 py-2 text-sm font-medium text-white hover:bg-[#364574] disabled:opacity-50 transition-colors"
           >
             {saving ? "저장 중..." : "변경사항 저장"}
           </button>

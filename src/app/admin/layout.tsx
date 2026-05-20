@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import AdminSidebar from "./admin-sidebar";
 import { canEditTemplates } from "@/lib/permissions";
+import "./admin-shell.css";
 
 // Base menu shown to every ADMIN. Template editing is gated separately
 // (see `canEditTemplates`) because modifying the golden copy of a system
@@ -57,10 +58,10 @@ export default async function AdminLayout({
     : baseNavItems;
 
   return (
-    <div className="min-h-screen flex bg-[#f3f3f9] text-slate-700">
+    <div className="adm-shell">
       <AdminSidebar email={email} navItems={navItems} />
-      <main className="flex-1 overflow-auto">
-        <div className="p-8 max-w-7xl mx-auto">{children}</div>
+      <main className="adm-main">
+        <div className="adm-content">{children}</div>
       </main>
     </div>
   );

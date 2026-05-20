@@ -115,7 +115,7 @@ export default async function AdminSitesPage({
             href={buildUrl({ tab: t.key, page: "1" })}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               tab === t.key
-                ? "bg-[#405189] text-white"
+                ? "bg-[#3182f6] text-white"
                 : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
             }`}
           >
@@ -148,7 +148,7 @@ export default async function AdminSitesPage({
               <input type="text" name="search" defaultValue={search} placeholder="Search keyword" className="border border-slate-300 rounded-lg bg-white px-3 py-2 text-sm text-slate-800 w-48" />
             </div>
           </div>
-          <button type="submit" className="bg-[#405189] text-white px-6 py-2 rounded text-sm font-medium hover:bg-[#364574]">
+          <button type="submit" className="bg-[#3182f6] text-white px-6 py-2 rounded text-sm font-medium hover:bg-[#364574]">
             Search
           </button>
         </form>

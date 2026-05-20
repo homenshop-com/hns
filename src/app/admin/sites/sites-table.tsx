@@ -20,7 +20,7 @@ interface SiteRow {
 }
 
 const ACCOUNT_TYPES: Record<string, { label: string; color: string }> = {
-  "0": { label: "Free", color: "bg-[#405189]/10 text-[#405189]" },
+  "0": { label: "Free", color: "bg-[#3182f6]/10 text-[#3182f6]" },
   "1": { label: "Paid", color: "bg-emerald-50 text-emerald-700" },
   "2": { label: "Test", color: "bg-amber-50 text-amber-700" },
   "9": { label: "Expired", color: "bg-red-50 text-red-700" },
@@ -121,7 +121,7 @@ export default function SitesTable({
                   type="checkbox"
                   checked={allChecked}
                   onChange={toggleAll}
-                  className="rounded border-slate-300 bg-slate-100 text-[#405189] focus:ring-[#405189]/30"
+                  className="rounded border-slate-300 bg-slate-100 text-[#3182f6] focus:ring-[#3182f6]/30"
                 />
               </th>
               <th className="px-4 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">NO</th>
@@ -145,14 +145,14 @@ export default function SitesTable({
               return (
                 <tr
                   key={site.id}
-                  className={`border-b border-slate-100 last:border-0 hover:bg-slate-50 ${selected.has(site.id) ? "bg-[#405189]/5" : ""}`}
+                  className={`border-b border-slate-100 last:border-0 hover:bg-slate-50 ${selected.has(site.id) ? "bg-[#3182f6]/5" : ""}`}
                 >
                   <td className="px-3 py-3">
                     <input
                       type="checkbox"
                       checked={selected.has(site.id)}
                       onChange={() => toggle(site.id)}
-                      className="rounded border-slate-300 bg-slate-100 text-[#405189] focus:ring-[#405189]/30"
+                      className="rounded border-slate-300 bg-slate-100 text-[#3182f6] focus:ring-[#3182f6]/30"
                     />
                   </td>
                   <td className="px-4 py-3 text-slate-500">{no}</td>
@@ -164,7 +164,7 @@ export default function SitesTable({
                   <td className="px-4 py-3 text-slate-600">{site.email}</td>
                   <td className="px-4 py-3">
                     {site.domain ? (
-                      <a href={`https://${site.domain}`} target="_blank" rel="noopener" className="text-[#405189] hover:text-[#405189] hover:underline">
+                      <a href={`https://${site.domain}`} target="_blank" rel="noopener" className="text-[#3182f6] hover:text-[#3182f6] hover:underline">
                         {site.domain}
                       </a>
                     ) : (
@@ -172,7 +172,7 @@ export default function SitesTable({
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    <a href={`https://${site.tempDomain || "home.homenshop.com"}/${site.shopId}`} target="_blank" rel="noopener" className="text-[#405189] hover:text-[#405189] hover:underline">
+                    <a href={`https://${site.tempDomain || "home.homenshop.com"}/${site.shopId}`} target="_blank" rel="noopener" className="text-[#3182f6] hover:text-[#3182f6] hover:underline">
                       {site.shopId}
                     </a>
                   </td>
@@ -196,7 +196,7 @@ export default function SitesTable({
                   <td className="px-4 py-3 text-right whitespace-nowrap">
                     <Link
                       href={`/admin/sites/${site.id}`}
-                      className="inline-block bg-[#405189] text-white px-3 py-1 rounded text-xs font-medium hover:bg-[#364574]"
+                      className="inline-block bg-[#3182f6] text-white px-3 py-1 rounded text-xs font-medium hover:bg-[#364574]"
                     >
                       View
                     </Link>
@@ -229,7 +229,7 @@ export default function SitesTable({
                         if (el) { el.style.opacity = "1"; setTimeout(() => { el.style.opacity = "0"; }, 1500); }
                       }}
                       title={`${site.email} 로그인 링크 복사`}
-                      className="relative text-slate-600 hover:text-[#405189] ml-1 align-middle"
+                      className="relative text-slate-600 hover:text-[#3182f6] ml-1 align-middle"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                       <span id={`copy-ok-${site.id}`} className="absolute -top-6 left-1/2 -translate-x-1/2 bg-slate-100 text-emerald-700 text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap opacity-0 transition-opacity pointer-events-none">Copied!</span>
@@ -265,7 +265,7 @@ export default function SitesTable({
               <Link
                 key={p}
                 href={pageUrl(p)}
-                className={`px-3 py-1 rounded text-sm ${p === currentPage ? "bg-[#405189] text-white" : "border border-slate-200 hover:bg-slate-50 text-slate-600"}`}
+                className={`px-3 py-1 rounded text-sm ${p === currentPage ? "bg-[#3182f6] text-white" : "border border-slate-200 hover:bg-slate-50 text-slate-600"}`}
               >
                 {p}
               </Link>

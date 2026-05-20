@@ -164,7 +164,7 @@ export default function AdminResellerNewPage() {
             <button
               type="submit"
               disabled={saving || !domain.trim() || !siteName.trim()}
-              className="rounded-lg bg-[#405189] px-6 py-2 text-sm font-medium text-white hover:bg-[#364574] disabled:opacity-50 transition-colors"
+              className="rounded-lg bg-[#3182f6] px-6 py-2 text-sm font-medium text-white hover:bg-[#364574] disabled:opacity-50 transition-colors"
             >
               {saving ? "생성 중..." : "리셀러 생성"}
             </button>

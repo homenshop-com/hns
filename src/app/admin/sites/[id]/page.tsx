@@ -221,10 +221,10 @@ export default async function AdminSiteDetailPage({
   return (
     <div>
       <div className="flex items-center gap-4 mb-6">
-        <Link href="/admin/sites" className="text-[#405189] hover:text-[#405189] text-sm">&larr; Back to list</Link>
+        <Link href="/admin/sites" className="text-[#3182f6] hover:text-[#3182f6] text-sm">&larr; Back to list</Link>
         <h1 className="text-xl font-bold text-slate-900">Account Detail: {site.shopId}</h1>
         <span className={`inline-block rounded-md px-3 py-1 text-xs font-medium ${
-          isExpired ? "bg-red-50 text-red-700" : site.accountType === '1' ? "bg-emerald-50 text-emerald-700" : "bg-[#405189]/10 text-[#405189]"
+          isExpired ? "bg-red-50 text-red-700" : site.accountType === '1' ? "bg-emerald-50 text-emerald-700" : "bg-[#3182f6]/10 text-[#3182f6]"
         }`}>
           {ACCOUNT_TYPES[site.accountType] || "Free"} {isExpired && "(Expired)"}
         </span>
@@ -241,7 +241,7 @@ export default async function AdminSiteDetailPage({
                 <label className="block text-xs text-slate-500 mb-1">Account ID</label>
                 <div className="flex gap-2 items-center">
                   <input name="shopId" defaultValue={site.shopId} className="flex-1 border border-slate-300 rounded-lg bg-white px-3 py-2 text-sm text-slate-800" />
-                  <a href={`https://${getTempDomain(site)}/${site.shopId}`} target="_blank" rel="noopener noreferrer" className="shrink-0 rounded-lg border border-slate-300 px-3 py-2 text-xs text-[#405189] hover:bg-white hover:text-[#405189] transition-colors">Open ↗</a>
+                  <a href={`https://${getTempDomain(site)}/${site.shopId}`} target="_blank" rel="noopener noreferrer" className="shrink-0 rounded-lg border border-slate-300 px-3 py-2 text-xs text-[#3182f6] hover:bg-white hover:text-[#3182f6] transition-colors">Open ↗</a>
                 </div>
               </div>
               <div>
@@ -250,7 +250,7 @@ export default async function AdminSiteDetailPage({
               </div>
               <div>
                 <label className="block text-xs text-slate-500 mb-1">Owner</label>
-                <Link href={`/admin/members/${site.user.id}`} className="text-[#405189] hover:text-[#405189]">
+                <Link href={`/admin/members/${site.user.id}`} className="text-[#3182f6] hover:text-[#3182f6]">
                   {site.user.email}
                 </Link>
               </div>
@@ -312,7 +312,7 @@ export default async function AdminSiteDetailPage({
                   {site.updatedAt.toLocaleString("ko-KR")}
                 </div>
               </div>
-              <button type="submit" className="bg-[#405189] text-white px-6 py-2 rounded text-sm font-medium hover:bg-[#364574]">
+              <button type="submit" className="bg-[#3182f6] text-white px-6 py-2 rounded text-sm font-medium hover:bg-[#364574]">
                 Save Changes
               </button>
             </div>
@@ -359,7 +359,7 @@ export default async function AdminSiteDetailPage({
                 {site.domains.map((d) => (
                   <li key={d.id} className="flex items-center justify-between gap-2 rounded-md border border-slate-200 px-3 py-2">
                     <div className="min-w-0 flex-1">
-                      <a href={`https://${d.domain}`} target="_blank" rel="noopener noreferrer" className="text-sm text-[#405189] hover:underline font-mono truncate block">
+                      <a href={`https://${d.domain}`} target="_blank" rel="noopener noreferrer" className="text-sm text-[#3182f6] hover:underline font-mono truncate block">
                         {d.domain} ↗
                       </a>
                       <div className="mt-1 flex items-center gap-1.5 text-[11px]">
@@ -377,7 +377,7 @@ export default async function AdminSiteDetailPage({
                       <form action={regenerateDomainNginx}>
                         <input type="hidden" name="siteId" value={site.id} />
                         <input type="hidden" name="domainId" value={d.id} />
-                        <button type="submit" className="rounded-md border border-[#405189]/30 bg-[#405189]/5 px-2 py-1 text-[11px] text-[#405189] hover:bg-[#405189]/10" title="이 도메인의 nginx vhost를 현재 shopId로 재작성합니다 (~5~15초)">Nginx 재구성</button>
+                        <button type="submit" className="rounded-md border border-[#3182f6]/30 bg-[#3182f6]/5 px-2 py-1 text-[11px] text-[#3182f6] hover:bg-[#3182f6]/10" title="이 도메인의 nginx vhost를 현재 shopId로 재작성합니다 (~5~15초)">Nginx 재구성</button>
                       </form>
                       <form action={removeDomainFromSite}>
                         <input type="hidden" name="siteId" value={site.id} />
@@ -403,7 +403,7 @@ export default async function AdminSiteDetailPage({
                   placeholder="example.com"
                   className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
                 />
-                <button type="submit" className="rounded-lg bg-[#405189] px-4 py-2 text-sm font-medium text-white hover:bg-[#364574]">
+                <button type="submit" className="rounded-lg bg-[#3182f6] px-4 py-2 text-sm font-medium text-white hover:bg-[#364574]">
                   연결
                 </button>
               </div>

@@ -59,11 +59,11 @@ export default async function AdminDomainsPage({
             name="search"
             defaultValue={search}
             placeholder="도메인 또는 이메일로 검색..."
-            className="flex-1 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-800 placeholder-slate-500 focus:border-[#405189] focus:outline-none"
+            className="flex-1 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-800 placeholder-slate-500 focus:border-[#3182f6] focus:outline-none"
           />
           <button
             type="submit"
-            className="rounded-lg bg-[#405189] px-4 py-2 text-sm font-medium text-white hover:bg-[#364574] transition-colors"
+            className="rounded-lg bg-[#3182f6] px-4 py-2 text-sm font-medium text-white hover:bg-[#364574] transition-colors"
           >
             검색
           </button>
@@ -100,7 +100,7 @@ export default async function AdminDomainsPage({
                 <td className="px-6 py-3">
                   <Link
                     href={`https://${domain.domain}`} target="_blank" rel="noopener noreferrer"
-                    className="font-mono text-[#405189] hover:text-[#405189]"
+                    className="font-mono text-[#3182f6] hover:text-[#3182f6]"
                   >
                     {domain.domain}
                   </Link>
@@ -112,7 +112,7 @@ export default async function AdminDomainsPage({
                   </div>
                 </td>
                 <td className="px-6 py-3">
-                  <Link href={`/admin/sites/${domain.site.id}`} className="text-[#405189] hover:text-[#405189]">{domain.site.shopId || domain.site.name}</Link>
+                  <Link href={`/admin/sites/${domain.site.id}`} className="text-[#3182f6] hover:text-[#3182f6]">{domain.site.shopId || domain.site.name}</Link>
                 </td>
                 <td className="px-6 py-3">
                   <DomainStatusBadge status={domain.status} />

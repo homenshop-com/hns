@@ -30,7 +30,7 @@ export default async function AdminBoardPostPage({
         <div className="flex items-center gap-3">
           <Link
             href="/admin/boards"
-            className="text-sm text-slate-500 hover:text-[#405189] transition-colors"
+            className="text-sm text-slate-500 hover:text-[#3182f6] transition-colors"
           >
             &larr; 목록
           </Link>

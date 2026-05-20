@@ -78,7 +78,7 @@ export default function NewProspectForm({
             type="tel"
             required
             placeholder="010-1234-5678"
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-[#405189] focus:outline-none"
+            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-[#3182f6] focus:outline-none"
           />
           <p className="mt-1 text-xs text-slate-500">
             고객 회원가입 시 이 번호와 일치해야 자동 인계됩니다.
@@ -93,7 +93,7 @@ export default function NewProspectForm({
             type="text"
             required
             placeholder="셀로에스테틱"
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-[#405189] focus:outline-none"
+            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-[#3182f6] focus:outline-none"
           />
         </div>
       </div>
@@ -109,7 +109,7 @@ export default function NewProspectForm({
             required
             pattern="[a-z0-9][a-z0-9\-]{4,12}[a-z0-9]"
             placeholder="celo-aesthetic"
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm font-mono focus:border-[#405189] focus:outline-none"
+            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm font-mono focus:border-[#3182f6] focus:outline-none"
           />
           <p className="mt-1 text-xs text-slate-500">
             6~14자 영문 소문자/숫자/-. URL 경로로 사용됩니다 (예: /celo-aesthetic/ko/).
@@ -122,7 +122,7 @@ export default function NewProspectForm({
           <select
             name="defaultLanguage"
             defaultValue="ko"
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-[#405189] focus:outline-none"
+            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-[#3182f6] focus:outline-none"
           >
             <option value="ko">한국어</option>
             <option value="en">English</option>
@@ -143,7 +143,7 @@ export default function NewProspectForm({
             min={1}
             max={365}
             defaultValue={30}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-[#405189] focus:outline-none"
+            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-[#3182f6] focus:outline-none"
           />
           <p className="mt-1 text-xs text-slate-500">
             인계 시점에 다시 30일로 자동 재설정됩니다. 인계 전까지의 만료일을 길게 두고 싶을 때 사용.
@@ -155,7 +155,7 @@ export default function NewProspectForm({
           </label>
           <select
             name="templateId"
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-[#405189] focus:outline-none"
+            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-[#3182f6] focus:outline-none"
             defaultValue=""
           >
             <option value="">선택하지 않음 (빈 사이트)</option>
@@ -176,7 +176,7 @@ export default function NewProspectForm({
           name="prospectNote"
           rows={3}
           placeholder="소개자, 영업 상태, 후속 일정 등"
-          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-[#405189] focus:outline-none"
+          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-[#3182f6] focus:outline-none"
         />
       </div>
 
@@ -190,7 +190,7 @@ export default function NewProspectForm({
         <button
           type="submit"
           disabled={submitting}
-          className="rounded-md bg-[#405189] px-4 py-2 text-sm font-medium text-white hover:bg-[#364574] disabled:opacity-50"
+          className="rounded-md bg-[#3182f6] px-4 py-2 text-sm font-medium text-white hover:bg-[#364574] disabled:opacity-50"
         >
           {submitting ? "등록 중..." : "잠재고객 등록"}
         </button>

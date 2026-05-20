@@ -17,7 +17,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 const STATUS_COLORS: Record<string, string> = {
   PENDING: "bg-amber-50 text-amber-700",
-  PAID: "bg-[#405189]/10 text-[#405189]",
+  PAID: "bg-[#3182f6]/10 text-[#3182f6]",
   SHIPPING: "bg-violet-50 text-violet-700",
   DELIVERED: "bg-emerald-50 text-emerald-700",
   CANCELLED: "bg-red-50 text-red-700",
@@ -110,7 +110,7 @@ export default async function AdminOrdersPage({
           href={buildUrl({ type: "" })}
           className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${
             !typeFilter
-              ? "bg-[#405189] text-white"
+              ? "bg-[#3182f6] text-white"
               : "border border-slate-300 hover:bg-slate-100"
           }`}
         >
@@ -122,7 +122,7 @@ export default async function AdminOrdersPage({
             href={buildUrl({ type: t })}
             className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${
               typeFilter === t
-                ? "bg-[#405189] text-white"
+                ? "bg-[#3182f6] text-white"
                 : "border border-slate-300 hover:bg-slate-100"
             }`}
           >
@@ -137,7 +137,7 @@ export default async function AdminOrdersPage({
           href={buildUrl({ status: "" })}
           className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${
             !statusFilter
-              ? "bg-[#405189] text-white"
+              ? "bg-[#3182f6] text-white"
               : "border border-slate-300 hover:bg-slate-100"
           }`}
         >
@@ -149,7 +149,7 @@ export default async function AdminOrdersPage({
             href={buildUrl({ status: s })}
             className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${
               statusFilter === s
-                ? "bg-[#405189] text-white"
+                ? "bg-[#3182f6] text-white"
                 : "border border-slate-300 hover:bg-slate-100"
             }`}
           >
@@ -185,7 +185,7 @@ export default async function AdminOrdersPage({
                   <td className="px-6 py-3">
                     <Link
                       href={`/admin/orders/${order.id}`}
-                      className="font-mono text-sm text-[#405189] hover:text-[#405189]"
+                      className="font-mono text-sm text-[#3182f6] hover:text-[#3182f6]"
                     >
                       {order.orderNumber}
                     </Link>

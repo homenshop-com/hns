@@ -138,7 +138,7 @@ export default function AdminResellerDetailPage() {
         </p>
         <Link
           href="/admin/resellers"
-          className="text-[#405189] hover:text-[#405189]"
+          className="text-[#3182f6] hover:text-[#3182f6]"
         >
           리셀러 목록으로 돌아가기
         </Link>
@@ -275,7 +275,7 @@ export default function AdminResellerDetailPage() {
             <button
               onClick={handleSave}
               disabled={saving || !domain.trim() || !siteName.trim()}
-              className="rounded-lg bg-[#405189] px-6 py-2 text-sm font-medium text-white hover:bg-[#364574] disabled:opacity-50 transition-colors"
+              className="rounded-lg bg-[#3182f6] px-6 py-2 text-sm font-medium text-white hover:bg-[#364574] disabled:opacity-50 transition-colors"
             >
               {saving ? "저장 중..." : "변경사항 저장"}
             </button>

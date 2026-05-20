@@ -86,7 +86,7 @@ export default async function AdminBoardsPage({
           href="/admin/boards"
           className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
             !siteFilter
-              ? "bg-[#405189]/20 text-[#405189]"
+              ? "bg-[#3182f6]/20 text-[#3182f6]"
               : "border border-slate-300 text-slate-600 hover:bg-slate-100"
           }`}
         >
@@ -98,7 +98,7 @@ export default async function AdminBoardsPage({
             href={`/admin/boards?siteId=${s.id}${q ? `&q=${encodeURIComponent(q)}` : ""}`}
             className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
               siteFilter === s.id
-                ? "bg-[#405189]/20 text-[#405189]"
+                ? "bg-[#3182f6]/20 text-[#3182f6]"
                 : "border border-slate-300 text-slate-600 hover:bg-slate-100"
             }`}
           >
@@ -115,11 +115,11 @@ export default async function AdminBoardsPage({
           name="q"
           defaultValue={q || ""}
           placeholder="제목 또는 작성자 검색..."
-          className="flex-1 max-w-sm rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-800 placeholder-slate-500 outline-none focus:border-[#405189]/50 focus:ring-1 focus:ring-[#405189]/30"
+          className="flex-1 max-w-sm rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-800 placeholder-slate-500 outline-none focus:border-[#3182f6]/50 focus:ring-1 focus:ring-[#3182f6]/30"
         />
         <button
           type="submit"
-          className="rounded-lg bg-[#405189] px-4 py-2 text-sm font-medium text-white hover:bg-[#364574]"
+          className="rounded-lg bg-[#3182f6] px-4 py-2 text-sm font-medium text-white hover:bg-[#364574]"
         >
           검색
         </button>

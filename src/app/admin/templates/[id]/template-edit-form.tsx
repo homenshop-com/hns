@@ -106,7 +106,7 @@ export default function TemplateEditForm({ template }: { template: Template }) {
           onChange={(e) => update("name", e.target.value)}
           maxLength={100}
           required
-          className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#405189]/40"
+          className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#3182f6]/40"
         />
       </Row>
 
@@ -117,7 +117,7 @@ export default function TemplateEditForm({ template }: { template: Template }) {
           maxLength={2000}
           rows={3}
           placeholder="템플릿의 용도·특징을 간단히. 500자 이내 권장."
-          className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#405189]/40 resize-y"
+          className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#3182f6]/40 resize-y"
         />
       </Row>
 
@@ -128,7 +128,7 @@ export default function TemplateEditForm({ template }: { template: Template }) {
             value={form.category}
             onChange={(e) => update("category", e.target.value)}
             placeholder="예: business, education, portfolio"
-            className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#405189]/40"
+            className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#3182f6]/40"
           />
         </Row>
         <Row label="정렬 순서" hint="낮을수록 목록 상단 — 최신 정렬 기준">
@@ -137,7 +137,7 @@ export default function TemplateEditForm({ template }: { template: Template }) {
             min={0}
             value={form.sortOrder}
             onChange={(e) => update("sortOrder", Math.max(0, Math.round(Number(e.target.value) || 0)))}
-            className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#405189]/40"
+            className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#3182f6]/40"
           />
         </Row>
       </div>
@@ -157,7 +157,7 @@ export default function TemplateEditForm({ template }: { template: Template }) {
                 title={opt.hint}
                 className={`px-4 py-2 text-sm font-medium transition-colors ${
                   active
-                    ? "bg-[#405189] text-white"
+                    ? "bg-[#3182f6] text-white"
                     : "bg-white text-slate-600 hover:bg-slate-50"
                 }`}
               >
@@ -174,7 +174,7 @@ export default function TemplateEditForm({ template }: { template: Template }) {
           value={form.keywords}
           onChange={(e) => update("keywords", e.target.value)}
           placeholder="agency, modern, business, 비즈니스"
-          className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#405189]/40"
+          className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#3182f6]/40"
         />
       </Row>
 
@@ -190,7 +190,7 @@ export default function TemplateEditForm({ template }: { template: Template }) {
               if (f) handleThumbnailFile(f);
             }}
             onClick={() => !uploading && fileInputRef.current?.click()}
-            className="w-32 h-20 rounded border-2 border-dashed border-slate-300 bg-slate-50 hover:border-[#405189]/60 hover:bg-slate-100 flex items-center justify-center text-xs text-slate-500 cursor-pointer flex-shrink-0 overflow-hidden relative transition-colors"
+            className="w-32 h-20 rounded border-2 border-dashed border-slate-300 bg-slate-50 hover:border-[#3182f6]/60 hover:bg-slate-100 flex items-center justify-center text-xs text-slate-500 cursor-pointer flex-shrink-0 overflow-hidden relative transition-colors"
             title="클릭 또는 드래그해서 업로드"
           >
             {form.thumbnailUrl ? (
@@ -204,7 +204,7 @@ export default function TemplateEditForm({ template }: { template: Template }) {
             )}
             {uploading && (
               <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
-                <svg className="animate-spin text-[#405189]" width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <svg className="animate-spin text-[#3182f6]" width="20" height="20" viewBox="0 0 24 24" fill="none">
                   <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
                   <path d="M4 12a8 8 0 0 1 8-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                 </svg>
@@ -227,7 +227,7 @@ export default function TemplateEditForm({ template }: { template: Template }) {
               value={form.thumbnailUrl}
               onChange={(e) => update("thumbnailUrl", e.target.value)}
               placeholder="/uploads/… 또는 https://… (업로드 시 자동 입력)"
-              className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#405189]/40"
+              className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#3182f6]/40"
             />
             <div className="flex items-center gap-2">
               <button
@@ -266,7 +266,7 @@ export default function TemplateEditForm({ template }: { template: Template }) {
               step={1000}
               value={form.price}
               onChange={(e) => update("price", Math.max(0, Math.round(Number(e.target.value) || 0)))}
-              className="w-full px-3 py-2 pr-14 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#405189]/40"
+              className="w-full px-3 py-2 pr-14 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#3182f6]/40"
             />
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-mono">
               {form.price === 0 ? "FREE" : "KRW"}
@@ -281,7 +281,7 @@ export default function TemplateEditForm({ template }: { template: Template }) {
                 type="checkbox"
                 checked={form.isActive}
                 onChange={(e) => update("isActive", e.target.checked)}
-                className="w-4 h-4 text-[#405189] rounded"
+                className="w-4 h-4 text-[#3182f6] rounded"
               />
               <span>활성 (비활성 시 목록에서 숨김)</span>
             </label>
@@ -290,7 +290,7 @@ export default function TemplateEditForm({ template }: { template: Template }) {
                 type="checkbox"
                 checked={form.isPublic}
                 onChange={(e) => update("isPublic", e.target.checked)}
-                className="w-4 h-4 text-[#405189] rounded"
+                className="w-4 h-4 text-[#3182f6] rounded"
               />
               <span>공개 (유저 템플릿을 공용 탭에 노출)</span>
             </label>
@@ -308,7 +308,7 @@ export default function TemplateEditForm({ template }: { template: Template }) {
         <button
           type="submit"
           disabled={saving}
-          className="px-5 py-2 bg-[#405189] text-white text-sm font-medium rounded-md hover:bg-[#405189]/90 disabled:opacity-50"
+          className="px-5 py-2 bg-[#3182f6] text-white text-sm font-medium rounded-md hover:bg-[#3182f6]/90 disabled:opacity-50"
         >
           {saving ? "저장 중…" : "저장"}
         </button>

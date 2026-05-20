@@ -99,7 +99,7 @@ export default async function AdminDashboardPage() {
       <div className="rounded-xl bg-white border border-slate-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-slate-800">최근 가입 회원</h2>
-          <Link href="/admin/members" className="text-xs font-medium text-[#405189] hover:text-[#405189] transition-colors">
+          <Link href="/admin/members" className="text-xs font-medium text-[#3182f6] hover:text-[#1b64da] transition-colors">
             전체 보기 &rarr;
           </Link>
         </div>
@@ -118,7 +118,7 @@ export default async function AdminDashboardPage() {
               {recentUsers.map((user) => (
                 <tr key={user.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-3">
-                    <Link href={`/admin/members/${user.id}`} className="font-medium text-slate-800 hover:text-[#405189] transition-colors">
+                    <Link href={`/admin/members/${user.id}`} className="font-medium text-slate-800 hover:text-[#3182f6] transition-colors">
                       {user.name || "-"}
                     </Link>
                   </td>
@@ -141,7 +141,7 @@ export default async function AdminDashboardPage() {
 
 function RoleBadge({ role }: { role: string }) {
   const s: Record<string, string> = {
-    ADMIN: "bg-[#405189]/10 text-[#405189] ring-[#405189]/30",
+    ADMIN: "bg-[#3182f6]/10 text-[#1b64da] ring-[#3182f6]/30",
     RESELLER: "bg-violet-50 text-violet-700 ring-violet-200",
     MEMBER: "bg-slate-500/10 text-slate-600 ring-slate-400/20",
   };

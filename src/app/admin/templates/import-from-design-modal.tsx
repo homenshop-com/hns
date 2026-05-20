@@ -102,7 +102,7 @@ export default function ImportFromDesignModal({ onClose }: Props) {
                   onChange={(e) => setCommand(e.target.value)}
                   rows={6}
                   placeholder={`Fetch this design file, read its readme, and implement the relevant aspects of the design. https://api.anthropic.com/v1/design/h/Ew1rboXzg8jvyZRliOU0AA?open_file=Plus+Academy.html\n\nImplement: Plus Academy.html`}
-                  className="w-full px-3 py-2.5 border border-slate-300 rounded-md text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#405189]/40 resize-y"
+                  className="w-full px-3 py-2.5 border border-slate-300 rounded-md text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#3182f6]/40 resize-y"
                   disabled={busy}
                   autoFocus
                 />
@@ -147,7 +147,7 @@ export default function ImportFromDesignModal({ onClose }: Props) {
               <button
                 type="submit"
                 disabled={busy || !hasUrl}
-                className="inline-flex items-center gap-2 px-5 py-2 bg-[#405189] text-white text-sm font-semibold rounded-md hover:bg-[#405189]/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-2 px-5 py-2 bg-[#3182f6] text-white text-sm font-semibold rounded-md hover:bg-[#3182f6]/90 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {busy && (
                   <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none">
@@ -194,7 +194,7 @@ export default function ImportFromDesignModal({ onClose }: Props) {
               <button
                 type="button"
                 onClick={() => router.push(result.editUrl)}
-                className="px-5 py-2 bg-[#405189] text-white text-sm font-semibold rounded-md hover:bg-[#405189]/90"
+                className="px-5 py-2 bg-[#3182f6] text-white text-sm font-semibold rounded-md hover:bg-[#3182f6]/90"
               >
                 기본정보 편집하기 →
               </button>

@@ -104,12 +104,12 @@ export default async function AdminTemplatesPage({
               href={buildUrl({ tab: t.key, page: "1" })}
               className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                 active
-                  ? "border-[#405189] text-[#405189]"
+                  ? "border-[#3182f6] text-[#3182f6]"
                   : "border-transparent text-slate-500 hover:text-slate-700"
               }`}
             >
               {t.label}
-              <span className={`ml-1.5 text-[11px] font-semibold ${active ? "text-[#405189]" : "text-slate-400"}`}>
+              <span className={`ml-1.5 text-[11px] font-semibold ${active ? "text-[#3182f6]" : "text-slate-400"}`}>
                 {countMap[t.key] ?? 0}
               </span>
             </Link>
@@ -125,11 +125,11 @@ export default async function AdminTemplatesPage({
           name="search"
           defaultValue={search}
           placeholder="이름·설명·키워드·카테고리로 검색"
-          className="flex-1 max-w-md px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#405189]/40"
+          className="flex-1 max-w-md px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#3182f6]/40"
         />
         <button
           type="submit"
-          className="px-4 py-2 bg-[#405189] text-white text-sm font-medium rounded-md hover:bg-[#405189]/90"
+          className="px-4 py-2 bg-[#3182f6] text-white text-sm font-medium rounded-md hover:bg-[#3182f6]/90"
         >
           검색
         </button>
@@ -175,7 +175,7 @@ export default async function AdminTemplatesPage({
               href={buildUrl({ page: String(n) })}
               className={`px-3 py-1.5 text-sm rounded-md ${
                 n === page
-                  ? "bg-[#405189] text-white"
+                  ? "bg-[#3182f6] text-white"
                   : "text-slate-600 hover:bg-slate-100"
               }`}
             >

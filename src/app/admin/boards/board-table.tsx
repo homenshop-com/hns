@@ -102,7 +102,7 @@ export default function BoardTable({ posts, currentPage, totalPages, qsBase }: {
                   type="checkbox"
                   checked={allChecked}
                   onChange={toggleAll}
-                  className="rounded border-slate-300 bg-slate-100 text-[#405189] focus:ring-[#405189]/30"
+                  className="rounded border-slate-300 bg-slate-100 text-[#3182f6] focus:ring-[#3182f6]/30"
                 />
               </th>
               <th className="px-4 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">제목</th>
@@ -118,20 +118,20 @@ export default function BoardTable({ posts, currentPage, totalPages, qsBase }: {
             {posts.map((post) => (
               <tr
                 key={post.id}
-                className={`border-b border-slate-100 last:border-0 hover:bg-slate-50 ${selected.has(post.id) ? "bg-[#405189]/5" : ""}`}
+                className={`border-b border-slate-100 last:border-0 hover:bg-slate-50 ${selected.has(post.id) ? "bg-[#3182f6]/5" : ""}`}
               >
                 <td className="px-3 py-3">
                   <input
                     type="checkbox"
                     checked={selected.has(post.id)}
                     onChange={() => toggle(post.id)}
-                    className="rounded border-slate-300 bg-slate-100 text-[#405189] focus:ring-[#405189]/30"
+                    className="rounded border-slate-300 bg-slate-100 text-[#3182f6] focus:ring-[#3182f6]/30"
                   />
                 </td>
                 <td className="px-4 py-3 max-w-sm">
                   <Link
                     href={`/admin/boards/${post.id}`}
-                    className="font-medium text-slate-800 hover:text-[#405189] transition-colors line-clamp-1"
+                    className="font-medium text-slate-800 hover:text-[#3182f6] transition-colors line-clamp-1"
                   >
                     {post.title || "(제목없음)"}
                   </Link>

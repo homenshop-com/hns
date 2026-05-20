@@ -43,7 +43,7 @@ export default async function AdminTemplateEditPage({
     <>
       <header className="mb-6">
         <div className="flex items-center gap-2 text-xs text-slate-500 mb-2">
-          <Link href="/admin/templates" className="hover:text-[#405189]">템플릿 관리</Link>
+          <Link href="/admin/templates" className="hover:text-[#3182f6]">템플릿 관리</Link>
           <span>›</span>
           <span>{template.name}</span>
         </div>
@@ -114,7 +114,7 @@ export default async function AdminTemplateEditPage({
                 </p>
                 <Link
                   href={`/admin/sites/${template.demoSiteId}`}
-                  className="inline-block text-xs text-[#405189] hover:underline"
+                  className="inline-block text-xs text-[#3182f6] hover:underline"
                 >
                   연결된 사이트 보기 ›
                 </Link>

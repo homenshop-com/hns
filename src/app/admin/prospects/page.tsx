@@ -143,7 +143,7 @@ async function PendingView({ page, search }: { page: number; search: string }) {
                     <div className="flex gap-2 text-xs">
                       <Link
                         href={`/admin/sites/${s.id}`}
-                        className="text-[#405189] hover:underline"
+                        className="text-[#3182f6] hover:underline"
                       >
                         편집
                       </Link>
@@ -249,7 +249,7 @@ async function ClaimedView({ page, search }: { page: number; search: string }) {
                     {site ? (
                       <Link
                         href={`/admin/sites/${site.id}`}
-                        className="text-[#405189] hover:underline"
+                        className="text-[#3182f6] hover:underline"
                       >
                         {site.name} ({site.shopId})
                       </Link>
@@ -306,7 +306,7 @@ function ProspectsLayout({
           href="/admin/prospects"
           className={`px-4 py-2 text-sm border-b-2 -mb-px ${
             tab === "pending"
-              ? "border-[#405189] text-[#405189] font-medium"
+              ? "border-[#3182f6] text-[#3182f6] font-medium"
               : "border-transparent text-slate-500 hover:text-slate-800"
           }`}
         >
@@ -316,7 +316,7 @@ function ProspectsLayout({
           href="/admin/prospects?tab=claimed"
           className={`px-4 py-2 text-sm border-b-2 -mb-px ${
             tab === "claimed"
-              ? "border-[#405189] text-[#405189] font-medium"
+              ? "border-[#3182f6] text-[#3182f6] font-medium"
               : "border-transparent text-slate-500 hover:text-slate-800"
           }`}
         >
@@ -339,11 +339,11 @@ function ProspectsLayout({
                 ? "사이트명, shopId, 핸드폰, 메모"
                 : "이름, 이메일, 핸드폰, shopId"
             }
-            className="flex-1 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-800 placeholder-slate-500 focus:border-[#405189] focus:outline-none"
+            className="flex-1 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-800 placeholder-slate-500 focus:border-[#3182f6] focus:outline-none"
           />
           <button
             type="submit"
-            className="rounded-lg bg-[#405189] px-4 py-2 text-sm font-medium text-white hover:bg-[#364574]"
+            className="rounded-lg bg-[#3182f6] px-4 py-2 text-sm font-medium text-white hover:bg-[#364574]"
           >
             검색
           </button>

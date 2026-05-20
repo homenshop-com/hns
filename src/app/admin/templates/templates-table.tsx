@@ -139,7 +139,7 @@ export default function TemplatesTable({
         <button
           type="button"
           onClick={() => setImportOpen(true)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#405189] text-white text-xs font-medium rounded-md hover:bg-[#405189]/90 transition-colors"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#3182f6] text-white text-xs font-medium rounded-md hover:bg-[#3182f6]/90 transition-colors"
           title="claude.ai/design 에서 Copy command 로 복사한 명령어를 붙여넣어 새 템플릿으로 가져옵니다"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -198,7 +198,7 @@ export default function TemplatesTable({
                 <td className="px-4 py-3">
                   <span className={`inline-flex px-2 py-0.5 rounded text-[11px] font-medium ${
                     t.isSystem
-                      ? "bg-[#405189]/10 text-[#405189]"
+                      ? "bg-[#3182f6]/10 text-[#3182f6]"
                       : "bg-purple-50 text-purple-700"
                   }`}>
                     {t.isSystem ? "시스템" : "유저"}
@@ -257,7 +257,7 @@ export default function TemplatesTable({
                       type="button"
                       onClick={() => openDesignEditor(t.id)}
                       disabled={busyId !== null}
-                      className="px-2.5 py-1 text-xs font-medium text-white bg-[#405189] rounded hover:bg-[#405189]/90 disabled:opacity-50"
+                      className="px-2.5 py-1 text-xs font-medium text-white bg-[#3182f6] rounded hover:bg-[#3182f6]/90 disabled:opacity-50"
                     >
                       {t.hasDemoSite ? "디자인 수정" : "디자인 수정 ▸ 생성"}
                     </button>

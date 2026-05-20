@@ -73,20 +73,18 @@ export default function AdminSidebar({
   const pathname = usePathname();
 
   return (
-    <aside className="w-60 bg-[#405189] flex flex-col shrink-0">
-      {/* Logo */}
-      <div className="px-5 py-[18px] border-b border-white/10">
-        <Link href="/admin" className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-md bg-white/10 flex items-center justify-center ring-1 ring-white/15">
-            <span className="text-white text-sm font-bold">H</span>
-          </div>
-          <span className="text-[15px] font-semibold text-white">homeNshop</span>
-        </Link>
-      </div>
+    <aside className="adm-side">
+      {/* Brand */}
+      <Link href="/admin" className="adm-brand" title="대시보드로">
+        <div className="adm-brand-mark">h</div>
+        <span className="adm-brand-name">
+          home<span className="ns">Nshop</span>
+        </span>
+      </Link>
 
       {/* Nav */}
-      <nav className="flex-1 py-4 px-3 space-y-0.5 overflow-y-auto">
-        <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-widest text-white/40">Menu</p>
+      <p className="adm-side-label">관리</p>
+      <nav className="adm-nav">
         {navItems.map((item) => {
           const isActive =
             item.href === "/admin"
@@ -97,43 +95,39 @@ export default function AdminSidebar({
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-[13px] font-medium transition-all ${
-                isActive
-                  ? "bg-white/10 text-white"
-                  : "text-white/70 hover:bg-white/5 hover:text-white"
-              }`}
+              className={isActive ? "active" : undefined}
+              title={item.label}
             >
-              <span className={isActive ? "text-white" : "text-white/60"}>
-                {iconMap[item.icon] ?? item.icon}
-              </span>
-              <span>{item.label}</span>
+              <span className="ic">{iconMap[item.icon] ?? null}</span>
+              <span className="label">{item.label}</span>
             </Link>
           );
         })}
       </nav>
 
-      {/* Bottom */}
-      <div className="px-4 py-4 border-t border-white/10 space-y-3">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-full bg-white/10 ring-1 ring-white/15 flex items-center justify-center">
-            <span className="text-[11px] font-bold text-white">
-              {email.charAt(0).toUpperCase()}
-            </span>
-          </div>
-          <span className="text-[11px] text-white/60 truncate flex-1">{email}</span>
+      {/* Footer — account + sign out */}
+      <div className="adm-side-foot">
+        <div className="adm-user" title={email}>
+          <div className="adm-avatar">{email.charAt(0).toUpperCase()}</div>
+          <span className="email">{email}</span>
         </div>
-        <div className="flex items-center justify-between text-[11px]">
-          <Link
-            href="/dashboard"
-            className="text-white/60 hover:text-white transition-colors"
-          >
-            Dashboard
+        <div className="adm-foot-actions">
+          <Link href="/dashboard" className="adm-foot-btn" title="회원 대시보드">
+            <svg className="ic-sm" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12 11.2 3.05a1.13 1.13 0 0 1 1.6 0L21.75 12M4.5 9.75V19.5a.75.75 0 0 0 .75.75H9.75v-5.25h4.5v5.25h4.5a.75.75 0 0 0 .75-.75V9.75" />
+            </svg>
+            <span className="label">대시보드</span>
           </Link>
           <button
+            type="button"
             onClick={() => signOut({ callbackUrl: "/" })}
-            className="text-white/60 hover:text-red-300 transition-colors"
+            className="adm-foot-btn danger"
+            title="로그아웃"
           >
-            Logout
+            <svg className="ic-sm" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l3 3m0 0-3 3m3-3H2.25" />
+            </svg>
+            <span className="label">로그아웃</span>
           </button>
         </div>
       </div>
