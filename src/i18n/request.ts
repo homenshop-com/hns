@@ -3,11 +3,25 @@ import { cookies, headers } from "next/headers";
 import { locales, defaultLocale, type Locale } from "./routing";
 
 export default getRequestConfig(async () => {
+  let locale: Locale = defaultLocale;
+
+  // 0. Explicit locale from a prefixed URL (e.g. /en/about). The middleware
+  //    detects the path prefix and sets the x-url-locale request header. This
+  //    wins over cookie/header so localized URLs — including the root layout's
+  //    <html lang> — render deterministically, which valid hreflang requires
+  //    (each URL must serve its declared language).
+  const headerStoreEarly = await headers();
+  const urlLocale = headerStoreEarly.get("x-url-locale");
+  if (urlLocale && locales.includes(urlLocale as Locale)) {
+    return {
+      locale: urlLocale as Locale,
+      messages: (await import(`../messages/${urlLocale}.json`)).default,
+    };
+  }
+
   // 1. Check NEXT_LOCALE cookie
   const cookieStore = await cookies();
   const cookieLocale = cookieStore.get("NEXT_LOCALE")?.value;
-
-  let locale: Locale = defaultLocale;
 
   if (cookieLocale && locales.includes(cookieLocale as Locale)) {
     locale = cookieLocale as Locale;

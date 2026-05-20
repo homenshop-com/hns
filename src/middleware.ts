@@ -47,7 +47,23 @@ const COOKIE_OPTS = {
   httpOnly: false,
 };
 
+// Locales that appear as a URL path prefix (everything except the default,
+// which is served unprefixed). Kept here to avoid importing app code into the
+// edge middleware bundle.
+const PREFIX_LOCALES = locales.filter((l) => l !== defaultLocale);
+
 export async function middleware(request: NextRequest) {
+  // 0. Prefixed locale URL (e.g. /en/about) — the path declares the language
+  //    explicitly. Surface it to getRequestConfig via a request header so the
+  //    page AND the root layout's <html lang> render in that language. Don't
+  //    touch the cookie: the URL is a one-off, not a preference change.
+  const seg = request.nextUrl.pathname.split("/")[1];
+  if ((PREFIX_LOCALES as readonly string[]).includes(seg)) {
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set("x-url-locale", seg);
+    return NextResponse.next({ request: { headers: requestHeaders } });
+  }
+
   const cookieLocale = request.cookies.get("NEXT_LOCALE")?.value;
 
   // 1. Logged-in user with a saved preference wins. Cheap because the

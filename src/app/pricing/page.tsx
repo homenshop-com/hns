@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import PublicPageLayout from "@/components/PublicPageLayout";
+import { alternatesFor } from "@/lib/seo-locales";
+import { defaultLocale } from "@/i18n/routing";
 import type { Metadata } from "next";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -8,6 +10,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: t("pageTitle"),
     description: t("metaDescription"),
+    alternates: alternatesFor("/pricing", defaultLocale),
     openGraph: {
       type: "website",
       siteName: "homeNshop",
