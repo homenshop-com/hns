@@ -117,7 +117,7 @@ export default function MemberTable({ users, search }: { users: Member[]; search
           </span>
           <button
             onClick={startMessage}
-            className="rounded-lg bg-[#3182f6] px-4 py-1.5 text-sm font-medium text-white hover:bg-[#364574] transition-colors inline-flex items-center gap-1.5"
+            className="rounded-lg bg-[#3182f6] px-4 py-1.5 text-sm font-medium text-white hover:bg-[#1b64da] transition-colors inline-flex items-center gap-1.5"
           >
             <svg width={13} height={13} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.6}>
               <path d="M4 4h12a1 1 0 011 1v9a1 1 0 01-1 1H9l-4 3v-3H4a1 1 0 01-1-1V5a1 1 0 011-1z" strokeLinecap="round" strokeLinejoin="round" />
@@ -187,7 +187,7 @@ export default function MemberTable({ users, search }: { users: Member[]; search
                 type="button"
                 onClick={sendBroadcast}
                 disabled={sending || !messageBody.trim()}
-                className="rounded-lg bg-[#3182f6] px-4 py-2 text-sm font-medium text-white hover:bg-[#364574] disabled:opacity-50"
+                className="rounded-lg bg-[#3182f6] px-4 py-2 text-sm font-medium text-white hover:bg-[#1b64da] disabled:opacity-50"
               >
                 {sending ? "전송 중…" : `${selected.size}명에게 전송`}
               </button>

@@ -252,7 +252,7 @@ export default function ExpiryEditor({
             <button
               onClick={saveManual}
               disabled={isBusy}
-              className="rounded bg-[#3182f6] px-3 py-1 text-xs font-medium text-white hover:bg-[#364574] disabled:opacity-50"
+              className="rounded bg-[#3182f6] px-3 py-1 text-xs font-medium text-white hover:bg-[#1b64da] disabled:opacity-50"
               type="button"
             >
               {isBusy ? "저장중…" : "저장"}

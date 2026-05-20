@@ -196,7 +196,7 @@ export default function SitesTable({
                   <td className="px-4 py-3 text-right whitespace-nowrap">
                     <Link
                       href={`/admin/sites/${site.id}`}
-                      className="inline-block bg-[#3182f6] text-white px-3 py-1 rounded text-xs font-medium hover:bg-[#364574]"
+                      className="inline-block bg-[#3182f6] text-white px-3 py-1 rounded text-xs font-medium hover:bg-[#1b64da]"
                     >
                       View
                     </Link>

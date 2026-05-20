@@ -72,7 +72,7 @@ export default function NewConversationButton() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1.5 rounded-lg bg-[#3182f6] px-3.5 py-2 text-sm font-medium text-white hover:bg-[#364574] transition-colors"
+        className="inline-flex items-center gap-1.5 rounded-lg bg-[#3182f6] px-3.5 py-2 text-sm font-medium text-white hover:bg-[#1b64da] transition-colors"
       >
         <svg width={14} height={14} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.8}>
           <path d="M10 4v12M4 10h12" strokeLinecap="round" />

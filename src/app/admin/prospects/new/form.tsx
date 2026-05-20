@@ -190,7 +190,7 @@ export default function NewProspectForm({
         <button
           type="submit"
           disabled={submitting}
-          className="rounded-md bg-[#3182f6] px-4 py-2 text-sm font-medium text-white hover:bg-[#364574] disabled:opacity-50"
+          className="rounded-md bg-[#3182f6] px-4 py-2 text-sm font-medium text-white hover:bg-[#1b64da] disabled:opacity-50"
         >
           {submitting ? "등록 중..." : "잠재고객 등록"}
         </button>

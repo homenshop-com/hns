@@ -277,7 +277,7 @@ export default function AdminOrderDetailPage() {
             <button
               onClick={handleStatusChange}
               disabled={saving || selectedStatus === order.status}
-              className="w-full rounded-lg bg-[#3182f6] px-4 py-2 text-sm font-medium text-white hover:bg-[#364574] disabled:opacity-50 transition-colors"
+              className="w-full rounded-lg bg-[#3182f6] px-4 py-2 text-sm font-medium text-white hover:bg-[#1b64da] disabled:opacity-50 transition-colors"
             >
               {saving ? "변경 중..." : "상태 변경"}
             </button>

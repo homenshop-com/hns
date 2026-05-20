@@ -343,7 +343,7 @@ function ProspectsLayout({
           />
           <button
             type="submit"
-            className="rounded-lg bg-[#3182f6] px-4 py-2 text-sm font-medium text-white hover:bg-[#364574]"
+            className="rounded-lg bg-[#3182f6] px-4 py-2 text-sm font-medium text-white hover:bg-[#1b64da]"
           >
             검색
           </button>

@@ -44,7 +44,7 @@ export default async function AdminResellersPage({
           </span>
           <Link
             href="/admin/resellers/new"
-            className="rounded-lg bg-[#3182f6] px-4 py-2 text-sm font-medium text-white hover:bg-[#364574] transition-colors"
+            className="rounded-lg bg-[#3182f6] px-4 py-2 text-sm font-medium text-white hover:bg-[#1b64da] transition-colors"
           >
             리셀러 추가
           </Link>
@@ -63,7 +63,7 @@ export default async function AdminResellersPage({
           />
           <button
             type="submit"
-            className="rounded-lg bg-[#3182f6] px-4 py-2 text-sm font-medium text-white hover:bg-[#364574] transition-colors"
+            className="rounded-lg bg-[#3182f6] px-4 py-2 text-sm font-medium text-white hover:bg-[#1b64da] transition-colors"
           >
             검색
           </button>

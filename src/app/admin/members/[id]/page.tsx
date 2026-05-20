@@ -260,7 +260,7 @@ export default function AdminMemberDetailPage() {
                   className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors disabled:opacity-50 ${
                     member.emailVerified
                       ? "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-                      : "bg-[#3182f6] text-white hover:bg-[#364574]"
+                      : "bg-[#3182f6] text-white hover:bg-[#1b64da]"
                   }`}
                 >
                   {verifyingEmail ? "처리 중..." : member.emailVerified ? "인증 해제" : "인증 완료 처리"}
@@ -344,7 +344,7 @@ export default function AdminMemberDetailPage() {
             <button
               onClick={handleSave}
               disabled={saving}
-              className="w-full rounded-lg bg-[#3182f6] px-4 py-2 text-sm font-medium text-white hover:bg-[#364574] disabled:opacity-50 transition-colors"
+              className="w-full rounded-lg bg-[#3182f6] px-4 py-2 text-sm font-medium text-white hover:bg-[#1b64da] disabled:opacity-50 transition-colors"
             >
               {saving ? "저장 중..." : "변경사항 저장"}
             </button>
@@ -395,7 +395,7 @@ export default function AdminMemberDetailPage() {
               <button
                 onClick={handleAdjust}
                 disabled={adjustSaving || !adjustAmount}
-                className="rounded-lg bg-[#3182f6] px-4 py-2 text-sm font-medium text-white hover:bg-[#364574] disabled:opacity-50 transition-colors"
+                className="rounded-lg bg-[#3182f6] px-4 py-2 text-sm font-medium text-white hover:bg-[#1b64da] disabled:opacity-50 transition-colors"
               >
                 {adjustSaving ? "처리 중..." : "적용"}
               </button>

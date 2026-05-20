@@ -221,7 +221,7 @@ export default function AdminDomainDetailPage() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="mt-6 rounded-lg bg-[#3182f6] px-6 py-2 text-sm font-medium text-white hover:bg-[#364574] disabled:opacity-50 transition-colors"
+            className="mt-6 rounded-lg bg-[#3182f6] px-6 py-2 text-sm font-medium text-white hover:bg-[#1b64da] disabled:opacity-50 transition-colors"
           >
             {saving ? "저장 중..." : "변경사항 저장"}
           </button>

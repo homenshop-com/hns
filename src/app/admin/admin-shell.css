@@ -112,6 +112,14 @@
 .adm-main { min-width: 0; overflow: auto; }
 .adm-content { padding: 28px 36px 64px; max-width: min(100%, 1600px); margin-inline: auto; }
 
+/* globals.css has an UNLAYERED `a { color: var(--tx-link) }` (Toss blue
+   #3182f6). In Tailwind v4 all utilities live in @layer utilities, and any
+   unlayered rule beats a layered one regardless of specificity — so a
+   <Link>/<a> styled as a solid button rendered its text in --tx-link blue,
+   which became invisible on the same-blue fill. Force Tailwind's text-white
+   to win for admin link-buttons. (Plain links keep their blue.) */
+.adm-shell a.text-white { color: #fff !important; }
+
 /* ── Responsive — collapse to icon rail (never hide). ── */
 @media (max-width: 1024px) {
   .adm-shell { grid-template-columns: 64px 1fr; }
