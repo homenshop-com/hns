@@ -107,6 +107,7 @@ model User {
   templates               Template[]
   creditTransactions      CreditTransaction[]
   supportThread           SupportThread?
+  subscriptions           Subscription[]
   /// Marketplace integrations are owned at the User level — not tied to a
   /// specific homenshop site. A seller can connect Coupang/Shopify/etc
   /// independently of any individual storefront they may also operate.
@@ -232,6 +233,7 @@ model Site {
   customers               Customer[]
   marketplaceIntegrations MarketplaceIntegration[]
   inquiries               Inquiry[]
+  subscriptions           Subscription[]
 
   @@index([userId])
   @@index([isTemplateStorage])
@@ -413,6 +415,16 @@ model Order {
   subscriptionMonths Int?
   /// For SUBSCRIPTION orders: id of the Site being extended.
   subscriptionSiteId String?
+  /// Payment channel that funded this order: PAYPAL, TOSS, or BANK_TRANSFER.
+  /// Null for legacy orders created before multi-channel support.
+  paymentChannel     PaymentChannel?
+  /// For PAYPAL orders: references the Subscription row that generated this
+  /// payment cycle. Null for one-time (Toss/BANK_TRANSFER) orders.
+  subscriptionId     String?
+  /// PayPal webhook event ID stored for idempotency — prevents double-processing
+  /// if PayPal retries a delivery. Unique (nullable) so a second webhook with
+  /// the same event ID is a no-op.
+  paypalEventId      String?       @unique
   paymentMethod      String?
   paymentKey         String?
   shippingName       String?
@@ -426,6 +438,7 @@ model Order {
   site               Site?                   @relation(fields: [siteId], references: [id], onDelete: SetNull)
   integration        MarketplaceIntegration? @relation(fields: [integrationId], references: [id], onDelete: SetNull)
   customer           Customer?               @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  subscription       Subscription?           @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
   items              OrderItem[]
   creditTransactions CreditTransaction[]
 
@@ -439,6 +452,8 @@ model Order {
   @@index([orderType])
   @@index([channel])
   @@index([customerId])
+  @@index([subscriptionId])
+  @@index([paymentChannel])
 }
 
 enum OrderStatus {
@@ -468,6 +483,64 @@ enum OrderChannel {
   QOO10
   RAKUTEN
   TIKTOKSHOP
+}
+
+/// Payment gateway / channel used to fund an Order or Subscription.
+enum PaymentChannel {
+  PAYPAL
+  TOSS
+  BANK_TRANSFER
+}
+
+/// Lifecycle states for a recurring PayPal Subscription.
+enum SubscriptionStatus {
+  /// Created in DB, awaiting user approval on PayPal.
+  PENDING
+  /// PayPal confirmed — billing is active, site is paid.
+  ACTIVE
+  /// User or admin cancelled; access continues until currentPeriodEnd.
+  CANCELLED
+  /// Most recent payment failed; 3-day grace period before site expires.
+  PAYMENT_FAILED
+  /// Period ended without successful renewal — site flagged as expired.
+  EXPIRED
+}
+
+// ============================================
+// Recurring Subscriptions (PayPal auto-renewal)
+// ============================================
+
+/// Tracks a PayPal recurring subscription for one site.
+/// Created when the user initiates checkout (PENDING) and activated by
+/// the BILLING.SUBSCRIPTION.ACTIVATED webhook event (ACTIVE).
+/// One subscription per site at a time — previous rows are kept for audit.
+model Subscription {
+  id                   String             @id @default(cuid())
+  siteId               String
+  userId               String
+  /// PayPal's subscription resource ID (e.g. "I-BW452GLLEP1G").
+  paypalSubscriptionId String             @unique
+  /// The PayPal billing plan ID selected at checkout (monthly or annual).
+  paypalPlanId         String
+  status               SubscriptionStatus @default(PENDING)
+  /// Start of the current billing period (set from PayPal event payload).
+  currentPeriodStart   DateTime?
+  /// End of the current billing period — Site.expiresAt mirrors this.
+  currentPeriodEnd     DateTime?
+  /// True when the user has requested cancellation but the period hasn't
+  /// ended yet. Cron lets the site stay paid until currentPeriodEnd, then
+  /// flips the site to expired.
+  cancelAtPeriodEnd    Boolean            @default(false)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  site   Site    @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders Order[]
+
+  @@index([siteId])
+  @@index([userId])
+  @@index([status])
 }
 
 // ============================================
