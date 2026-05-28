@@ -11,6 +11,7 @@ interface ProductSettingsData {
   thumbHeight: number;
   detailWidth: number;
   buttonMode?: ButtonMode;
+  searchEnabled?: boolean;
 }
 
 interface ProductSettingsLabels {
@@ -69,6 +70,7 @@ export default function ProductSettings({ siteId, initialSettings, labels, varia
   const [settings, setSettings] = useState<ProductSettingsData>({
     ...initialSettings,
     buttonMode: initialSettings.buttonMode ?? "sales",
+    searchEnabled: initialSettings.searchEnabled ?? false,
   });
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -239,6 +241,34 @@ export default function ProductSettings({ siteId, initialSettings, labels, varia
             })}
           </div>
         </div>
+
+        <label
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 10,
+            padding: "10px 12px",
+            marginBottom: 12,
+            border: `1px solid ${settings.searchEnabled ? "#2563eb" : "#e5e7eb"}`,
+            borderRadius: 6,
+            background: settings.searchEnabled ? "#eff6ff" : "#fff",
+            cursor: "pointer",
+            wordBreak: "keep-all",
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={settings.searchEnabled ?? false}
+            onChange={(e) => setSettings((s) => ({ ...s, searchEnabled: e.target.checked }))}
+            style={{ width: 14, height: 14, marginTop: 3, accentColor: "#2563eb", flexShrink: 0 }}
+          />
+          <div style={{ flex: 1, minWidth: 0, lineHeight: 1.4 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>통합 검색창</div>
+            <div style={{ fontSize: 11.5, color: "#6b7280", marginTop: 2 }}>
+              홈페이지 헤더 우측 상단에 검색창을 표시합니다. 상품과 게시판을 함께 검색합니다.
+            </div>
+          </div>
+        </label>
 
         <button onClick={handleSave} disabled={saving} className="mv2-form-submit">
           <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">

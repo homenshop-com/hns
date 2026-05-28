@@ -572,6 +572,10 @@ interface ProductDisplaySettings {
    *   "none"    — no buttons, display-only catalog
    */
   buttonMode?: "sales" | "inquiry" | "none";
+  /** When true, inject a unified search box (products + board) into the
+   *  published header and enable the ?action=search results page. Opt-in
+   *  per site via 데이터관리 → 상품관리. */
+  searchEnabled?: boolean;
 }
 
 async function renderProductList(
@@ -693,6 +697,134 @@ async function renderProductList(
     <div class="product-grid" style="display:grid;grid-template-columns:repeat(${itemsPerRow}, 1fr);gap:24px 12px;">${items}</div>
     ${paginationHtml}
   </div>`;
+}
+
+/* ─── Unified search (products + board) ──────────────────────────────
+ * Opt-in per site (productSettings.searchEnabled). Renders a combined
+ * results page for ?action=search&q=… split into a Product section and a
+ * Board section. Uses Prisma `contains` (case-insensitive) so it works
+ * for any migrated site without depending on the MeiliSearch index. */
+type SearchLabels = { title: string; products: string; boards: string; empty: string; promptEmpty: string; resultsFor: string; placeholder: string; searchBtn: string };
+const SEARCH_LABELS: Record<string, SearchLabels> = {
+  ko: { title: "검색 결과", products: "상품", boards: "게시판", empty: "검색 결과가 없습니다.", promptEmpty: "검색어를 입력해 주세요.", resultsFor: "검색어", placeholder: "상품·게시판 검색", searchBtn: "검색" },
+  en: { title: "Search results", products: "Products", boards: "Board", empty: "No results found.", promptEmpty: "Please enter a search term.", resultsFor: "Query", placeholder: "Search products & board", searchBtn: "Search" },
+  ja: { title: "検索結果", products: "商品", boards: "掲示板", empty: "検索結果がありません。", promptEmpty: "検索語を入力してください。", resultsFor: "検索語", placeholder: "商品・掲示板を検索", searchBtn: "検索" },
+  "zh-cn": { title: "搜索结果", products: "产品", boards: "公告板", empty: "没有搜索结果。", promptEmpty: "请输入搜索词。", resultsFor: "搜索词", placeholder: "搜索产品和公告板", searchBtn: "搜索" },
+  "zh-tw": { title: "搜尋結果", products: "產品", boards: "公告板", empty: "沒有搜尋結果。", promptEmpty: "請輸入搜尋詞。", resultsFor: "搜尋詞", placeholder: "搜尋產品與公告板", searchBtn: "搜尋" },
+  es: { title: "Resultados", products: "Productos", boards: "Tablón", empty: "Sin resultados.", promptEmpty: "Introduce un término de búsqueda.", resultsFor: "Búsqueda", placeholder: "Buscar productos y tablón", searchBtn: "Buscar" },
+};
+function searchLabels(lang: string): SearchLabels {
+  return SEARCH_LABELS[lang] || SEARCH_LABELS["en"];
+}
+
+async function renderSearch(
+  siteId: string, shopId: string, lang: string, rawQuery: string,
+  urlPrefix: string, goodsPage: string, tempDomain: string,
+): Promise<string> {
+  const L = searchLabels(lang);
+  const q = rawQuery.trim();
+  const wrap = (inner: string) =>
+    `<div class="board-content hns-search-results" style="max-width:1100px;width:100%;margin:24px auto;padding:0 20px;box-sizing:border-box;position:relative;">${inner}</div>`;
+
+  if (!q) {
+    return wrap(`<h2 style="font-size:22px;font-weight:700;margin:0 0 16px;">${escapeHtml(L.title)}</h2><p style="color:#888;">${escapeHtml(L.promptEmpty)}</p>`);
+  }
+
+  // Case-insensitive partial match across the most relevant text fields.
+  const [products, posts] = await Promise.all([
+    prisma.product.findMany({
+      where: {
+        siteId,
+        lang,
+        status: { not: "HIDDEN" },
+        OR: [
+          { name: { contains: q, mode: "insensitive" } },
+          { description: { contains: q, mode: "insensitive" } },
+          { specification: { contains: q, mode: "insensitive" } },
+        ],
+      },
+      orderBy: { legacyId: "desc" },
+      take: 60,
+    }),
+    prisma.boardPost.findMany({
+      where: {
+        siteId,
+        lang,
+        parentId: null,
+        isPublic: true,
+        OR: [
+          { title: { contains: q, mode: "insensitive" } },
+          { content: { contains: q, mode: "insensitive" } },
+        ],
+      },
+      orderBy: { legacyId: "desc" },
+      take: 60,
+      select: { legacyId: true, title: true, author: true, regdate: true, category: { select: { name: true } } },
+    }),
+  ]);
+
+  // Product cards (mirrors renderProductList markup, compact grid)
+  const productCards = products.map((p) => {
+    const pname = p.name || "";
+    const imgs = (p.images as string[] | null) || [];
+    const legacyPhotos = p.photos ? p.photos.split("|").filter(Boolean) : [];
+    const firstPhoto = (imgs.length > 0 ? imgs : legacyPhotos)[0] || "";
+    let imgSrc = "";
+    if (firstPhoto) {
+      imgSrc = (firstPhoto.startsWith("/") || firstPhoto.startsWith("http"))
+        ? firstPhoto
+        : `https://${tempDomain}/${shopId}/uploaded/${encodeURIComponent(firstPhoto)}`;
+    }
+    const idParam = p.legacyId ? `id=${p.legacyId}` : `pid=${p.id}`;
+    const href = `${urlPrefix}/${lang}/${goodsPage}.html?action=read&${idParam}`;
+    return `<a class="hns-sr-card" href="${href}">
+      <div class="hns-sr-thumb">${imgSrc ? `<img src="${imgSrc}" loading="lazy" alt="${escapeHtml(pname)}" />` : `<div class="hns-sr-ph"></div>`}</div>
+      <div class="hns-sr-name">${escapeHtml(pname)}</div>
+    </a>`;
+  }).join("");
+
+  // Board rows
+  const boardRows = posts.map((r) => {
+    const title = escapeHtml(r.title || "");
+    const date = (r.regdate || "").slice(0, 10);
+    const cat = r.category?.name ? escapeHtml(r.category.name) : "";
+    const inner = `<span class="hns-sr-bt">${title}</span>${cat ? `<span class="hns-sr-bc">${cat}</span>` : ""}${date ? `<span class="hns-sr-bd">${date}</span>` : ""}`;
+    return r.legacyId
+      ? `<a class="hns-sr-row" href="${urlPrefix}/${lang}/board.html?action=read&id=${r.legacyId}">${inner}</a>`
+      : `<div class="hns-sr-row">${inner}</div>`;
+  }).join("");
+
+  const css = `
+    .hns-search-results h2 { font-size:22px; font-weight:700; margin:0 0 4px; color:inherit; }
+    .hns-search-results .hns-sr-q { color:#888; font-size:13px; margin:0 0 20px; }
+    .hns-search-results h3 { font-size:15px; font-weight:700; margin:24px 0 12px; padding-bottom:8px; border-bottom:1px solid rgba(128,128,128,.2); display:flex; align-items:center; gap:8px; }
+    .hns-search-results h3 .cnt { font-family:'JetBrains Mono',monospace; font-size:12px; color:#888; font-weight:500; }
+    .hns-sr-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:18px 12px; }
+    .hns-sr-card { display:block; text-decoration:none; color:inherit; }
+    .hns-sr-thumb { width:100%; aspect-ratio:1/1; border:1px solid #eee; border-radius:8px; overflow:hidden; background:#fafafa; }
+    .hns-sr-thumb img { width:100%; height:100%; object-fit:contain; display:block; }
+    .hns-sr-ph { width:100%; height:100%; background:#f3f4f6; }
+    .hns-sr-name { font-size:12px; margin-top:6px; line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+    .hns-sr-card:hover .hns-sr-name { color:#f28a17; }
+    .hns-sr-list { display:flex; flex-direction:column; }
+    .hns-sr-row { display:flex; align-items:center; gap:10px; padding:12px 4px; border-bottom:1px solid rgba(128,128,128,.12); text-decoration:none; color:inherit; }
+    .hns-sr-row:hover { background:rgba(255,181,71,.06); }
+    .hns-sr-bt { flex:1; min-width:0; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .hns-sr-bc { font-size:11px; color:#888; border:1px solid rgba(128,128,128,.25); border-radius:4px; padding:1px 6px; white-space:nowrap; }
+    .hns-sr-bd { font-family:'JetBrains Mono',monospace; font-size:11px; color:#999; white-space:nowrap; }
+    .hns-sr-empty { color:#888; padding:14px 4px; font-size:13px; }
+    @media (max-width:900px){ .hns-sr-grid{ grid-template-columns:repeat(3,1fr); } }
+    @media (max-width:520px){ .hns-sr-grid{ grid-template-columns:repeat(2,1fr); } }
+  `.replace(/\n\s+/g, "\n");
+
+  const total = products.length + posts.length;
+  return wrap(`<style>${css}</style>
+    <h2>${escapeHtml(L.title)}</h2>
+    <p class="hns-sr-q">${escapeHtml(L.resultsFor)}: <b>${escapeHtml(q)}</b> · ${total}</p>
+    ${total === 0 ? `<p class="hns-sr-empty">${escapeHtml(L.empty)}</p>` : ""}
+    ${products.length > 0 ? `<h3>${escapeHtml(L.products)} <span class="cnt">${products.length}</span></h3><div class="hns-sr-grid">${productCards}</div>` : ""}
+    ${posts.length > 0 ? `<h3>${escapeHtml(L.boards)} <span class="cnt">${posts.length}</span></h3><div class="hns-sr-list">${boardRows}</div>` : ""}
+  `);
 }
 
 export async function GET(
@@ -842,7 +974,15 @@ export async function GET(
     typeof site.cssText === "string" && site.cssText.includes("HNS-MODERN-TEMPLATE");
 
   const prodSettings = (site.productSettings as ProductDisplaySettings | null) || undefined;
-  if (isProductAction) {
+  // Unified search (opt-in per site). search.html?action=search&q=… falls
+  // back to the home page slug, so we clear bodyHtml unconditionally and
+  // render the combined results into #hns_body.
+  const searchEnabled = prodSettings?.searchEnabled === true;
+  const isSearchAction = searchEnabled && action === "search";
+  if (isSearchAction) {
+    boardSectionHtml = await renderSearch(site.id, shopId, lang, url.searchParams.get("q") || "", urlPrefix, productPageSlug, tempDomain);
+    bodyHtml = "";
+  } else if (isProductAction) {
     if (effectiveAction === "read" && prismaProductId) {
       boardSectionHtml = await renderProductRead(site.id, shopId, lang, 0, urlPrefix, productPageSlug, prismaProductId, prodSettings, tempDomain);
     } else if (effectiveAction === "read" && boardId > 0) {
@@ -1538,7 +1678,27 @@ export async function GET(
   }
   const jsonLdBlock = renderJsonLdBlock(jsonLdObjects);
 
-  const html = (isBoardAction || isProductAction)
+  // Unified search box — injected into #hns_header (absolute, top-right) only
+  // when the site opted in via 데이터관리 → 상품관리. Self-scoped styles so it
+  // works across arbitrary templates without touching template CSS.
+  const sl = searchLabels(lang);
+  const searchBoxHtml = searchEnabled
+    ? `<form id="hns-search" action="${urlPrefix}/${lang}/search.html" method="get" role="search">
+      <input type="hidden" name="action" value="search" />
+      <input type="search" name="q" value="${escapeHtml(url.searchParams.get("q") || "")}" placeholder="${escapeHtml(sl.placeholder)}" aria-label="${escapeHtml(sl.placeholder)}" autocomplete="off" />
+      <button type="submit" aria-label="${escapeHtml(sl.searchBtn)}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></button>
+      <style>
+        #hns-search{position:absolute;top:14px;right:18px;z-index:99999;display:flex;align-items:center;background:rgba(255,255,255,.92);border:1px solid rgba(0,0,0,.14);border-radius:999px;box-shadow:0 2px 8px rgba(0,0,0,.08);overflow:hidden;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);}
+        #hns-search input[type=search]{border:0;outline:0;background:transparent;font-size:13px;color:#222;padding:8px 4px 8px 16px;width:170px;-webkit-appearance:none;}
+        #hns-search input[type=search]::placeholder{color:#999;}
+        #hns-search button{border:0;background:transparent;cursor:pointer;color:#555;padding:8px 14px 8px 8px;display:flex;align-items:center;}
+        #hns-search button:hover{color:#f28a17;}
+        @media (max-width:768px){#hns-search{top:10px;right:10px;}#hns-search input[type=search]{width:108px;padding-left:12px;}}
+      </style>
+    </form>`
+    : "";
+
+  const html = (isBoardAction || isProductAction || isSearchAction)
   ? `<!DOCTYPE html>
 <html lang="${lang}">
 <head>
@@ -1582,7 +1742,7 @@ export async function GET(
 </head>
 <body>
   <div id="v_home_dft" class="c_v_home_dft">
-    <div id="hns_header">${cleanedHeaderHtml}${menuHtml}</div>
+    <div id="hns_header">${cleanedHeaderHtml}${menuHtml}${searchBoxHtml}</div>
     <div id="hns_menu"></div>
     <div id="hns_body">${cleanedBodyHtml}${boardSectionHtml}</div>
     <div id="hns_footer">${cleanedFooterHtml}${langSwitcherHtml}</div>
@@ -1658,7 +1818,7 @@ export async function GET(
 <body>
   <div id="v_home_dft" class="c_v_home_dft">
     ${langSwitcherHtml}
-    <div id="hns_header">${cleanedHeaderHtml}${menuHtml}</div>
+    <div id="hns_header">${cleanedHeaderHtml}${menuHtml}${searchBoxHtml}</div>
     <div id="hns_menu"></div>
     <div id="hns_body">${cleanedBodyHtml}</div>
     <div id="hns_footer">${cleanedFooterHtml}</div>
