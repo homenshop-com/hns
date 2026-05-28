@@ -1701,16 +1701,51 @@ export async function GET(
       <input type="search" name="q" value="${escapeHtml(url.searchParams.get("q") || "")}" placeholder="${escapeHtml(sl.placeholder)}" aria-label="${escapeHtml(sl.placeholder)}" autocomplete="off" />
       <button type="submit" aria-label="${escapeHtml(sl.searchBtn)}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></button>
       <style>
-        /* 메뉴 줄(Request a quote 와 같은 라인) 우측에 정렬. #hns_header 의
-           마지막 in-flow 자식이 menuHtml 이므로 bottom 앵커가 메뉴 줄 라인에
-           떨어진다. 메뉴 줄 가운데와 시각적으로 맞도록 살짝 띄움. */
-        #hns-search{position:absolute;bottom:18px;right:18px;z-index:99999;display:flex;align-items:center;background:rgba(255,255,255,.92);border:1px solid rgba(0,0,0,.14);border-radius:999px;box-shadow:0 2px 8px rgba(0,0,0,.08);overflow:hidden;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);}
+        /* 초기엔 opacity:0 으로 숨겨두고, JS가 우측 여백을 계산한 뒤 fade-in.
+           right 값은 아래 인라인 스크립트가 헤더 내 버튼/링크의 위치를 측정해
+           동적으로 설정 — "Request a quote" 같은 우측 고정 버튼과 겹치지 않음. */
+        #hns-search{position:absolute;bottom:18px;right:-9999px;opacity:0;transition:opacity .2s;z-index:99999;display:flex;align-items:center;background:rgba(255,255,255,.92);border:1px solid rgba(0,0,0,.14);border-radius:999px;box-shadow:0 2px 8px rgba(0,0,0,.08);overflow:hidden;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);}
         #hns-search input[type=search]{border:0;outline:0;background:transparent;font-size:13px;color:#222;padding:8px 4px 8px 16px;width:170px;-webkit-appearance:none;}
         #hns-search input[type=search]::placeholder{color:#999;}
         #hns-search button{border:0;background:transparent;cursor:pointer;color:#555;padding:8px 14px 8px 8px;display:flex;align-items:center;}
         #hns-search button:hover{color:#f28a17;}
-        @media (max-width:768px){#hns-search{bottom:14px;right:10px;}#hns-search input[type=search]{width:108px;padding-left:12px;}}
+        /* 모바일: 입력폭 축소 */
+        @media(max-width:768px){#hns-search input[type=search]{width:108px;padding-left:12px;}}
       </style>
+      <script>
+      (function(){
+        var sf=document.getElementById('hns-search');
+        if(!sf)return;
+        /* 헤더 안의 우측 요소(버튼·링크)를 스캔해서 검색바가 겹치지 않을
+           최소 right 오프셋을 계산한다. 폰트·이미지 로드 후 재계산. */
+        function place(){
+          var hdr=document.getElementById('hns_header');
+          if(!hdr)return;
+          var hRect=hdr.getBoundingClientRect();
+          var w=window.innerWidth;
+          /* 모바일(768px 이하): 햄버거 메뉴 → 우측 여백만 확보 */
+          if(w<=768){sf.style.right='10px';sf.style.bottom='14px';sf.style.opacity='1';return;}
+          var minRight=18;
+          hdr.querySelectorAll('a[href],button').forEach(function(el){
+            if(sf===el||sf.contains(el))return;
+            var r=el.getBoundingClientRect();
+            /* 너무 작거나(아이콘 등) 헤더 왼쪽 절반 → 무시 */
+            if(r.width<24||r.height<10)return;
+            if(r.left<hRect.left+hRect.width*0.45)return;
+            /* 이 요소의 왼쪽 끝에서 헤더 오른쪽까지의 거리 + 여백 8px */
+            var need=hRect.right-r.left+8;
+            if(need>minRight)minRight=need;
+          });
+          sf.style.right=minRight+'px';
+          sf.style.opacity='1';
+        }
+        /* DOMContentLoaded 이후 즉시 + 100ms 재계산(폰트·이미지 로드 대기) */
+        function run(){place();setTimeout(place,120);}
+        if(document.readyState!=='loading')run();
+        else document.addEventListener('DOMContentLoaded',run);
+        window.addEventListener('resize',place);
+      })();
+      </script>
     </form>`
     : "";
 
