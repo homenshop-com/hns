@@ -13,6 +13,12 @@ interface PaypalSectionProps {
   } | null;
   /** true when the user has just returned from PayPal approval flow */
   returnedFromPayPal?: boolean;
+  /**
+   * true when Accept-Language header indicates a Korean browser.
+   * PayPal blocks KR-to-KR payments (government regulation), so we surface
+   * a warning to Korean users to use Toss / bank transfer instead.
+   */
+  isKoreanUser?: boolean;
 }
 
 const PLANS = [
@@ -36,6 +42,7 @@ export default function PaypalSection({
   siteId,
   activeSubscription,
   returnedFromPayPal,
+  isKoreanUser,
 }: PaypalSectionProps) {
   const [selected, setSelected] = useState<"monthly" | "yearly">("yearly");
   const [loading, setLoading] = useState(false);
@@ -202,6 +209,34 @@ export default function PaypalSection({
   /* ── New subscription checkout ── */
   return (
     <div>
+      {/* Korean user warning — PayPal KR→KR regulation block */}
+      {isKoreanUser && (
+        <div
+          style={{
+            background: "#fffbeb",
+            border: "1px solid #fcd34d",
+            borderRadius: 10,
+            padding: "14px 18px",
+            marginBottom: 18,
+            display: "flex",
+            gap: 10,
+            alignItems: "flex-start",
+          }}
+        >
+          <span style={{ fontSize: 18, lineHeight: 1.3 }}>⚠️</span>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#92400e", marginBottom: 4 }}>
+              한국 결제 주소는 PayPal 이용 불가
+            </div>
+            <div style={{ fontSize: 12.5, color: "#78350f", lineHeight: 1.65 }}>
+              정부 규정에 따라 한국 결제 주소를 가진 고객은 한국 판매자에게 PayPal로 결제할 수 없습니다.
+              <br />
+              아래 <strong>Toss 카드결제</strong> 또는 <strong>무통장 입금</strong>을 이용해 주세요.
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Plan picker */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
         {PLANS.map((plan) => {
@@ -303,7 +338,9 @@ export default function PaypalSection({
       </button>
 
       <p style={{ fontSize: 11.5, color: "#9ca3af", textAlign: "center", marginTop: 10, lineHeight: 1.5 }}>
-        PayPal 계정 또는 카드로 결제. 언제든지 해지 가능. 자동 갱신됩니다.
+        PayPal 계정 또는 해외 카드로 결제. 언제든지 해지 가능. 자동 갱신.
+        <br />
+        <span style={{ color: "#0070ba" }}>해외 결제 주소 고객 전용</span> · 한국 결제 주소는 Toss / 무통장 이용
       </p>
     </div>
   );

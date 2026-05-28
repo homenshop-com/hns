@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
+import { headers } from "next/headers";
 import { getTranslations } from "next-intl/server";
 import DashboardShell from "../../../dashboard-shell";
 import ExtendForm from "./extend-form";
@@ -38,6 +39,13 @@ export default async function ExtendPage({
   const { siteId } = await params;
   const sp = await searchParams;
   const returnedFromPayPal = sp.success === "1" && sp.channel === "paypal";
+
+  // Detect Korean locale from Accept-Language header.
+  // PayPal blocks KR-to-KR payments (government regulation) so we surface
+  // a warning when the browser reports a Korean locale.
+  const headersList = await headers();
+  const acceptLang = headersList.get("accept-language") ?? "";
+  const isKoreanUser = /^ko[\-,;_]|^ko$/i.test(acceptLang);
 
   const [site, activeSub] = await Promise.all([
     prisma.site.findFirst({
@@ -131,7 +139,7 @@ export default async function ExtendPage({
             </div>
           </div>
 
-          {/* ── PayPal 자동결제 ── */}
+          {/* ── PayPal 자동결제 (해외 고객 전용) ── */}
           <div style={{
             background: "#fff",
             borderRadius: 12,
@@ -146,10 +154,23 @@ export default async function ExtendPage({
               alignItems: "center",
               justifyContent: "space-between",
             }}>
-              <span style={{ fontSize: 15, fontWeight: 700, color: "#1a1a2e" }}>
-                PayPal 자동결제 <span style={{ fontSize: 12, fontWeight: 400, color: "#0070ba" }}>해외 카드 / 자동갱신</span>
-              </span>
-              <span style={{ fontSize: 11.5, color: "#9ca3af" }}>USD</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 15, fontWeight: 700, color: "#1a1a2e" }}>
+                  PayPal 자동결제
+                </span>
+                <span style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: "#fff",
+                  background: "#0070ba",
+                  padding: "2px 8px",
+                  borderRadius: 20,
+                  letterSpacing: 0.3,
+                }}>
+                  해외 고객 전용
+                </span>
+              </div>
+              <span style={{ fontSize: 11.5, color: "#9ca3af" }}>USD · 자동갱신</span>
             </div>
             <div style={{ padding: 28 }}>
               <PaypalSection
@@ -160,6 +181,7 @@ export default async function ExtendPage({
                   currentPeriodEnd: activeSub.currentPeriodEnd?.toISOString() ?? null,
                 } : null}
                 returnedFromPayPal={returnedFromPayPal}
+                isKoreanUser={isKoreanUser}
               />
             </div>
           </div>
