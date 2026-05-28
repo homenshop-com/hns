@@ -7,6 +7,10 @@ import OrderConfirmationEmail, {
 import PasswordResetEmail from "@/emails/password-reset";
 import VerifyEmail from "@/emails/verify-email";
 import ExpirationReminderEmail from "@/emails/expiration-reminder";
+import SubscriptionActivatedEmail from "@/emails/subscription-activated";
+import SubscriptionReceiptEmail from "@/emails/subscription-receipt";
+import SubscriptionPaymentFailedEmail from "@/emails/subscription-payment-failed";
+import SubscriptionCancelledEmail from "@/emails/subscription-cancelled";
 
 function getResend() {
   return new Resend(process.env.RESEND_API_KEY);
@@ -160,5 +164,97 @@ export async function sendExpirationReminderEmail(
   } catch (err) {
     console.error("Error sending expiration reminder:", err);
     return false;
+  }
+}
+
+// ─── PayPal Subscription lifecycle emails ────────────────────────────────────
+
+export async function sendSubscriptionActivatedEmail(
+  to: string,
+  data: {
+    siteName: string;
+    plan: string;
+    nextBillingDate: string;
+    dashboardUrl: string;
+  }
+): Promise<void> {
+  try {
+    const html = await render(SubscriptionActivatedEmail(data));
+    const { error } = await getResend().emails.send({
+      from: FROM_ADDRESS,
+      to,
+      subject: `[홈앤샵] ${data.siteName} PayPal 구독 활성화 완료`,
+      html,
+    });
+    if (error) console.error("Failed to send subscription activated email:", error);
+  } catch (err) {
+    console.error("Error sending subscription activated email:", err);
+  }
+}
+
+export async function sendSubscriptionReceiptEmail(
+  to: string,
+  data: {
+    siteName: string;
+    amount: string;
+    periodStart: string;
+    periodEnd: string;
+    orderNumber: string;
+  }
+): Promise<void> {
+  try {
+    const html = await render(SubscriptionReceiptEmail(data));
+    const { error } = await getResend().emails.send({
+      from: FROM_ADDRESS,
+      to,
+      subject: `[홈앤샵] ${data.siteName} 결제 완료 — ${data.amount}`,
+      html,
+    });
+    if (error) console.error("Failed to send subscription receipt email:", error);
+  } catch (err) {
+    console.error("Error sending subscription receipt email:", err);
+  }
+}
+
+export async function sendSubscriptionPaymentFailedEmail(
+  to: string,
+  data: {
+    siteName: string;
+    retryUrl: string;
+  }
+): Promise<void> {
+  try {
+    const html = await render(SubscriptionPaymentFailedEmail(data));
+    const { error } = await getResend().emails.send({
+      from: FROM_ADDRESS,
+      to,
+      subject: `[홈앤샵] ${data.siteName} — PayPal 결제 실패 안내`,
+      html,
+    });
+    if (error) console.error("Failed to send payment failed email:", error);
+  } catch (err) {
+    console.error("Error sending payment failed email:", err);
+  }
+}
+
+export async function sendSubscriptionCancelledEmail(
+  to: string,
+  data: {
+    siteName: string;
+    accessUntil: string;
+    resubscribeUrl: string;
+  }
+): Promise<void> {
+  try {
+    const html = await render(SubscriptionCancelledEmail(data));
+    const { error } = await getResend().emails.send({
+      from: FROM_ADDRESS,
+      to,
+      subject: `[홈앤샵] ${data.siteName} — 구독 해지 완료`,
+      html,
+    });
+    if (error) console.error("Failed to send subscription cancelled email:", error);
+  } catch (err) {
+    console.error("Error sending subscription cancelled email:", err);
   }
 }

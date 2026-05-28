@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /* ── 호스팅 가격 (월 5,500원 기준) — src/lib/subscription.ts와 동일 ── */
 const MONTHLY_PRICE = 5500;
@@ -41,18 +41,41 @@ type PendingOrder = {
   subscriptionMonths: number;
 };
 
+declare global {
+  interface Window {
+    TossPayments?: (clientKey: string) => {
+      requestPayment: (method: string, options: Record<string, unknown>) => Promise<void>;
+    };
+  }
+}
+
 export default function ExtendForm({ siteId, labels }: ExtendFormProps) {
   const [selected, setSelected] = useState(12);
   const [loading, setLoading] = useState(false);
+  const [tossLoading, setTossLoading] = useState(false);
   const [order, setOrder] = useState<PendingOrder | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [sdkReady, setSdkReady] = useState(false);
+  const scriptLoadedRef = useRef(false);
 
   const selectedPlan = PLANS.find((p) => p.months === selected)!;
   const basePrice = MONTHLY_PRICE * selectedPlan.months;
   const discountAmount = Math.floor(basePrice * selectedPlan.discount);
   const totalPrice = basePrice - discountAmount;
 
-  async function handlePayment() {
+  // Load Toss SDK
+  useEffect(() => {
+    if (scriptLoadedRef.current) return;
+    scriptLoadedRef.current = true;
+    const script = document.createElement("script");
+    script.src = "https://js.tosspayments.com/v2/standard";
+    script.async = true;
+    script.onload = () => setSdkReady(true);
+    document.head.appendChild(script);
+  }, []);
+
+  /** Bank transfer: create PENDING order and show deposit guide */
+  async function handleBankTransfer() {
     setLoading(true);
     setError(null);
     try {
@@ -73,6 +96,51 @@ export default function ExtendForm({ siteId, labels }: ExtendFormProps) {
       setLoading(false);
     }
   }
+
+  /** Toss card: create order, then launch Toss widget */
+  async function handleToss() {
+    const clientKey = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY;
+    if (!clientKey || !sdkReady || !window.TossPayments) {
+      setError("Toss 결제 모듈이 준비되지 않았습니다. 잠시 후 다시 시도해 주세요.");
+      return;
+    }
+    setTossLoading(true);
+    setError(null);
+    try {
+      // 1. Create PENDING order
+      const res = await fetch(`/api/sites/${siteId}/extend`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ months: selected, paymentChannel: "toss" }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "주문 생성에 실패했습니다.");
+        return;
+      }
+      const orderNumber: string = data.order.orderNumber;
+      const origin = window.location.origin;
+
+      // 2. Launch Toss widget
+      const toss = window.TossPayments(clientKey);
+      await toss.requestPayment("카드", {
+        amount: totalPrice,
+        orderId: orderNumber,
+        orderName: `홈앤샵 호스팅 ${selected}개월`,
+        customerName: "고객",
+        successUrl: `${origin}/dashboard/site/${siteId}/extend/toss-success`,
+        failUrl: `${origin}/dashboard/site/${siteId}/extend?error=payment_failed`,
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "결제가 취소되었습니다.";
+      setError(msg);
+    } finally {
+      setTossLoading(false);
+    }
+  }
+
+  // Legacy alias for bank transfer button
+  const handlePayment = handleBankTransfer;
 
   if (order) {
     return (
@@ -267,29 +335,53 @@ export default function ExtendForm({ siteId, labels }: ExtendFormProps) {
         </div>
       )}
 
+      {/* Toss card payment */}
       <button
         type="button"
-        onClick={handlePayment}
-        disabled={loading}
+        onClick={handleToss}
+        disabled={tossLoading || loading}
         style={{
           display: "block",
           width: "100%",
           height: 52,
-          background: loading ? "#adb5bd" : "#3182f6",
+          background: tossLoading ? "#adb5bd" : "#0064ff",
           color: "#fff",
           border: "none",
           borderRadius: 10,
           fontSize: 16,
           fontWeight: 700,
-          cursor: loading ? "default" : "pointer",
+          cursor: (tossLoading || loading) ? "default" : "pointer",
+          marginBottom: 10,
           transition: "background 0.15s",
         }}
       >
-        {loading ? labels.processing : `${totalPrice.toLocaleString()}${labels.won} 무통장 입금 신청`}
+        {tossLoading ? "처리 중..." : `${totalPrice.toLocaleString()}${labels.won} 카드결제 (Toss)`}
+      </button>
+
+      {/* Bank transfer */}
+      <button
+        type="button"
+        onClick={handlePayment}
+        disabled={loading || tossLoading}
+        style={{
+          display: "block",
+          width: "100%",
+          height: 48,
+          background: "transparent",
+          color: "#495057",
+          border: "1.5px solid #dee2e6",
+          borderRadius: 10,
+          fontSize: 14,
+          fontWeight: 600,
+          cursor: (loading || tossLoading) ? "default" : "pointer",
+          transition: "background 0.15s",
+        }}
+      >
+        {loading ? labels.processing : "무통장 입금 신청"}
       </button>
 
       <p style={{ fontSize: 12, color: "#adb5bd", textAlign: "center", marginTop: 12, lineHeight: 1.5 }}>
-        신청하시면 주문번호와 입금 계좌가 표시됩니다. 입금 확인 후 기간이 연장됩니다.
+        카드결제는 즉시 활성화 · 무통장 입금은 확인 후 연장
       </p>
     </div>
   );

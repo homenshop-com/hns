@@ -28,11 +28,16 @@ export async function POST(
   }
 
   const { id: siteId } = await params;
-  const body = (await request.json().catch(() => ({}))) as { months?: number };
+  const body = (await request.json().catch(() => ({}))) as {
+    months?: number;
+    paymentChannel?: string;
+  };
   const months = body.months;
   if (!isValidSubscriptionMonths(months)) {
     return NextResponse.json({ error: "Invalid months" }, { status: 400 });
   }
+  // "toss" uses Toss Payments widget (auto-confirmed); "bank" (default) = 무통장입금.
+  const isToss = body.paymentChannel === "toss";
 
   const site = await prisma.site.findFirst({
     where: { id: siteId, userId: session.user.id, isTemplateStorage: false },
@@ -56,7 +61,8 @@ export async function POST(
       orderType: "SUBSCRIPTION",
       subscriptionMonths: months,
       subscriptionSiteId: site.id,
-      paymentMethod: "BANK_TRANSFER",
+      paymentMethod: isToss ? "카드" : "BANK_TRANSFER",
+      paymentChannel: isToss ? "TOSS" : "BANK_TRANSFER",
     },
     select: {
       id: true,

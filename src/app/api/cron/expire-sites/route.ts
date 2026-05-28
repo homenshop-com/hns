@@ -7,28 +7,37 @@ export const maxDuration = 300;
 /**
  * GET /api/cron/expire-sites
  *
- * Once per day, flip `published=false` on every free (accountType="0") site
- * whose `expiresAt` is in the past. Paid sites are left alone — their expiry
- * is managed by the subscription payment flow; admins handle edge cases.
+ * Once per day — handles two expiry scenarios:
  *
- * accountType itself is NOT mutated. The owner keeps seeing the site in the
- * dashboard (so they can renew), but visitors stop reaching the published
- * pages. Admins can set accountType="9" manually to hard-disable further.
+ * 1. Free-trial sites (accountType="0"):
+ *    If expiresAt < now → unpublish. accountType unchanged (stays "0").
  *
- * Template storage sites (isTemplateStorage=true) are excluded — they're
- * internal scaffolding, not user-facing.
+ * 2. Paid sites (accountType="1") with expiresAt < now:
+ *    a. Active PayPal subscription (status=ACTIVE, cancelAtPeriodEnd=false):
+ *       → SKIP. PayPal is still billing; next payment will extend expiresAt.
+ *    b. PayPal subscription with PAYMENT_FAILED:
+ *       → 3-day grace period. Unpublish only if expiresAt < (now - 3 days).
+ *    c. PayPal subscription CANCELLED or period ended:
+ *       → Unpublish. Site access ends when currentPeriodEnd passes.
+ *    d. No active subscription (Toss / bank-transfer one-time):
+ *       → Unpublish immediately once expiresAt passes.
  *
- * Auth: `Authorization: Bearer $CRON_SECRET` OR localhost. Mirrors
- * /api/cron/monthly-credits.
+ * accountType is NOT mutated to "9" automatically; only published is flipped.
+ * Admins can hard-disable by setting accountType="9" manually.
+ *
+ * Template storage sites (isTemplateStorage=true) are always excluded.
+ *
+ * Auth: `Authorization: Bearer $CRON_SECRET` OR localhost.
  */
 export async function GET(request: NextRequest) {
   const expected = process.env.CRON_SECRET;
   const headerAuth = request.headers.get("authorization") || "";
   const token = headerAuth.replace(/^Bearer\s+/i, "").trim();
 
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0].trim()
-    || request.headers.get("x-real-ip")
-    || "";
+  const ip =
+    request.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
+    request.headers.get("x-real-ip") ||
+    "";
   const isLocalhost = ip === "127.0.0.1" || ip === "::1" || ip === "";
 
   if (expected && token !== expected && !isLocalhost) {
@@ -36,39 +45,107 @@ export async function GET(request: NextRequest) {
   }
 
   const now = new Date();
+  const GRACE_MS = 3 * 24 * 60 * 60 * 1000; // 3 days for PAYMENT_FAILED
+  const graceCutoff = new Date(now.getTime() - GRACE_MS);
 
-  const expiredSites = await prisma.site.findMany({
+  const unpublishedIds: string[] = [];
+  const skippedActivePaypal: string[] = [];
+  const skippedGrace: string[] = [];
+
+  // ── 1. Free-trial sites ──────────────────────────────────────────────────
+  const expiredFree = await prisma.site.findMany({
     where: {
       accountType: "0",
       isTemplateStorage: false,
       published: true,
       expiresAt: { lt: now },
     },
-    select: { id: true, shopId: true, userId: true, expiresAt: true },
+    select: { id: true, shopId: true, expiresAt: true },
   });
 
-  if (expiredSites.length === 0) {
-    return NextResponse.json({ ok: true, expired: 0, now });
+  for (const site of expiredFree) {
+    unpublishedIds.push(site.id);
   }
 
-  const ids = expiredSites.map((s) => s.id);
-  const result = await prisma.site.updateMany({
-    where: { id: { in: ids } },
-    data: { published: false },
+  // ── 2. Paid sites past their expiresAt ───────────────────────────────────
+  const expiredPaid = await prisma.site.findMany({
+    where: {
+      accountType: "1",
+      isTemplateStorage: false,
+      published: true,
+      expiresAt: { lt: now },
+    },
+    select: {
+      id: true,
+      shopId: true,
+      expiresAt: true,
+      subscriptions: {
+        where: { status: { in: ["ACTIVE", "CANCELLED", "PAYMENT_FAILED"] } },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: {
+          status: true,
+          cancelAtPeriodEnd: true,
+          currentPeriodEnd: true,
+        },
+      },
+    },
   });
 
-  console.log(
-    `[expire-sites] unpublished ${result.count} expired free sites:`,
-    expiredSites.map((s) => s.shopId).join(", ")
-  );
+  for (const site of expiredPaid) {
+    const sub = site.subscriptions[0] ?? null;
+
+    if (sub) {
+      if (sub.status === "ACTIVE" && !sub.cancelAtPeriodEnd) {
+        // PayPal is still billing — don't expire. The webhook will extend expiresAt.
+        skippedActivePaypal.push(site.shopId);
+        continue;
+      }
+
+      if (sub.status === "PAYMENT_FAILED") {
+        // Grace period: give 3 days from expiresAt before unpublishing.
+        if (site.expiresAt && site.expiresAt.getTime() > graceCutoff.getTime()) {
+          skippedGrace.push(site.shopId);
+          continue;
+        }
+        // Grace period elapsed — fall through to unpublish.
+      }
+
+      // CANCELLED or PAYMENT_FAILED past grace: unpublish.
+    }
+    // No subscription (Toss/bank one-time) or expired grace: unpublish.
+    unpublishedIds.push(site.id);
+  }
+
+  // ── Apply unpublish ──────────────────────────────────────────────────────
+  let unpublishedCount = 0;
+  if (unpublishedIds.length > 0) {
+    const result = await prisma.site.updateMany({
+      where: { id: { in: unpublishedIds } },
+      data: { published: false },
+    });
+    unpublishedCount = result.count;
+  }
+
+  const allShopIds = [...expiredFree, ...expiredPaid]
+    .filter((s) => unpublishedIds.includes(s.id))
+    .map((s) => s.shopId);
+
+  if (unpublishedCount > 0) {
+    console.log(`[expire-sites] unpublished ${unpublishedCount} sites:`, allShopIds.join(", "));
+  }
+  if (skippedActivePaypal.length > 0) {
+    console.log(`[expire-sites] skipped (active PayPal):`, skippedActivePaypal.join(", "));
+  }
+  if (skippedGrace.length > 0) {
+    console.log(`[expire-sites] skipped (grace period):`, skippedGrace.join(", "));
+  }
 
   return NextResponse.json({
     ok: true,
-    expired: result.count,
-    sites: expiredSites.map((s) => ({
-      shopId: s.shopId,
-      expiresAt: s.expiresAt,
-    })),
+    expired: unpublishedCount,
+    skippedActivePaypal: skippedActivePaypal.length,
+    skippedGrace: skippedGrace.length,
     now,
   });
 }

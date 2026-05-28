@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { confirmPayment } from "@/lib/payments";
 import { prisma } from "@/lib/db";
 import { grantCredits } from "@/lib/credits";
+import { extendedExpiry } from "@/lib/subscription";
 
 // POST /api/payments/confirm — TossPayments 결제 승인
 export async function POST(request: NextRequest) {
@@ -73,6 +74,39 @@ export async function POST(request: NextRequest) {
           console.error("[credits] PURCHASE grant failed for order", updatedOrder.id, err);
           // Don't fail the payment confirmation — the ops team can grant
           // manually. Logged for monitoring.
+        }
+      }
+
+      // ─── Fulfillment: Toss subscription orders extend the site immediately ───
+      // Bank-transfer SUBSCRIPTION orders are activated manually by admin.
+      // Toss card payments are instant, so we activate the site right away.
+      if (
+        updatedOrder.orderType === "SUBSCRIPTION" &&
+        updatedOrder.paymentChannel === "TOSS" &&
+        updatedOrder.subscriptionSiteId &&
+        updatedOrder.subscriptionMonths
+      ) {
+        try {
+          const site = await prisma.site.findUnique({
+            where: { id: updatedOrder.subscriptionSiteId },
+            select: { expiresAt: true },
+          });
+          const newExpiry = extendedExpiry(site?.expiresAt ?? null, updatedOrder.subscriptionMonths);
+          await prisma.site.update({
+            where: { id: updatedOrder.subscriptionSiteId },
+            data: {
+              accountType: "1",
+              expiresAt: newExpiry,
+              lastReminderDay: null,
+            },
+          });
+          console.log(
+            `[payments/confirm] Toss SUBSCRIPTION: site=${updatedOrder.subscriptionSiteId} ` +
+              `+${updatedOrder.subscriptionMonths}m → ${newExpiry.toISOString()}`
+          );
+        } catch (err) {
+          console.error("[payments/confirm] Site extend failed for order", updatedOrder.id, err);
+          // Payment succeeded — don't fail the response. Ops can extend manually.
         }
       }
 

@@ -5,12 +5,15 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import DashboardShell from "../../../dashboard-shell";
 import ExtendForm from "./extend-form";
+import PaypalSection from "./paypal-section";
 import { resolveExpiresAt, FREE_TRIAL_DAYS } from "@/lib/site-expiration";
 
 export default async function ExtendPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ siteId: string }>;
+  searchParams: Promise<{ success?: string; cancelled?: string; channel?: string }>;
 }) {
   const session = await auth();
   if (!session) redirect("/login");
@@ -33,11 +36,29 @@ export default async function ExtendPage({
   };
 
   const { siteId } = await params;
+  const sp = await searchParams;
+  const returnedFromPayPal = sp.success === "1" && sp.channel === "paypal";
 
-  const site = await prisma.site.findFirst({
-    where: { id: siteId, userId: session.user.id },
-    include: { domains: true },
-  });
+  const [site, activeSub] = await Promise.all([
+    prisma.site.findFirst({
+      where: { id: siteId, userId: session.user.id },
+      include: { domains: true },
+    }),
+    prisma.subscription.findFirst({
+      where: {
+        siteId,
+        status: { in: ["ACTIVE", "CANCELLED"] },
+      },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        paypalSubscriptionId: true,
+        status: true,
+        currentPeriodEnd: true,
+        cancelAtPeriodEnd: true,
+      },
+    }),
+  ]);
 
   if (!site) redirect("/dashboard");
 
@@ -110,7 +131,40 @@ export default async function ExtendPage({
             </div>
           </div>
 
-          {/* 호스팅 플랜 */}
+          {/* ── PayPal 자동결제 ── */}
+          <div style={{
+            background: "#fff",
+            borderRadius: 12,
+            boxShadow: "0 2px 16px rgba(0,0,0,0.07)",
+            overflow: "hidden",
+            marginBottom: 24,
+          }}>
+            <div style={{
+              padding: "18px 28px",
+              borderBottom: "1px solid #f1f3f5",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}>
+              <span style={{ fontSize: 15, fontWeight: 700, color: "#1a1a2e" }}>
+                PayPal 자동결제 <span style={{ fontSize: 12, fontWeight: 400, color: "#0070ba" }}>해외 카드 / 자동갱신</span>
+              </span>
+              <span style={{ fontSize: 11.5, color: "#9ca3af" }}>USD</span>
+            </div>
+            <div style={{ padding: 28 }}>
+              <PaypalSection
+                siteId={site.id}
+                activeSubscription={activeSub ? {
+                  ...activeSub,
+                  status: String(activeSub.status),
+                  currentPeriodEnd: activeSub.currentPeriodEnd?.toISOString() ?? null,
+                } : null}
+                returnedFromPayPal={returnedFromPayPal}
+              />
+            </div>
+          </div>
+
+          {/* ── 호스팅 플랜 (KR · Toss / 무통장) ── */}
           <div style={{
             background: "#fff",
             borderRadius: 12,
@@ -125,7 +179,7 @@ export default async function ExtendPage({
               fontWeight: 700,
               color: "#1a1a2e",
             }}>
-              {t("selectPlan")}
+              {t("selectPlan")} <span style={{ fontSize: 12, fontWeight: 400, color: "#868e96" }}>KRW · 일회성</span>
             </div>
             <div style={{ padding: 28 }}>
               <ExtendForm

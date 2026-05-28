@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyWebhookSignature, getSubscription, PayPalError } from "@/lib/paypal";
 import { Resend } from "resend";
+import {
+  sendSubscriptionActivatedEmail,
+  sendSubscriptionReceiptEmail,
+  sendSubscriptionPaymentFailedEmail,
+  sendSubscriptionCancelledEmail,
+} from "@/lib/email";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +30,19 @@ async function sendAdminAlert(subject: string, html: string) {
   } catch (err) {
     console.error("[paypal/webhook] Failed to send admin alert:", err);
   }
+}
+
+function formatDate(d: Date | null | undefined): string {
+  if (!d) return "—";
+  return d.toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" });
+}
+
+function planLabel(planId: string): string {
+  const monthly = process.env.PAYPAL_PLAN_MONTHLY;
+  const yearly = process.env.PAYPAL_PLAN_YEARLY;
+  if (planId === monthly) return "월간 $4.99";
+  if (planId === yearly) return "연간 $49.99";
+  return planId;
 }
 
 /** Parse ISO date string safely. Returns null on failure. */
@@ -99,6 +118,25 @@ async function onSubscriptionActivated(resource: Record<string, unknown>) {
       },
     }),
   ]);
+
+  // Send activation confirmation email
+  const owner = await prisma.user.findUnique({
+    where: { id: sub.userId },
+    select: { email: true },
+  });
+  if (owner?.email) {
+    const site = await prisma.site.findUnique({
+      where: { id: sub.siteId },
+      select: { name: true },
+    });
+    const origin = process.env.NEXTAUTH_URL ?? "https://homenshop.com";
+    await sendSubscriptionActivatedEmail(owner.email, {
+      siteName: site?.name ?? sub.siteId,
+      plan: planLabel(sub.paypalPlanId),
+      nextBillingDate: formatDate(periodEnd),
+      dashboardUrl: `${origin}/dashboard/site/${sub.siteId}/extend`,
+    });
+  }
 
   console.log(
     `[paypal/webhook] ACTIVATED: site=${sub.siteId} paid until ${periodEnd.toISOString()}`,
@@ -198,6 +236,22 @@ async function onPaymentSaleCompleted(
     }),
   ]);
 
+  // Send receipt email
+  if (sub.user.email) {
+    const siteForReceipt = await prisma.site.findUnique({
+      where: { id: sub.siteId },
+      select: { name: true },
+    });
+    const periodStart = parseDate(resource.create_time) ?? now;
+    await sendSubscriptionReceiptEmail(sub.user.email, {
+      siteName: siteForReceipt?.name ?? sub.siteId,
+      amount: `$${amountUsd.toFixed(2)}`,
+      periodStart: formatDate(periodStart),
+      periodEnd: formatDate(nextPeriodEnd),
+      orderNumber: ppOrderNumber(), // display only — real order number in DB
+    });
+  }
+
   console.log(
     `[paypal/webhook] PAYMENT.SALE.COMPLETED: site=${sub.siteId} ` +
       `$${amountUsd} → paid until ${nextPeriodEnd.toISOString()}`,
@@ -253,24 +307,13 @@ async function onPaymentSaleDenied(
     }),
   ]);
 
-  // Alert the site owner
+  // Alert the site owner (use template)
   if (sub.user.email) {
-    try {
-      await resend().emails.send({
-        from: "homeNshop <noreply@homenshop.com>",
-        to: sub.user.email,
-        subject: `[홈앤샵] ${sub.site.name} — PayPal 결제 실패 안내`,
-        html: `
-<p>${sub.user.name ?? "고객님"} 안녕하세요,</p>
-<p><strong>${sub.site.name}</strong> 사이트의 PayPal 자동결제가 실패했습니다.</p>
-<p>PayPal 계정의 결제 수단을 확인하신 후 재시도해 주세요.
-3일 이내 결제가 이루어지지 않으면 사이트가 일시 비활성화될 수 있습니다.</p>
-<p><a href="https://homenshop.com/dashboard">대시보드 바로가기</a></p>
-<p>문의: help@homenshop.com</p>`,
-      });
-    } catch (err) {
-      console.error("[paypal/webhook] DENIED: failed to email owner:", err);
-    }
+    const origin = process.env.NEXTAUTH_URL ?? "https://homenshop.com";
+    await sendSubscriptionPaymentFailedEmail(sub.user.email, {
+      siteName: sub.site.name,
+      retryUrl: `${origin}/dashboard/site/${sub.siteId}/extend`,
+    });
   }
 
   console.log(`[paypal/webhook] PAYMENT.SALE.DENIED: site=${sub.siteId} sub=${paypalSubId}`);
@@ -291,6 +334,24 @@ async function onSubscriptionCancelled(resource: Record<string, unknown>) {
     where: { id: sub.id },
     data: { status: "CANCELLED", cancelAtPeriodEnd: true },
   });
+
+  // Notify the site owner
+  const cancelOwner = await prisma.user.findUnique({
+    where: { id: sub.userId },
+    select: { email: true },
+  });
+  const cancelSite = await prisma.site.findUnique({
+    where: { id: sub.siteId },
+    select: { name: true },
+  });
+  if (cancelOwner?.email) {
+    const origin = process.env.NEXTAUTH_URL ?? "https://homenshop.com";
+    await sendSubscriptionCancelledEmail(cancelOwner.email, {
+      siteName: cancelSite?.name ?? sub.siteId,
+      accessUntil: formatDate(sub.currentPeriodEnd),
+      resubscribeUrl: `${origin}/dashboard/site/${sub.siteId}/extend`,
+    });
+  }
 
   console.log(`[paypal/webhook] SUBSCRIPTION.CANCELLED: site=${sub.siteId}`);
 }
