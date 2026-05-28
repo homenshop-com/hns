@@ -19,7 +19,7 @@ export async function PUT(
   }
 
   const body = await request.json();
-  const { itemsPerRow, totalRows, thumbWidth, thumbHeight, detailWidth, buttonMode, searchEnabled } = body;
+  const { itemsPerRow, totalRows, thumbWidth, thumbHeight, detailWidth, buttonMode, searchEnabled, boardSearchEnabled } = body;
 
   // buttonMode controls the CTA buttons rendered on the product detail page:
   //   "sales"   — [구매하기] + [바로구매]  (general retail)
@@ -40,6 +40,9 @@ export async function PUT(
     buttonMode: safeButtonMode,
     // Opt-in unified search box (products + board) in the published header.
     searchEnabled: searchEnabled === true,
+    // Whether the search includes board posts. Defaults to true so the search
+    // covers both products and board unless the owner narrows it.
+    boardSearchEnabled: boardSearchEnabled !== false,
   };
 
   await prisma.site.update({

@@ -136,7 +136,7 @@ export default async function SiteManagePage({
   if (!site || site.userId !== session.user.id) redirect("/dashboard");
 
   const productCount = site.products.length;
-  const ps = site.productSettings as (Record<string, number> & { buttonMode?: "sales" | "inquiry" | "none"; searchEnabled?: boolean }) | null;
+  const ps = site.productSettings as (Record<string, number> & { buttonMode?: "sales" | "inquiry" | "none"; searchEnabled?: boolean; boardSearchEnabled?: boolean }) | null;
   const productSettings = {
     itemsPerRow: ps?.itemsPerRow ?? 4,
     totalRows: ps?.totalRows ?? 10,
@@ -145,6 +145,7 @@ export default async function SiteManagePage({
     detailWidth: ps?.detailWidth ?? 500,
     buttonMode: ps?.buttonMode ?? ("sales" as const),
     searchEnabled: ps?.searchEnabled ?? false,
+    boardSearchEnabled: ps?.boardSearchEnabled ?? true,
   };
   const boardCategories = await getBoardCategories(site.id);
   const boardPostCount = boardCategories.reduce((sum, b) => sum + b.cnt, 0);

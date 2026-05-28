@@ -576,6 +576,9 @@ interface ProductDisplaySettings {
    *  published header and enable the ?action=search results page. Opt-in
    *  per site via 데이터관리 → 상품관리. */
   searchEnabled?: boolean;
+  /** Whether to include board posts in the unified search results.
+   *  Default true. Set false to limit search to products only. */
+  boardSearchEnabled?: boolean;
 }
 
 async function renderProductList(
@@ -720,6 +723,7 @@ function searchLabels(lang: string): SearchLabels {
 async function renderSearch(
   siteId: string, shopId: string, lang: string, rawQuery: string,
   urlPrefix: string, goodsPage: string, tempDomain: string,
+  includeBoard: boolean = true,
 ): Promise<string> {
   const L = searchLabels(lang);
   const q = rawQuery.trim();
@@ -746,21 +750,27 @@ async function renderSearch(
       orderBy: { legacyId: "desc" },
       take: 60,
     }),
-    prisma.boardPost.findMany({
-      where: {
-        siteId,
-        lang,
-        parentId: null,
-        isPublic: true,
-        OR: [
-          { title: { contains: q, mode: "insensitive" } },
-          { content: { contains: q, mode: "insensitive" } },
-        ],
-      },
-      orderBy: { legacyId: "desc" },
-      take: 60,
-      select: { legacyId: true, title: true, author: true, regdate: true, category: { select: { name: true } } },
-    }),
+    // Board search is gated by includeBoard (productSettings.boardSearchEnabled).
+    // We deliberately drop the isPublic filter because legacy-migrated posts
+    // often carry isPublic=false even though renderBoardList/Read publish them.
+    // Keeping that filter caused publicly-visible posts (e.g. ybsurplus post 54
+    // "Nikon Asml Mask") to be missing from search results — surprising users.
+    includeBoard
+      ? prisma.boardPost.findMany({
+          where: {
+            siteId,
+            lang,
+            parentId: null,
+            OR: [
+              { title: { contains: q, mode: "insensitive" } },
+              { content: { contains: q, mode: "insensitive" } },
+            ],
+          },
+          orderBy: { legacyId: "desc" },
+          take: 60,
+          select: { legacyId: true, title: true, author: true, regdate: true, category: { select: { name: true } } },
+        })
+      : Promise.resolve([] as Array<{ legacyId: number | null; title: string; author: string; regdate: string | null; category: { name: string } | null }>),
   ]);
 
   // Product cards (mirrors renderProductList markup, compact grid)
@@ -980,7 +990,10 @@ export async function GET(
   const searchEnabled = prodSettings?.searchEnabled === true;
   const isSearchAction = searchEnabled && action === "search";
   if (isSearchAction) {
-    boardSectionHtml = await renderSearch(site.id, shopId, lang, url.searchParams.get("q") || "", urlPrefix, productPageSlug, tempDomain);
+    // boardSearchEnabled defaults to true so existing opt-ins keep including
+    // board posts; setting it false limits search to products only.
+    const includeBoard = prodSettings?.boardSearchEnabled !== false;
+    boardSectionHtml = await renderSearch(site.id, shopId, lang, url.searchParams.get("q") || "", urlPrefix, productPageSlug, tempDomain, includeBoard);
     bodyHtml = "";
   } else if (isProductAction) {
     if (effectiveAction === "read" && prismaProductId) {
