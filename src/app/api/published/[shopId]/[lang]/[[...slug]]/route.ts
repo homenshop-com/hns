@@ -1688,12 +1688,15 @@ export async function GET(
       <input type="search" name="q" value="${escapeHtml(url.searchParams.get("q") || "")}" placeholder="${escapeHtml(sl.placeholder)}" aria-label="${escapeHtml(sl.placeholder)}" autocomplete="off" />
       <button type="submit" aria-label="${escapeHtml(sl.searchBtn)}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></button>
       <style>
-        #hns-search{position:absolute;top:14px;right:18px;z-index:99999;display:flex;align-items:center;background:rgba(255,255,255,.92);border:1px solid rgba(0,0,0,.14);border-radius:999px;box-shadow:0 2px 8px rgba(0,0,0,.08);overflow:hidden;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);}
+        /* 메뉴 줄(Request a quote 와 같은 라인) 우측에 정렬. #hns_header 의
+           마지막 in-flow 자식이 menuHtml 이므로 bottom 앵커가 메뉴 줄 라인에
+           떨어진다. 메뉴 줄 가운데와 시각적으로 맞도록 살짝 띄움. */
+        #hns-search{position:absolute;bottom:18px;right:18px;z-index:99999;display:flex;align-items:center;background:rgba(255,255,255,.92);border:1px solid rgba(0,0,0,.14);border-radius:999px;box-shadow:0 2px 8px rgba(0,0,0,.08);overflow:hidden;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);}
         #hns-search input[type=search]{border:0;outline:0;background:transparent;font-size:13px;color:#222;padding:8px 4px 8px 16px;width:170px;-webkit-appearance:none;}
         #hns-search input[type=search]::placeholder{color:#999;}
         #hns-search button{border:0;background:transparent;cursor:pointer;color:#555;padding:8px 14px 8px 8px;display:flex;align-items:center;}
         #hns-search button:hover{color:#f28a17;}
-        @media (max-width:768px){#hns-search{top:10px;right:10px;}#hns-search input[type=search]{width:108px;padding-left:12px;}}
+        @media (max-width:768px){#hns-search{bottom:14px;right:10px;}#hns-search input[type=search]{width:108px;padding-left:12px;}}
       </style>
     </form>`
     : "";
