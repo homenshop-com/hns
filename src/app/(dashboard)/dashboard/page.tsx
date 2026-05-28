@@ -130,6 +130,7 @@ export default async function DashboardPage() {
     unreadInquiries,
     recentInquiries,
     recentBookings,
+    newInquiryCount,
   ] = await Promise.all([
     prisma.order.findMany({
       where: {
@@ -204,6 +205,14 @@ export default async function DashboardPage() {
           },
         })
       : Promise.resolve([]),
+    /* 미확인(신규) 견적·상담 문의 수 — 새 Inquiry 모델(contact/submit) 기준.
+       사이드바 "문의·예약" 배지용. unreadInquiries(레거시 BoardPost)와는
+       별개 데이터 소스이며, 이 배지는 /dashboard/inquiries 페이지와 동일 기준. */
+    siteIds.length
+      ? prisma.inquiry.count({
+          where: { siteId: { in: siteIds }, status: "NEW" },
+        })
+      : Promise.resolve(0),
   ]);
 
   const newOrderCount = newOrders.length;
@@ -410,8 +419,13 @@ export default async function DashboardPage() {
               <span className="label">{t("navOrders")}</span>
               {newOrderCount > 0 && <span className="badge g">{newOrderCount}</span>}
             </Link>
-            <Link href="/dashboard/boards">
+            <Link href="/dashboard/inquiries">
               <span className="ic"><Icon id="i-mail" /></span>
+              <span className="label">{t("navInquiries")}</span>
+              {newInquiryCount > 0 && <span className="badge">{newInquiryCount}</span>}
+            </Link>
+            <Link href="/dashboard/boards">
+              <span className="ic"><Icon id="i-grid" /></span>
               <span className="label">{t("navBoards")}</span>
               {unreadInquiries > 0 && <span className="badge">{unreadInquiries}</span>}
             </Link>
