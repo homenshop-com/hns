@@ -130,7 +130,11 @@ export async function POST(req: NextRequest) {
     || process.env.FROM_EMAIL
     || "homeNshop <noreply@homenshop.com>";
 
-  const subject = `[${site.name || shopId}] 견적·상담 문의 — ${name}`;
+  const productName = body.productName?.trim() || "";
+  const pageUrl = body.pageUrl?.trim() || "";
+  const subject = productName
+    ? `[${site.name || shopId}] 견적·상담 문의 — ${productName} (${name})`
+    : `[${site.name || shopId}] 견적·상담 문의 — ${name}`;
 
   const html = `
     <div style="font-family:system-ui,-apple-system,sans-serif;max-width:600px;margin:0 auto;padding:24px;background:#fff;color:#222;">
@@ -138,6 +142,11 @@ export async function POST(req: NextRequest) {
         <div style="color:#1a0a00;font-size:11px;font-family:monospace;letter-spacing:.14em;text-transform:uppercase;margin-bottom:8px;">CONTACT FORM</div>
         <h1 style="color:#1a0a00;margin:0;font-size:22px;font-weight:800;">견적·상담 문의 접수</h1>
       </div>
+      ${productName ? `<div style="margin-bottom:16px;padding:14px 16px;background:#fff7e6;border:1px solid #ffb547;border-radius:8px;">
+        <div style="font-size:11px;color:#a86512;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px;">문의 제품</div>
+        <div style="font-size:17px;font-weight:700;color:#1a0a00;">${escapeHtml(productName)}</div>
+        ${pageUrl ? `<a href="${escapeHtml(pageUrl)}" style="font-size:12px;color:#f28a17;word-break:break-all;">${escapeHtml(pageUrl)}</a>` : ""}
+      </div>` : ""}
       <table style="width:100%;border-collapse:collapse;">
         <tbody>
           ${body.company ? `<tr><th style="text-align:left;padding:10px 12px;background:#f7f7f7;width:110px;border-bottom:1px solid #eee;">회사/업체명</th><td style="padding:10px 12px;border-bottom:1px solid #eee;">${escapeHtml(body.company)}</td></tr>` : ""}
@@ -164,6 +173,7 @@ export async function POST(req: NextRequest) {
   const plainText = [
     `[${site.name || shopId}] 홈페이지 견적·상담 문의`,
     "",
+    ...(productName ? [`문의 제품: ${productName}`, ...(pageUrl ? [`제품 페이지: ${pageUrl}`] : []), ""] : []),
     `회사/업체명: ${body.company || "-"}`,
     `담당자: ${name || "-"}`,
     `연락처: ${phone || "-"}`,
