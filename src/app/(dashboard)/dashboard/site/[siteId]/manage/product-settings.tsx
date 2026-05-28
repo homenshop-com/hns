@@ -11,8 +11,6 @@ interface ProductSettingsData {
   thumbHeight: number;
   detailWidth: number;
   buttonMode?: ButtonMode;
-  searchEnabled?: boolean;
-  boardSearchEnabled?: boolean;
 }
 
 interface ProductSettingsLabels {
@@ -71,8 +69,6 @@ export default function ProductSettings({ siteId, initialSettings, labels, varia
   const [settings, setSettings] = useState<ProductSettingsData>({
     ...initialSettings,
     buttonMode: initialSettings.buttonMode ?? "sales",
-    searchEnabled: initialSettings.searchEnabled ?? false,
-    boardSearchEnabled: initialSettings.boardSearchEnabled ?? true,
   });
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -243,67 +239,6 @@ export default function ProductSettings({ siteId, initialSettings, labels, varia
             })}
           </div>
         </div>
-
-        <label
-          style={{
-            display: "flex",
-            alignItems: "flex-start",
-            gap: 10,
-            padding: "10px 12px",
-            marginBottom: 12,
-            border: `1px solid ${settings.searchEnabled ? "#2563eb" : "#e5e7eb"}`,
-            borderRadius: 6,
-            background: settings.searchEnabled ? "#eff6ff" : "#fff",
-            cursor: "pointer",
-            wordBreak: "keep-all",
-          }}
-        >
-          <input
-            type="checkbox"
-            checked={settings.searchEnabled ?? false}
-            onChange={(e) => setSettings((s) => ({ ...s, searchEnabled: e.target.checked }))}
-            style={{ width: 14, height: 14, marginTop: 3, accentColor: "#2563eb", flexShrink: 0 }}
-          />
-          <div style={{ flex: 1, minWidth: 0, lineHeight: 1.4 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>통합 검색창</div>
-            <div style={{ fontSize: 11.5, color: "#6b7280", marginTop: 2 }}>
-              홈페이지 헤더 우측 상단에 검색창을 표시합니다.
-            </div>
-          </div>
-        </label>
-
-        {/* 게시판 포함 — 통합 검색창의 하위 옵션. 끄면 검색 결과에서 게시판
-            섹션이 빠지고 상품 결과만 노출. 검색창 자체가 꺼져 있을 때는
-            의미가 없으므로 흐리게 표시. */}
-        <label
-          style={{
-            display: "flex",
-            alignItems: "flex-start",
-            gap: 10,
-            padding: "8px 12px",
-            marginLeft: 22,
-            marginBottom: 12,
-            borderLeft: "2px solid #e5e7eb",
-            background: "transparent",
-            cursor: settings.searchEnabled ? "pointer" : "not-allowed",
-            opacity: settings.searchEnabled ? 1 : 0.5,
-            wordBreak: "keep-all",
-          }}
-        >
-          <input
-            type="checkbox"
-            disabled={!settings.searchEnabled}
-            checked={settings.boardSearchEnabled ?? true}
-            onChange={(e) => setSettings((s) => ({ ...s, boardSearchEnabled: e.target.checked }))}
-            style={{ width: 14, height: 14, marginTop: 3, accentColor: "#2563eb", flexShrink: 0 }}
-          />
-          <div style={{ flex: 1, minWidth: 0, lineHeight: 1.4 }}>
-            <div style={{ fontSize: 12.5, fontWeight: 600, color: "#374151" }}>게시판 포함</div>
-            <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
-              검색 결과에 게시판 글까지 함께 노출합니다. 꺼두면 상품만 검색됩니다.
-            </div>
-          </div>
-        </label>
 
         <button onClick={handleSave} disabled={saving} className="mv2-form-submit">
           <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">

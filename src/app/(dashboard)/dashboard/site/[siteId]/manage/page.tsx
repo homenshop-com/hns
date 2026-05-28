@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import ProductSettings from "./product-settings";
+import SearchSettings from "./search-settings";
 import { getTranslations } from "next-intl/server";
 import SignOutButton from "../../../sign-out-button";
 import ImpersonationBanner from "@/components/ImpersonationBanner";
@@ -144,6 +145,10 @@ export default async function SiteManagePage({
     thumbHeight: ps?.thumbHeight ?? 135,
     detailWidth: ps?.detailWidth ?? 500,
     buttonMode: ps?.buttonMode ?? ("sales" as const),
+  };
+  // Search settings are stored in the same productSettings JSON but managed
+  // by a dedicated panel (see SearchSettings component) below the data grid.
+  const searchSettings = {
     searchEnabled: ps?.searchEnabled ?? false,
     boardSearchEnabled: ps?.boardSearchEnabled ?? true,
   };
@@ -544,6 +549,10 @@ export default async function SiteManagePage({
                 </div>
               </div>
             </div>
+
+            {/* 사이트 검색 — 상품·게시판을 가로지르는 사이트 단위 설정이라
+                상품관리 컬럼에서 분리해 별도 섹션으로 노출. */}
+            <SearchSettings siteId={siteId} initial={searchSettings} />
 
             {/* 주문 관리 통합 패널 — 사이트 스코프. 2026-05-18 사용자 요청에
                 따라 5번째 컬럼 + 상품관리 내부 링크 제거하고 이 패널 하나로 통합.
