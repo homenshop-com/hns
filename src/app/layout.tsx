@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import SessionProvider from "@/components/SessionProvider";
@@ -66,6 +67,9 @@ export default async function RootLayout({
 }>) {
   const locale = await getLocale();
   const messages = await getMessages();
+  // GA4 measurement ID. Configured in .env.local — empty string disables the
+  // tag in local/dev environments where we don't want to pollute analytics.
+  const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ?? "";
 
   return (
     <html lang={locale}>
@@ -88,6 +92,23 @@ export default async function RootLayout({
       <body
         className={`${geistMono.variable} antialiased`}
       >
+        {/* Google Analytics 4 (gtag.js). next/script with afterInteractive defers
+            loading until the page is interactive — recommended pattern for GA
+            per Next.js docs. We only emit the tags when an ID is configured. */}
+        {gaMeasurementId && (
+          <>
+            <Script
+              src={`https://www.googletagmanager.com/gtag/js?id=${gaMeasurementId}`}
+              strategy="afterInteractive"
+            />
+            <Script id="gtag-init" strategy="afterInteractive">
+              {`window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', '${gaMeasurementId}');`}
+            </Script>
+          </>
+        )}
         <NextIntlClientProvider locale={locale} messages={messages}>
           <SessionProvider>{children}</SessionProvider>
         </NextIntlClientProvider>

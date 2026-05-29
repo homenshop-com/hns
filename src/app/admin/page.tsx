@@ -1,26 +1,35 @@
 import { prisma } from "@/lib/db";
 import Link from "next/link";
+import { getAnalyticsSummary } from "@/lib/analytics";
+import AnalyticsPanel from "./analytics-panel";
 
 export default async function AdminDashboardPage() {
-  const [membersCount, sitesCount, ordersCount, productsCount, recentUsers] =
-    await Promise.all([
-      prisma.user.count(),
-      prisma.site.count(),
-      prisma.order.count(),
-      prisma.product.count(),
-      prisma.user.findMany({
-        orderBy: { createdAt: "desc" },
-        take: 5,
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
-          status: true,
-          createdAt: true,
-        },
-      }),
-    ]);
+  const [
+    membersCount,
+    sitesCount,
+    ordersCount,
+    productsCount,
+    recentUsers,
+    analytics,
+  ] = await Promise.all([
+    prisma.user.count(),
+    prisma.site.count(),
+    prisma.order.count(),
+    prisma.product.count(),
+    prisma.user.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 5,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        status: true,
+        createdAt: true,
+      },
+    }),
+    getAnalyticsSummary(),
+  ]);
 
   const stats = [
     {
@@ -75,6 +84,12 @@ export default async function AdminDashboardPage() {
         <h1 className="text-xl font-bold text-slate-900">Dashboard</h1>
         <p className="mt-1 text-sm text-slate-500">서비스 현황을 한눈에 확인하세요.</p>
       </div>
+
+      {/* Google Analytics panel — real-time visitors, 7-day metrics, top pages. */}
+      <AnalyticsPanel
+        initial={analytics}
+        propertyId={analytics.configured ? analytics.propertyId : undefined}
+      />
 
       {/* Stats */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
