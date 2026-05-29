@@ -65,7 +65,7 @@ export async function PUT(
   }
 
   const body = await request.json();
-  const { name, description, published, languages, defaultLanguage, googleAnalyticsId, googleVerification, headerHtml, menuHtml, footerHtml, hmfLang, tempDomain } = body;
+  const { name, description, published, languages, defaultLanguage, googleAnalyticsId, googleAnalyticsPropertyId, googleVerification, headerHtml, menuHtml, footerHtml, hmfLang, tempDomain } = body;
 
   if (tempDomain !== undefined && !isAllowedTempDomain(tempDomain)) {
     return NextResponse.json(
@@ -118,6 +118,12 @@ export async function PUT(
       ...(languages !== undefined && { languages }),
       ...(defaultLanguage !== undefined && { defaultLanguage }),
       ...(googleAnalyticsId !== undefined && { googleAnalyticsId: googleAnalyticsId?.trim() || null }),
+      ...(googleAnalyticsPropertyId !== undefined && {
+        // Strip non-digits — Property IDs are pure numeric (e.g. "539341583"). Users sometimes
+        // paste with surrounding whitespace or accidentally include the "properties/" prefix.
+        googleAnalyticsPropertyId:
+          googleAnalyticsPropertyId?.toString().replace(/[^0-9]/g, "") || null,
+      }),
       ...(googleVerification !== undefined && { googleVerification: googleVerification?.trim() || null }),
       ...(tempDomain !== undefined && { tempDomain }),
     },

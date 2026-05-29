@@ -153,8 +153,9 @@ model Site {
   published          Boolean   @default(false)
   accountType        String    @default("free")
   expiresAt          DateTime?
-  googleAnalyticsId  String?
-  googleVerification String?
+  googleAnalyticsId          String? // Measurement ID — G-XXXXXXXXXX, embedded in gtag.js on the published site
+  googleAnalyticsPropertyId  String? // Numeric GA4 Property ID — used by the Data API to read this site's stats into the user dashboard
+  googleVerification         String?
   productSettings    Json?
   /// Which managed temporary domain this site is published under
   /// (e.g. "home.homenshop.com" or "aesthetic.helper.so"). All public

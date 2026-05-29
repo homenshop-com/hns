@@ -4,19 +4,31 @@ import { useEffect, useState } from "react";
 import type { AnalyticsSummary } from "@/lib/analytics";
 
 /**
- * Renders the GA section of the admin dashboard.
+ * Renders the GA section of a dashboard.
+ *
+ * Used in two places:
+ *  - Admin homenshop.com dashboard (default `/api/admin/analytics` URL)
+ *  - User-facing per-site dashboards (`/api/dashboard/sites/[id]/analytics`)
  *
  * The server component passes the initial summary as a prop (no waterfall on
- * first paint). After mount, this component polls `/api/admin/analytics`
- * every 60 s so the "realtime users" tile stays live without forcing a full
- * page reload.
+ * first paint). After mount this component polls `refreshUrl` every 60 s so
+ * the "realtime users" tile stays live without forcing a full page reload.
+ *
+ * `notConnectedHelpHref` lets the host page point users at the right setup
+ * page when GA hasn't been wired up yet (defaults to GA console).
  */
 export default function AnalyticsPanel({
   initial,
   propertyId,
+  refreshUrl = "/api/admin/analytics",
+  notConnectedHelpHref,
+  notConnectedHelpLabel,
 }: {
   initial: AnalyticsSummary;
   propertyId: string | undefined;
+  refreshUrl?: string;
+  notConnectedHelpHref?: string;
+  notConnectedHelpLabel?: string;
 }) {
   const [data, setData] = useState<AnalyticsSummary>(initial);
 
@@ -24,7 +36,7 @@ export default function AnalyticsPanel({
     if (!initial.configured) return;
     const refresh = async () => {
       try {
-        const res = await fetch("/api/admin/analytics", { cache: "no-store" });
+        const res = await fetch(refreshUrl, { cache: "no-store" });
         if (res.ok) setData((await res.json()) as AnalyticsSummary);
       } catch {
         // Silent — the previous snapshot stays on screen.
@@ -32,9 +44,17 @@ export default function AnalyticsPanel({
     };
     const id = setInterval(refresh, 60_000);
     return () => clearInterval(id);
-  }, [initial.configured]);
+  }, [initial.configured, refreshUrl]);
 
   if (!data.configured) {
+    // Two flavors of "not connected":
+    //  - On user dashboards we pass a help link to the setup page (in-app) and
+    //    a CTA label like "설정하기" — the message stays user-friendly.
+    //  - On the admin dashboard we leave it blank, so we show the env-var
+    //    instructions for operators.
+    const helpHref = notConnectedHelpHref ?? "https://analytics.google.com/";
+    const helpLabel = notConnectedHelpLabel ?? "GA 열기";
+    const isUserFlow = !!notConnectedHelpHref;
     return (
       <div className="rounded-xl bg-white border border-slate-200 p-6 mb-8">
         <div className="flex items-start justify-between gap-4">
@@ -45,36 +65,43 @@ export default function AnalyticsPanel({
             <p className="text-xs text-slate-500">
               아직 연결되지 않았습니다. <span className="font-mono">{data.reason}</span>
             </p>
-            <p className="text-xs text-slate-500 mt-2 leading-relaxed">
-              <code className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px]">
-                .env.local
-              </code>
-              에 <code className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px]">
-                GA_PROPERTY_ID
-              </code>
-              {" / "}
-              <code className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px]">
-                GA_SERVICE_ACCOUNT_JSON
-              </code>
-              을 설정한 뒤 서버를 재시작하세요. 자세한 절차는{" "}
-              <a
-                href="https://developers.google.com/analytics/devguides/reporting/data/v1/quickstart-client-libraries"
-                target="_blank"
-                rel="noreferrer"
-                className="text-[#3182f6] hover:underline"
-              >
-                Data API 가이드
-              </a>
-              를 참고하세요.
-            </p>
+            {isUserFlow ? (
+              <p className="text-xs text-slate-500 mt-2 leading-relaxed">
+                설정 페이지에서 측정 ID와 Property ID를 입력하고, 서비스 계정에 뷰어 권한을
+                부여하시면 이 카드에 실시간 통계가 표시됩니다.
+              </p>
+            ) : (
+              <p className="text-xs text-slate-500 mt-2 leading-relaxed">
+                <code className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px]">
+                  .env.local
+                </code>
+                에 <code className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px]">
+                  GA_PROPERTY_ID
+                </code>
+                {" / "}
+                <code className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px]">
+                  GA_SERVICE_ACCOUNT_JSON
+                </code>
+                을 설정한 뒤 서버를 재시작하세요. 자세한 절차는{" "}
+                <a
+                  href="https://developers.google.com/analytics/devguides/reporting/data/v1/quickstart-client-libraries"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[#3182f6] hover:underline"
+                >
+                  Data API 가이드
+                </a>
+                를 참고하세요.
+              </p>
+            )}
           </div>
           <a
-            href="https://analytics.google.com/"
-            target="_blank"
-            rel="noreferrer"
+            href={helpHref}
+            target={isUserFlow ? undefined : "_blank"}
+            rel={isUserFlow ? undefined : "noreferrer"}
             className="shrink-0 inline-flex items-center gap-1.5 rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700 transition-colors"
           >
-            GA 열기
+            {helpLabel}
             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
             </svg>

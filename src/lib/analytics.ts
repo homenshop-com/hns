@@ -62,12 +62,34 @@ function num(v: string | null | undefined): number {
 }
 
 /**
- * One round-trip (well, three parallel ones) to populate the entire admin
- * GA panel. Wrapped in try/catch so a Data API failure renders an empty
- * "configured" state instead of crashing the dashboard.
+ * Service account email — safe to expose publicly. Users need it visible in the
+ * dashboard so they can paste it into their GA "Property access management" to
+ * grant our reader Viewer access. Read from the credential JSON at boot.
  */
-export async function getAnalyticsSummary(): Promise<AnalyticsSummary> {
-  const propertyId = process.env.GA_PROPERTY_ID;
+export function getServiceAccountEmail(): string | null {
+  const raw = process.env.GA_SERVICE_ACCOUNT_JSON;
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw).client_email ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * One round-trip (well, four parallel ones) to populate the entire GA panel
+ * for a single property. Wrapped in try/catch so a Data API failure renders
+ * an empty "configured" state instead of crashing the dashboard.
+ *
+ * Pass `propertyId` to read a specific GA4 property — used by user-facing
+ * dashboards to surface each member's own site analytics. Falls back to
+ * `GA_PROPERTY_ID` env when omitted, which is what the admin homenshop.com
+ * panel uses.
+ */
+export async function getAnalyticsSummary(
+  propertyIdOverride?: string | null,
+): Promise<AnalyticsSummary> {
+  const propertyId = propertyIdOverride ?? process.env.GA_PROPERTY_ID;
   if (!propertyId) {
     return { configured: false, reason: "GA_PROPERTY_ID 미설정" };
   }

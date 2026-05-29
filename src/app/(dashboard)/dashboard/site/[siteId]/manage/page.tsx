@@ -12,6 +12,8 @@ import "./manage-v2.css";
 import { DashboardIconSprite, Icon } from "../../../dashboard-icons";
 import DashboardShell from "../../../dashboard-shell";
 import { getTempDomain } from "@/lib/temp-domains";
+import { getAnalyticsSummary } from "@/lib/analytics";
+import AnalyticsPanel from "@/app/admin/analytics-panel";
 
 /* ────────────────────────────────────────────────────────────────
  * Helpers
@@ -135,6 +137,15 @@ export default async function SiteManagePage({
   ]);
 
   if (!site || site.userId !== session.user.id) redirect("/dashboard");
+
+  // GA panel data — only fire the Data API call when this site has a
+  // Property ID configured. Without it we just render the "not connected"
+  // card with a CTA pointing at the analytics config page. The call is
+  // post-Promise.all because the site row gates whether it should happen
+  // at all (cheaper than always firing and discarding).
+  const analyticsSummary = site.googleAnalyticsPropertyId
+    ? await getAnalyticsSummary(site.googleAnalyticsPropertyId)
+    : { configured: false as const, reason: "측정 ID 또는 Property ID 미설정" };
 
   const productCount = site.products.length;
   const ps = site.productSettings as (Record<string, number> & { buttonMode?: "sales" | "inquiry" | "none"; searchEnabled?: boolean; boardSearchEnabled?: boolean }) | null;
@@ -376,6 +387,21 @@ export default async function SiteManagePage({
                 <div className="v" style={{ color: "var(--ink-3)", fontWeight: 700 }}>—</div>
                 <div className="sub">{tm("storageCalc")}</div>
               </div>
+            </div>
+
+            {/* Google Analytics — full panel reuses the admin component. Same
+                visual language, different data source (this user's GA property,
+                fetched via the per-site /api/dashboard route). Renders an
+                inline "not connected" CTA pointing at the config page when
+                the user hasn't wired up GA yet. */}
+            <div style={{ marginBottom: 20 }}>
+              <AnalyticsPanel
+                initial={analyticsSummary}
+                propertyId={site.googleAnalyticsPropertyId ?? undefined}
+                refreshUrl={`/api/dashboard/sites/${site.id}/analytics`}
+                notConnectedHelpHref={`/dashboard/site/${site.id}/manage/config/analytics`}
+                notConnectedHelpLabel="설정하기"
+              />
             </div>
 
             {/* Data 4-column grid */}
