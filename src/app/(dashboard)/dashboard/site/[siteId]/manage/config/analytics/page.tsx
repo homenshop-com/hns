@@ -66,7 +66,7 @@ export default async function AnalyticsConfigPage({
         {/* Hero card — title + connection status badge */}
         <div style={{ background: "#fff", borderRadius: 10, padding: 32, boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
-            <h1 style={{ fontSize: 22, fontWeight: 700, color: "#111827", margin: 0 }}>
+            <h1 style={{ fontSize: 22, fontWeight: 700, color: "#191f28", margin: 0 }}>
               Google Analytics
             </h1>
             {site.googleAnalyticsId && summary?.configured && (
@@ -109,7 +109,7 @@ export default async function AnalyticsConfigPage({
               </span>
             )}
           </div>
-          <p style={{ fontSize: 14, color: "#6b7280", marginBottom: 28, lineHeight: 1.6, marginTop: 0 }}>
+          <p style={{ fontSize: 14, color: "#6b7684", marginBottom: 28, lineHeight: 1.6, marginTop: 0 }}>
             측정 ID로 사이트에 GA 추적 코드가 자동 삽입되고, Property ID + 서비스 계정 권한을 추가하면 이 대시보드에서
             방문자 통계를 바로 확인할 수 있습니다.
           </p>
@@ -173,12 +173,12 @@ export default async function AnalyticsConfigPage({
           padding: "20px 28px",
           boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
         }}>
-          <h2 style={{ fontSize: 15, fontWeight: 700, color: "#111827", marginTop: 0, marginBottom: 14 }}>
+          <h2 style={{ fontSize: 15, fontWeight: 700, color: "#191f28", marginTop: 0, marginBottom: 14 }}>
             처음 설정하시나요? — 3분 가이드
           </h2>
-          <ol style={{ fontSize: 13.5, color: "#374151", lineHeight: 1.9, margin: 0, paddingLeft: 22 }}>
+          <ol style={{ fontSize: 13.5, color: "#4e5968", lineHeight: 1.9, margin: 0, paddingLeft: 22 }}>
             <li>
-              <a href="https://analytics.google.com/" target="_blank" rel="noopener noreferrer" style={{ color: "#2563eb", fontWeight: 600 }}>
+              <a href="https://analytics.google.com/" target="_blank" rel="noopener noreferrer" style={{ color: "#3182f6", fontWeight: 600 }}>
                 Google Analytics ↗
               </a>{" "}
               에 본인 Google 계정으로 로그인 (없으면 신규 계정 생성)
@@ -186,10 +186,10 @@ export default async function AnalyticsConfigPage({
             <li>
               <strong>관리 → + 새 속성 만들기</strong> → 속성 이름 입력 → 단계 진행 →
               마지막에 <strong>"웹"</strong> 데이터 스트림 추가:
-              <ul style={{ marginTop: 6, marginBottom: 6, paddingLeft: 18, color: "#6b7280" }}>
+              <ul style={{ marginTop: 6, marginBottom: 6, paddingLeft: 18, color: "#6b7684" }}>
                 <li>
                   웹사이트 URL:{" "}
-                  <code style={{ background: "#f3f4f6", padding: "1px 6px", borderRadius: 3, fontSize: 12 }}>
+                  <code style={{ background: "#f2f4f6", padding: "1px 6px", borderRadius: 3, fontSize: 12 }}>
                     {customDomains[0]?.domain
                       ? `https://${customDomains[0].domain}`
                       : site.tempDomain

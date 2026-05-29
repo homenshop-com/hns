@@ -70,7 +70,7 @@ export default function AnalyticsForm({
   const inputBase: React.CSSProperties = {
     width: "100%",
     padding: "10px 14px",
-    border: "1px solid #d1d5db",
+    border: "1px solid #e5e8eb",
     borderRadius: 6,
     fontSize: 14,
     outline: "none",
@@ -83,9 +83,9 @@ export default function AnalyticsForm({
       {/* ── Form fields ─────────────────────────────────────────────── */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
         <div>
-          <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 6 }}>
+          <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#4e5968", marginBottom: 6 }}>
             측정 ID
-            <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 400, color: "#6b7280" }}>
+            <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 400, color: "#6b7684" }}>
               gtag.js 에 사용
             </span>
           </label>
@@ -96,14 +96,14 @@ export default function AnalyticsForm({
             placeholder="G-XXXXXXXXXX"
             style={inputBase}
           />
-          <p style={{ fontSize: 11, color: "#9ca3af", marginTop: 4, marginBottom: 0 }}>
+          <p style={{ fontSize: 11, color: "#8b95a1", marginTop: 4, marginBottom: 0 }}>
             GA → 관리 → 데이터 스트림 → 웹 스트림
           </p>
         </div>
         <div>
-          <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 6 }}>
+          <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#4e5968", marginBottom: 6 }}>
             Property ID
-            <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 400, color: "#6b7280" }}>
+            <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 400, color: "#6b7684" }}>
               대시보드 통계용 (선택)
             </span>
           </label>
@@ -114,7 +114,7 @@ export default function AnalyticsForm({
             placeholder="539341583"
             style={inputBase}
           />
-          <p style={{ fontSize: 11, color: "#9ca3af", marginTop: 4, marginBottom: 0 }}>
+          <p style={{ fontSize: 11, color: "#8b95a1", marginTop: 4, marginBottom: 0 }}>
             GA → 관리 → 속성 세부정보 → 9~10자리 숫자
           </p>
         </div>
@@ -125,7 +125,7 @@ export default function AnalyticsForm({
         disabled={saving}
         style={{
           padding: "10px 24px",
-          background: saving ? "#9ca3af" : "#2563eb",
+          background: saving ? "#8b95a1" : "#3182f6",
           color: "#fff",
           border: "none",
           borderRadius: 6,
@@ -224,7 +224,7 @@ export default function AnalyticsForm({
           </div>
 
           {/* Steps */}
-          <ol style={{ fontSize: 13, color: "#374151", lineHeight: 1.9, margin: 0, paddingLeft: 18 }}>
+          <ol style={{ fontSize: 13, color: "#4e5968", lineHeight: 1.9, margin: 0, paddingLeft: 18 }}>
             <li>
               <a
                 href={`https://analytics.google.com/analytics/web/?hl=ko#/p${propertyId.trim()}/admin/suiteusermanagement/property`}
@@ -241,7 +241,7 @@ export default function AnalyticsForm({
           </ol>
 
           {/* Known GA UI bug workaround */}
-          <details style={{ marginTop: 14, fontSize: 12, color: "#6b7280" }}>
+          <details style={{ marginTop: 14, fontSize: 12, color: "#6b7684" }}>
             <summary style={{ cursor: "pointer", color: "#6b21a8", fontWeight: 600 }}>
               "이메일이 Google 계정과 일치하지 않습니다" 오류가 나는 경우
             </summary>
