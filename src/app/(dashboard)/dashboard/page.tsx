@@ -127,7 +127,6 @@ export default async function DashboardPage() {
     newOrders,
     prevOrders,
     recentOrders,
-    unreadInquiries,
     recentInquiries,
     recentBookings,
     newInquiryCount,
@@ -156,36 +155,23 @@ export default async function DashboardPage() {
         channel: true,
       },
     }),
+    /* 최근 문의 — Inquiry 모델(contact/submit 폼 제출) 기준.
+       이전: BoardPost(legacyId=13)을 사용했으나 실제 문의가 Inquiry 모델에
+       저장되므로 패널에 아무것도 표시되지 않는 버그가 있었음. */
     siteIds.length
-      ? prisma.boardPost.count({
-          where: {
-            siteId: { in: siteIds },
-            category: { legacyId: 13 }, // 견적문의 및 주문
-            parentId: null,
-          },
-        })
-      : Promise.resolve(0),
-    /* 최근 문의 — legacyId 13 (견적문의) + 카테고리명에 "문의" 포함하는 게시글 */
-    siteIds.length
-      ? prisma.boardPost.findMany({
-          where: {
-            siteId: { in: siteIds },
-            parentId: null,
-            OR: [
-              { category: { legacyId: 13 } },
-              { category: { name: { contains: "문의" } } },
-              { category: { name: { contains: "Inquiry", mode: "insensitive" } } },
-            ],
-          },
+      ? prisma.inquiry.findMany({
+          where: { siteId: { in: siteIds } },
           orderBy: { createdAt: "desc" },
           take: 5,
           select: {
-            legacyId: true, title: true, createdAt: true, siteId: true, author: true,
-            category: { select: { id: true, name: true } },
+            id: true, siteId: true,
+            name: true, email: true, company: true,
+            productName: true, message: true,
+            status: true, source: true, createdAt: true,
           },
         })
       : Promise.resolve([]),
-    /* 최근 예약 — 카테고리명에 "예약" / "booking" / "reservation" 포함 */
+    /* 최근 예약 — 카테고리명에 "예약" / "booking" / "reservation" 포함 게시글 */
     siteIds.length
       ? prisma.boardPost.findMany({
           where: {
@@ -205,9 +191,8 @@ export default async function DashboardPage() {
           },
         })
       : Promise.resolve([]),
-    /* 미확인(신규) 견적·상담 문의 수 — 새 Inquiry 모델(contact/submit) 기준.
-       사이드바 "문의·예약" 배지용. unreadInquiries(레거시 BoardPost)와는
-       별개 데이터 소스이며, 이 배지는 /dashboard/inquiries 페이지와 동일 기준. */
+    /* 미확인(신규) 문의 수 — Inquiry 모델 status=NEW 기준.
+       사이드바 배지, 통계 카드, 알림 벨 dot에 모두 사용. */
     siteIds.length
       ? prisma.inquiry.count({
           where: { siteId: { in: siteIds }, status: "NEW" },
@@ -427,7 +412,6 @@ export default async function DashboardPage() {
             <Link href="/dashboard/boards">
               <span className="ic"><Icon id="i-grid" /></span>
               <span className="label">{t("navBoards")}</span>
-              {unreadInquiries > 0 && <span className="badge">{unreadInquiries}</span>}
             </Link>
             <Link href="/dashboard/domains">
               <span className="ic"><Icon id="i-globe" /></span>
@@ -495,9 +479,9 @@ export default async function DashboardPage() {
                 <span>{credits.toLocaleString()}</span>
                 <span className="c">coin</span>
               </Link>
-              <Link href="/dashboard/boards" className="dv2-icon-btn" title="알림">
+              <Link href="/dashboard/inquiries" className="dv2-icon-btn" title="알림">
                 <Icon id="i-bell" size={17} />
-                {unreadInquiries > 0 && <span className="dot" />}
+                {newInquiryCount > 0 && <span className="dot" />}
               </Link>
               <Link href="/dashboard/support" className="dv2-icon-btn" title="도움말 · 지원" style={{ position: "relative" }}>
                 <Icon id="i-chat" size={17} />
@@ -561,10 +545,10 @@ export default async function DashboardPage() {
               </div>
               <div className="dv2-stat">
                 <div className="lbl"><Icon id="i-mail" size={12} /> {t("statInquiries")}</div>
-                <div className="val">{unreadInquiries}<span className="unit">{t("statInquiriesUnit")}</span></div>
+                <div className="val">{newInquiryCount}<span className="unit">{t("statInquiriesUnit")}</span></div>
                 <div className="foot">
                   <span style={{ color: "var(--ink-3)" }}>
-                    {unreadInquiries > 0 ? t("statInquiriesNeedCheck") : t("statInquiriesAllSeen")}
+                    {newInquiryCount > 0 ? t("statInquiriesNeedCheck") : t("statInquiriesAllSeen")}
                   </span>
                 </div>
               </div>
@@ -709,9 +693,19 @@ export default async function DashboardPage() {
                     <h2>
                       <Icon id="i-mail" size={14} /> {t("panelRecentInquiries")}
                       <span className="count">{recentInquiries.length}</span>
+                      {newInquiryCount > 0 && (
+                        <span style={{
+                          marginLeft: 6,
+                          fontSize: 11, fontWeight: 700,
+                          background: "#ef4444", color: "#fff",
+                          padding: "1px 7px", borderRadius: 20,
+                        }}>
+                          NEW {newInquiryCount}
+                        </span>
+                      )}
                     </h2>
                     <div className="tools">
-                      <Link href="/dashboard/boards" style={{ color: "var(--brand)", fontSize: 12, fontWeight: 600 }}>
+                      <Link href="/dashboard/inquiries" style={{ color: "var(--brand)", fontSize: 12, fontWeight: 600 }}>
                         {t("seeAll")}
                       </Link>
                     </div>
@@ -722,12 +716,21 @@ export default async function DashboardPage() {
                     </div>
                   ) : (
                     <div style={{ display: "flex", flexDirection: "column" }}>
-                      {recentInquiries.map((p) => {
-                        const s = siteById.get(p.siteId);
+                      {recentInquiries.map((inq) => {
+                        const s = siteById.get(inq.siteId);
+                        // 표시용 제목 — productName → company → name → message 미리보기 순
+                        const title = inq.productName
+                          ? `${inq.productName} 문의`
+                          : inq.company
+                            ? `${inq.company} 문의`
+                            : inq.name
+                              ? `${inq.name}님 문의`
+                              : inq.message.slice(0, 45);
+                        const isNew = inq.status === "NEW";
                         return (
                           <Link
-                            key={`${p.siteId}-${p.legacyId}`}
-                            href={p.category ? `/dashboard/boards/${p.category.id}` : "/dashboard/boards"}
+                            key={inq.id}
+                            href={`/dashboard/inquiries?siteId=${inq.siteId}${isNew ? "&status=NEW" : ""}`}
                             style={{
                               padding: "12px 20px",
                               borderTop: "1px solid var(--line-2)",
@@ -737,23 +740,34 @@ export default async function DashboardPage() {
                               gap: 10,
                               textDecoration: "none",
                               color: "var(--ink-0)",
+                              background: isNew ? "var(--panel-2, #f8fafc)" : "transparent",
                             }}
                           >
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <div
-                                style={{
-                                  fontWeight: 600,
-                                  fontSize: 13,
-                                  whiteSpace: "nowrap",
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                }}
-                              >
-                                {p.title || "(제목 없음)"}
+                              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                {isNew && (
+                                  <span style={{
+                                    fontSize: 10, fontWeight: 700,
+                                    color: "#ef4444", border: "1px solid #fca5a5",
+                                    padding: "1px 5px", borderRadius: 4,
+                                    flexShrink: 0,
+                                  }}>NEW</span>
+                                )}
+                                <div
+                                  style={{
+                                    fontWeight: isNew ? 700 : 600,
+                                    fontSize: 13,
+                                    whiteSpace: "nowrap",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                  }}
+                                >
+                                  {title}
+                                </div>
                               </div>
                               <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 2 }}>
-                                {timeAgo(t, p.createdAt)}
-                                {p.author ? ` · ${p.author}` : ""}
+                                {timeAgo(t, inq.createdAt)}
+                                {inq.name ? ` · ${inq.name}` : ""}
                                 {s ? ` · ${s.name || s.shopId}` : ""}
                               </div>
                             </div>
