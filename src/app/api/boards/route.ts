@@ -37,9 +37,28 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const site = await prisma.site.findFirst({
-    where: { userId: session.user.id, isTemplateStorage: false },
-  });
+  const body = await request.json();
+  const { title, name, lang, siteId: bodySiteId } = body;
+  const boardName = (name ?? title) as string | undefined;
+
+  let site;
+  if (bodySiteId) {
+    // Caller specified a siteId — verify it belongs to this user
+    site = await prisma.site.findFirst({
+      where: { id: bodySiteId, userId: session.user.id },
+    });
+    if (!site) {
+      return NextResponse.json(
+        { error: "사이트를 찾을 수 없습니다." },
+        { status: 404 }
+      );
+    }
+  } else {
+    // Legacy fallback: use the user's first non-template site
+    site = await prisma.site.findFirst({
+      where: { userId: session.user.id, isTemplateStorage: false },
+    });
+  }
 
   if (!site) {
     return NextResponse.json(
@@ -47,10 +66,6 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
-
-  const body = await request.json();
-  const { title, name, lang } = body;
-  const boardName = (name ?? title) as string | undefined;
 
   if (!boardName) {
     return NextResponse.json(

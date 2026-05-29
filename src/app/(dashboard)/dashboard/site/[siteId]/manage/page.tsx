@@ -6,6 +6,7 @@ import { readdirSync, statSync } from "fs";
 import { join } from "path";
 import ProductSettings from "./product-settings";
 import SearchSettings from "./search-settings";
+import BoardsPanel from "./boards-panel";
 import { getTranslations } from "next-intl/server";
 import SignOutButton from "../../../sign-out-button";
 import ImpersonationBanner from "@/components/ImpersonationBanner";
@@ -91,7 +92,8 @@ async function getBoardCategories(siteId: string) {
     include: { _count: { select: { posts: { where: { parentId: null } } } } },
   });
   return categories.map((c) => ({
-    id: c.legacyId ?? 0,
+    pgId: c.id,          // Prisma UUID — for API calls (create/delete)
+    id: c.legacyId ?? 0, // Legacy numeric ID — for post list links
     lang: c.lang,
     name: c.name,
     cnt: c._count.posts,
@@ -528,59 +530,22 @@ export default async function SiteManagePage({
                 </div>
               </div>
 
-              {/* Board management */}
-              <div className="dv2-panel mv2-data-col">
-                <div className="mv2-hd-ribbon hd-green">
-                  <div className="ic"><Icon id="i-board" size={15} /></div>
-                  <h3>{tm("boardManage")}</h3>
-                  <div className="meta">
-                    {boardCategories.length}개 · 총 {boardPostCount}건
-                  </div>
-                </div>
-                <div className="mv2-list">
-                  <Link href="/dashboard/boards/posts" className="mv2-list-item">
-                    <div className="li-title">
-                      <span className="n">{tm("postManage")}</span>
-                      <span className="lang-chip">전체</span>
-                    </div>
-                    <div className="li-right">
-                      <span className="count">{boardPostCount}</span>
-                      <span>건</span>
-                      <span className="chev"><Icon id="i-chev-right" size={12} /></span>
-                    </div>
-                  </Link>
-                  {boardCategories
-                    .filter((b) => b.name && b.name !== "Default")
-                    .map((b) => {
-                      const isInquiry = b.id === 13; // 견적문의 및 주문
-                      const isEmpty = b.cnt === 0;
-                      const cls = [
-                        "mv2-list-item",
-                        isInquiry && b.cnt > 0 ? "highlight" : "",
-                        isEmpty ? "empty" : "",
-                      ]
-                        .filter(Boolean)
-                        .join(" ");
-                      return (
-                        <Link
-                          key={`${b.id}-${b.lang}`}
-                          href={`/dashboard/boards/posts?category=${b.id}`}
-                          className={cls}
-                        >
-                          <div className="li-title">
-                            <span className="n">{b.name}</span>
-                            {b.lang && <span className="lang-chip">{b.lang}</span>}
-                          </div>
-                          <div className="li-right">
-                            <span className="count">{b.cnt}</span>
-                            <span>건</span>
-                            <span className="chev"><Icon id="i-chev-right" size={12} /></span>
-                          </div>
-                        </Link>
-                      );
-                    })}
-                </div>
-              </div>
+              {/* Board management — BoardsPanel handles create/delete client-side */}
+              <BoardsPanel
+                siteId={site.id}
+                totalPostCount={boardPostCount}
+                initialBoards={boardCategories.map((b) => ({
+                  pgId: b.pgId,
+                  legacyId: b.id,
+                  name: b.name,
+                  lang: b.lang,
+                  cnt: b.cnt,
+                }))}
+                labels={{
+                  boardManage: tm("boardManage"),
+                  postManage: tm("postManage"),
+                }}
+              />
 
               {/* Product management */}
               <div className="dv2-panel mv2-data-col">
