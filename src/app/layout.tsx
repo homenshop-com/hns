@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { Geist_Mono } from "next/font/google";
-import Script from "next/script";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import SessionProvider from "@/components/SessionProvider";
+import GoogleAnalytics from "@/components/GoogleAnalytics";
 import "./globals.css";
 import "./landing.css";
 // Font Awesome 6 Free — replaces emoji icons in landing + about + AI sites.
@@ -92,23 +92,10 @@ export default async function RootLayout({
       <body
         className={`${geistMono.variable} antialiased`}
       >
-        {/* Google Analytics 4 (gtag.js). next/script with afterInteractive defers
-            loading until the page is interactive — recommended pattern for GA
-            per Next.js docs. We only emit the tags when an ID is configured. */}
-        {gaMeasurementId && (
-          <>
-            <Script
-              src={`https://www.googletagmanager.com/gtag/js?id=${gaMeasurementId}`}
-              strategy="afterInteractive"
-            />
-            <Script id="gtag-init" strategy="afterInteractive">
-              {`window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
-              gtag('js', new Date());
-              gtag('config', '${gaMeasurementId}');`}
-            </Script>
-          </>
-        )}
+        {/* Google Analytics 4 — public pages only.
+            /dashboard, /admin, /login 등 내부 경로에서는 로드하지 않음.
+            경로 감지는 GoogleAnalytics 클라이언트 컴포넌트가 담당. */}
+        {gaMeasurementId && <GoogleAnalytics measurementId={gaMeasurementId} />}
         <NextIntlClientProvider locale={locale} messages={messages}>
           <SessionProvider>{children}</SessionProvider>
         </NextIntlClientProvider>
