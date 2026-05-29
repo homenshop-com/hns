@@ -2,6 +2,8 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
+import { readdirSync, statSync } from "fs";
+import { join } from "path";
 import ProductSettings from "./product-settings";
 import SearchSettings from "./search-settings";
 import { getTranslations } from "next-intl/server";
@@ -47,6 +49,41 @@ function initialsFrom(s: string): string {
   return clean.slice(0, 2);
 }
 
+/* ────────────────────────────────────────────────────────────────
+ * Storage helpers
+ * ──────────────────────────────────────────────────────────────── */
+
+/** Recursively sum file sizes under `dir`. Returns 0 if path doesn't exist. */
+function calcDirSize(dir: string, depth = 0): number {
+  if (depth > 8) return 0;
+  try {
+    const entries = readdirSync(dir, { withFileTypes: true });
+    let total = 0;
+    for (const e of entries) {
+      const full = join(dir, e.name);
+      try {
+        if (e.isFile()) {
+          total += statSync(full).size;
+        } else if (e.isDirectory()) {
+          total += calcDirSize(full, depth + 1);
+        }
+      } catch { /* skip unreadable entry */ }
+    }
+    return total;
+  } catch {
+    return 0; // directory doesn't exist or unreadable → 0
+  }
+}
+
+/** Format bytes as human-readable string. */
+function fmtBytes(b: number): string {
+  if (b === 0) return "0 B";
+  if (b < 1024) return `${b} B`;
+  if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
+  if (b < 1024 * 1024 * 1024) return `${(b / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(b / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
 async function getBoardCategories(siteId: string) {
   const categories = await prisma.boardCategory.findMany({
     where: { siteId },
@@ -80,7 +117,14 @@ export default async function SiteManagePage({
 
   const { siteId } = await params;
 
-  const [site, currentUser, siteOrderStats, recentOrders, newOrders24h, newOrders7d] = await Promise.all([
+  const cutoff24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const cutoff7d  = new Date(Date.now() - 7  * 24 * 60 * 60 * 1000);
+
+  const [
+    site, currentUser, siteOrderStats, recentOrders,
+    newOrders24h, newOrders7d,
+    inquiryUnread, inquiry24h, inquiryTotal,
+  ] = await Promise.all([
     prisma.site.findUnique({
       where: { id: siteId },
       include: {
@@ -93,8 +137,7 @@ export default async function SiteManagePage({
       where: { id: session.user.id },
       select: { name: true, email: true, credits: true },
     }),
-    // 사이트 주문 통계 (PRODUCT only). 2026-05-17 사용자 요청: 이 사이트의
-    // 주문 리스트 섹션 추가.
+    // 사이트 주문 통계 (PRODUCT only)
     prisma.order.groupBy({
       by: ["status"],
       where: { siteId, orderType: "PRODUCT" },
@@ -118,25 +161,31 @@ export default async function SiteManagePage({
         },
       },
     }),
-    // 2026-05-17 사용자 요청: 신규 주문 요약 KPI 추가.
-    // 최근 24시간 + 7일 기준 신규 주문 수를 가볍게 카운트.
+    // 신규 주문 KPI
     prisma.order.count({
-      where: {
-        siteId,
-        orderType: "PRODUCT",
-        createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
-      },
+      where: { siteId, orderType: "PRODUCT", createdAt: { gte: cutoff24h } },
     }),
     prisma.order.count({
-      where: {
-        siteId,
-        orderType: "PRODUCT",
-        createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
-      },
+      where: { siteId, orderType: "PRODUCT", createdAt: { gte: cutoff7d } },
     }),
+    // 문의 및 예약 KPI
+    prisma.inquiry.count({ where: { siteId, status: "NEW" } }),
+    prisma.inquiry.count({ where: { siteId, createdAt: { gte: cutoff24h } } }),
+    prisma.inquiry.count({ where: { siteId } }),
   ]);
 
   if (!site || site.userId !== session.user.id) redirect("/dashboard");
+
+  // ── Storage calculation ─────────────────────────────────────────
+  // Legacy uploads: /var/www/legacy-data/userdata/{shopId}/uploaded/
+  // New uploads:    /var/www/uploads/site-uploads/{siteId}/
+  // Both are local filesystem paths — sync reads are fine in a server component.
+  const LEGACY_ROOT  = process.env.LEGACY_DATA_ROOT ?? "/var/www/legacy-data/userdata";
+  const UPLOAD_ROOT  = process.env.UPLOAD_DIR ?? "/var/www/uploads";
+  const storageBytes =
+    calcDirSize(join(LEGACY_ROOT, site.shopId, "uploaded")) +
+    calcDirSize(join(UPLOAD_ROOT, "site-uploads", site.id));
+  const storageLabel = storageBytes > 0 ? fmtBytes(storageBytes) : null;
 
   // GA panel data — only fire the Data API call when this site has a
   // Property ID configured. Without it we just render the "not connected"
@@ -340,7 +389,7 @@ export default async function SiteManagePage({
                   SOON
                 </span>
               </div>
-              {/* 신규 주문 KPI — 2026-05-17 사용자 요청 */}
+              {/* 신규 주문 KPI */}
               <Link
                 href={`/dashboard/orders?siteId=${site.id}`}
                 className={`mv2-kpi${newOrders24h === 0 ? " empty" : ""}`}
@@ -377,15 +426,62 @@ export default async function SiteManagePage({
                 )}
               </Link>
 
-              <div className="mv2-kpi">
+              {/* 문의 및 예약 KPI */}
+              <Link
+                href={`/dashboard/inquiries?siteId=${site.id}${inquiryUnread > 0 ? "&status=NEW" : ""}`}
+                className={`mv2-kpi${inquiryUnread > 0 ? "" : " empty"}`}
+                style={{ textDecoration: "none", color: "inherit", position: "relative" }}
+              >
+                <div className="kpi-top">
+                  문의·예약
+                  <div className="ic" style={{ background: "#fdf4ff", color: "#9333ea" }}>
+                    <i className="fa-regular fa-envelope" style={{ fontSize: 13 }} />
+                  </div>
+                </div>
+                <div className="v">
+                  {inquiryUnread}
+                  {inquiryUnread > 0 && <span className="unit">건</span>}
+                </div>
+                {inquiryUnread > 0 ? (
+                  <div className="sub" style={{ color: "#7e22ce", fontWeight: 600 }}>
+                    <i className="fa-solid fa-circle-dot" style={{ fontSize: 10, marginRight: 4 }} />
+                    미읽음 {inquiryUnread}건
+                  </div>
+                ) : inquiry24h > 0 ? (
+                  <div className="sub">오늘 신규 <b>{inquiry24h}</b>건</div>
+                ) : inquiryTotal > 0 ? (
+                  <div className="sub">총 {inquiryTotal}건 · 미읽음 없음</div>
+                ) : (
+                  <>
+                    <div className="sub">아직 문의가 없어요</div>
+                    <span className="kpi-action">문의 페이지 →</span>
+                  </>
+                )}
+              </Link>
+
+              {/* 저장 용량 KPI */}
+              <div className={`mv2-kpi${storageLabel ? "" : " empty"}`}>
                 <div className="kpi-top">
                   {tm("statStorage")}
                   <div className="ic" style={{ background: "#f2f4fa", color: "var(--ink-2)" }}>
                     <Icon id="i-save" size={13} />
                   </div>
                 </div>
-                <div className="v" style={{ color: "var(--ink-3)", fontWeight: 700 }}>—</div>
-                <div className="sub">{tm("storageCalc")}</div>
+                {storageLabel ? (
+                  <>
+                    <div className="v" style={{ fontSize: storageLabel.length > 7 ? 20 : undefined }}>
+                      {storageLabel}
+                    </div>
+                    <div className="sub">
+                      업로드 파일 · 레거시 포함
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="v" style={{ color: "var(--ink-3)", fontWeight: 700 }}>—</div>
+                    <div className="sub">{tm("storageCalc")}</div>
+                  </>
+                )}
               </div>
             </div>
 
