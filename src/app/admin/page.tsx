@@ -85,12 +85,6 @@ export default async function AdminDashboardPage() {
         <p className="mt-1 text-sm text-slate-500">서비스 현황을 한눈에 확인하세요.</p>
       </div>
 
-      {/* Google Analytics panel — real-time visitors, 7-day metrics, top pages. */}
-      <AnalyticsPanel
-        initial={analytics}
-        propertyId={analytics.configured ? analytics.propertyId : undefined}
-      />
-
       {/* Stats */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
         {stats.map((stat) => (
@@ -149,6 +143,14 @@ export default async function AdminDashboardPage() {
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* Google Analytics panel — real-time visitors, 7-day metrics, top pages. */}
+      <div className="mt-8">
+        <AnalyticsPanel
+          initial={analytics}
+          propertyId={analytics.configured ? analytics.propertyId : undefined}
+        />
       </div>
     </div>
   );
