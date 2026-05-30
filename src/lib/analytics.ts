@@ -101,9 +101,25 @@ export async function getAnalyticsSummary(
 
   const property = `properties/${propertyId}`;
 
+  // Exclude internal paths from all GA queries — /dashboard, /admin, /login,
+  // /register are authenticated or system pages that should never appear in
+  // analytics. Historically collected data is also filtered out this way.
+  const excludeInternalPaths = {
+    notExpression: {
+      orGroup: {
+        expressions: [
+          { filter: { fieldName: "pagePath", stringFilter: { matchType: "BEGINS_WITH" as const, value: "/dashboard" } } },
+          { filter: { fieldName: "pagePath", stringFilter: { matchType: "BEGINS_WITH" as const, value: "/admin" } } },
+          { filter: { fieldName: "pagePath", stringFilter: { matchType: "BEGINS_WITH" as const, value: "/login" } } },
+          { filter: { fieldName: "pagePath", stringFilter: { matchType: "BEGINS_WITH" as const, value: "/register" } } },
+        ],
+      },
+    },
+  };
+
   try {
     const [totalsRes, topPagesRes, dailyRes, realtimeRes] = await Promise.all([
-      // Aggregated 7-day metrics
+      // Aggregated 7-day metrics (public pages only)
       c.runReport({
         property,
         dateRanges: [{ startDate: "7daysAgo", endDate: "today" }],
@@ -113,8 +129,9 @@ export async function getAnalyticsSummary(
           { name: "sessions" },
           { name: "screenPageViews" },
         ],
+        dimensionFilter: excludeInternalPaths,
       }),
-      // Top pages by views, 7 days
+      // Top pages by views, 7 days (public pages only)
       c.runReport({
         property,
         dateRanges: [{ startDate: "7daysAgo", endDate: "today" }],
@@ -122,14 +139,16 @@ export async function getAnalyticsSummary(
         metrics: [{ name: "screenPageViews" }],
         orderBys: [{ metric: { metricName: "screenPageViews" }, desc: true }],
         limit: 10,
+        dimensionFilter: excludeInternalPaths,
       }),
-      // Daily series for sparkline
+      // Daily series for sparkline (public pages only)
       c.runReport({
         property,
         dateRanges: [{ startDate: "7daysAgo", endDate: "today" }],
         dimensions: [{ name: "date" }],
         metrics: [{ name: "totalUsers" }, { name: "screenPageViews" }],
         orderBys: [{ dimension: { dimensionName: "date" } }],
+        dimensionFilter: excludeInternalPaths,
       }),
       // Realtime active users (last 30 min)
       c.runRealtimeReport({
