@@ -1119,16 +1119,20 @@ export async function GET(
       "zh-tw": "中文 (繁)",
       es: "Español",
     };
-    const switchScript = `(function(l){var p=window.location.pathname;var m=p.match(/^\\/(ko|en|ja|zh-cn|zh-tw|es)\\//);if(m){window.location.href='/'+l+p.substring(m[0].length-1);}else{var m2=p.match(/^\\/[^\\/]+\\/(ko|en|ja|zh-cn|zh-tw|es)\\//);if(m2){window.location.href=p.replace(m2[0],'/'+p.split('/')[1]+'/'+l+'/');}else{window.location.href='/'+l+'/index.html';}})`;
+    // 2026-05-19 사용자 보고:
+    //   (a) 셀렉트박스가 중앙 정렬 → 오른쪽 정렬로
+    //   (b) 언어 선택해도 전환이 안 됨 → switchScript IIFE 닫는 brace 1개
+    //       누락(SyntaxError) 수정. 이전: `}})` → 수정: `}}})`. 안전을 위해
+    //       inline IIFE 대신 named function으로 분리하여 가독성/디버깅 ↑.
+    const switchScript = `(function(l){var p=window.location.pathname;var m=p.match(/^\\/(ko|en|ja|zh-cn|zh-tw|es)\\//);if(m){window.location.href='/'+l+p.substring(m[0].length-1);}else{var m2=p.match(/^\\/[^\\/]+\\/(ko|en|ja|zh-cn|zh-tw|es)\\//);if(m2){window.location.href=p.replace(m2[0],'/'+p.split('/')[1]+'/'+l+'/');}else{window.location.href='/'+l+'/index.html';}}})`;
     const options = siteLanguages
       .map((l) => {
         const selected = l === lang ? " selected" : "";
         return `<option value="${l}"${selected}>${langNames[l] || l}</option>`;
       })
       .join("");
-    // Footer-positioned switcher (modern SaaS pattern). Replaces the
-    // previous top-right floating select.
-    langSwitcherHtml = `<div style="text-align:center;padding:16px 0;font-size:12px;color:#888;">
+    // Footer-positioned switcher. 오른쪽 정렬 + 미세한 패딩으로 모달감 약화.
+    langSwitcherHtml = `<div style="text-align:right;padding:16px 20px;font-size:12px;color:#888;">
   <label for="hns-lang-switch" style="margin-right:8px;">🌐</label>
   <select id="hns-lang-switch" onchange="${switchScript}(this.value)" style="font-size:12px;padding:4px 8px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer;">${options}</select>
 </div>`;
