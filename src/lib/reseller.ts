@@ -14,7 +14,16 @@ export type ResellerBranding = {
   metaTitle: string | null;
   metaDescription: string | null;
   metaKeywords: string | null;
+  /**
+   * True for the homenshop.com row itself. It is editable through the same
+   * admin UI as white-label resellers, but it is NOT white-label: keep its own
+   * company footer block and locale-aware default title/description.
+   */
+  isCanonical: boolean;
 };
+
+/** The canonical (non-white-label) host that owns the default homeNshop brand. */
+export const CANONICAL_HOST = "homenshop.com";
 
 function normalizeHost(host: string | null): string | null {
   if (!host) return null;
@@ -37,7 +46,7 @@ function normalizeHost(host: string | null): string | null {
 export async function getResellerForHost(): Promise<ResellerBranding | null> {
   const h = await headers();
   const host = normalizeHost(h.get("host"));
-  if (!host || host === "homenshop.com") return null;
+  if (!host) return null;
 
   const r = await prisma.reseller.findFirst({
     where: { domain: host, isActive: true },
@@ -61,5 +70,6 @@ export async function getResellerForHost(): Promise<ResellerBranding | null> {
     metaTitle: r.metaTitle,
     metaDescription: r.metaDescription,
     metaKeywords: r.metaKeywords,
+    isCanonical: r.domain === CANONICAL_HOST,
   };
 }

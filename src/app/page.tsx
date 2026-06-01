@@ -14,14 +14,19 @@ export async function generateMetadata(): Promise<Metadata> {
 
   // White-label SEO: when reached via a reseller domain, its admin-managed
   // meta overrides win; anything left blank falls back to the stock values.
-  const title = reseller?.metaTitle || reseller?.siteName || t("pageTitle");
+  // The canonical homenshop.com row is editable too, but it is NOT white-label
+  // — leave its title/description on the locale-aware defaults (never siteName).
+  const isWhiteLabel = !!reseller && !reseller.isCanonical;
+  const title =
+    reseller?.metaTitle || (isWhiteLabel ? reseller.siteName : "") || t("pageTitle");
   const description = reseller?.metaDescription || t("metaDescription");
-  const siteName = reseller?.siteName || "homeNshop";
+  const siteName = (isWhiteLabel && reseller.siteName) || "homeNshop";
+  // Use a standalone (absolute) title only when an explicit override exists or
+  // for a white-label brand; canonical keeps the layout "%s | homeNshop" rule.
+  const useAbsoluteTitle = !!reseller?.metaTitle || isWhiteLabel;
 
   const meta: Metadata = {
-    // For a reseller, bypass the layout's "%s | homeNshop" template so the
-    // white-label title stands alone; otherwise keep the stock behaviour.
-    title: reseller ? { absolute: title } : title,
+    title: useAbsoluteTitle ? { absolute: title } : title,
     description,
     alternates: alternatesFor("/", defaultLocale),
     openGraph: {
@@ -53,7 +58,10 @@ export default async function Home() {
 
   // White-label branding: when reached via a reseller domain (e.g. homenshop.net)
   // the nav/footer brand and footer copyright reflect that reseller's settings.
+  // The canonical homenshop.com row is editable through the same admin UI but
+  // is NOT white-label — it keeps its own company footer block.
   const reseller = await getResellerForHost();
+  const isWhiteLabel = !!reseller && !reseller.isCanonical;
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -539,7 +547,7 @@ export default async function Home() {
               reserved.
             </p>
           )}
-          {reseller ? (
+          {isWhiteLabel ? (
             <div className="footer-info">
               <Link href="/terms">{t("footerTerms")}</Link>
               <span className="sep">|</span>

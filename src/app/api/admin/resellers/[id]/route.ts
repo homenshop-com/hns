@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { CANONICAL_HOST } from "@/lib/reseller";
 
 export async function GET(
   _request: NextRequest,
@@ -64,6 +65,23 @@ export async function PUT(
     metaKeywords,
   } = body;
 
+  // The canonical homenshop.com row is editable, but its domain must stay put
+  // — renaming it would orphan the default brand resolution.
+  const current = await prisma.reseller.findUnique({
+    where: { id },
+    select: { domain: true },
+  });
+  if (
+    current?.domain === CANONICAL_HOST &&
+    domain &&
+    domain !== CANONICAL_HOST
+  ) {
+    return NextResponse.json(
+      { error: "기본 도메인(homenshop.com)은 변경할 수 없습니다." },
+      { status: 400 }
+    );
+  }
+
   // If domain changed, check uniqueness
   if (domain) {
     const existing = await prisma.reseller.findUnique({
@@ -115,6 +133,17 @@ export async function DELETE(
   }
 
   const { id } = await params;
+
+  const target = await prisma.reseller.findUnique({
+    where: { id },
+    select: { domain: true },
+  });
+  if (target?.domain === CANONICAL_HOST) {
+    return NextResponse.json(
+      { error: "기본 도메인(homenshop.com)은 삭제할 수 없습니다." },
+      { status: 400 }
+    );
+  }
 
   await prisma.reseller.delete({ where: { id } });
 
