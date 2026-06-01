@@ -514,7 +514,7 @@ export default async function Home() {
         </div>
         <div className="lp-footer-inner">
           {reseller?.copyright ? (
-            <p
+            <div
               className="footer-copy"
               dangerouslySetInnerHTML={{ __html: reseller.copyright }}
             />

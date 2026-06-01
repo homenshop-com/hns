@@ -855,6 +855,13 @@
   padding-top: 24px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
+.footer-copy p {
+  margin: 0;
+}
+.footer-copy a {
+  color: inherit;
+  text-decoration: underline;
+}
 .footer-info {
   font-size: 12px;
   color: rgba(255, 255, 255, 0.45);

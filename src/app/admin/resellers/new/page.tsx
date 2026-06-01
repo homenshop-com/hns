@@ -1,8 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import ResellerLogoField from "@/components/admin/ResellerLogoField";
+
+const TiptapEditor = lazy(() => import("@/components/tiptap-editor"));
+
+/** TipTap emits `<p></p>` for an empty doc — treat that as no value. */
+function normalizeHtml(html: string): string {
+  return html.replace(/<p>\s*<\/p>/g, "").trim();
+}
 
 export default function AdminResellerNewPage() {
   const router = useRouter();
@@ -29,7 +37,7 @@ export default function AdminResellerNewPage() {
           domain: domain.trim(),
           siteName: siteName.trim(),
           logo: logo.trim() || null,
-          copyright: copyright.trim() || null,
+          copyright: normalizeHtml(copyright) || null,
           analytics: analytics.trim() || null,
           isActive,
         }),
@@ -97,30 +105,28 @@ export default function AdminResellerNewPage() {
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              로고 URL
-            </label>
-            <input
-              type="text"
-              value={logo}
-              onChange={(e) => setLogo(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
-              placeholder="https://example.com/logo.png"
-            />
-          </div>
+          <ResellerLogoField value={logo} onChange={setLogo} />
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
               Copyright
             </label>
-            <input
-              type="text"
-              value={copyright}
-              onChange={(e) => setCopyright(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
-              placeholder="© 2026 My Company. All rights reserved."
-            />
+            <p className="text-xs text-slate-400 mb-2">
+              푸터에 표시되는 저작권/안내 문구입니다. 서식·링크·줄바꿈을 자유롭게 편집할 수 있습니다.
+            </p>
+            <Suspense
+              fallback={
+                <div className="border border-slate-300 rounded-lg p-4 text-slate-400 text-sm">
+                  에디터 로딩중...
+                </div>
+              }
+            >
+              <TiptapEditor
+                initialHtml={copyright}
+                onChange={setCopyright}
+                minHeight={140}
+              />
+            </Suspense>
           </div>
 
           <div>

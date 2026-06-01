@@ -1,6 +1,7 @@
 import "server-only";
 import { headers } from "next/headers";
 import { prisma } from "@/lib/db";
+import { resolveResellerLogoUrl } from "@/lib/reseller-logo";
 
 export type ResellerBranding = {
   domain: string;
@@ -43,7 +44,7 @@ export async function getResellerForHost(): Promise<ResellerBranding | null> {
   return {
     domain: r.domain,
     siteName: r.siteName,
-    logoUrl: r.logo ? `/upld/uploaded/${r.logo}` : null,
+    logoUrl: resolveResellerLogoUrl(r.logo),
     copyright: r.copyright,
   };
 }
