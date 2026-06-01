@@ -150,9 +150,9 @@ export default async function DashboardShell({
                 <span className="label">{t("navCredits")}</span>
               </Link>
               {showReseller && (
-                <Link className={cls("reseller")} href="/dashboard/reseller">
-                  <span className="ic"><Icon id="i-credit" /></span>
-                  <span className="label">리셀러 정산</span>
+                <Link className={cls("reseller")} href="/admin">
+                  <span className="ic"><Icon id="i-shield" /></span>
+                  <span className="label">리셀러 관리자</span>
                 </Link>
               )}
               <Link className={cls("profile")} href="/dashboard/profile">
@@ -216,17 +216,6 @@ export default async function DashboardShell({
             )}
             <div className="dv2-spacer" />
             <div className="dv2-topbar-actions">
-              {showReseller && (
-                <Link
-                  href="/admin"
-                  className="dv2-icon-btn"
-                  title="리셀러 운영자 관리 콘솔"
-                  style={{ width: "auto", padding: "0 12px", gap: 6, fontSize: 13, fontWeight: 600 }}
-                >
-                  <Icon id="i-settings" size={16} />
-                  <span>관리자</span>
-                </Link>
-              )}
               <Link
                 className="dv2-coin-pill"
                 href="/dashboard/credits"

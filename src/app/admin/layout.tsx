@@ -36,6 +36,9 @@ const resellerNavItems = [
   { href: "/admin/prospects", label: "잠재고객", icon: "members" },
   { href: "/admin/sites", label: "계정 관리", icon: "sites" },
   { href: "/admin/orders", label: "주문 관리", icon: "orders" },
+  // Settlement still lives in the member dashboard (/dashboard/reseller);
+  // expose it here so the reseller admin console is the single hub.
+  { href: "/dashboard/reseller", label: "리셀러 정산", icon: "orders" },
 ];
 
 export default async function AdminLayout({
