@@ -4,6 +4,7 @@ import InboxClient, {
   type InboxRow,
   type SelectedEmail,
 } from "./inbox-client";
+import { requireFullAdmin } from "@/lib/admin-access";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +40,7 @@ export default async function InboxPage({
 }: {
   searchParams: Promise<{ id?: string; view?: string }>;
 }) {
+  await requireFullAdmin();
   const { id, view: viewParam } = await searchParams;
   const view = parseView(viewParam);
 

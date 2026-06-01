@@ -1,8 +1,8 @@
-import { auth } from "@/lib/auth";
-import { redirect } from "next/navigation";
-import { prisma } from "@/lib/db";
 import AdminSidebar from "./admin-sidebar";
 import { canEditTemplates } from "@/lib/permissions";
+import { getAdminAccess } from "@/lib/admin-access";
+import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
 import "./admin-shell.css";
 
 // Base menu shown to every ADMIN. Template editing is gated separately
@@ -27,39 +27,50 @@ const templatesNavItem = {
   icon: "templates",
 };
 
+// Reseller operators get a scoped subset — only the four sections that can be
+// filtered to their own attributed customers. System settings, reseller
+// management, and everything else is admin-only.
+const resellerNavItems = [
+  { href: "/admin", label: "대시보드", icon: "dashboard" },
+  { href: "/admin/members", label: "회원 관리", icon: "members" },
+  { href: "/admin/prospects", label: "잠재고객", icon: "members" },
+  { href: "/admin/sites", label: "계정 관리", icon: "sites" },
+  { href: "/admin/orders", label: "주문 관리", icon: "orders" },
+];
+
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth();
-
-  if (!session) {
-    redirect("/login");
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-  });
-
-  if (!user || user.role !== "ADMIN") {
+  const access = await getAdminAccess();
+  if (!access) {
     redirect("/dashboard");
   }
 
-  // Template management is allowlist-gated — insert the menu item right
-  // after "계정 관리" only for operators on the list.
-  const email = session.user.email ?? "";
-  const navItems = canEditTemplates(email)
-    ? [
-        ...baseNavItems.slice(0, 3),
-        templatesNavItem,
-        ...baseNavItems.slice(3),
-      ]
-    : baseNavItems;
+  const session = await auth();
+  const email = session?.user?.email ?? "";
+
+  // Reseller operators see a fixed, scoped nav. Full admins get the complete
+  // menu (with template management allowlist-gated right after "계정 관리").
+  const navItems =
+    access.kind === "reseller"
+      ? resellerNavItems
+      : canEditTemplates(email)
+        ? [
+            ...baseNavItems.slice(0, 3),
+            templatesNavItem,
+            ...baseNavItems.slice(3),
+          ]
+        : baseNavItems;
 
   return (
     <div className="adm-shell">
-      <AdminSidebar email={email} navItems={navItems} />
+      <AdminSidebar
+        email={email}
+        navItems={navItems}
+        badge={access.kind === "reseller" ? "리셀러 운영자" : undefined}
+      />
       <main className="adm-main">
         <div className="adm-content">{children}</div>
       </main>

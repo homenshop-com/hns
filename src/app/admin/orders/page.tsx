@@ -3,6 +3,7 @@ import Link from "next/link";
 import { parsePageParam } from "@/lib/pagination";
 import ConfirmDepositButton from "./confirm-deposit-button";
 import OrderAdminActions from "./order-admin-actions";
+import { requireAdminAccess, scopeResellerId } from "@/lib/admin-access";
 
 const PAGE_SIZE = 20;
 
@@ -51,6 +52,8 @@ export default async function AdminOrdersPage({
 }: {
   searchParams: Promise<{ page?: string; status?: string; type?: string }>;
 }) {
+  const access = await requireAdminAccess();
+  const rid = scopeResellerId(access);
   const params = await searchParams;
   const page = parsePageParam(params.page);
   const statusFilter = params.status || "";
@@ -59,12 +62,17 @@ export default async function AdminOrdersPage({
   const where: {
     status?: "PENDING" | "PAID" | "SHIPPING" | "DELIVERED" | "CANCELLED" | "REFUNDED";
     orderType?: "PRODUCT" | "CREDIT_PACK" | "SUBSCRIPTION";
+    user?: { resellerId: string };
   } = {};
   if (statusFilter) {
     where.status = statusFilter as typeof where.status;
   }
   if (typeFilter) {
     where.orderType = typeFilter as typeof where.orderType;
+  }
+  // Reseller operators only see orders placed by their attributed members.
+  if (rid) {
+    where.user = { resellerId: rid };
   }
 
   const [orders, totalCount] = await Promise.all([

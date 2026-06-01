@@ -1,21 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { parsePageParam } from "@/lib/pagination";
+import { getAdminAccess, scopeResellerId } from "@/lib/admin-access";
 
 const PAGE_SIZE = 20;
 
-async function checkAdmin() {
-  const session = await auth();
-  if (!session) return false;
-  const user = await prisma.user.findUnique({ where: { id: session.user.id } });
-  return user?.role === "ADMIN";
-}
-
 export async function GET(request: NextRequest) {
-  if (!(await checkAdmin())) {
+  const access = await getAdminAccess();
+  if (!access) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  const rid = scopeResellerId(access);
 
   const { searchParams } = request.nextUrl;
   const page = parsePageParam(searchParams.get("page"));
@@ -23,15 +18,18 @@ export async function GET(request: NextRequest) {
 
   // Prospect placeholders are managed in /admin/prospects — exclude them
   // here so the regular member listing reflects real customers only.
-  const where = search
-    ? {
-        isProspect: false,
-        OR: [
-          { email: { contains: search, mode: "insensitive" as const } },
-          { name: { contains: search, mode: "insensitive" as const } },
-        ],
-      }
-    : { isProspect: false };
+  const where = {
+    isProspect: false,
+    ...(rid ? { resellerId: rid } : {}),
+    ...(search
+      ? {
+          OR: [
+            { email: { contains: search, mode: "insensitive" as const } },
+            { name: { contains: search, mode: "insensitive" as const } },
+          ],
+        }
+      : {}),
+  };
 
   const [users, totalCount] = await Promise.all([
     prisma.user.findMany({
@@ -62,9 +60,11 @@ export async function GET(request: NextRequest) {
 
 // DELETE — bulk delete members (cascade deletes sites, pages, products, etc.)
 export async function DELETE(request: NextRequest) {
-  if (!(await checkAdmin())) {
+  const access = await getAdminAccess();
+  if (!access) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  const rid = scopeResellerId(access);
 
   const { ids } = await request.json();
   if (!Array.isArray(ids) || ids.length === 0) {
@@ -78,6 +78,16 @@ export async function DELETE(request: NextRequest) {
   });
   if (adminUsers.length > 0) {
     return NextResponse.json({ error: "Cannot delete admin accounts" }, { status: 400 });
+  }
+
+  // Reseller operators may only delete members attributed to them.
+  if (rid) {
+    const ownCount = await prisma.user.count({
+      where: { id: { in: ids }, resellerId: rid },
+    });
+    if (ownCount !== ids.length) {
+      return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 });
+    }
   }
 
   // Delete related records without cascade first

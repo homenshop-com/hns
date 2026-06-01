@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { encode } from "next-auth/jwt";
+import { getAdminAccess } from "@/lib/admin-access";
 
 function getBaseUrl(request: NextRequest): string {
   const forwardedHost = request.headers.get("x-forwarded-host");
@@ -14,19 +14,24 @@ function getBaseUrl(request: NextRequest): string {
 
 // POST — impersonate a user (admin → customer)
 export async function POST(request: NextRequest) {
-  const session = await auth();
+  const access = await getAdminAccess();
   const baseUrl = getBaseUrl(request);
 
-  if (!session) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-
-  const adminUser = await prisma.user.findUnique({ where: { id: session.user.id } });
-  if (adminUser?.role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!access) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { userId } = await request.json();
   if (!userId) return NextResponse.json({ error: "userId required" }, { status: 400 });
 
   const targetUser = await prisma.user.findUnique({ where: { id: userId } });
   if (!targetUser) return NextResponse.json({ error: "User not found" }, { status: 404 });
+
+  // Reseller operators may only impersonate members attributed to them
+  // (and never an ADMIN/RESELLER account).
+  if (access.kind === "reseller") {
+    if (targetUser.resellerId !== access.resellerId || targetUser.role !== "MEMBER") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+  }
 
   const secret = process.env.AUTH_SECRET!;
   const token = await encode({

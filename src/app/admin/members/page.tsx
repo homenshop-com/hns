@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import Link from "next/link";
 import MemberTable from "./member-table";
 import { parsePageParam } from "@/lib/pagination";
+import { requireAdminAccess, scopeResellerId } from "@/lib/admin-access";
 
 const PAGE_SIZE = 20;
 
@@ -10,22 +11,27 @@ export default async function AdminMembersPage({
 }: {
   searchParams: Promise<{ page?: string; search?: string }>;
 }) {
+  const access = await requireAdminAccess();
+  const rid = scopeResellerId(access);
   const params = await searchParams;
   const page = parsePageParam(params.page);
   const search = params.search || "";
 
   // Prospect placeholders live in /admin/prospects; keep them out of the
   // regular member list so admin search results aren't polluted by every
-  // pre-built lead.
-  const where = search
-    ? {
-        isProspect: false,
-        OR: [
-          { email: { contains: search, mode: "insensitive" as const } },
-          { name: { contains: search, mode: "insensitive" as const } },
-        ],
-      }
-    : { isProspect: false };
+  // pre-built lead. Reseller operators only see members attributed to them.
+  const where = {
+    isProspect: false,
+    ...(rid ? { resellerId: rid } : {}),
+    ...(search
+      ? {
+          OR: [
+            { email: { contains: search, mode: "insensitive" as const } },
+            { name: { contains: search, mode: "insensitive" as const } },
+          ],
+        }
+      : {}),
+  };
 
   const [users, totalCount] = await Promise.all([
     prisma.user.findMany({

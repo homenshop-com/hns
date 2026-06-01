@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getAdminAccess } from "@/lib/admin-access";
 
-async function requireAdmin() {
-  const session = await auth();
-  if (!session) return null;
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { role: true },
+// Returns true if the caller may operate on this site (full admin, or the
+// reseller the site's owner is attributed to). Returns false otherwise.
+async function canAccessSite(siteId: string): Promise<boolean> {
+  const access = await getAdminAccess();
+  if (!access) return false;
+  if (access.kind === "admin") return true;
+  const site = await prisma.site.findUnique({
+    where: { id: siteId },
+    select: { user: { select: { resellerId: true } } },
   });
-  return user?.role === "ADMIN" ? session : null;
+  return !!site && site.user.resellerId === access.resellerId;
 }
 
 const VALID_ACCOUNT_TYPES = new Set(["0", "1", "2", "9"]);
@@ -27,12 +30,11 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await requireAdmin();
-  if (!session) {
+  const { id } = await params;
+  if (!(await canAccessSite(id))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { id } = await params;
   const body = (await request.json().catch(() => ({}))) as {
     expiresAt?: string | null;
     accountType?: string;

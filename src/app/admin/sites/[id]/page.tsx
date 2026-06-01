@@ -4,7 +4,7 @@ import Link from "next/link";
 import { spawn } from "child_process";
 import { getTempDomain } from "@/lib/temp-domains";
 import { normalizePhoneDigits, formatKoreanPhone } from "@/lib/sms";
-import { auth } from "@/lib/auth";
+import { getAdminAccess } from "@/lib/admin-access";
 import SeoAuditPanel, { type AuditResultShape } from "@/components/SeoAuditPanel";
 import { CREDIT_COSTS } from "@/lib/credits";
 
@@ -13,19 +13,27 @@ const ACCOUNT_TYPES: Record<string, string> = { "0": "Free", "1": "Paid", "2": "
 const DOMAIN_REGEX = /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/;
 const PROVISION_SCRIPT = "/root/scripts/provision-domain-ssl.sh";
 
-async function requireAdmin() {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Unauthorized");
-  const me = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { role: true },
+// Admins may act on any site; reseller operators only on sites whose owner is
+// attributed to their reseller. Also closes a prior gap where the mutating
+// server actions below ran without any access check.
+async function requireSiteAccess(siteId: string) {
+  const access = await getAdminAccess();
+  if (!access) throw new Error("Unauthorized");
+  if (access.kind === "admin") return access;
+  const site = await prisma.site.findUnique({
+    where: { id: siteId },
+    select: { user: { select: { resellerId: true } } },
   });
-  if (me?.role !== "ADMIN") throw new Error("Forbidden");
+  if (!site || site.user.resellerId !== access.resellerId) {
+    throw new Error("Forbidden");
+  }
+  return access;
 }
 
 async function updateSite(formData: FormData) {
   "use server";
   const id = formData.get("id") as string;
+  await requireSiteAccess(id);
   const accountType = (formData.get("accountType") as string) || "0";
   const expiresAt = formData.get("expiresAt") as string;
   const name = formData.get("name") as string;
@@ -55,6 +63,7 @@ async function updateSite(formData: FormData) {
 async function extendSite(formData: FormData) {
   "use server";
   const id = formData.get("id") as string;
+  await requireSiteAccess(id);
   const months = parseInt(formData.get("months") as string, 10);
 
   const site = await prisma.site.findUnique({ where: { id } });
@@ -74,6 +83,7 @@ async function extendSite(formData: FormData) {
 async function deleteSite(formData: FormData) {
   "use server";
   const id = formData.get("id") as string;
+  await requireSiteAccess(id);
   await prisma.site.delete({ where: { id } });
   redirect("/admin/sites");
 }
@@ -85,8 +95,8 @@ async function deleteSite(formData: FormData) {
 // owner so the user-facing /dashboard/domains page sees the move too.
 async function addOrReassignDomain(formData: FormData) {
   "use server";
-  await requireAdmin();
   const siteId = formData.get("siteId") as string;
+  await requireSiteAccess(siteId);
   const raw = ((formData.get("domain") as string) || "").trim().toLowerCase();
   if (!raw || !DOMAIN_REGEX.test(raw)) {
     redirect(`/admin/sites/${siteId}?domainError=${encodeURIComponent("올바른 도메인 형식이 아닙니다.")}`);
@@ -124,8 +134,8 @@ async function addOrReassignDomain(formData: FormData) {
 
 async function removeDomainFromSite(formData: FormData) {
   "use server";
-  await requireAdmin();
   const siteId = formData.get("siteId") as string;
+  await requireSiteAccess(siteId);
   const domainId = formData.get("domainId") as string;
   await prisma.domain.delete({ where: { id: domainId } });
   redirect(`/admin/sites/${siteId}?domainNotice=${encodeURIComponent("도메인이 삭제되었습니다.")}`);
@@ -138,8 +148,8 @@ async function removeDomainFromSite(formData: FormData) {
 // during which the domain serves an HTTP-only "provisioning" placeholder.
 async function regenerateDomainNginx(formData: FormData) {
   "use server";
-  await requireAdmin();
   const siteId = formData.get("siteId") as string;
+  await requireSiteAccess(siteId);
   const domainId = formData.get("domainId") as string;
 
   const domain = await prisma.domain.findUnique({
@@ -172,6 +182,8 @@ export default async function AdminSiteDetailPage({
   searchParams: Promise<{ domainError?: string; domainNotice?: string }>;
 }) {
   const { id } = await params;
+  const access = await getAdminAccess();
+  if (!access) notFound();
   const sp = await searchParams;
   const domainError = sp.domainError || "";
   const domainNotice = sp.domainNotice || "";
@@ -179,7 +191,7 @@ export default async function AdminSiteDetailPage({
   const site = await prisma.site.findUnique({
     where: { id },
     include: {
-      user: { select: { id: true, email: true, name: true } },
+      user: { select: { id: true, email: true, name: true, resellerId: true } },
       domains: true,
       pages: {
         select: {
@@ -197,6 +209,10 @@ export default async function AdminSiteDetailPage({
   });
 
   if (!site) notFound();
+  // Reseller operators may only view sites attributed to their reseller.
+  if (access.kind === "reseller" && site.user.resellerId !== access.resellerId) {
+    notFound();
+  }
 
   // Filter pages to the site's default language so the panel doesn't
   // show duplicate "Home (ko)" + "Home (en)" entries for multilingual

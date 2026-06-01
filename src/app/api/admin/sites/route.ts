@@ -1,24 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-
-async function checkAdmin() {
-  const session = await auth();
-  if (!session) return null;
-  const user = await prisma.user.findUnique({ where: { id: session.user.id } });
-  if (user?.role !== "ADMIN") return null;
-  return session;
-}
+import { getAdminAccess, scopeResellerId } from "@/lib/admin-access";
 
 // DELETE — bulk delete sites (cascade deletes pages, posts, products, etc.)
 export async function DELETE(request: NextRequest) {
-  if (!(await checkAdmin())) {
+  const access = await getAdminAccess();
+  if (!access) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  const rid = scopeResellerId(access);
 
   const { ids } = await request.json();
   if (!Array.isArray(ids) || ids.length === 0) {
     return NextResponse.json({ error: "No ids provided" }, { status: 400 });
+  }
+
+  // Reseller operators may only delete sites attributed to them.
+  if (rid) {
+    const ownCount = await prisma.site.count({
+      where: { id: { in: ids }, user: { resellerId: rid } },
+    });
+    if (ownCount !== ids.length) {
+      return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 });
+    }
   }
 
   // Get site info for confirmation log

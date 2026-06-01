@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import Link from "next/link";
 import { parsePageParam } from "@/lib/pagination";
 import { formatKoreanPhone } from "@/lib/sms";
+import { requireAdminAccess, scopeResellerId } from "@/lib/admin-access";
 import type { Prisma } from "@/generated/prisma/client";
 
 const PAGE_SIZE = 20;
@@ -17,26 +18,38 @@ export default async function AdminProspectsPage({
 }: {
   searchParams: Promise<{ page?: string; search?: string; tab?: string }>;
 }) {
+  const access = await requireAdminAccess();
+  const rid = scopeResellerId(access);
   const params = await searchParams;
   const page = parsePageParam(params.page);
   const search = (params.search || "").trim();
   const tab = params.tab === "claimed" ? "claimed" : "pending";
 
   if (tab === "claimed") {
-    return ClaimedView({ page, search });
+    return ClaimedView({ page, search, rid });
   }
-  return PendingView({ page, search });
+  return PendingView({ page, search, rid });
 }
 
-async function PendingView({ page, search }: { page: number; search: string }) {
+async function PendingView({
+  page,
+  search,
+  rid,
+}: {
+  page: number;
+  search: string;
+  rid: string | null;
+}) {
   // Pending = sites that either have a prospectPhone set OR are owned by
   // a legacy User.isProspect placeholder. Both surface here so admin
-  // sees the full handover backlog in one place.
+  // sees the full handover backlog in one place. Reseller operators only
+  // see sites whose owner is attributed to their reseller.
   const where: Prisma.SiteWhereInput = {
     OR: [
       { prospectPhone: { not: null } },
       { user: { isProspect: true } },
     ],
+    ...(rid ? { user: { resellerId: rid } } : {}),
   };
 
   if (search) {
@@ -174,8 +187,19 @@ async function PendingView({ page, search }: { page: number; search: string }) {
   );
 }
 
-async function ClaimedView({ page, search }: { page: number; search: string }) {
-  const where: Prisma.UserWhereInput = { claimedAt: { not: null } };
+async function ClaimedView({
+  page,
+  search,
+  rid,
+}: {
+  page: number;
+  search: string;
+  rid: string | null;
+}) {
+  const where: Prisma.UserWhereInput = {
+    claimedAt: { not: null },
+    ...(rid ? { resellerId: rid } : {}),
+  };
   if (search) {
     where.AND = [
       {

@@ -66,9 +66,11 @@ const iconMap: Record<string, React.ReactNode> = {
 export default function AdminSidebar({
   email,
   navItems,
+  badge,
 }: {
   email: string;
   navItems: { href: string; label: string; icon: string }[];
+  badge?: string;
 }) {
   const pathname = usePathname();
 
@@ -83,7 +85,7 @@ export default function AdminSidebar({
       </Link>
 
       {/* Nav */}
-      <p className="adm-side-label">관리</p>
+      <p className="adm-side-label">{badge ?? "관리"}</p>
       <nav className="adm-nav">
         {navItems.map((item) => {
           const isActive =

@@ -1,29 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { parsePageParam } from "@/lib/pagination";
+import { getAdminAccess, scopeResellerId } from "@/lib/admin-access";
 
 const PAGE_SIZE = 20;
 
-// GET /api/admin/orders — List all orders (admin only)
+// GET /api/admin/orders — List orders (admin + scoped reseller)
 export async function GET(request: NextRequest) {
-  const session = await auth();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-  });
-  if (user?.role !== "ADMIN") {
+  const access = await getAdminAccess();
+  if (!access) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  const rid = scopeResellerId(access);
 
   const { searchParams } = request.nextUrl;
   const page = parsePageParam(searchParams.get("page"));
   const status = searchParams.get("status") || "";
 
-  const where = status ? { status: status as never } : {};
+  const where: { status?: never; user?: { resellerId: string } } = {};
+  if (status) where.status = status as never;
+  if (rid) where.user = { resellerId: rid };
 
   const [orders, totalCount] = await Promise.all([
     prisma.order.findMany({

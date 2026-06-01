@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import SettingsForm from "./settings-form";
+import { requireFullAdmin } from "@/lib/admin-access";
 
 const SETTING_KEYS = [
   {
@@ -10,6 +11,7 @@ const SETTING_KEYS = [
 ];
 
 export default async function AdminSettingsPage() {
+  await requireFullAdmin();
   const rows = await prisma.systemSetting.findMany();
   const settings: Record<string, string> = {};
   for (const row of rows) {

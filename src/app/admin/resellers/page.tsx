@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import Link from "next/link";
 import { parsePageParam } from "@/lib/pagination";
+import { requireFullAdmin } from "@/lib/admin-access";
 
 const PAGE_SIZE = 20;
 
@@ -9,6 +10,7 @@ export default async function AdminResellersPage({
 }: {
   searchParams: Promise<{ page?: string; search?: string }>;
 }) {
+  await requireFullAdmin();
   const params = await searchParams;
   const page = parsePageParam(params.page);
   const search = params.search || "";

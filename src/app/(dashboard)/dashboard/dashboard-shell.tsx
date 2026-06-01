@@ -216,6 +216,17 @@ export default async function DashboardShell({
             )}
             <div className="dv2-spacer" />
             <div className="dv2-topbar-actions">
+              {showReseller && (
+                <Link
+                  href="/admin"
+                  className="dv2-icon-btn"
+                  title="리셀러 운영자 관리 콘솔"
+                  style={{ width: "auto", padding: "0 12px", gap: 6, fontSize: 13, fontWeight: 600 }}
+                >
+                  <Icon id="i-settings" size={16} />
+                  <span>관리자</span>
+                </Link>
+              )}
               <Link
                 className="dv2-coin-pill"
                 href="/dashboard/credits"

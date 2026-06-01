@@ -1,24 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { extendedExpiry } from "@/lib/subscription";
 import { grantCredits } from "@/lib/credits";
 import { recordEarning } from "@/lib/reseller-revenue";
+import { getAdminAccess } from "@/lib/admin-access";
 
-// GET /api/admin/orders/[id] — Get order detail (admin only)
+// GET /api/admin/orders/[id] — Get order detail (admin + scoped reseller)
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-  });
-  if (user?.role !== "ADMIN") {
+  const access = await getAdminAccess();
+  if (!access) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -35,12 +28,19 @@ export async function GET(
         },
       },
       user: {
-        select: { id: true, email: true, name: true, phone: true },
+        select: { id: true, email: true, name: true, phone: true, resellerId: true },
       },
     },
   });
 
   if (!order) {
+    return NextResponse.json(
+      { error: "주문을 찾을 수 없습니다." },
+      { status: 404 }
+    );
+  }
+
+  if (access.kind === "reseller" && order.user.resellerId !== access.resellerId) {
     return NextResponse.json(
       { error: "주문을 찾을 수 없습니다." },
       { status: 404 }
@@ -62,20 +62,13 @@ export async function GET(
   return NextResponse.json({ order: { ...order, subscriptionSite } });
 }
 
-// PUT /api/admin/orders/[id] — Update order status (admin only)
+// PUT /api/admin/orders/[id] — Update order status (admin + scoped reseller)
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-  });
-  if (user?.role !== "ADMIN") {
+  const access = await getAdminAccess();
+  if (!access) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -98,8 +91,18 @@ export async function PUT(
     );
   }
 
-  const existing = await prisma.order.findUnique({ where: { id } });
+  const existing = await prisma.order.findUnique({
+    where: { id },
+    include: { user: { select: { resellerId: true } } },
+  });
   if (!existing) {
+    return NextResponse.json(
+      { error: "주문을 찾을 수 없습니다." },
+      { status: 404 }
+    );
+  }
+
+  if (access.kind === "reseller" && existing.user.resellerId !== access.resellerId) {
     return NextResponse.json(
       { error: "주문을 찾을 수 없습니다." },
       { status: 404 }
@@ -217,21 +220,21 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const session = await auth();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-  });
-  if (user?.role !== "ADMIN") {
+  const access = await getAdminAccess();
+  if (!access) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const { id } = await params;
-  const existing = await prisma.order.findUnique({ where: { id } });
+  const existing = await prisma.order.findUnique({
+    where: { id },
+    include: { user: { select: { resellerId: true } } },
+  });
   if (!existing) {
+    return NextResponse.json({ error: "주문을 찾을 수 없습니다." }, { status: 404 });
+  }
+
+  if (access.kind === "reseller" && existing.user.resellerId !== access.resellerId) {
     return NextResponse.json({ error: "주문을 찾을 수 없습니다." }, { status: 404 });
   }
 
@@ -247,7 +250,7 @@ export async function DELETE(
 
   await prisma.order.delete({ where: { id } });
   console.log(
-    `[admin/orders] order deleted: ${existing.orderNumber} (${existing.orderType}/${existing.status}) by admin=${session.user.id}`,
+    `[admin/orders] order deleted: ${existing.orderNumber} (${existing.orderType}/${existing.status}) by ${access.kind}=${access.userId}`,
   );
   return NextResponse.json({ ok: true });
 }

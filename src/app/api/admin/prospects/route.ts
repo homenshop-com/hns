@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import {
@@ -12,26 +11,18 @@ import { trialExpiryFromNow } from "@/lib/site-expiration";
 import { normalizePhoneDigits } from "@/lib/sms";
 import crypto from "crypto";
 import { parsePageParam } from "@/lib/pagination";
+import { getAdminAccess, scopeResellerId } from "@/lib/admin-access";
 
 const PAGE_SIZE = 20;
 const SYNTHETIC_EMAIL_DOMAIN = "homenshop.local";
 
-async function requireAdmin() {
-  const session = await auth();
-  if (!session) return null;
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { id: true, role: true },
-  });
-  if (user?.role !== "ADMIN") return null;
-  return user;
-}
-
 // GET /api/admin/prospects — list prospect placeholders (paginated)
 export async function GET(req: NextRequest) {
-  if (!(await requireAdmin())) {
+  const access = await getAdminAccess();
+  if (!access) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  const rid = scopeResellerId(access);
 
   const { searchParams } = req.nextUrl;
   const page = parsePageParam(searchParams.get("page"));
@@ -41,6 +32,9 @@ export async function GET(req: NextRequest) {
   const where: Prisma.UserWhereInput = includeClaimed
     ? { OR: [{ isProspect: true }, { claimedAt: { not: null } }] }
     : { isProspect: true };
+
+  // Reseller operators only see prospects attributed to them.
+  if (rid) where.resellerId = rid;
 
   if (search) {
     where.AND = [
@@ -116,10 +110,11 @@ interface CreateBody {
 
 // POST /api/admin/prospects — create a prospect placeholder + site
 export async function POST(req: NextRequest) {
-  const admin = await requireAdmin();
-  if (!admin) {
+  const access = await getAdminAccess();
+  if (!access) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  const rid = scopeResellerId(access);
 
   let body: CreateBody;
   try {
@@ -290,8 +285,11 @@ export async function POST(req: NextRequest) {
         name,
         phone,
         isProspect: true,
-        prospectCreatedBy: admin.id,
+        prospectCreatedBy: access.userId,
         prospectNote: note,
+        // Attribute the prospect to the creating reseller so it (and the
+        // member it later becomes) stays within their scoped view.
+        resellerId: rid ?? undefined,
         // Don't claim shopId on the User row — we leave it null and only
         // assign it when the real user claims. Keeps the unique constraint
         // free for the eventual claimant.

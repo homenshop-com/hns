@@ -2,8 +2,19 @@ import { prisma } from "@/lib/db";
 import Link from "next/link";
 import { getAnalyticsSummary } from "@/lib/analytics";
 import AnalyticsPanel from "./analytics-panel";
+import { requireAdminAccess, scopeResellerId } from "@/lib/admin-access";
 
 export default async function AdminDashboardPage() {
+  const access = await requireAdminAccess();
+  const rid = scopeResellerId(access);
+
+  // Scope every metric to the reseller's attributed customers when the
+  // operator is a reseller; full admins (rid === null) see everything.
+  const userWhere = rid ? { resellerId: rid } : {};
+  const siteWhere = rid ? { user: { resellerId: rid } } : {};
+  const orderWhere = rid ? { user: { resellerId: rid } } : {};
+  const productWhere = rid ? { site: { user: { resellerId: rid } } } : {};
+
   const [
     membersCount,
     sitesCount,
@@ -12,11 +23,12 @@ export default async function AdminDashboardPage() {
     recentUsers,
     analytics,
   ] = await Promise.all([
-    prisma.user.count(),
-    prisma.site.count(),
-    prisma.order.count(),
-    prisma.product.count(),
+    prisma.user.count({ where: userWhere }),
+    prisma.site.count({ where: siteWhere }),
+    prisma.order.count({ where: orderWhere }),
+    prisma.product.count({ where: productWhere }),
     prisma.user.findMany({
+      where: userWhere,
       orderBy: { createdAt: "desc" },
       take: 5,
       select: {
@@ -28,7 +40,7 @@ export default async function AdminDashboardPage() {
         createdAt: true,
       },
     }),
-    getAnalyticsSummary(),
+    rid ? Promise.resolve(null) : getAnalyticsSummary(),
   ]);
 
   const stats = [
@@ -145,13 +157,15 @@ export default async function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* Google Analytics panel — real-time visitors, 7-day metrics, top pages. */}
-      <div className="mt-8">
-        <AnalyticsPanel
-          initial={analytics}
-          propertyId={analytics.configured ? analytics.propertyId : undefined}
-        />
-      </div>
+      {/* Google Analytics panel — platform-wide, admin only. */}
+      {analytics && (
+        <div className="mt-8">
+          <AnalyticsPanel
+            initial={analytics}
+            propertyId={analytics.configured ? analytics.propertyId : undefined}
+          />
+        </div>
+      )}
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import Link from "next/link";
 import SitesTable from "./sites-table";
 import { parsePageParam } from "@/lib/pagination";
+import { requireAdminAccess, scopeResellerId } from "@/lib/admin-access";
 
 const TABS = [
   { key: "all", label: "전체" },
@@ -16,6 +17,8 @@ export default async function AdminSitesPage({
 }: {
   searchParams: Promise<{ [key: string]: string | undefined }>;
 }) {
+  const access = await requireAdminAccess();
+  const rid = scopeResellerId(access);
   const params = await searchParams;
   const tab = params.tab || "all";
   const search = params.search || "";
@@ -25,15 +28,20 @@ export default async function AdminSitesPage({
   const page = parsePageParam(params.page);
   const perPage = 20;
 
+  // Reseller operators only see sites whose owner is attributed to them.
+  // Re-applied to every count query below as well.
+  const scopeBase: Record<string, unknown> = { isTemplateStorage: false };
+  if (rid) scopeBase.user = { resellerId: rid };
+
   // Build where clause — hide template-storage clones from admin lists
-  const where: Record<string, unknown> = { isTemplateStorage: false };
+  const where: Record<string, unknown> = { ...scopeBase };
   const activeTab = TABS.find((t) => t.key === tab);
   if (activeTab && activeTab.type !== undefined) {
     where.accountType = activeTab.type;
   }
   if (search) {
     if (filterBy === "email") {
-      where.user = { email: { contains: search, mode: "insensitive" } };
+      where.user = { ...(rid ? { resellerId: rid } : {}), email: { contains: search, mode: "insensitive" } };
     } else if (filterBy === "domain") {
       where.domains = { some: { domain: { contains: search, mode: "insensitive" } } };
     } else {
@@ -60,11 +68,11 @@ export default async function AdminSitesPage({
     }),
     prisma.site.count({ where: where as any }),
     Promise.all([
-      prisma.site.count({ where: { isTemplateStorage: false } }),
-      prisma.site.count({ where: { isTemplateStorage: false, accountType: "0" } }),
-      prisma.site.count({ where: { isTemplateStorage: false, accountType: "1" } }),
-      prisma.site.count({ where: { isTemplateStorage: false, accountType: "9" } }),
-      prisma.site.count({ where: { isTemplateStorage: false, accountType: "2" } }),
+      prisma.site.count({ where: { ...scopeBase } as any }),
+      prisma.site.count({ where: { ...scopeBase, accountType: "0" } as any }),
+      prisma.site.count({ where: { ...scopeBase, accountType: "1" } as any }),
+      prisma.site.count({ where: { ...scopeBase, accountType: "9" } as any }),
+      prisma.site.count({ where: { ...scopeBase, accountType: "2" } as any }),
     ]),
   ]);
 

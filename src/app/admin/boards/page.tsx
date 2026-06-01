@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import Link from "next/link";
 import BoardTable from "./board-table";
 import { parsePageParam } from "@/lib/pagination";
+import { requireFullAdmin } from "@/lib/admin-access";
 
 const PAGE_SIZE = 30;
 
@@ -10,6 +11,7 @@ export default async function AdminBoardsPage({
 }: {
   searchParams: Promise<{ page?: string; siteId?: string; q?: string }>;
 }) {
+  await requireFullAdmin();
   const params = await searchParams;
   const page = parsePageParam(params.page);
   const siteFilter = params.siteId || undefined;

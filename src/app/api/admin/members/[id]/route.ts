@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getAdminAccess } from "@/lib/admin-access";
 
 const memberSelect = {
   id: true,
@@ -9,6 +9,7 @@ const memberSelect = {
   phone: true,
   role: true,
   status: true,
+  resellerId: true,
   emailVerified: true,
   createdAt: true,
   updatedAt: true,
@@ -29,18 +30,12 @@ const memberSelect = {
   },
 };
 
-async function checkAdmin(session: any) {
-  if (!session) return null;
-  const user = await prisma.user.findUnique({ where: { id: session.user.id } });
-  return user?.role === "ADMIN" ? user : null;
-}
-
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!await checkAdmin(session)) {
+  const access = await getAdminAccess();
+  if (!access) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -54,6 +49,10 @@ export async function GET(
     return NextResponse.json({ error: "회원을 찾을 수 없습니다." }, { status: 404 });
   }
 
+  if (access.kind === "reseller" && member.resellerId !== access.resellerId) {
+    return NextResponse.json({ error: "회원을 찾을 수 없습니다." }, { status: 404 });
+  }
+
   return NextResponse.json(member);
 }
 
@@ -61,8 +60,8 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!await checkAdmin(session)) {
+  const access = await getAdminAccess();
+  if (!access) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -75,12 +74,27 @@ export async function PUT(
     return NextResponse.json({ error: "유효하지 않은 역할입니다." }, { status: 400 });
   }
 
+  // Reseller operators may only edit their own attributed members, and may
+  // not escalate a member to ADMIN/RESELLER tiers.
+  if (access.kind === "reseller") {
+    const target = await prisma.user.findUnique({
+      where: { id },
+      select: { resellerId: true },
+    });
+    if (!target || target.resellerId !== access.resellerId) {
+      return NextResponse.json({ error: "회원을 찾을 수 없습니다." }, { status: 404 });
+    }
+    if (role && role !== "MEMBER") {
+      return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 });
+    }
+  }
+
   const validStatuses = ["ACTIVE", "SUSPENDED", "DELETED"];
   if (status && !validStatuses.includes(status)) {
     return NextResponse.json({ error: "유효하지 않은 상태입니다." }, { status: 400 });
   }
 
-  if (id === session!.user.id && role && role !== "ADMIN") {
+  if (id === access.userId && role && role !== "ADMIN") {
     return NextResponse.json({ error: "자기 자신의 관리자 권한은 변경할 수 없습니다." }, { status: 400 });
   }
 
