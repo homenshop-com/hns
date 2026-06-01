@@ -2,6 +2,8 @@ import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { getTranslations } from "next-intl/server";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import BrandMark from "@/components/BrandMark";
+import { getResellerForHost } from "@/lib/reseller";
 import { alternatesFor } from "@/lib/seo-locales";
 import { defaultLocale } from "@/i18n/routing";
 import type { Metadata } from "next";
@@ -33,6 +35,10 @@ export default async function Home() {
     const { redirect } = await import("next/navigation");
     redirect("/dashboard");
   }
+
+  // White-label branding: when reached via a reseller domain (e.g. homenshop.net)
+  // the nav/footer brand and footer copyright reflect that reseller's settings.
+  const reseller = await getResellerForHost();
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -167,7 +173,15 @@ export default async function Home() {
       <nav className="lp-nav">
         <div className="lp-nav-inner">
           <Link href="/" className="lp-logo">
-            homeNshop
+            {reseller ? (
+              <BrandMark
+                logoUrl={reseller.logoUrl}
+                label={reseller.siteName}
+                imgClassName="lp-logo-img"
+              />
+            ) : (
+              "homeNshop"
+            )}
           </Link>
           <div className="lp-nav-links">
             <a href="#features">{t("navFeatures")}</a>
@@ -480,7 +494,17 @@ export default async function Home() {
       {/* FOOTER */}
       <footer className="lp-footer">
         <div className="lp-footer-inner">
-          <div className="footer-logo">homeNshop</div>
+          <div className="footer-logo">
+            {reseller ? (
+              <BrandMark
+                logoUrl={reseller.logoUrl}
+                label={reseller.siteName}
+                imgClassName="footer-logo-img"
+              />
+            ) : (
+              "homeNshop"
+            )}
+          </div>
           <div className="footer-links">
             <Link href="/login">{t("footerLogin")}</Link>
             <Link href="/register">{t("footerSignup")}</Link>
@@ -489,10 +513,17 @@ export default async function Home() {
           </div>
         </div>
         <div className="lp-footer-inner">
-          <p className="footer-copy">
-            &copy; {new Date().getFullYear()} homenshop.com. All rights
-            reserved.
-          </p>
+          {reseller?.copyright ? (
+            <p
+              className="footer-copy"
+              dangerouslySetInnerHTML={{ __html: reseller.copyright }}
+            />
+          ) : (
+            <p className="footer-copy">
+              &copy; {new Date().getFullYear()} homenshop.com. All rights
+              reserved.
+            </p>
+          )}
           <div className="footer-info">
             {t("footerCompany")}
             <span className="sep">|</span>
