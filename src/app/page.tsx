@@ -10,21 +10,36 @@ import type { Metadata } from "next";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("home");
-  return {
-    title: t("pageTitle"),
-    description: t("metaDescription"),
+  const reseller = await getResellerForHost();
+
+  // White-label SEO: when reached via a reseller domain, its admin-managed
+  // meta overrides win; anything left blank falls back to the stock values.
+  const title = reseller?.metaTitle || reseller?.siteName || t("pageTitle");
+  const description = reseller?.metaDescription || t("metaDescription");
+  const siteName = reseller?.siteName || "homeNshop";
+
+  const meta: Metadata = {
+    // For a reseller, bypass the layout's "%s | homeNshop" template so the
+    // white-label title stands alone; otherwise keep the stock behaviour.
+    title: reseller ? { absolute: title } : title,
+    description,
     alternates: alternatesFor("/", defaultLocale),
     openGraph: {
       type: "website",
-      siteName: "homeNshop",
-      title: t("pageTitle"),
-      description: t("metaDescription"),
-      url: "https://homenshop.com",
+      siteName,
+      title,
+      description,
+      url: reseller ? `https://${reseller.domain}` : "https://homenshop.com",
+      ...(reseller?.logoUrl ? { images: [reseller.logoUrl] } : {}),
     },
     other: {
       "ai:description": "homeNshop is a multilingual website builder for Korean SMEs preparing for global export. Users create product catalogs and company pages in English, Chinese, Japanese, Spanish without coding. Key features: drag-and-drop editor, 100+ templates, mobile responsive, custom domain, multilingual support. Pricing: 66,000 KRW/year. Target: Korean small businesses using KOTRA, trade associations, export voucher programs.",
     },
   };
+
+  if (reseller?.metaKeywords) meta.keywords = reseller.metaKeywords;
+
+  return meta;
 }
 
 export default async function Home() {

@@ -63,7 +63,17 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { domain, siteName, logo, copyright, analytics, isActive } = body;
+  const {
+    domain,
+    siteName,
+    logo,
+    copyright,
+    analytics,
+    isActive,
+    metaTitle,
+    metaDescription,
+    metaKeywords,
+  } = body;
 
   if (!domain || !siteName) {
     return NextResponse.json(
@@ -91,6 +101,9 @@ export async function POST(request: NextRequest) {
       logo: logo || null,
       copyright: copyright || null,
       analytics: analytics || null,
+      metaTitle: metaTitle || null,
+      metaDescription: metaDescription || null,
+      metaKeywords: metaKeywords || null,
       isActive: isActive !== undefined ? isActive : true,
     },
   });

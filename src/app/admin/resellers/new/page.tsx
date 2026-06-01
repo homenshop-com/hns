@@ -22,6 +22,9 @@ export default function AdminResellerNewPage() {
   const [logo, setLogo] = useState("");
   const [copyright, setCopyright] = useState("");
   const [analytics, setAnalytics] = useState("");
+  const [metaTitle, setMetaTitle] = useState("");
+  const [metaDescription, setMetaDescription] = useState("");
+  const [metaKeywords, setMetaKeywords] = useState("");
   const [isActive, setIsActive] = useState(true);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -39,6 +42,9 @@ export default function AdminResellerNewPage() {
           logo: logo.trim() || null,
           copyright: normalizeHtml(copyright) || null,
           analytics: analytics.trim() || null,
+          metaTitle: metaTitle.trim() || null,
+          metaDescription: metaDescription.trim() || null,
+          metaKeywords: metaKeywords.trim() || null,
           isActive,
         }),
       });
@@ -127,6 +133,54 @@ export default function AdminResellerNewPage() {
                 minHeight={140}
               />
             </Suspense>
+          </div>
+
+          <div className="border-t border-slate-100 pt-4">
+            <h2 className="text-sm font-semibold text-slate-800 mb-1">
+              메타 정보 (SEO)
+            </h2>
+            <p className="text-xs text-slate-400 mb-3">
+              이 도메인으로 접속했을 때 페이지 제목·검색 설명·키워드에 사용됩니다.
+              비워두면 기본 homeNshop 값이 적용됩니다.
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  메타 타이틀 (페이지 제목)
+                </label>
+                <input
+                  type="text"
+                  value={metaTitle}
+                  onChange={(e) => setMetaTitle(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                  placeholder={siteName || "예: 홈앤샵 - 나만의 홈페이지 빌더"}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  메타 설명 (description)
+                </label>
+                <textarea
+                  value={metaDescription}
+                  onChange={(e) => setMetaDescription(e.target.value)}
+                  rows={3}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                  placeholder="검색 결과에 표시되는 사이트 설명..."
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  메타 키워드 (쉼표로 구분)
+                </label>
+                <input
+                  type="text"
+                  value={metaKeywords}
+                  onChange={(e) => setMetaKeywords(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                  placeholder="홈페이지 제작, 홈페이지 빌더, 다국어 홈페이지"
+                />
+              </div>
+            </div>
           </div>
 
           <div>

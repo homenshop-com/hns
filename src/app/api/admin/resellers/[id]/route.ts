@@ -52,7 +52,17 @@ export async function PUT(
 
   const { id } = await params;
   const body = await request.json();
-  const { domain, siteName, logo, copyright, analytics, isActive } = body;
+  const {
+    domain,
+    siteName,
+    logo,
+    copyright,
+    analytics,
+    isActive,
+    metaTitle,
+    metaDescription,
+    metaKeywords,
+  } = body;
 
   // If domain changed, check uniqueness
   if (domain) {
@@ -73,6 +83,11 @@ export async function PUT(
   if (logo !== undefined) updateData.logo = logo || null;
   if (copyright !== undefined) updateData.copyright = copyright || null;
   if (analytics !== undefined) updateData.analytics = analytics || null;
+  if (metaTitle !== undefined) updateData.metaTitle = metaTitle || null;
+  if (metaDescription !== undefined)
+    updateData.metaDescription = metaDescription || null;
+  if (metaKeywords !== undefined)
+    updateData.metaKeywords = metaKeywords || null;
   if (typeof isActive === "boolean") updateData.isActive = isActive;
 
   const updated = await prisma.reseller.update({

@@ -842,6 +842,13 @@ model Reseller {
   logo      String?
   copyright String?
   analytics String? @db.Text
+
+  // White-label SEO overrides for the landing page when reached via this
+  // reseller's domain. Each falls back to the stock homeNshop value when null.
+  metaTitle       String?
+  metaDescription String? @db.Text
+  metaKeywords    String? @db.Text
+
   isActive  Boolean @default(true)
 
   @@index([domain])

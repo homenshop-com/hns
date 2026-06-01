@@ -10,6 +10,10 @@ export type ResellerBranding = {
   logoUrl: string | null;
   /** White-label copyright/footer HTML (admin-managed, trusted). */
   copyright: string | null;
+  /** SEO overrides — each null when not customised (falls back to stock). */
+  metaTitle: string | null;
+  metaDescription: string | null;
+  metaKeywords: string | null;
 };
 
 function normalizeHost(host: string | null): string | null {
@@ -37,7 +41,15 @@ export async function getResellerForHost(): Promise<ResellerBranding | null> {
 
   const r = await prisma.reseller.findFirst({
     where: { domain: host, isActive: true },
-    select: { domain: true, siteName: true, logo: true, copyright: true },
+    select: {
+      domain: true,
+      siteName: true,
+      logo: true,
+      copyright: true,
+      metaTitle: true,
+      metaDescription: true,
+      metaKeywords: true,
+    },
   });
   if (!r) return null;
 
@@ -46,5 +58,8 @@ export async function getResellerForHost(): Promise<ResellerBranding | null> {
     siteName: r.siteName,
     logoUrl: resolveResellerLogoUrl(r.logo),
     copyright: r.copyright,
+    metaTitle: r.metaTitle,
+    metaDescription: r.metaDescription,
+    metaKeywords: r.metaKeywords,
   };
 }
