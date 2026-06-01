@@ -1,9 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-
-/* ── 호스팅 가격 (월 5,500원 기준) — src/lib/subscription.ts와 동일 ── */
-const MONTHLY_PRICE = 5500;
+import { MONTHLY_PRICE } from "@/lib/subscription";
 
 const PLANS = [
   { months: 12, labelKey: "year" as const, discount: 0 },

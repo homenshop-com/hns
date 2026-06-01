@@ -2,6 +2,36 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { CANONICAL_HOST } from "@/lib/reseller";
+import { getSummary } from "@/lib/reseller-revenue";
+
+/**
+ * Resolve a revenue-share rate from a percent input (0–100) to basis points
+ * (0–10000). Returns undefined when the input is absent/blank, null-coerced to
+ * an out-of-range error by the caller. Accepts numbers or numeric strings.
+ */
+function parseSharePercent(raw: unknown): { ok: true; bps: number } | { ok: false } | null {
+  if (raw === undefined || raw === null || raw === "") return null;
+  const pct = typeof raw === "number" ? raw : Number(raw);
+  if (!Number.isFinite(pct) || pct < 0 || pct > 100) return { ok: false };
+  return { ok: true, bps: Math.round(pct * 100) };
+}
+
+/** Resolve an owner login by email → userId, or explicit clear. */
+async function resolveOwnerUserId(
+  raw: unknown
+): Promise<{ ok: true; ownerUserId: string | null } | { ok: false; error: string } | null> {
+  if (raw === undefined) return null; // field not submitted → leave unchanged
+  const email = typeof raw === "string" ? raw.trim() : "";
+  if (!email) return { ok: true, ownerUserId: null }; // explicit clear
+  const owner = await prisma.user.findUnique({
+    where: { email },
+    select: { id: true },
+  });
+  if (!owner) {
+    return { ok: false, error: `운영자 이메일(${email})에 해당하는 계정을 찾을 수 없습니다.` };
+  }
+  return { ok: true, ownerUserId: owner.id };
+}
 
 export async function GET(
   _request: NextRequest,
@@ -23,6 +53,7 @@ export async function GET(
 
   const reseller = await prisma.reseller.findUnique({
     where: { id },
+    include: { owner: { select: { email: true } } },
   });
 
   if (!reseller) {
@@ -32,7 +63,13 @@ export async function GET(
     );
   }
 
-  return NextResponse.json(reseller);
+  const summary = await getSummary(id);
+
+  return NextResponse.json({
+    ...reseller,
+    ownerEmail: reseller.owner?.email ?? null,
+    settlementSummary: summary,
+  });
 }
 
 export async function PUT(
@@ -63,6 +100,8 @@ export async function PUT(
     metaTitle,
     metaDescription,
     metaKeywords,
+    revenueSharePercent,
+    ownerEmail,
   } = body;
 
   // The canonical homenshop.com row is editable, but its domain must stay put
@@ -107,6 +146,25 @@ export async function PUT(
   if (metaKeywords !== undefined)
     updateData.metaKeywords = metaKeywords || null;
   if (typeof isActive === "boolean") updateData.isActive = isActive;
+
+  const share = parseSharePercent(revenueSharePercent);
+  if (share) {
+    if (!share.ok) {
+      return NextResponse.json(
+        { error: "분배율은 0~100 사이의 값이어야 합니다." },
+        { status: 400 }
+      );
+    }
+    updateData.revenueShareBps = share.bps;
+  }
+
+  const owner = await resolveOwnerUserId(ownerEmail);
+  if (owner) {
+    if (!owner.ok) {
+      return NextResponse.json({ error: owner.error }, { status: 400 });
+    }
+    updateData.ownerUserId = owner.ownerUserId;
+  }
 
   const updated = await prisma.reseller.update({
     where: { id },

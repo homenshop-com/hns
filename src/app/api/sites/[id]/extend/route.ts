@@ -52,6 +52,16 @@ export async function POST(
     return NextResponse.json({ error: "Invalid price" }, { status: 500 });
   }
 
+  // Stamp the buyer's attributed reseller onto the order so the revenue-share
+  // earning can be recorded when the order transitions to PAID. Attribution is
+  // fixed at signup (User.resellerId), so it's read here, not from the request
+  // host — a customer keeps their reseller even when paying via the canonical
+  // dashboard.
+  const buyer = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { resellerId: true },
+  });
+
   const order = await prisma.order.create({
     data: {
       userId: session.user.id,
@@ -61,6 +71,7 @@ export async function POST(
       orderType: "SUBSCRIPTION",
       subscriptionMonths: months,
       subscriptionSiteId: site.id,
+      resellerId: buyer?.resellerId ?? null,
       paymentMethod: isToss ? "카드" : "BANK_TRANSFER",
       paymentChannel: isToss ? "TOSS" : "BANK_TRANSFER",
     },

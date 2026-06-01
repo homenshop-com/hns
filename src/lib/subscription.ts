@@ -11,7 +11,7 @@
  *      subscriptionMonths and flips accountType to "1" (paid).
  */
 
-export const MONTHLY_PRICE = 5500;
+export const MONTHLY_PRICE = 11000;
 
 export type SubscriptionPlan = { months: 12 | 24 | 36; discount: number; label: string };
 

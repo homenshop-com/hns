@@ -26,6 +26,8 @@ export default function AdminResellerNewPage() {
   const [metaDescription, setMetaDescription] = useState("");
   const [metaKeywords, setMetaKeywords] = useState("");
   const [isActive, setIsActive] = useState(true);
+  const [revenueSharePercent, setRevenueSharePercent] = useState("50");
+  const [ownerEmail, setOwnerEmail] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -46,6 +48,8 @@ export default function AdminResellerNewPage() {
           metaDescription: metaDescription.trim() || null,
           metaKeywords: metaKeywords.trim() || null,
           isActive,
+          revenueSharePercent,
+          ownerEmail: ownerEmail.trim(),
         }),
       });
 
@@ -194,6 +198,45 @@ export default function AdminResellerNewPage() {
               className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
               placeholder="Google Analytics 또는 기타 추적 코드..."
             />
+          </div>
+
+          <div className="border-t border-slate-100 pt-4">
+            <h2 className="text-sm font-semibold text-slate-800 mb-1">
+              수익 분배
+            </h2>
+            <p className="text-xs text-slate-400 mb-3">
+              이 도메인으로 가입한 고객의 호스팅 구독 결제 중 리셀러 몫 비율입니다.
+              기본 50%(5:5).
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  분배율 (%)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={revenueSharePercent}
+                  onChange={(e) => setRevenueSharePercent(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                  placeholder="50"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  운영자 이메일 (정산 열람 계정)
+                </label>
+                <input
+                  type="email"
+                  value={ownerEmail}
+                  onChange={(e) => setOwnerEmail(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                  placeholder="reseller-owner@example.com"
+                />
+              </div>
+            </div>
           </div>
 
           <div>

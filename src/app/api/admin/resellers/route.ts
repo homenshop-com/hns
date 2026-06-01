@@ -73,6 +73,8 @@ export async function POST(request: NextRequest) {
     metaTitle,
     metaDescription,
     metaKeywords,
+    revenueSharePercent,
+    ownerEmail,
   } = body;
 
   if (!domain || !siteName) {
@@ -94,6 +96,36 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Revenue-share rate: percent (0–100) → basis points. Defaults to 5000
+  // (50%) via the schema when omitted.
+  let revenueShareBps: number | undefined;
+  if (revenueSharePercent !== undefined && revenueSharePercent !== null && revenueSharePercent !== "") {
+    const pct = Number(revenueSharePercent);
+    if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
+      return NextResponse.json(
+        { error: "분배율은 0~100 사이의 값이어야 합니다." },
+        { status: 400 }
+      );
+    }
+    revenueShareBps = Math.round(pct * 100);
+  }
+
+  // Owner login (by email) — optional.
+  let ownerUserId: string | null = null;
+  if (typeof ownerEmail === "string" && ownerEmail.trim()) {
+    const owner = await prisma.user.findUnique({
+      where: { email: ownerEmail.trim() },
+      select: { id: true },
+    });
+    if (!owner) {
+      return NextResponse.json(
+        { error: `운영자 이메일(${ownerEmail.trim()})에 해당하는 계정을 찾을 수 없습니다.` },
+        { status: 400 }
+      );
+    }
+    ownerUserId = owner.id;
+  }
+
   const reseller = await prisma.reseller.create({
     data: {
       domain,
@@ -105,6 +137,8 @@ export async function POST(request: NextRequest) {
       metaDescription: metaDescription || null,
       metaKeywords: metaKeywords || null,
       isActive: isActive !== undefined ? isActive : true,
+      ...(revenueShareBps !== undefined ? { revenueShareBps } : {}),
+      ownerUserId,
     },
   });
 

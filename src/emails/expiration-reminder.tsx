@@ -69,7 +69,7 @@ export default function ExpirationReminderEmail({
             </Section>
 
             <Text style={paragraphSmall}>
-              요금제 플랜: 1년 66,000원 / 2년 118,800원(10% 할인) / 3년 158,400원(20% 할인)
+              요금제 플랜: 1년 132,000원 / 2년 237,600원(10% 할인) / 3년 316,800원(20% 할인)
             </Text>
           </Section>
 

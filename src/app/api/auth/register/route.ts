@@ -6,6 +6,7 @@ import crypto from "crypto";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { grantCredits, SIGNUP_BONUS } from "@/lib/credits";
 import { normalizePhoneDigits } from "@/lib/sms";
+import { findActiveResellerByHost } from "@/lib/reseller";
 
 export async function POST(req: NextRequest) {
   try {
@@ -151,6 +152,21 @@ export async function POST(req: NextRequest) {
 
     const hashedPassword = await bcrypt.hash(password, 12);
 
+    // Revenue-share attribution: a customer signing up on a white-label
+    // reseller domain is permanently attributed to that reseller (product
+    // decision: signup-time domain, fixed for life). Direct signups on the
+    // canonical homenshop.com host carry no reseller. Best-effort — a lookup
+    // failure must never block account creation.
+    let attributedResellerId: string | null = null;
+    try {
+      const reseller = await findActiveResellerByHost(req.headers.get("host"));
+      if (reseller && !reseller.isCanonical) {
+        attributedResellerId = reseller.id;
+      }
+    } catch (e) {
+      console.error("[register] reseller attribution lookup failed:", e);
+    }
+
     const user = await prisma.user.create({
       data: {
         email,
@@ -158,6 +174,7 @@ export async function POST(req: NextRequest) {
         name,
         phone: normalizedPhone || null,
         phoneVerifiedAt,
+        resellerId: attributedResellerId,
       },
     });
 

@@ -38,7 +38,7 @@ export async function generateMetadata(): Promise<Metadata> {
       ...(reseller?.logoUrl ? { images: [reseller.logoUrl] } : {}),
     },
     other: {
-      "ai:description": "homeNshop is a multilingual website builder for Korean SMEs preparing for global export. Users create product catalogs and company pages in English, Chinese, Japanese, Spanish without coding. Key features: drag-and-drop editor, 100+ templates, mobile responsive, custom domain, multilingual support. Pricing: 66,000 KRW/year. Target: Korean small businesses using KOTRA, trade associations, export voucher programs.",
+      "ai:description": "homeNshop is a multilingual website builder for Korean SMEs preparing for global export. Users create product catalogs and company pages in English, Chinese, Japanese, Spanish without coding. Key features: drag-and-drop editor, 100+ templates, mobile responsive, custom domain, multilingual support. Pricing: 132,000 KRW/year. Target: Korean small businesses using KOTRA, trade associations, export voucher programs.",
     },
   };
 
@@ -89,7 +89,7 @@ export default async function Home() {
     },
     offers: {
       "@type": "Offer",
-      price: "66000",
+      price: "132000",
       priceCurrency: "KRW",
       priceValidUntil: "2027-12-31",
       description: "Annual premium plan",

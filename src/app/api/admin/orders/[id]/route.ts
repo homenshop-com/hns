@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { extendedExpiry } from "@/lib/subscription";
 import { grantCredits } from "@/lib/credits";
+import { recordEarning } from "@/lib/reseller-revenue";
 
 // GET /api/admin/orders/[id] — Get order detail (admin only)
 export async function GET(
@@ -181,6 +182,25 @@ export async function PUT(
     console.log(
       `[admin/orders] SUBSCRIPTION PAID: site=${updatedOrder.subscriptionSiteId} +${updatedOrder.subscriptionMonths}m → ${newExpiry.toISOString()}`
     );
+
+    // Revenue-share: credit the attributed reseller their share of this
+    // hosting order. Idempotent on refOrderId, so re-saving PAID won't
+    // double-credit. Best-effort — never block the status update.
+    if (updatedOrder.resellerId) {
+      try {
+        await recordEarning({
+          resellerId: updatedOrder.resellerId,
+          refOrderId: updatedOrder.id,
+          orderAmount: updatedOrder.totalAmount,
+        });
+      } catch (err) {
+        console.error(
+          "[admin/orders] reseller earning failed for",
+          updatedOrder.id,
+          err,
+        );
+      }
+    }
   }
 
   return NextResponse.json({ order: updatedOrder });

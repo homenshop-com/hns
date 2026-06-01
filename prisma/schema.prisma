@@ -96,9 +96,16 @@ model User {
   /// Timestamp the user proved ownership of `phone` via SMS OTP. Cleared
   /// when phone is changed. Used by the claim flow as proof of phone match.
   phoneVerifiedAt    DateTime?
+  /// Reseller this user signed up under (resolved from the white-label domain
+  /// at registration). Permanent attribution: all this user's hosting
+  /// purchases count toward that reseller's revenue share. Null for direct
+  /// homenshop.com signups. Set by src/app/api/auth/register.
+  resellerId         String?
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 
+  reseller                Reseller?  @relation("ResellerSignups", fields: [resellerId], references: [id], onDelete: SetNull)
+  ownedReseller           Reseller?  @relation("ResellerOwner")
   accounts                Account[]
   sessions                Session[]
   sites                   Site[]
@@ -118,6 +125,7 @@ model User {
   @@index([shopId])
   @@index([phone])
   @@index([isProspect])
+  @@index([resellerId])
 }
 
 enum UserRole {
@@ -416,6 +424,11 @@ model Order {
   subscriptionMonths Int?
   /// For SUBSCRIPTION orders: id of the Site being extended.
   subscriptionSiteId String?
+  /// Reseller this order is attributed to, snapshotted from the buyer's
+  /// User.resellerId at order creation. On PAID, a SUBSCRIPTION order with a
+  /// resellerId records that reseller's revenue share. Plain String (no
+  /// relation) — mirrors subscriptionSiteId. Null for non-attributed orders.
+  resellerId         String?
   /// Payment channel that funded this order: PAYPAL, TOSS, or BANK_TRANSFER.
   /// Null for legacy orders created before multi-channel support.
   paymentChannel     PaymentChannel?
@@ -455,6 +468,7 @@ model Order {
   @@index([customerId])
   @@index([subscriptionId])
   @@index([paymentChannel])
+  @@index([resellerId])
 }
 
 enum OrderStatus {
@@ -851,7 +865,55 @@ model Reseller {
 
   isActive  Boolean @default(true)
 
+  /// Reseller's share of attributed hosting revenue, in basis points.
+  /// 5000 = 50% (the default 5:5 split). Admin-configurable per reseller.
+  revenueShareBps Int @default(5000)
+  /// Cached outstanding settlement balance in KRW (earnings minus payouts).
+  /// Authoritative source is sum(ResellerSettlement.amount). Kept in sync by
+  /// src/lib/reseller-revenue.ts — never write outside that module.
+  settlementBalance Int @default(0)
+  /// Login account that operates this reseller and may view its earnings
+  /// dashboard. Null for resellers without an owner login yet.
+  ownerUserId String? @unique
+
+  owner       User?                @relation("ResellerOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  /// Customers who signed up through this reseller's white-label domain.
+  signups     User[]               @relation("ResellerSignups")
+  settlements ResellerSettlement[]
+
   @@index([domain])
+}
+
+enum ResellerSettlementKind {
+  EARNING    // +KRW: reseller's share of a PAID hosting subscription order
+  PAYOUT     // -KRW: admin recorded a payout to the reseller
+  ADJUSTMENT // ±KRW: manual admin correction
+}
+
+/// Immutable settlement ledger for reseller revenue sharing. Mirrors the
+/// CreditTransaction pattern: every balance change is one signed row, and the
+/// Reseller.settlementBalance cache equals the running sum. Written only via
+/// src/lib/reseller-revenue.ts.
+model ResellerSettlement {
+  id           String                 @id @default(cuid())
+  resellerId   String
+  amount       Int                    // signed KRW: + earning, - payout
+  balanceAfter Int
+  kind         ResellerSettlementKind
+  /// The SUBSCRIPTION order that generated an EARNING. Unique so each order
+  /// produces at most one earning row (idempotent on re-fired PAID hooks).
+  refOrderId   String?                @unique
+  /// Audit snapshot of the order's totalAmount and the share rate applied.
+  orderAmount  Int?
+  shareBps     Int?
+  /// Admin who recorded a PAYOUT/ADJUSTMENT. Null for automatic EARNING rows.
+  adminUserId  String?
+  note         String?
+  createdAt    DateTime               @default(now())
+
+  reseller Reseller @relation(fields: [resellerId], references: [id], onDelete: Cascade)
+
+  @@index([resellerId, createdAt])
 }
 
 // ============================================

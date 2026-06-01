@@ -73,3 +73,39 @@ export async function getResellerForHost(): Promise<ResellerBranding | null> {
     isCanonical: r.domain === CANONICAL_HOST,
   };
 }
+
+export type ActiveResellerRef = {
+  id: string;
+  domain: string;
+  isCanonical: boolean;
+  revenueShareBps: number;
+};
+
+/**
+ * Look up the ACTIVE reseller for an explicit host string (e.g. the Host
+ * header captured at signup). Unlike getResellerForHost(), this takes the host
+ * as an argument so it can be used outside the request-rendering context (API
+ * routes that read headers themselves). Returns null for unmatched hosts.
+ *
+ * Used for revenue-share attribution: a customer who signs up on a white-label
+ * reseller domain is permanently attributed to that reseller. The canonical
+ * homenshop.com row is returned with isCanonical=true so callers can skip
+ * attribution for direct signups.
+ */
+export async function findActiveResellerByHost(
+  host: string | null
+): Promise<ActiveResellerRef | null> {
+  const normalized = normalizeHost(host);
+  if (!normalized) return null;
+  const r = await prisma.reseller.findFirst({
+    where: { domain: normalized, isActive: true },
+    select: { id: true, domain: true, revenueShareBps: true },
+  });
+  if (!r) return null;
+  return {
+    id: r.id,
+    domain: r.domain,
+    isCanonical: r.domain === CANONICAL_HOST,
+    revenueShareBps: r.revenueShareBps,
+  };
+}

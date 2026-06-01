@@ -25,7 +25,8 @@ export type DashboardNavKey =
   | "templates"
   | "search"
   | "products"
-  | "integrations";
+  | "integrations"
+  | "reseller";
 
 export interface DashboardCrumb {
   label: string;
@@ -66,7 +67,7 @@ export default async function DashboardShell({
   const [user, credits, t] = await Promise.all([
     prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { name: true, email: true },
+      select: { name: true, email: true, ownedReseller: { select: { id: true } } },
     }),
     getBalance(session.user.id),
     getTranslations("dashboard"),
@@ -75,6 +76,7 @@ export default async function DashboardShell({
   const displayName = user?.name || user?.email?.split("@")[0] || "Guest";
   const cls = (key: DashboardNavKey) => (active === key ? "active" : undefined);
   const showIntegrations = canAccessIntegrations(user?.email);
+  const showReseller = !!user?.ownedReseller;
 
   return (
     <>
@@ -147,6 +149,12 @@ export default async function DashboardShell({
                 <span className="ic"><Icon id="i-credit" /></span>
                 <span className="label">{t("navCredits")}</span>
               </Link>
+              {showReseller && (
+                <Link className={cls("reseller")} href="/dashboard/reseller">
+                  <span className="ic"><Icon id="i-credit" /></span>
+                  <span className="label">리셀러 정산</span>
+                </Link>
+              )}
               <Link className={cls("profile")} href="/dashboard/profile">
                 <span className="ic"><Icon id="i-settings" /></span>
                 <span className="label">{t("navProfile")}</span>

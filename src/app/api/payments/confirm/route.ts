@@ -3,6 +3,7 @@ import { confirmPayment } from "@/lib/payments";
 import { prisma } from "@/lib/db";
 import { grantCredits } from "@/lib/credits";
 import { extendedExpiry } from "@/lib/subscription";
+import { recordEarning } from "@/lib/reseller-revenue";
 
 // POST /api/payments/confirm — TossPayments 결제 승인
 export async function POST(request: NextRequest) {
@@ -107,6 +108,20 @@ export async function POST(request: NextRequest) {
         } catch (err) {
           console.error("[payments/confirm] Site extend failed for order", updatedOrder.id, err);
           // Payment succeeded — don't fail the response. Ops can extend manually.
+        }
+
+        // Revenue-share: credit the attributed reseller. Idempotent on
+        // refOrderId. Best-effort — payment already succeeded.
+        if (updatedOrder.resellerId) {
+          try {
+            await recordEarning({
+              resellerId: updatedOrder.resellerId,
+              refOrderId: updatedOrder.id,
+              orderAmount: updatedOrder.totalAmount,
+            });
+          } catch (err) {
+            console.error("[payments/confirm] reseller earning failed for order", updatedOrder.id, err);
+          }
         }
       }
 
