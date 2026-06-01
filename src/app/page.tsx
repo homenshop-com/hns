@@ -524,22 +524,30 @@ export default async function Home() {
               reserved.
             </p>
           )}
-          <div className="footer-info">
-            {t("footerCompany")}
-            <span className="sep">|</span>
-            {t("footerBizNo")}
-            <span className="sep">|</span>
-            {t("footerCeo")}
-            <br />
-            {t("footerAddress")}
-            <span className="sep">|</span>
-            <Link href="/terms">{t("footerTerms")}</Link>
-            <span className="sep">|</span>
-            <Link href="/privacy">{t("footerPrivacy")}</Link>
-            <br />
-            {t("footerContact")}{" "}
-            <a href="mailto:help@homenshop.com">help@homenshop.com</a>
-          </div>
+          {reseller ? (
+            <div className="footer-info">
+              <Link href="/terms">{t("footerTerms")}</Link>
+              <span className="sep">|</span>
+              <Link href="/privacy">{t("footerPrivacy")}</Link>
+            </div>
+          ) : (
+            <div className="footer-info">
+              {t("footerCompany")}
+              <span className="sep">|</span>
+              {t("footerBizNo")}
+              <span className="sep">|</span>
+              {t("footerCeo")}
+              <br />
+              {t("footerAddress")}
+              <span className="sep">|</span>
+              <Link href="/terms">{t("footerTerms")}</Link>
+              <span className="sep">|</span>
+              <Link href="/privacy">{t("footerPrivacy")}</Link>
+              <br />
+              {t("footerContact")}{" "}
+              <a href="mailto:help@homenshop.com">help@homenshop.com</a>
+            </div>
+          )}
         </div>
       </footer>
     </div>
