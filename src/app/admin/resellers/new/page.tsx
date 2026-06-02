@@ -53,12 +53,24 @@ export default function AdminResellerNewPage() {
         }),
       });
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "리셀러 생성에 실패했습니다.");
+      // Read the body defensively — an empty or non-JSON response (e.g. an
+      // unexpected 500) must not surface as "Unexpected end of JSON input".
+      const raw = await res.text();
+      let data: { id?: string; error?: string } = {};
+      if (raw) {
+        try {
+          data = JSON.parse(raw);
+        } catch {
+          /* keep data empty; fall through to status-based message */
+        }
       }
 
-      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(
+          data.error || `리셀러 생성에 실패했습니다. (오류 ${res.status})`
+        );
+      }
+
       router.push(`/admin/resellers/${data.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "오류가 발생했습니다.");

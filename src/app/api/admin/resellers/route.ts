@@ -110,12 +110,14 @@ export async function POST(request: NextRequest) {
     revenueShareBps = Math.round(pct * 100);
   }
 
-  // Owner login (by email) — optional.
+  // Owner login (by email) — optional. A user can own at most one reseller
+  // (Reseller.ownerUserId is unique), so reject reassignment up front with a
+  // clear message instead of letting Prisma throw a P2002.
   let ownerUserId: string | null = null;
   if (typeof ownerEmail === "string" && ownerEmail.trim()) {
     const owner = await prisma.user.findUnique({
       where: { email: ownerEmail.trim() },
-      select: { id: true },
+      select: { id: true, ownedReseller: { select: { domain: true } } },
     });
     if (!owner) {
       return NextResponse.json(
@@ -123,24 +125,61 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    if (owner.ownedReseller) {
+      return NextResponse.json(
+        {
+          error: `이 계정(${ownerEmail.trim()})은 이미 리셀러 "${owner.ownedReseller.domain}"의 운영자입니다. 한 계정은 하나의 리셀러만 운영할 수 있습니다.`,
+        },
+        { status: 409 }
+      );
+    }
     ownerUserId = owner.id;
   }
 
-  const reseller = await prisma.reseller.create({
-    data: {
-      domain,
-      siteName,
-      logo: logo || null,
-      copyright: copyright || null,
-      analytics: analytics || null,
-      metaTitle: metaTitle || null,
-      metaDescription: metaDescription || null,
-      metaKeywords: metaKeywords || null,
-      isActive: isActive !== undefined ? isActive : true,
-      ...(revenueShareBps !== undefined ? { revenueShareBps } : {}),
-      ownerUserId,
-    },
-  });
+  try {
+    const reseller = await prisma.reseller.create({
+      data: {
+        domain,
+        siteName,
+        logo: logo || null,
+        copyright: copyright || null,
+        analytics: analytics || null,
+        metaTitle: metaTitle || null,
+        metaDescription: metaDescription || null,
+        metaKeywords: metaKeywords || null,
+        isActive: isActive !== undefined ? isActive : true,
+        ...(revenueShareBps !== undefined ? { revenueShareBps } : {}),
+        ownerUserId,
+      },
+    });
 
-  return NextResponse.json(reseller, { status: 201 });
+    return NextResponse.json(reseller, { status: 201 });
+  } catch (err) {
+    // P2002 = unique constraint. Map the two unique columns to friendly text;
+    // anything else returns a generic JSON error so the client never sees an
+    // empty-body 500 ("Unexpected end of JSON input").
+    const code =
+      err && typeof err === "object" && "code" in err
+        ? (err as { code?: string }).code
+        : undefined;
+    if (code === "P2002") {
+      const target = (err as { meta?: { target?: string[] } }).meta?.target;
+      const onOwner = Array.isArray(target)
+        ? target.some((t) => t.includes("ownerUserId"))
+        : String(target ?? "").includes("ownerUserId");
+      return NextResponse.json(
+        {
+          error: onOwner
+            ? "이 운영자 이메일은 이미 다른 리셀러에 연결되어 있습니다."
+            : "이미 등록된 리셀러 도메인입니다.",
+        },
+        { status: 409 }
+      );
+    }
+    console.error("[admin/resellers] create failed:", err);
+    return NextResponse.json(
+      { error: "리셀러 생성 중 오류가 발생했습니다." },
+      { status: 500 }
+    );
+  }
 }

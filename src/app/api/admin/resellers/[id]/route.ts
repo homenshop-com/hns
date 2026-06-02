@@ -16,19 +16,30 @@ function parseSharePercent(raw: unknown): { ok: true; bps: number } | { ok: fals
   return { ok: true, bps: Math.round(pct * 100) };
 }
 
-/** Resolve an owner login by email → userId, or explicit clear. */
+/**
+ * Resolve an owner login by email → userId, or explicit clear.
+ * `currentResellerId` is excluded from the "already owns a reseller" check so
+ * re-saving the same owner on the same reseller doesn't false-trip.
+ */
 async function resolveOwnerUserId(
-  raw: unknown
+  raw: unknown,
+  currentResellerId: string
 ): Promise<{ ok: true; ownerUserId: string | null } | { ok: false; error: string } | null> {
   if (raw === undefined) return null; // field not submitted → leave unchanged
   const email = typeof raw === "string" ? raw.trim() : "";
   if (!email) return { ok: true, ownerUserId: null }; // explicit clear
   const owner = await prisma.user.findUnique({
     where: { email },
-    select: { id: true },
+    select: { id: true, ownedReseller: { select: { id: true, domain: true } } },
   });
   if (!owner) {
     return { ok: false, error: `운영자 이메일(${email})에 해당하는 계정을 찾을 수 없습니다.` };
+  }
+  if (owner.ownedReseller && owner.ownedReseller.id !== currentResellerId) {
+    return {
+      ok: false,
+      error: `이 계정(${email})은 이미 리셀러 "${owner.ownedReseller.domain}"의 운영자입니다. 한 계정은 하나의 리셀러만 운영할 수 있습니다.`,
+    };
   }
   return { ok: true, ownerUserId: owner.id };
 }
@@ -158,7 +169,7 @@ export async function PUT(
     updateData.revenueShareBps = share.bps;
   }
 
-  const owner = await resolveOwnerUserId(ownerEmail);
+  const owner = await resolveOwnerUserId(ownerEmail, id);
   if (owner) {
     if (!owner.ok) {
       return NextResponse.json({ error: owner.error }, { status: 400 });
@@ -166,12 +177,37 @@ export async function PUT(
     updateData.ownerUserId = owner.ownerUserId;
   }
 
-  const updated = await prisma.reseller.update({
-    where: { id },
-    data: updateData,
-  });
-
-  return NextResponse.json(updated);
+  try {
+    const updated = await prisma.reseller.update({
+      where: { id },
+      data: updateData,
+    });
+    return NextResponse.json(updated);
+  } catch (err) {
+    const code =
+      err && typeof err === "object" && "code" in err
+        ? (err as { code?: string }).code
+        : undefined;
+    if (code === "P2002") {
+      const target = (err as { meta?: { target?: string[] } }).meta?.target;
+      const onOwner = Array.isArray(target)
+        ? target.some((t) => t.includes("ownerUserId"))
+        : String(target ?? "").includes("ownerUserId");
+      return NextResponse.json(
+        {
+          error: onOwner
+            ? "이 운영자 이메일은 이미 다른 리셀러에 연결되어 있습니다."
+            : "이미 등록된 리셀러 도메인입니다.",
+        },
+        { status: 409 }
+      );
+    }
+    console.error("[admin/resellers/[id]] update failed:", err);
+    return NextResponse.json(
+      { error: "리셀러 수정 중 오류가 발생했습니다." },
+      { status: 500 }
+    );
+  }
 }
 
 export async function DELETE(
