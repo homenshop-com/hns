@@ -448,10 +448,8 @@ export default async function DashboardPage() {
                   <span className="label">리셀러 관리자</span>
                 </Link>
               )}
-              <Link href="/dashboard/profile">
-                <span className="ic"><Icon id="i-settings" /></span>
-                <span className="label">{t("navProfile")}</span>
-              </Link>
+              {/* 관리자 정보(프로필)는 좌측 메뉴에서 제외 — 우측 상단
+                  사용자 영역 클릭으로 진입. (사용자 요청 2026-06-02) */}
               <Link href="/dashboard/support"><span className="ic"><Icon id="i-chat" /></span><span className="label">{t("navSupport")}</span><SupportUnreadIndicator variant="count" /></Link>
             </nav>
           </div>
