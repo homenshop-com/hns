@@ -51,6 +51,16 @@ function extractClientContext(request: Request | undefined): {
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   session: { strategy: "jwt" },
+  // Multi-domain (white-label reseller) support. We intentionally do NOT pin
+  // AUTH_URL so Auth.js derives the origin from the incoming request host
+  // (forwarded by nginx as `Host`). This makes the OAuth redirect_uri match
+  // the domain the user actually started on (e.g. homenshop.net), so the
+  // PKCE cookie — which is host-only — is present on the callback. Pinning
+  // AUTH_URL to homenshop.com broke Google login from every reseller domain:
+  // the cookie landed on homenshop.net but the callback went to homenshop.com.
+  // Each reseller login domain must be registered as an authorized redirect
+  // URI in Google Cloud Console.
+  trustHost: true,
   pages: {
     signIn: "/login",
   },
