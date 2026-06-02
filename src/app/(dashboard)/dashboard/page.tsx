@@ -93,7 +93,13 @@ export default async function DashboardPage() {
   const [currentUser, emailVerificationEnabled, t] = await Promise.all([
     prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { emailVerified: true, email: true, credits: true, name: true },
+      select: {
+        emailVerified: true,
+        email: true,
+        credits: true,
+        name: true,
+        ownedReseller: { select: { id: true } },
+      },
     }),
     getSettingBool("emailVerificationEnabled"),
     getTranslations("dashboard"),
@@ -101,6 +107,10 @@ export default async function DashboardPage() {
 
   const credits = currentUser?.credits ?? 0;
   const displayName = currentUser?.name || (currentUser?.email?.split("@")[0] ?? "Guest");
+  // Reseller owners get a gateway into the scoped /admin console. The main
+  // dashboard page renders its own inline sidebar (separate from
+  // dashboard-shell.tsx), so this must be wired here too.
+  const showReseller = !!currentUser?.ownedReseller;
 
   const sites = await prisma.site.findMany({
     where: { userId: session.user.id, isTemplateStorage: false },
@@ -432,6 +442,12 @@ export default async function DashboardPage() {
                 <span className="ic"><Icon id="i-credit" /></span>
                 <span className="label">{t("navCredits")}</span>
               </Link>
+              {showReseller && (
+                <Link href="/admin">
+                  <span className="ic"><Icon id="i-shield" /></span>
+                  <span className="label">리셀러 관리자</span>
+                </Link>
+              )}
               <Link href="/dashboard/profile">
                 <span className="ic"><Icon id="i-settings" /></span>
                 <span className="label">{t("navProfile")}</span>
