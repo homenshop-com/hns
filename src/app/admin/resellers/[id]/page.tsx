@@ -4,6 +4,7 @@ import { useEffect, useState, lazy, Suspense } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import ResellerLogoField from "@/components/admin/ResellerLogoField";
+import ResellerDomainGuide from "@/components/admin/ResellerDomainGuide";
 
 const TiptapEditor = lazy(() => import("@/components/tiptap-editor"));
 
@@ -303,6 +304,8 @@ export default function AdminResellerDetailPage() {
               placeholder="reseller.example.com"
             />
           </div>
+
+          <ResellerDomainGuide domain={domain} />
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
