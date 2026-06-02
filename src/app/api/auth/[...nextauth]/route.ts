@@ -25,7 +25,12 @@ function withForwardedHost(req: NextRequest): NextRequest {
   if (!host) return req;
   const proto = req.headers.get("x-forwarded-proto") ?? "https";
   const url = new URL(req.url);
-  url.host = host; // setting host also clears any :3000 port
+  // Split host:port — the URL `host` setter keeps the existing internal port
+  // (:3000/:3001), so we must set hostname + port separately and clear the
+  // internal bind port when the forwarded host has none.
+  const [hostname, port = ""] = host.split(":");
+  url.hostname = hostname;
+  url.port = port;
   url.protocol = `${proto}:`;
   if (url.toString() === req.url) return req;
   return new NextRequest(url.toString(), req);
