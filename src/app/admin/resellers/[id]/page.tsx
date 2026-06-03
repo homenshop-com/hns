@@ -80,6 +80,11 @@ export default function AdminResellerDetailPage() {
   const [revenueSharePercent, setRevenueSharePercent] = useState("50");
   const [ownerEmail, setOwnerEmail] = useState("");
 
+  // ─── Domain provisioning (nginx + SSL) state ───
+  const [provisioning, setProvisioning] = useState(false);
+  const [provisionLog, setProvisionLog] = useState("");
+  const [provisionOk, setProvisionOk] = useState<boolean | null>(null);
+
   // ─── Settlement panel state ───
   const [summary, setSummary] = useState<SettlementSummary | null>(null);
   const [history, setHistory] = useState<SettlementRow[]>([]);
@@ -234,6 +239,39 @@ export default function AdminResellerDetailPage() {
     }
   }
 
+  async function handleProvision() {
+    if (
+      !confirm(
+        `${normalizeDomain(domain)} 도메인에 nginx + SSL을 발급합니다.\n\n` +
+          `먼저 도메인의 A 레코드가 167.71.199.28 을 가리키고 있어야 합니다.\n계속하시겠습니까?`
+      )
+    )
+      return;
+    setProvisioning(true);
+    setProvisionLog("");
+    setProvisionOk(null);
+    try {
+      const res = await fetch(`/api/admin/resellers/${id}/provision`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setProvisionOk(false);
+        setProvisionLog(data.output || data.error || "프로비저닝에 실패했습니다.");
+      } else {
+        setProvisionOk(true);
+        setProvisionLog(data.output || "완료되었습니다.");
+      }
+    } catch (err) {
+      setProvisionOk(false);
+      setProvisionLog(
+        err instanceof Error ? err.message : "프로비저닝 요청 중 오류가 발생했습니다."
+      );
+    } finally {
+      setProvisioning(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -353,6 +391,44 @@ export default function AdminResellerDetailPage() {
           </div>
 
           <ResellerDomainGuide domain={domain} />
+
+          {/* ── SSL / nginx 자동 발급 ── */}
+          <div className="border-t border-slate-100 pt-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-800">
+                  SSL · nginx 발급
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  DNS가 서버를 가리키면, 이 버튼으로 nginx vhost와 무료 SSL을 자동
+                  발급합니다. 발급 후 이 도메인이 화이트라벨 사이트로 바로 열립니다.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleProvision}
+                disabled={provisioning || !normalizeDomain(domain)}
+                className="shrink-0 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-50 transition-colors"
+              >
+                {provisioning ? "발급 중…" : "SSL 발급"}
+              </button>
+            </div>
+            <p className="mt-2 text-[11px] text-amber-600">
+              ⚠ 도메인 변경 시 먼저 <b>변경사항 저장</b> 후 발급하세요. 발급은 저장된
+              도메인 기준으로 실행됩니다.
+            </p>
+            {provisionLog && (
+              <pre
+                className={`mt-2 max-h-64 overflow-auto whitespace-pre-wrap rounded-lg border p-3 text-[11px] leading-relaxed ${
+                  provisionOk
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                    : "border-red-200 bg-red-50 text-red-700"
+                }`}
+              >
+                {provisionLog}
+              </pre>
+            )}
+          </div>
         </div>
 
         {/* ── 랜딩페이지 ── */}
