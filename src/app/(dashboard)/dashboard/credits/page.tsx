@@ -16,7 +16,10 @@ import DashboardShell from "../dashboard-shell";
 import { Icon } from "../dashboard-icons";
 import "./credits-v2.css";
 
-export const metadata = { title: "AI 크레딧 — homeNshop" };
+export async function generateMetadata() {
+  const t = await getTranslations("creditsPage");
+  return { title: t("metaTitle") };
+}
 
 function initialsFrom(s: string): string {
   const clean = (s || "").trim().replace(/[^\p{L}\p{N}]+/gu, "");
@@ -29,12 +32,15 @@ function daysAgo(d: Date): number {
   return Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-function humanTimeAgo(d: Date): string {
+function humanTimeAgo(
+  d: Date,
+  t: (key: string, values?: Record<string, number>) => string,
+): string {
   const s = Math.floor((Date.now() - d.getTime()) / 1000);
-  if (s < 60) return "방금 전";
-  if (s < 3600) return `${Math.floor(s / 60)}분 전`;
-  if (s < 86400) return `${Math.floor(s / 3600)}시간 전`;
-  if (s < 86400 * 30) return `${Math.floor(s / 86400)}일 전`;
+  if (s < 60) return t("justNow");
+  if (s < 3600) return t("minutesAgo", { n: Math.floor(s / 60) });
+  if (s < 86400) return t("hoursAgo", { n: Math.floor(s / 3600) });
+  if (s < 86400 * 30) return t("daysAgo", { n: Math.floor(s / 86400) });
   return d.toLocaleDateString("ko-KR");
 }
 
@@ -103,6 +109,7 @@ export default async function CreditsPage() {
   if (!session?.user?.id) redirect("/login");
   const userId = session.user.id;
   const t = await getTranslations("dashboard");
+  const tc = await getTranslations("creditsPage");
 
   const [balance, history, currentUser] = await Promise.all([
     getBalance(userId),
@@ -113,7 +120,7 @@ export default async function CreditsPage() {
     }),
   ]);
 
-  const displayName = currentUser?.name || currentUser?.email?.split("@")[0] || "게스트";
+  const displayName = currentUser?.name || currentUser?.email?.split("@")[0] || tc("guest");
 
   // Sidebar coin pill tone
   const coinPillClass =
@@ -129,7 +136,7 @@ export default async function CreditsPage() {
     .reduce((sum, r) => sum - r.amount, 0);
 
   const lastUse = history.find((r) => r.amount < 0);
-  const lastUseLabel = lastUse ? humanTimeAgo(lastUse.createdAt) : "아직 없음";
+  const lastUseLabel = lastUse ? humanTimeAgo(lastUse.createdAt, tc) : tc("noneYet");
 
   // 30-day history for the table (credit rules + visual consistency)
   const last30 = history.filter((r) => daysAgo(r.createdAt) < 30);
@@ -147,51 +154,54 @@ export default async function CreditsPage() {
 
   const faqItems = [
     {
-      q: "AI 크레딧은 어떻게 차감되나요?",
-      a: `기능별 정해진 크레딧이 사용 시점에 즉시 차감됩니다. 생성이 실패하면 자동 환급됩니다. (AI 홈페이지 생성 ${CREDIT_COSTS.AI_SITE_CREATE}C, AI 디자인 편집 ${CREDIT_COSTS.AI_EDIT}C 등)`,
+      q: tc("faqDeductQ"),
+      a: tc("faqDeductA", {
+        create: CREDIT_COSTS.AI_SITE_CREATE,
+        edit: CREDIT_COSTS.AI_EDIT,
+      }),
     },
     {
-      q: "크레딧에 유효기간이 있나요?",
-      a: "패키지에 따라 다릅니다. STARTER·STANDARD는 12개월, PRO는 18개월, ENTERPRISE는 24개월입니다. 충전일로부터 계산되며, 추가 충전 시 기존 크레딧의 유효기간도 함께 연장됩니다.",
+      q: tc("faqExpiryQ"),
+      a: tc("faqExpiryA"),
     },
     {
-      q: "환불은 가능한가요?",
-      a: "결제 후 7일 이내·사용 내역이 없는 경우 전액 환불이 가능합니다. 일부 사용한 경우에는 잔여분에 한해 환불됩니다. 환불은 결제수단으로 영업일 기준 3~5일 내 처리됩니다.",
+      q: tc("faqRefundQ"),
+      a: tc("faqRefundA"),
     },
     {
-      q: "자동 충전은 어떻게 설정하나요?",
-      a: "잔액이 설정한 기준(기본 50 C) 이하로 떨어지면 자동으로 지정한 패키지가 결제됩니다. 상단 '자동 충전' 버튼에서 설정할 수 있습니다. (현재 준비 중 — 곧 제공 예정)",
+      q: tc("faqAutoTopupQ"),
+      a: tc("faqAutoTopupA"),
     },
     {
-      q: "세금계산서를 받을 수 있나요?",
-      a: "결제 내역 페이지에서 사업자 정보를 등록한 후 세금계산서를 직접 발행하실 수 있습니다.",
+      q: tc("faqInvoiceQ"),
+      a: tc("faqInvoiceA"),
     },
   ];
 
   const packDescriptions: Record<string, { desc: string; perHint: string; bonus: string | null; list: string[] }> = {
     starter: {
-      desc: "가벼운 테스트 용도",
-      perHint: "AI 생성 약 2회",
+      desc: tc("packStarterDesc"),
+      perHint: tc("packStarterPerHint"),
       bonus: null,
-      list: ["가벼운 테스트 용도", "유효기간 12개월"],
+      list: [tc("packStarterDesc"), tc("expiry12m")],
     },
     standard: {
-      desc: "소규모 사이트 운영",
-      perHint: "AI 생성 약 10회",
-      bonus: "+30 C 보너스",
-      list: ["소규모 사이트 운영", "유효기간 12개월"],
+      desc: tc("packStandardDesc"),
+      perHint: tc("packStandardPerHint"),
+      bonus: tc("packStandardBonus"),
+      list: [tc("packStandardDesc"), tc("expiry12m")],
     },
     pro: {
-      desc: "월 15~30회 AI 편집",
-      perHint: "AI 생성 약 30회",
-      bonus: "+150 C 보너스 · 우선 지원",
-      list: ["월 15~30회 AI 편집", "우선 생성 큐", "유효기간 18개월"],
+      desc: tc("packProDesc"),
+      perHint: tc("packProPerHint"),
+      bonus: tc("packProBonus"),
+      list: [tc("packProDesc"), tc("packProQueue"), tc("expiry18m")],
     },
     enterprise: {
-      desc: "대량 콘텐츠 생성",
-      perHint: "AI 생성 약 100회",
-      bonus: "+750 C · 전용 매니저",
-      list: ["대량 콘텐츠 생성", "월 정산 가능", "유효기간 24개월"],
+      desc: tc("packEnterpriseDesc"),
+      perHint: tc("packEnterprisePerHint"),
+      bonus: tc("packEnterpriseBonus"),
+      list: [tc("packEnterpriseDesc"), tc("packEnterpriseMonthly"), tc("expiry24m")],
     },
   };
 
@@ -230,25 +240,25 @@ export default async function CreditsPage() {
                   <span className="dot" />
                   <span className="mi">
                     <Icon id="i-chat" size={12} style={{ color: "#a897ff" }} />
-                    AI 카피라이팅 <b>{CREDIT_COSTS.AI_OTHER} C</b>
+                    {tc("costCopywriting")} <b>{CREDIT_COSTS.AI_OTHER} C</b>
                   </span>
                 </div>
                 <div className="cr2-bal-meta secondary">
                   <span className="mi">
                     <Icon id="i-info" size={11} />
-                    마지막 사용 <b>{lastUseLabel}</b>
+                    {tc("lastUse")} <b>{lastUseLabel}</b>
                   </span>
                   <span className="dot" />
                   <span className="mi">
-                    이번 달 사용 <b>{monthUsed.toLocaleString()} C</b>
+                    {tc("monthUse")} <b>{monthUsed.toLocaleString()} C</b>
                   </span>
                 </div>
               </div>
               <div className="cr2-bal-right">
                 <div className="cr2-bal-chart">
                   <div className="ct">
-                    <span>최근 14일 사용량</span>
-                    <span className="delta">평균 {spark.avg} C/일</span>
+                    <span>{tc("usage14d")}</span>
+                    <span className="delta">{tc("avgPerDay", { n: spark.avg })}</span>
                   </div>
                   <svg className="cr2-spark" viewBox="0 0 260 52" preserveAspectRatio="none">
                     <defs>
@@ -265,10 +275,10 @@ export default async function CreditsPage() {
                 </div>
                 <div className="cr2-bal-ctas">
                   <a className="cr2-bal-cta primary" href="#packages">
-                    <Icon id="i-bolt" size={14} /> 지금 충전
+                    <Icon id="i-bolt" size={14} /> {tc("topUpNow")}
                   </a>
-                  <button type="button" className="cr2-bal-cta ghost" title="자동 충전 기능 준비 중" disabled>
-                    <Icon id="i-refresh" size={14} /> 자동 충전
+                  <button type="button" className="cr2-bal-cta ghost" title={tc("autoTopupComing")} disabled>
+                    <Icon id="i-refresh" size={14} /> {tc("autoTopup")}
                   </button>
                 </div>
               </div>
@@ -277,7 +287,7 @@ export default async function CreditsPage() {
             {/* Packages */}
             <div id="packages" className="cr2-sect-head">
               <h2>{t("creditsBuy")}</h2>
-              <span className="sub">대용량 패키지일수록 할인률이 커집니다.</span>
+              <span className="sub">{tc("buySub")}</span>
               <div className="spacer" />
               <a
                 href="https://homenshop.net/pricing"
@@ -285,7 +295,7 @@ export default async function CreditsPage() {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                <Icon id="i-info" size={12} /> 크레딧 사용 가이드
+                <Icon id="i-info" size={12} /> {tc("usageGuide")}
               </a>
             </div>
 
@@ -326,10 +336,10 @@ export default async function CreditsPage() {
                       )}
                     </div>
                     <div className="cr2-pkg-per">
-                      크레딧당 ₩{perUnit.toLocaleString()} · {meta.perHint}
+                      {tc("perCredit", { price: perUnit.toLocaleString() })} · {meta.perHint}
                     </div>
                     <div className={`cr2-pkg-bonus${meta.bonus ? "" : " none"}`}>
-                      <Icon id="i-gift" size={12} /> {meta.bonus || "보너스"}
+                      <Icon id="i-gift" size={12} /> {meta.bonus || tc("bonus")}
                     </div>
                     <ul className="cr2-pkg-list">
                       {meta.list.map((item, i) => (
@@ -347,16 +357,16 @@ export default async function CreditsPage() {
 
             <div className="cr2-info-strip">
               <span className="it">
-                <Icon id="i-card" size={14} /> 카드 · 계좌이체 · 카카오페이
+                <Icon id="i-card" size={14} /> {tc("payMethods")}
               </span>
               <span className="it">
-                <Icon id="i-shield" size={14} /> PG사 결제 · <b>결제 7일 내 환불</b> 가능
+                <Icon id="i-shield" size={14} /> {tc("pgPay")} · <b>{tc("refund7d")}</b>
               </span>
               <span className="it">
-                <Icon id="i-receipt" size={14} /> 세금계산서 발행
+                <Icon id="i-receipt" size={14} /> {tc("invoiceIssue")}
               </span>
               <span className="it" style={{ marginLeft: "auto" }}>
-                <Icon id="i-chat" size={14} /> 대량 구매 문의
+                <Icon id="i-chat" size={14} /> {tc("bulkInquiry")}
                 <a href="mailto:sales@homenshop.com">sales@homenshop.com</a>
               </span>
             </div>
@@ -364,7 +374,7 @@ export default async function CreditsPage() {
             {/* Usage history */}
             <div className="cr2-sect-head">
               <h2>{t("creditsHistory")}</h2>
-              <span className="sub">최근 30일 기준</span>
+              <span className="sub">{tc("last30dBasis")}</span>
               <div className="spacer" />
             </div>
 
@@ -375,9 +385,9 @@ export default async function CreditsPage() {
                   const cat = kindCategory(row.kind);
                   const submeta =
                     row.refOrderId
-                      ? `주문 · ${row.refOrderId.slice(-12)}`
+                      ? tc("submetaOrder", { ref: row.refOrderId.slice(-12) })
                       : cat === "minus" && row.refSiteId
-                        ? `사이트 · ${row.refSiteId.slice(-12)}`
+                        ? tc("submetaSite", { ref: row.refSiteId.slice(-12) })
                         : null;
                   return {
                     id: row.id,
@@ -406,12 +416,15 @@ export default async function CreditsPage() {
               })()}
               <div className="cr2-use-foot">
                 <span>
-                  최근 30일 · <b>{last30.length}</b>건 표시 중
+                  {tc.rich("footShowing", {
+                    n: last30.length,
+                    b: (chunks) => <b>{chunks}</b>,
+                  })}
                 </span>
                 <div className="spacer" />
                 {history.length > 30 && (
                   <span style={{ color: "var(--ink-3)" }}>
-                    전체 {history.length}건 중 30일 표시
+                    {tc("footTotal", { total: history.length })}
                   </span>
                 )}
               </div>
@@ -420,12 +433,12 @@ export default async function CreditsPage() {
             {/* FAQ */}
             <section className="cr2-faq">
               <div>
-                <h3>자주 묻는 질문</h3>
+                <h3>{tc("faqTitle")}</h3>
                 <div className="sub">
-                  크레딧 충전과 사용에 대해 궁금한 점을 확인해보세요.
+                  {tc("faqSub")}
                 </div>
                 <a className="ask" href="mailto:help@homenshop.com">
-                  <Icon id="i-chat" size={12} /> 더 많은 질문 보기 →
+                  <Icon id="i-chat" size={12} /> {tc("faqMore")}
                 </a>
               </div>
               <FaqList items={faqItems} defaultOpen={1} />

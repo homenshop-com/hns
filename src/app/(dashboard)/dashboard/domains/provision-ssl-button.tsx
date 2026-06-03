@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 /**
  * Triggers background SSL provisioning for a domain.
@@ -9,6 +10,7 @@ import { useRouter } from "next/navigation";
  */
 export default function ProvisionSslButton({ domainId }: { domainId: string }) {
   const router = useRouter();
+  const t = useTranslations("domainsDash");
   const [state, setState] = useState<"idle" | "running" | "error">("idle");
   const [error, setError] = useState("");
 
@@ -18,7 +20,7 @@ export default function ProvisionSslButton({ domainId }: { domainId: string }) {
     try {
       const res = await fetch(`/api/domains/${domainId}/provision-ssl`, { method: "POST" });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "SSL 발급 요청 실패");
+      if (!res.ok) throw new Error(data.error || t("sslRequestFailed"));
 
       let tries = 0;
       const poll = () => {
@@ -29,7 +31,7 @@ export default function ProvisionSslButton({ domainId }: { domainId: string }) {
       };
       setTimeout(poll, 5000);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "오류");
+      setError(e instanceof Error ? e.message : t("error"));
       setState("error");
     }
   }
@@ -38,10 +40,10 @@ export default function ProvisionSslButton({ domainId }: { domainId: string }) {
     return (
       <span
         className="dm2-badge issuing"
-        title="certbot이 인증서를 발급하고 nginx를 재시작하는 중입니다. 페이지가 자동으로 갱신됩니다."
+        title={t("sslIssuingTooltip")}
       >
         <svg width={10} height={10}><use href="#i-shield" /></svg>
-        SSL 발급 중
+        {t("sslIssuing")}
       </span>
     );
   }
@@ -56,7 +58,7 @@ export default function ProvisionSslButton({ domainId }: { domainId: string }) {
         style={{ cursor: "pointer" }}
       >
         <svg width={10} height={10}><use href="#i-warn" /></svg>
-        재시도
+        {t("retry")}
       </button>
     );
   }
@@ -65,12 +67,12 @@ export default function ProvisionSslButton({ domainId }: { domainId: string }) {
     <button
       type="button"
       onClick={start}
-      title="Let's Encrypt 인증서를 자동 발급하고 HTTPS를 활성화합니다."
+      title={t("sslIssueTooltip")}
       className="dm2-badge issuing"
       style={{ cursor: "pointer" }}
     >
       <svg width={10} height={10}><use href="#i-lock" /></svg>
-      SSL 발급
+      {t("sslIssue")}
     </button>
   );
 }

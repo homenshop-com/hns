@@ -74,9 +74,10 @@ export default async function DashboardOrdersPage({
   const filterStatus = sp.status || "";
   const filterIntegrationId = sp.integrationId || "";
 
-  const [t, td] = await Promise.all([
+  const [t, td, tp] = await Promise.all([
     getTranslations("orders"),
     getTranslations("dashboard"),
+    getTranslations("ordersPage"),
   ]);
 
   // List of user's sites for the site filter chip group.
@@ -192,16 +193,15 @@ export default async function DashboardOrdersPage({
         <div>
           <h1 className="dv2-page-title">{t("title")}</h1>
           <div className="dv2-page-sub">
-            내 쇼핑몰 사이트 + 연동된 외부 마켓플레이스의 고객 주문을 한 곳에서
-            확인합니다. 총 <b>{orders.length}</b>건 표시 ·{" "}
+            {tp("pageDescription")} {tp("ordersShownCount", { count: orders.length })} ·{" "}
             <Link href="/dashboard/integrations" style={{ color: "var(--brand)", fontWeight: 600 }}>
-              <i className="fa-solid fa-link" style={{ fontSize: 11, marginRight: 4 }} />외부 마켓 연동
+              <i className="fa-solid fa-link" style={{ fontSize: 11, marginRight: 4 }} />{tp("externalMarketLink")}
             </Link>
             {platformOrderCount > 0 && (
               <>
                 {" · "}
                 <Link href="/dashboard/credits" style={{ color: "var(--ink-3)" }}>
-                  크레딧·구독 결제 내역 ({platformOrderCount})
+                  {tp("creditSubscriptionHistory", { count: platformOrderCount })}
                 </Link>
               </>
             )}
@@ -283,13 +283,13 @@ export default async function DashboardOrdersPage({
             </div>
             <div className="t" style={{ fontSize: 18, fontWeight: 700, color: "var(--ink-0)", marginBottom: 6 }}>
               {filterSiteId || filterChannel || filterIntegrationId
-                ? "이 조건에 해당하는 주문이 없습니다"
-                : "아직 들어온 주문이 없습니다"}
+                ? tp("emptyFilteredTitle")
+                : tp("emptyTitle")}
             </div>
             <div className="d" style={{ fontSize: 14, color: "var(--ink-2)", lineHeight: 1.6, maxWidth: 480, margin: "0 auto 20px" }}>
               {filterSiteId || filterChannel || filterIntegrationId
-                ? "필터를 해제하거나 다른 사이트/채널을 선택해보세요."
-                : "내 사이트에서 상품을 등록하면 고객 주문이 여기 자동으로 누적됩니다. Shopify·쿠팡·아마존 등 외부 마켓 주문도 통합 관리할 수 있습니다."}
+                ? tp("emptyFilteredDesc")
+                : tp("emptyDesc")}
             </div>
             {!filterSiteId && !filterChannel && !filterIntegrationId && (
               <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
@@ -303,7 +303,7 @@ export default async function DashboardOrdersPage({
                   }}
                 >
                   <i className="fa-solid fa-store" style={{ fontSize: 12 }} />
-                  내 사이트로 가기
+                  {tp("goToMySites")}
                 </Link>
                 <Link
                   href="/dashboard/integrations"
@@ -315,7 +315,7 @@ export default async function DashboardOrdersPage({
                   }}
                 >
                   <i className="fa-solid fa-link" style={{ fontSize: 12 }} />
-                  외부 마켓 연동하기
+                  {tp("connectExternalMarket")}
                 </Link>
               </div>
             )}

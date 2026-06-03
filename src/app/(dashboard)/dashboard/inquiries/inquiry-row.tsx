@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 interface InquiryRowProps {
   inquiry: {
@@ -28,13 +29,14 @@ interface InquiryRowProps {
 }
 
 const STATUS_OPTIONS = [
-  { value: "NEW", label: "신규", color: "#dc2626", bg: "#fee2e2" },
-  { value: "READ", label: "확인", color: "#2563eb", bg: "#dbeafe" },
-  { value: "REPLIED", label: "회신", color: "#047857", bg: "#d1fae5" },
-  { value: "ARCHIVED", label: "보관", color: "#52525b", bg: "#e4e4e7" },
+  { value: "NEW", labelKey: "statusNew", color: "#dc2626", bg: "#fee2e2" },
+  { value: "READ", labelKey: "statusRead", color: "#2563eb", bg: "#dbeafe" },
+  { value: "REPLIED", labelKey: "statusReplied", color: "#047857", bg: "#d1fae5" },
+  { value: "ARCHIVED", labelKey: "statusArchived", color: "#52525b", bg: "#e4e4e7" },
 ];
 
 export default function InquiryRow({ inquiry }: InquiryRowProps) {
+  const t = useTranslations("inquiriesPage");
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState(inquiry.status);
@@ -61,17 +63,17 @@ export default function InquiryRow({ inquiry }: InquiryRowProps) {
       setStatus(next);
       router.refresh();
     } else {
-      alert("상태 변경 실패");
+      alert(t("statusUpdateFailed"));
     }
   }
 
   async function remove() {
-    if (!confirm("이 문의를 삭제하시겠습니까? 되돌릴 수 없습니다.")) return;
+    if (!confirm(t("deleteConfirm"))) return;
     setBusy(true);
     const res = await fetch(`/api/inquiries/${inquiry.id}`, { method: "DELETE" });
     setBusy(false);
     if (res.ok) router.refresh();
-    else alert("삭제 실패");
+    else alert(t("deleteFailed"));
   }
 
   function openComposer() {
@@ -87,7 +89,7 @@ export default function InquiryRow({ inquiry }: InquiryRowProps) {
 
   async function sendReply() {
     if (!replySubject.trim() || !replyBodyText.trim()) {
-      setReplyMsg({ kind: "err", text: "제목과 본문을 모두 입력하세요." });
+      setReplyMsg({ kind: "err", text: t("replyValidation") });
       return;
     }
     setReplyBusy(true);
@@ -100,7 +102,7 @@ export default function InquiryRow({ inquiry }: InquiryRowProps) {
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        setReplyMsg({ kind: "ok", text: "회신 메일이 발송되었습니다." });
+        setReplyMsg({ kind: "ok", text: t("replySent") });
         setStatus("REPLIED");
         setTimeout(() => {
           setComposerOpen(false);
@@ -108,10 +110,10 @@ export default function InquiryRow({ inquiry }: InquiryRowProps) {
           router.refresh();
         }, 1200);
       } else {
-        setReplyMsg({ kind: "err", text: data.detail || data.error || "발송 실패" });
+        setReplyMsg({ kind: "err", text: data.detail || data.error || t("sendFailed") });
       }
     } catch {
-      setReplyMsg({ kind: "err", text: "네트워크 오류 — 잠시 후 다시 시도하세요." });
+      setReplyMsg({ kind: "err", text: t("networkError") });
     } finally {
       setReplyBusy(false);
     }
@@ -159,11 +161,11 @@ export default function InquiryRow({ inquiry }: InquiryRowProps) {
           background: statusOpt.bg,
           borderRadius: 4,
         }}>
-          {statusOpt.label}
+          {t(statusOpt.labelKey)}
         </span>
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: "#111827", marginBottom: 2 }}>
-            {inquiry.name || "(이름 없음)"}
+            {inquiry.name || t("noName")}
             {inquiry.company ? <span style={{ color: "#6b7280", fontWeight: 400, marginLeft: 8 }}>· {inquiry.company}</span> : null}
             {inquiry.source === "product" && inquiry.productName ? (
               <span style={{ marginLeft: 10, fontSize: 11, padding: "2px 8px", background: "#0a2540", color: "#fff", fontFamily: "monospace", letterSpacing: "0.04em", textTransform: "uppercase" }}>
@@ -191,29 +193,29 @@ export default function InquiryRow({ inquiry }: InquiryRowProps) {
       {open && (
         <div style={{ padding: "16px 24px 24px", background: "#fafafa", borderTop: "1px solid #f3f4f6" }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
-            <Field label="이름" value={inquiry.name || "-"} />
-            <Field label="회사" value={inquiry.company || "-"} />
-            <Field label="이메일" value={inquiry.email || "-"} link={inquiry.email ? `mailto:${inquiry.email}` : undefined} />
-            <Field label="전화" value={inquiry.phone || "-"} link={inquiry.phone ? `tel:${inquiry.phone}` : undefined} />
+            <Field label={t("fieldName")} value={inquiry.name || "-"} />
+            <Field label={t("fieldCompany")} value={inquiry.company || "-"} />
+            <Field label={t("fieldEmail")} value={inquiry.email || "-"} link={inquiry.email ? `mailto:${inquiry.email}` : undefined} />
+            <Field label={t("fieldPhone")} value={inquiry.phone || "-"} link={inquiry.phone ? `tel:${inquiry.phone}` : undefined} />
             {inquiry.source === "product" && (
               <Field
-                label="상품"
+                label={t("fieldProduct")}
                 value={inquiry.productName || "-"}
                 link={inquiry.pageUrl || undefined}
               />
             )}
             {inquiry.pageUrl && (
-              <Field label="페이지" value={inquiry.pageUrl} link={inquiry.pageUrl} mono />
+              <Field label={t("fieldPage")} value={inquiry.pageUrl} link={inquiry.pageUrl} mono />
             )}
           </div>
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>문의 내용</div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>{t("messageContent")}</div>
             <div style={{ padding: 16, background: "#fff", border: "1px solid #e5e7eb", borderRadius: 4, fontSize: 13, lineHeight: 1.7, color: "#1f2937", whiteSpace: "pre-wrap" }}>
               {inquiry.message}
             </div>
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <span style={{ fontSize: 11, color: "#6b7280", marginRight: 4 }}>상태 변경:</span>
+            <span style={{ fontSize: 11, color: "#6b7280", marginRight: 4 }}>{t("changeStatus")}</span>
             {STATUS_OPTIONS.map((s) => (
               <button
                 key={s.value}
@@ -232,7 +234,7 @@ export default function InquiryRow({ inquiry }: InquiryRowProps) {
                   opacity: busy ? 0.6 : 1,
                 }}
               >
-                {s.label}
+                {t(s.labelKey)}
               </button>
             ))}
             {inquiry.email && !composerOpen && (
@@ -241,7 +243,7 @@ export default function InquiryRow({ inquiry }: InquiryRowProps) {
                 onClick={openComposer}
                 style={{ marginLeft: "auto", padding: "6px 14px", fontSize: 12, fontWeight: 500, color: "#fff", background: "#2563eb", border: "none", borderRadius: 4, cursor: "pointer" }}
               >
-                답장 작성
+                {t("composeReply")}
               </button>
             )}
             <button
@@ -250,7 +252,7 @@ export default function InquiryRow({ inquiry }: InquiryRowProps) {
               onClick={remove}
               style={{ padding: "6px 12px", fontSize: 12, color: "#b91c1c", background: "transparent", border: "1px solid #fecaca", borderRadius: 4, cursor: "pointer" }}
             >
-              삭제
+              {t("delete")}
             </button>
           </div>
 
@@ -258,7 +260,7 @@ export default function InquiryRow({ inquiry }: InquiryRowProps) {
           {inquiry.replyBody && inquiry.repliedAt && !composerOpen && (
             <div style={{ marginTop: 16, padding: 16, background: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: 4 }}>
               <div style={{ fontSize: 10, fontWeight: 600, color: "#047857", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>
-                회신 발송됨 · {new Date(inquiry.repliedAt).toLocaleString("ko-KR")}
+                {t("replySentAt", { date: new Date(inquiry.repliedAt).toLocaleString() })}
               </div>
               <div style={{ fontSize: 13, fontWeight: 600, color: "#064e3b", marginBottom: 6 }}>{inquiry.replySubject}</div>
               <div style={{ fontSize: 13, color: "#1f2937", whiteSpace: "pre-wrap", lineHeight: 1.7 }}>
@@ -272,19 +274,19 @@ export default function InquiryRow({ inquiry }: InquiryRowProps) {
             <div style={{ marginTop: 16, padding: 20, background: "#fff", border: "2px solid #2563eb", borderRadius: 6 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>
-                  회신 메일 작성 · 받는 사람: <span style={{ fontFamily: "monospace", color: "#2563eb" }}>{inquiry.email}</span>
+                  {t("composerTitle")} <span style={{ fontFamily: "monospace", color: "#2563eb" }}>{inquiry.email}</span>
                 </div>
                 <button
                   type="button"
                   onClick={() => { setComposerOpen(false); setReplyMsg(null); }}
                   style={{ padding: "4px 8px", fontSize: 11, color: "#6b7280", background: "transparent", border: "none", cursor: "pointer" }}
                 >
-                  취소 ✕
+                  {t("cancel")} ✕
                 </button>
               </div>
               <div style={{ marginBottom: 10 }}>
                 <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
-                  제목
+                  {t("subject")}
                 </label>
                 <input
                   type="text"
@@ -296,7 +298,7 @@ export default function InquiryRow({ inquiry }: InquiryRowProps) {
               </div>
               <div style={{ marginBottom: 12 }}>
                 <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
-                  본문
+                  {t("body")}
                 </label>
                 <textarea
                   value={replyBodyText}
@@ -313,10 +315,10 @@ export default function InquiryRow({ inquiry }: InquiryRowProps) {
                   onClick={sendReply}
                   style={{ padding: "10px 20px", fontSize: 13, fontWeight: 600, color: "#fff", background: replyBusy ? "#93c5fd" : "#2563eb", border: "none", borderRadius: 4, cursor: replyBusy ? "default" : "pointer" }}
                 >
-                  {replyBusy ? "발송 중…" : "회신 발송"}
+                  {replyBusy ? t("sending") : t("sendReply")}
                 </button>
                 <span style={{ fontSize: 11, color: "#6b7280" }}>
-                  발신: 시스템 (관리자 메일이 답장 주소에 자동 설정됩니다)
+                  {t("senderNote")}
                 </span>
                 {replyMsg && (
                   <span style={{ fontSize: 12, fontWeight: 500, color: replyMsg.kind === "ok" ? "#047857" : "#b91c1c" }}>

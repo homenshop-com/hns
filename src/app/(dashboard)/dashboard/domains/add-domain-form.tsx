@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import CopyDnsValueButton from "./copy-dns-value-button";
 
 type DnsCheckHost = {
@@ -44,6 +45,7 @@ export default function AddDomainForm({
   serverIp = DEFAULT_SERVER_IP,
 }: AddDomainFormProps) {
   const router = useRouter();
+  const t = useTranslations("domainsDash");
   const [domain, setDomain] = useState("");
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(false);
@@ -83,11 +85,11 @@ export default function AddDomainForm({
         body: JSON.stringify({ domain: domain.trim() }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "DNS 확인에 실패했습니다.");
+      if (!res.ok) throw new Error(data.error || t("dnsCheckFailed"));
       setDnsCheck(data);
       return data;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "DNS 확인 중 오류가 발생했습니다.");
+      setError(err instanceof Error ? err.message : t("dnsCheckError"));
       return null;
     } finally {
       setChecking(false);
@@ -106,13 +108,13 @@ export default function AddDomainForm({
     }
     const _anyOk = check.apex.ok || check.www.ok;
     if (!_anyOk) {
-      setError("DNS 설정이 완료되지 않았습니다. A 레코드를 확인 후 다시 시도해주세요.");
+      setError(t("dnsNotReady"));
       return;
     }
 
     const eff = siteId || selectedSiteId || null;
     if (!siteId && availableSites.length > 1 && !selectedSiteId) {
-      setError("도메인을 연결할 사이트를 선택해주세요.");
+      setError(t("selectSiteFirst"));
       return;
     }
 
@@ -127,14 +129,14 @@ export default function AddDomainForm({
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "도메인 추가에 실패했습니다.");
+      if (!res.ok) throw new Error(data.error || t("addFailed"));
 
-      setSuccess(`${data.domain} 도메인이 등록되었습니다.`);
+      setSuccess(t("addSuccess", { domain: data.domain }));
       setDomain("");
       setDnsCheck(null);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "오류가 발생했습니다.");
+      setError(err instanceof Error ? err.message : t("genericError"));
     } finally {
       setLoading(false);
     }
@@ -153,9 +155,9 @@ export default function AddDomainForm({
         <div className="accent" />
         <h3>
           <svg className="ic" width={16} height={16}><use href="#i-plus" /></svg>
-          도메인 추가
+          {t("addDomain")}
         </h3>
-        <span className="note">이미 구매한 도메인을 사이트에 연결하세요.</span>
+        <span className="note">{t("addNote")}</span>
       </div>
 
       <form onSubmit={handleSubmit}>
@@ -165,22 +167,22 @@ export default function AddDomainForm({
             <div className={`dm2-step-num${step1Done ? " done" : ""}`}>1</div>
             <div className="dm2-step-body">
               <div className="dm2-step-title">
-                연결할 사이트 선택 <span className="req">*</span>
-                {step1Done && <span className="done-tag">선택됨</span>}
+                {t("step1Title")} <span className="req">*</span>
+                {step1Done && <span className="done-tag">{t("selected")}</span>}
               </div>
               <div className="dm2-step-desc">
-                계정에 여러 사이트가 있는 경우, 어느 사이트로 도메인을 연결할지 선택해주세요.
+                {t("step1Desc")}
               </div>
               <div className="dm2-step-content">
                 {siteId && siteName ? (
                   <div className="dm2-site-banner">
                     <svg width={14} height={14} style={{ color: "var(--brand)" }}><use href="#i-link" /></svg>
-                    <b>{siteName}</b> 사이트에 연결될 도메인입니다.
+                    {t.rich("siteBanner", { site: siteName, b: (c) => <b>{c}</b> })}
                   </div>
                 ) : availableSites.length === 0 ? (
                   <div className="dm2-site-banner" style={{ background: "#fff4e0", color: "#a56b00", borderColor: "#f5d496" }}>
                     <svg width={14} height={14}><use href="#i-warn" /></svg>
-                    먼저 사이트를 생성한 뒤 도메인을 연결할 수 있습니다.
+                    {t("createSiteFirst")}
                   </div>
                 ) : (
                   <select
@@ -189,7 +191,7 @@ export default function AddDomainForm({
                     onChange={(e) => setSelectedSiteId(e.target.value)}
                     required
                   >
-                    <option value="">— 사이트 선택 —</option>
+                    <option value="">{t("selectSiteOption")}</option>
                     {availableSites.map((s) => (
                       <option key={s.id} value={s.id}>
                         {s.name} ({s.shopId})
@@ -206,43 +208,44 @@ export default function AddDomainForm({
             <div className={`dm2-step-num${step2Done ? " done" : ""}`}>2</div>
             <div className="dm2-step-body">
               <div className="dm2-step-title">
-                DNS 설정
-                <span className="hint-inline">— 초보자 가이드</span>
+                {t("step2Title")}
+                <span className="hint-inline">{t("step2Hint")}</span>
               </div>
               <div className="dm2-step-desc">
-                도메인을 홈앤샵 서버에 연결하려면, 도메인을 구입한 업체의 <b>DNS 관리 페이지</b>에서
-                아래와 같이 <b>A 레코드 {dnsCheck?.apex.ok && dnsCheck?.www.ok ? "2개" : "3개"}</b>를
-                추가해주세요.
+                {t.rich("step2Desc", {
+                  count: dnsCheck?.apex.ok && dnsCheck?.www.ok ? 2 : 3,
+                  b: (c) => <b>{c}</b>,
+                })}
               </div>
 
               <div className="dm2-step-content">
                 <div className="dm2-dns-guide">
                   <div className="dm2-dns-guide-head">
                     <div className="ic"><svg width={13} height={13}><use href="#i-pin" /></svg></div>
-                    <div className="t">DNS 설정 안내</div>
-                    <div className="n">3개 A 레코드</div>
+                    <div className="t">{t("dnsGuideTitle")}</div>
+                    <div className="n">{t("threeARecords")}</div>
                   </div>
                   <div className="dm2-dns-guide-body">
                     <table className="dm2-dns-tbl">
                       <thead>
                         <tr>
-                          <th style={{ width: 80 }}>타입</th>
-                          <th>호스트 / 이름</th>
-                          <th style={{ width: 220 }}>값 (IP 주소)</th>
-                          <th style={{ width: 80 }}>필수</th>
+                          <th style={{ width: 80 }}>{t("dnsColType")}</th>
+                          <th>{t("dnsColHost")}</th>
+                          <th style={{ width: 220 }}>{t("dnsColValue")}</th>
+                          <th style={{ width: 80 }}>{t("dnsColRequired")}</th>
                         </tr>
                       </thead>
                       <tbody>
                         <tr>
                           <td><span className="type">A</span></td>
                           <td className="host">
-                            @ <span className="hint">(또는 빈칸 / 도메인명)</span>
+                            @ <span className="hint">{t("hostApexHint")}</span>
                           </td>
                           <td className="val">
                             {serverIp}
                             <CopyDnsValueButton value={serverIp} />
                           </td>
-                          <td className="req y">필수</td>
+                          <td className="req y">{t("required")}</td>
                         </tr>
                         <tr>
                           <td><span className="type">A</span></td>
@@ -251,18 +254,18 @@ export default function AddDomainForm({
                             {serverIp}
                             <CopyDnsValueButton value={serverIp} />
                           </td>
-                          <td className="req y">필수</td>
+                          <td className="req y">{t("required")}</td>
                         </tr>
                         <tr>
                           <td><span className="type">A</span></td>
                           <td className="host">
-                            * <span className="hint">(와일드카드 · 선택)</span>
+                            * <span className="hint">{t("hostWildcardHint")}</span>
                           </td>
                           <td className="val">
                             {serverIp}
                             <CopyDnsValueButton value={serverIp} />
                           </td>
-                          <td className="req n">선택</td>
+                          <td className="req n">{t("optional")}</td>
                         </tr>
                       </tbody>
                     </table>
@@ -275,20 +278,17 @@ export default function AddDomainForm({
                     >
                       <svg width={14} height={14}><use href="#i-book" /></svg>
                       <span style={{ flex: 1 }}>
-                        <b style={{ color: "var(--ink-0)" }}>설정 예시 보기</b>{" "}
+                        <b style={{ color: "var(--ink-0)" }}>{t("viewExamples")}</b>{" "}
                         <span style={{ color: "var(--ink-3)" }}>
-                          (후이즈·가비아·카페24·GoDaddy 등)
+                          {t("viewExamplesProviders")}
                         </span>
                       </span>
                       <span className="chev"><svg width={12} height={12}><use href="#i-chev-right" /></svg></span>
                     </button>
                     <div className={`dm2-collapse-body${providerOpen ? " open" : ""}`}>
-                      도메인 업체별로 메뉴 이름이 조금씩 다릅니다. 아래 업체를 클릭해 공식 DNS 관리
-                      페이지를 여세요. 공통 절차는{" "}
-                      <b style={{ color: "var(--ink-0)" }}>
-                        로그인 → 내 도메인 → DNS 관리 → A 레코드 추가
-                      </b>{" "}
-                      입니다.
+                      {t.rich("collapseBody", {
+                        b: (c) => <b style={{ color: "var(--ink-0)" }}>{c}</b>,
+                      })}
                       <div className="dm2-provider-grid">
                         {PROVIDERS.map((p) => (
                           <a
@@ -315,22 +315,20 @@ export default function AddDomainForm({
                           lineHeight: 1.5,
                         }}
                       >
-                        💡 업체별 용어 차이: <b>호스트/Name/Sub Domain</b> = 모두 같은 뜻 ·{" "}
-                        <b>값/Value/Points to/IP Address</b> = 모두 같은 뜻. 타입은 반드시{" "}
-                        <b>A</b>로 선택하세요 (CNAME, TXT 아님).
+                        {t.rich("terminologyTip", { b: (c) => <b>{c}</b> })}
                       </p>
                     </div>
 
                     <div className="dm2-pill-row">
                       <span className="dm2-pill">
                         <svg className="ic" width={12} height={12}><use href="#i-clock" /></svg>
-                        DNS 전파: 최대 48시간
+                        {t("pillPropagation")}
                       </span>
                       <span className="dm2-pill">
                         <svg className="ic" width={12} height={12}><use href="#i-lock" /></svg>
-                        SSL 인증서 자동 발급 (Let&apos;s Encrypt)
+                        {t("pillSslAuto")}
                       </span>
-                      <span className="dm2-pill ok">무료</span>
+                      <span className="dm2-pill ok">{t("pillFree")}</span>
                     </div>
                   </div>
                 </div>
@@ -343,11 +341,11 @@ export default function AddDomainForm({
             <div className={`dm2-step-num${step3Done ? " done" : ""}`}>3</div>
             <div className="dm2-step-body">
               <div className="dm2-step-title">
-                도메인 입력 &amp; 확인
-                {step3Done && <span className="done-tag">확인 완료</span>}
+                {t("step3Title")}
+                {step3Done && <span className="done-tag">{t("verified")}</span>}
               </div>
               <div className="dm2-step-desc">
-                DNS 설정 후 아래에 도메인을 입력하고 <b>DNS 확인</b> 버튼을 눌러주세요.
+                {t.rich("step3Desc", { b: (c) => <b>{c}</b> })}
               </div>
               <div className="dm2-step-content">
                 <div className="dm2-check-row">
@@ -371,7 +369,7 @@ export default function AddDomainForm({
                     className={`dm2-check-btn${checking ? " checking" : ""}`}
                   >
                     <svg width={14} height={14}><use href="#i-refresh" /></svg>
-                    {checking ? "확인 중…" : "DNS 확인"}
+                    {checking ? t("checking") : t("dnsCheck")}
                   </button>
                   <button
                     type="submit"
@@ -379,12 +377,12 @@ export default function AddDomainForm({
                     className="dm2-submit-btn"
                     title={
                       dnsCheck !== null && !anyOk
-                        ? "최소 하나(@ 또는 www)의 A 레코드가 서버를 가리켜야 합니다."
+                        ? t("submitDisabledTooltip")
                         : undefined
                     }
                   >
                     <svg width={14} height={14}><use href="#i-plus" /></svg>
-                    {loading ? "추가 중…" : "도메인 추가"}
+                    {loading ? t("adding") : t("addDomain")}
                   </button>
                 </div>
 
@@ -413,10 +411,10 @@ export default function AddDomainForm({
                   const partial = anyOk && !dnsCheck.allOk;
                   const cls = dnsCheck.allOk ? "ok" : partial ? "warn" : "err";
                   const title = dnsCheck.allOk
-                    ? "DNS 설정이 정상입니다."
+                    ? t("dnsResultOk")
                     : partial
-                      ? "부분 설정됨 — 등록은 가능하지만 누락된 레코드를 확인해주세요."
-                      : "A 레코드를 찾을 수 없습니다.";
+                      ? t("dnsResultPartial")
+                      : t("dnsResultNone");
                   return (
                     <div className={`dm2-dns-result ${cls}`}>
                       <svg width={18} height={18}>
@@ -425,17 +423,17 @@ export default function AddDomainForm({
                       <div>
                         <b>{title}</b>{" "}
                         {dnsCheck.allOk
-                          ? `3개 A 레코드가 모두 `
+                          ? t("dnsBodyAllOkPre")
                           : partial
-                            ? `일부 레코드만 `
-                            : `DNS 전파에 최대 48시간이 걸릴 수 있습니다. `}
+                            ? t("dnsBodyPartialPre")
+                            : t("dnsBodyNonePre")}
                         {dnsCheck.allOk || partial ? (
                           <>
                             <span className="mono">{dnsCheck.serverIp}</span>
-                            {dnsCheck.allOk ? "로 전파되었습니다. 도메인을 추가할 수 있습니다." : "로 전파되었습니다."}
+                            {dnsCheck.allOk ? t("dnsBodyAllOkPost") : t("dnsBodyPartialPost")}
                           </>
                         ) : (
-                          "잠시 후 다시 시도해주세요."
+                          t("dnsBodyNonePost")
                         )}
                         <div className="row-list">
                           <div className="dns-row">
@@ -447,7 +445,7 @@ export default function AddDomainForm({
                               {dnsCheck.apex.error
                                 ? dnsCheck.apex.error
                                 : dnsCheck.apex.ips.length === 0
-                                  ? "레코드 없음"
+                                  ? t("noRecord")
                                   : dnsCheck.apex.ips.join(", ")}
                             </span>
                           </div>
@@ -460,7 +458,7 @@ export default function AddDomainForm({
                               {dnsCheck.www.error
                                 ? dnsCheck.www.error
                                 : dnsCheck.www.ips.length === 0
-                                  ? "레코드 없음"
+                                  ? t("noRecord")
                                   : dnsCheck.www.ips.join(", ")}
                             </span>
                           </div>
@@ -473,7 +471,7 @@ export default function AddDomainForm({
                 <div className="dm2-tip">
                   <svg className="lightbulb" width={13} height={13}><use href="#i-bulb" /></svg>
                   <span>
-                    <b>DNS 확인</b> 버튼으로 먼저 설정을 검증한 후 도메인을 추가하세요.
+                    {t.rich("bottomTip", { b: (c) => <b>{c}</b> })}
                   </span>
                 </div>
               </div>

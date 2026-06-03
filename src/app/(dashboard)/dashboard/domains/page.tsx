@@ -46,7 +46,7 @@ export default async function DashboardDomainsPage({ searchParams }: DomainsPage
   const session = await auth();
   if (!session) redirect("/login");
 
-  const t = await getTranslations("domainsPage");
+  const t = await getTranslations("domainsDash");
 
   const params = await searchParams;
   const siteIdFilter = params.siteId;
@@ -104,7 +104,7 @@ export default async function DashboardDomainsPage({ searchParams }: DomainsPage
     .map((d) => daysBetween(estimatedExpiry(d.createdAt), now))
     .reduce((max, n) => Math.max(max, n), 0);
 
-  const displayName = currentUser?.name || currentUser?.email?.split("@")[0] || "게스트";
+  const displayName = currentUser?.name || currentUser?.email?.split("@")[0] || t("guest");
   const credits = currentUser?.credits ?? 0;
 
   // Sidebar context: if filtered to a site, show that site; else show a generic account view
@@ -138,25 +138,25 @@ export default async function DashboardDomainsPage({ searchParams }: DomainsPage
                   <span className="cnt">{totalCount}{t("domainCount")}</span>
                 </h1>
                 <div className="dm2-sub">
-                  보유한 커스텀 도메인을 사이트에 연결하고, DNS · SSL 상태를 관리합니다.
+                  {t("subtitle")}
                 </div>
                 {filteredSite && (
                   <div className="dm2-filter-chip">
                     <Icon id="i-link" size={11} />
                     <span>
-                      사이트 필터: <b>{filteredSite.name}</b>
+                      {t("siteFilter")} <b>{filteredSite.name}</b>
                       {filteredIsCustomer && (
                         <span style={{ marginLeft: 6, padding: "1px 6px", borderRadius: 6, background: "#f5f3ff", color: "#6d28d9", fontWeight: 600, fontSize: 11 }}>
-                          <i className="fa-solid fa-user-tag" style={{ marginRight: 3 }} aria-hidden="true" />고객
+                          <i className="fa-solid fa-user-tag" style={{ marginRight: 3 }} aria-hidden="true" />{t("customer")}
                         </span>
                       )}
                     </span>
-                    <Link href="/dashboard/domains" className="close" title="전체 보기">×</Link>
+                    <Link href="/dashboard/domains" className="close" title={t("viewAll")}>×</Link>
                   </div>
                 )}
               </div>
               <a href="#add-domain" className="dm2-add-btn">
-                <Icon id="i-plus" size={13} /> 도메인 추가
+                <Icon id="i-plus" size={13} /> {t("addDomain")}
               </a>
             </div>
 
@@ -166,14 +166,14 @@ export default async function DashboardDomainsPage({ searchParams }: DomainsPage
                 <div className="ic"><Icon id="i-globe" size={18} /></div>
                 <div>
                   <div className="v">{totalCount}</div>
-                  <div className="k">등록된 도메인</div>
+                  <div className="k">{t("statRegistered")}</div>
                 </div>
               </div>
               <div className="dm2-stat b">
                 <div className="ic"><Icon id="i-check" size={18} /></div>
                 <div>
                   <div className="v">{activeCount}</div>
-                  <div className="k">활성 연결</div>
+                  <div className="k">{t("statActive")}</div>
                 </div>
               </div>
               <div className="dm2-stat c">
@@ -183,7 +183,7 @@ export default async function DashboardDomainsPage({ searchParams }: DomainsPage
                     {sslCount}
                     {totalCount > 0 && <span style={{ color: "var(--ink-3)", fontWeight: 600 }}>/{totalCount}</span>}
                   </div>
-                  <div className="k">SSL 발급됨</div>
+                  <div className="k">{t("statSsl")}</div>
                 </div>
               </div>
               <div className="dm2-stat d">
@@ -193,13 +193,13 @@ export default async function DashboardDomainsPage({ searchParams }: DomainsPage
                     {longestDays > 0 ? (
                       <>
                         {longestDays}
-                        <span className="unit">일</span>
+                        <span className="unit">{t("daysUnit")}</span>
                       </>
                     ) : (
                       "—"
                     )}
                   </div>
-                  <div className="k">최장 갱신까지</div>
+                  <div className="k">{t("statLongestRenewal")}</div>
                 </div>
               </div>
             </div>
@@ -210,12 +210,12 @@ export default async function DashboardDomainsPage({ searchParams }: DomainsPage
                 <div className="accent" />
                 <h3>
                   <svg className="ic" width={16} height={16}><use href="#i-globe" /></svg>
-                  내 도메인
+                  {t("myDomains")}
                 </h3>
                 <div className="dm2-head-btns">
-                  <span className="dm2-search" title="도메인 검색 (곧 제공)">
+                  <span className="dm2-search" title={t("searchComingSoon")}>
                     <Icon id="i-search" size={13} />
-                    <input placeholder="도메인 검색…" disabled />
+                    <input placeholder={t("searchPlaceholder")} disabled />
                   </span>
                 </div>
               </div>
@@ -224,13 +224,13 @@ export default async function DashboardDomainsPage({ searchParams }: DomainsPage
                 <table className="dm2-tbl">
                   <thead>
                     <tr>
-                      <th>도메인</th>
-                      <th>상태</th>
-                      <th>SSL</th>
-                      <th>연결된 사이트</th>
-                      <th>등록일</th>
-                      <th>만료까지</th>
-                      <th className="right">관리</th>
+                      <th>{t("colDomain")}</th>
+                      <th>{t("colStatus")}</th>
+                      <th>{t("colSsl")}</th>
+                      <th>{t("colSite")}</th>
+                      <th>{t("colDate")}</th>
+                      <th>{t("colExpiry")}</th>
+                      <th className="right">{t("colManage")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -256,7 +256,7 @@ export default async function DashboardDomainsPage({ searchParams }: DomainsPage
                                 >
                                   {d.domain}
                                   {isPrimary && filteredSite && (
-                                    <span className="dm2-primary-tag">★ 기본</span>
+                                    <span className="dm2-primary-tag">{t("primaryTag")}</span>
                                   )}
                                 </a>
                                 <div className="dm2-subdomain">
@@ -278,7 +278,7 @@ export default async function DashboardDomainsPage({ searchParams }: DomainsPage
                                 <svg width={10} height={10} style={{ marginRight: -2 }}>
                                   <use href="#i-lock" />
                                 </svg>
-                                활성
+                                {t("sslActive")}
                               </span>
                             ) : d.status === "ACTIVE" ? (
                               <ProvisionSslButton domainId={d.id} />
@@ -290,7 +290,7 @@ export default async function DashboardDomainsPage({ searchParams }: DomainsPage
                             <Link
                               href={`/dashboard/site/settings?id=${d.site.id}`}
                               className="dm2-site-link"
-                              title="사이트 설정으로 이동"
+                              title={t("goToSiteSettings")}
                             >
                               <span
                                 className="dm2-site-thumb"
@@ -309,9 +309,9 @@ export default async function DashboardDomainsPage({ searchParams }: DomainsPage
                           <td>
                             <span
                               className={`dm2-days ${daysClass}`}
-                              title="도메인 등록일 + 365일 기준 추정치 (정확한 만료일은 도메인 구매 업체 확인)"
+                              title={t("expiryTooltip")}
                             >
-                              ~{days}일
+                              {t("daysApprox", { days })}
                             </span>
                           </td>
                           <td>
@@ -320,7 +320,7 @@ export default async function DashboardDomainsPage({ searchParams }: DomainsPage
                                 href={`/dashboard/domains?siteId=${d.site.id}`}
                                 className="dm2-act"
                               >
-                                설정
+                                {t("settings")}
                               </Link>
                               <DeleteDomainForm domainId={d.id} />
                             </div>
@@ -338,8 +338,8 @@ export default async function DashboardDomainsPage({ searchParams }: DomainsPage
                         <div className="dm2-empty-ic">
                           <Icon id="i-globe" size={28} />
                         </div>
-                        <div className="dm2-empty-t">연결된 도메인이 없습니다</div>
-                        <div className="dm2-empty-s">아래에서 첫 도메인을 추가해보세요.</div>
+                        <div className="dm2-empty-t">{t("emptyTitle")}</div>
+                        <div className="dm2-empty-s">{t("emptyDesc")}</div>
                       </td>
                     </tr>
                   </tbody>

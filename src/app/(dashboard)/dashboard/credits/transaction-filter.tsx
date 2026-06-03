@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 type Filter = "all" | "plus" | "minus";
 
@@ -28,6 +29,7 @@ interface Props {
 }
 
 export default function TransactionFilter({ rows, labels }: Props) {
+  const t = useTranslations("creditsPage");
   const [f, setF] = useState<Filter>("all");
 
   const plusCount = rows.filter((r) => r.amount >= 0).length;
@@ -46,17 +48,17 @@ export default function TransactionFilter({ rows, labels }: Props) {
           <svg width={14} height={14} style={{ color: "var(--ai)" }}>
             <use href="#i-hash" />
           </svg>
-          거래 내역
+          {t("txHistory")}
         </h3>
         <div className="cr2-filter">
           <button type="button" className={f === "all" ? "on" : ""} onClick={() => setF("all")}>
-            전체 <span style={{ opacity: 0.6 }}>{rows.length}</span>
+            {t("filterAll")} <span style={{ opacity: 0.6 }}>{rows.length}</span>
           </button>
           <button type="button" className={f === "plus" ? "on" : ""} onClick={() => setF("plus")}>
-            충전 <span style={{ opacity: 0.6 }}>{plusCount}</span>
+            {t("filterPlus")} <span style={{ opacity: 0.6 }}>{plusCount}</span>
           </button>
           <button type="button" className={f === "minus" ? "on" : ""} onClick={() => setF("minus")}>
-            사용 <span style={{ opacity: 0.6 }}>{minusCount}</span>
+            {t("filterMinus")} <span style={{ opacity: 0.6 }}>{minusCount}</span>
           </button>
         </div>
       </div>
@@ -67,15 +69,15 @@ export default function TransactionFilter({ rows, labels }: Props) {
             <svg width={28} height={28}><use href="#i-hash" /></svg>
           </div>
           <div className="t">{labels.empty}</div>
-          <div className="s">AI 기능을 사용하거나 크레딧을 충전하면 이곳에 표시됩니다.</div>
+          <div className="s">{t("emptyHint")}</div>
         </div>
       ) : matched.length === 0 ? (
         <div className="cr2-use-empty">
           <div className="ic">
             <svg width={28} height={28}><use href="#i-hash" /></svg>
           </div>
-          <div className="t">해당 유형의 내역이 없습니다</div>
-          <div className="s">필터를 바꿔 전체 내역을 확인해보세요.</div>
+          <div className="t">{t("noMatchTitle")}</div>
+          <div className="s">{t("noMatchHint")}</div>
         </div>
       ) : (
         <table className="cr2-tbl">

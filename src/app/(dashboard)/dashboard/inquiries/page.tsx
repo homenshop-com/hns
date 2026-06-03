@@ -1,22 +1,23 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/db";
 import DashboardShell from "../dashboard-shell";
 import InquiryRow from "./inquiry-row";
 
-const STATUS_TABS: { code: string | null; label: string }[] = [
-  { code: null,       label: "전체" },
-  { code: "NEW",      label: "신규" },
-  { code: "READ",     label: "확인" },
-  { code: "REPLIED",  label: "회신" },
-  { code: "ARCHIVED", label: "보관" },
+const STATUS_TABS: { code: string | null; labelKey: string }[] = [
+  { code: null,       labelKey: "statusAll" },
+  { code: "NEW",      labelKey: "statusNew" },
+  { code: "READ",     labelKey: "statusRead" },
+  { code: "REPLIED",  labelKey: "statusReplied" },
+  { code: "ARCHIVED", labelKey: "statusArchived" },
 ];
 
-const SOURCE_TABS: { code: string | null; label: string }[] = [
-  { code: null,      label: "모두" },
-  { code: "contact", label: "일반 문의" },
-  { code: "product", label: "상품 문의" },
+const SOURCE_TABS: { code: string | null; labelKey: string }[] = [
+  { code: null,      labelKey: "sourceAll" },
+  { code: "contact", labelKey: "sourceContact" },
+  { code: "product", labelKey: "sourceProduct" },
 ];
 
 export default async function InquiriesPage({
@@ -26,6 +27,8 @@ export default async function InquiriesPage({
 }) {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
+
+  const t = await getTranslations("inquiriesPage");
 
   const { status, source, siteId } = await searchParams;
 
@@ -38,12 +41,12 @@ export default async function InquiriesPage({
 
   if (sites.length === 0) {
     return (
-      <DashboardShell active="boards" breadcrumbs={[{ label: "홈", href: "/dashboard" }, { label: "문의 · 예약" }]}>
+      <DashboardShell active="boards" breadcrumbs={[{ label: t("breadcrumbHome"), href: "/dashboard" }, { label: t("title") }]}>
         <div style={{ padding: 64, textAlign: "center", background: "#fff", border: "1px solid #e5e7eb", borderRadius: 8 }}>
-          <div style={{ fontSize: 16, color: "#374151", marginBottom: 8 }}>아직 사이트가 없습니다.</div>
-          <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 16 }}>홈페이지를 먼저 만들면 문의 폼 제출 내역이 여기에 모입니다.</div>
+          <div style={{ fontSize: 16, color: "#374151", marginBottom: 8 }}>{t("emptyNoSitesTitle")}</div>
+          <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 16 }}>{t("emptyNoSitesDesc")}</div>
           <Link href="/dashboard/templates" style={{ display: "inline-block", padding: "10px 20px", fontSize: 13, fontWeight: 600, color: "#fff", background: "#2563eb", borderRadius: 6, textDecoration: "none" }}>
-            홈페이지 만들기
+            {t("createHomepage")}
           </Link>
         </div>
       </DashboardShell>
@@ -112,42 +115,42 @@ export default async function InquiriesPage({
   }
 
   return (
-    <DashboardShell active="inquiries" breadcrumbs={[{ label: "홈", href: "/dashboard" }, { label: "문의 · 예약" }]}>
+    <DashboardShell active="inquiries" breadcrumbs={[{ label: t("breadcrumbHome"), href: "/dashboard" }, { label: t("title") }]}>
       <div>
         <div style={{ marginBottom: 24 }}>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: "#111827", margin: "0 0 4px" }}>문의 · 예약</h1>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: "#111827", margin: "0 0 4px" }}>{t("title")}</h1>
           <p style={{ fontSize: 13, color: "#6b7280", margin: 0 }}>
-            홈페이지의 문의 폼·상품 문의 버튼으로 들어온 모든 요청. 신규 항목은 노란 배경으로 표시됩니다.
+            {t("subtitle")}
           </p>
         </div>
 
         {/* Filters */}
         <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 8, padding: 16, marginBottom: 16 }}>
-          <FilterRow label="상태">
-            {STATUS_TABS.map((t) => {
-              const active = (status || null) === t.code;
-              const count = t.code === null ? totalCount : (countByStatus[t.code] ?? 0);
+          <FilterRow label={t("filterStatus")}>
+            {STATUS_TABS.map((tab) => {
+              const active = (status || null) === tab.code;
+              const count = tab.code === null ? totalCount : (countByStatus[tab.code] ?? 0);
               return (
-                <Link key={t.code ?? "all"} href={buildHref({ status: t.code })} style={chipStyle(active)}>
-                  {t.label}
+                <Link key={tab.code ?? "all"} href={buildHref({ status: tab.code })} style={chipStyle(active)}>
+                  {t(tab.labelKey)}
                   <span style={{ marginLeft: 6, fontSize: 11, opacity: 0.7 }}>{count}</span>
                 </Link>
               );
             })}
           </FilterRow>
-          <FilterRow label="유형">
-            {SOURCE_TABS.map((t) => {
-              const active = (source || null) === t.code;
+          <FilterRow label={t("filterType")}>
+            {SOURCE_TABS.map((tab) => {
+              const active = (source || null) === tab.code;
               return (
-                <Link key={t.code ?? "all"} href={buildHref({ source: t.code })} style={chipStyle(active)}>
-                  {t.label}
+                <Link key={tab.code ?? "all"} href={buildHref({ source: tab.code })} style={chipStyle(active)}>
+                  {t(tab.labelKey)}
                 </Link>
               );
             })}
           </FilterRow>
           {sites.length > 1 && (
-            <FilterRow label="사이트">
-              <Link href={buildHref({ siteId: null })} style={chipStyle(!siteId)}>전체</Link>
+            <FilterRow label={t("filterSite")}>
+              <Link href={buildHref({ siteId: null })} style={chipStyle(!siteId)}>{t("statusAll")}</Link>
               {sites.map((s) => {
                 const active = siteId === s.id;
                 return (
@@ -176,16 +179,16 @@ export default async function InquiriesPage({
             textTransform: "uppercase",
             letterSpacing: "0.06em",
           }}>
-            <div>상태</div>
-            <div>이름 · 미리보기</div>
-            <div>연락처</div>
-            <div>사이트</div>
-            <div>접수일</div>
+            <div>{t("colStatus")}</div>
+            <div>{t("colNamePreview")}</div>
+            <div>{t("colContact")}</div>
+            <div>{t("colSite")}</div>
+            <div>{t("colReceivedAt")}</div>
             <div></div>
           </div>
           {inquiries.length === 0 ? (
             <div style={{ padding: 64, textAlign: "center", color: "#6b7280", fontSize: 14 }}>
-              조건에 맞는 문의가 없습니다.
+              {t("emptyNoResults")}
             </div>
           ) : (
             inquiries.map((inq) => (
@@ -218,7 +221,7 @@ export default async function InquiriesPage({
         </div>
         {inquiries.length === 200 && (
           <div style={{ marginTop: 12, fontSize: 12, color: "#6b7280", textAlign: "center" }}>
-            최근 200건만 표시됩니다. 필터를 좁혀서 검색하세요.
+            {t("limitNote", { count: 200 })}
           </div>
         )}
       </div>

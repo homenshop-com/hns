@@ -1,13 +1,15 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getManageScope, manageableSiteWhere } from "@/lib/site-access";
+import { getTranslations } from "next-intl/server";
 
 /**
  * Thin server-component wrapper for the per-row delete action.
  * Kept in its own file so the enclosing page can stay clean and
  * so the server action boundary is obvious.
  */
-export default function DeleteDomainForm({ domainId }: { domainId: string }) {
+export default async function DeleteDomainForm({ domainId }: { domainId: string }) {
+  const t = await getTranslations("domainsDash");
   return (
     <form
       action={async () => {
@@ -25,9 +27,9 @@ export default function DeleteDomainForm({ domainId }: { domainId: string }) {
         revalidatePath("/dashboard/domains");
       }}
     >
-      <button type="submit" className="dm2-act danger" title="도메인 연결 해제">
+      <button type="submit" className="dm2-act danger" title={t("disconnectDomain")}>
         <svg width={11} height={11}><use href="#i-trash" /></svg>
-        삭제
+        {t("delete")}
       </button>
     </form>
   );

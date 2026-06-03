@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 interface Props {
   orderId: string;
@@ -20,6 +21,7 @@ interface Props {
  */
 export default function OrderActions({ orderId, orderNumber, status }: Props) {
   const router = useRouter();
+  const t = useTranslations("ordersPage");
   const [pending, startTransition] = useTransition();
   const [err, setErr] = useState<string | null>(null);
 
@@ -29,7 +31,7 @@ export default function OrderActions({ orderId, orderNumber, status }: Props) {
 
   async function cancelOrder() {
     setErr(null);
-    if (!confirm(`주문 ${orderNumber}을(를) 취소하시겠습니까?\n취소된 주문은 기록에 남습니다.`)) return;
+    if (!confirm(t("confirmCancel", { orderNumber }))) return;
     startTransition(async () => {
       try {
         const res = await fetch(`/api/orders/${orderId}`, {
@@ -39,7 +41,7 @@ export default function OrderActions({ orderId, orderNumber, status }: Props) {
         });
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
-          throw new Error(data.error || "취소에 실패했습니다.");
+          throw new Error(data.error || t("cancelFailed"));
         }
         router.refresh();
       } catch (e) {
@@ -50,13 +52,13 @@ export default function OrderActions({ orderId, orderNumber, status }: Props) {
 
   async function deleteOrder() {
     setErr(null);
-    if (!confirm(`주문 ${orderNumber}을(를) 영구 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+    if (!confirm(t("confirmDelete", { orderNumber }))) return;
     startTransition(async () => {
       try {
         const res = await fetch(`/api/orders/${orderId}`, { method: "DELETE" });
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
-          throw new Error(data.error || "삭제에 실패했습니다.");
+          throw new Error(data.error || t("deleteFailed"));
         }
         router.refresh();
       } catch (e) {
@@ -84,14 +86,14 @@ export default function OrderActions({ orderId, orderNumber, status }: Props) {
           type="button"
           onClick={cancelOrder}
           disabled={pending}
-          title="결제 대기 중인 주문을 취소합니다"
+          title={t("cancelTitle")}
           style={{
             ...btnBase,
             border: "1px solid #f59e0b",
             color: "#b45309",
           }}
         >
-          취소
+          {t("cancelButton")}
         </button>
       )}
       {canDelete && (
@@ -101,8 +103,8 @@ export default function OrderActions({ orderId, orderNumber, status }: Props) {
           disabled={pending}
           title={
             status === "PENDING"
-              ? "결제 대기 중인 주문을 영구 삭제합니다"
-              : "취소된 주문을 영구 삭제합니다"
+              ? t("deleteTitlePending")
+              : t("deleteTitleCancelled")
           }
           style={{
             ...btnBase,
@@ -110,7 +112,7 @@ export default function OrderActions({ orderId, orderNumber, status }: Props) {
             color: "#b91c1c",
           }}
         >
-          삭제
+          {t("deleteButton")}
         </button>
       )}
       {err && (

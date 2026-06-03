@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 interface Props {
   packId: string;
@@ -12,6 +13,7 @@ interface Props {
 
 export default function BuyPackButton({ packId, label, disabled, className = "cr2-buy" }: Props) {
   const router = useRouter();
+  const t = useTranslations("creditsPage");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -26,13 +28,13 @@ export default function BuyPackButton({ packId, label, disabled, className = "cr
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "주문 생성에 실패했습니다.");
+        setError(data.error || t("orderCreateFailed"));
         setLoading(false);
         return;
       }
       router.push(`/dashboard/credits/checkout/${data.orderId}`);
     } catch {
-      setError("네트워크 오류가 발생했습니다.");
+      setError(t("networkError"));
       setLoading(false);
     }
   }
@@ -45,7 +47,7 @@ export default function BuyPackButton({ packId, label, disabled, className = "cr
         disabled={disabled || loading}
         onClick={buy}
       >
-        {loading ? "처리 중…" : label}
+        {loading ? t("processing") : label}
       </button>
       {error && <div className="cr2-pkg-error">{error}</div>}
     </>

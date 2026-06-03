@@ -12,6 +12,7 @@ export default async function BoardsPage() {
   }
 
   const t = await getTranslations("boardsPage");
+  const tl = await getTranslations("boardsListPage");
 
   // Fetch ALL user sites with their board categories and post counts
   const sites = await prisma.site.findMany({
@@ -44,7 +45,7 @@ export default async function BoardsPage() {
     <DashboardShell
       active="boards"
       breadcrumbs={[
-        { label: "홈", href: "/dashboard" },
+        { label: tl("breadcrumbHome"), href: "/dashboard" },
         { label: t("title") },
       ]}
     >
@@ -53,7 +54,7 @@ export default async function BoardsPage() {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
           <h1 className="dash-title">{t("title")}</h1>
           <span style={{ fontSize: 13, color: "#868e96" }}>
-            총 {totalBoardCount}개 게시판 · {totalPostCount}건
+            {tl("boardCountSummary", { boards: totalBoardCount, posts: totalPostCount })}
           </span>
         </div>
 
@@ -67,10 +68,10 @@ export default async function BoardsPage() {
             color: "#868e96",
             fontSize: 14,
           }}>
-            사이트를 먼저 생성해주세요.
+            {tl("noSitePrompt")}
             <br />
             <Link href="/dashboard/templates" style={{ color: "#4a90d9", textDecoration: "none", fontWeight: 600 }}>
-              사이트 만들기
+              {tl("createSite")}
             </Link>
           </div>
         )}
@@ -119,7 +120,7 @@ export default async function BoardsPage() {
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                   <span style={{ fontSize: 12, color: "#868e96" }}>
-                    {visibleBoards.length}개 · 총 {sitePostCount}건
+                    {tl("siteCountSummary", { boards: visibleBoards.length, posts: sitePostCount })}
                   </span>
                   <Link
                     href={`/dashboard/site/${site.id}/manage`}
@@ -133,7 +134,7 @@ export default async function BoardsPage() {
                       gap: 4,
                     }}
                   >
-                    게시판 관리 →
+                    {tl("manageBoards")}
                   </Link>
                 </div>
               </div>
@@ -153,19 +154,19 @@ export default async function BoardsPage() {
                   fontSize: 13,
                 }}
               >
-                <span style={{ fontWeight: 600, color: "#4a90d9" }}>전체 게시글 보기</span>
-                <span style={{ color: "#868e96" }}>{sitePostCount}건</span>
+                <span style={{ fontWeight: 600, color: "#4a90d9" }}>{tl("viewAllPosts")}</span>
+                <span style={{ color: "#868e96" }}>{tl("postCount", { count: sitePostCount })}</span>
               </Link>
 
               {/* Board rows */}
               {visibleBoards.length === 0 ? (
                 <div style={{ padding: "20px", fontSize: 13, color: "#adb5bd", textAlign: "center" }}>
-                  등록된 게시판이 없습니다.{" "}
+                  {tl("noBoards")}{" "}
                   <Link
                     href={`/dashboard/site/${site.id}/manage`}
                     style={{ color: "#4a90d9", textDecoration: "none", fontWeight: 600 }}
                   >
-                    관리 페이지에서 추가
+                    {tl("addFromManagePage")}
                   </Link>
                 </div>
               ) : (
@@ -204,7 +205,7 @@ export default async function BoardsPage() {
                             href={`/dashboard/boards/posts?category=${board.legacyId ?? board.id}&siteId=${site.id}`}
                             style={{ color: "inherit", textDecoration: "none" }}
                           >
-                            {board._count.posts}건
+                            {tl("postCount", { count: board._count.posts })}
                           </Link>
                         </td>
                       </tr>

@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 export default function CopyDnsValueButton({ value }: { value: string }) {
+  const t = useTranslations("domainsDash");
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -26,8 +28,8 @@ export default function CopyDnsValueButton({ value }: { value: string }) {
     <button
       type="button"
       onClick={handleCopy}
-      title={copied ? "복사됨" : "복사"}
-      aria-label={copied ? "복사됨" : "복사"}
+      title={copied ? t("copied") : t("copy")}
+      aria-label={copied ? t("copied") : t("copy")}
       className={`copy${copied ? " ok" : ""}`}
     >
       <svg width={13} height={13}>
