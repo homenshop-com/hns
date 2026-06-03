@@ -14,6 +14,7 @@ import {
   shouldShowExpirationWarning,
 } from "@/lib/site-expiration";
 import { getTempDomain } from "@/lib/temp-domains";
+import { getManageScope, manageableSiteWhere } from "@/lib/site-access";
 
 const PLAN_TAG: Record<string, { cls: string; key: "planFree" | "planPaid" | "planTest" | "planExpired" }> = {
   "0": { cls: "free", key: "planFree" },
@@ -67,6 +68,14 @@ export default async function SitesPage() {
   const session = await auth();
   if (!session) redirect("/login");
 
+  // 리셀러는 본인 사이트 + 귀속 고객 사이트를 모두 관리 — 메인 대시보드와
+  // 동일하게 manageableSiteWhere 로 하위 계정까지 리스트한다. 일반 회원은
+  // 본인 사이트만 조회된다.
+  const manageScope = (await getManageScope()) ?? {
+    userId: session.user.id,
+    resellerId: null,
+  };
+
   const [
     currentUser,
     emailVerificationEnabled,
@@ -85,13 +94,14 @@ export default async function SitesPage() {
     getTranslations("dashboard"),
     getTranslations("templates"),
     prisma.site.findMany({
-      where: { userId: session.user.id, isTemplateStorage: false },
+      where: { ...manageableSiteWhere(manageScope), isTemplateStorage: false },
       include: {
         domains: { where: { status: "ACTIVE" }, orderBy: { createdAt: "desc" } },
         pages: {
           select: { id: true, isHome: true, lang: true, updatedAt: true },
           orderBy: { sortOrder: "asc" },
         },
+        user: { select: { email: true } },
       },
       orderBy: { createdAt: "asc" },
     }),
@@ -234,6 +244,8 @@ export default async function SitesPage() {
 
             <div className="dv2-site-list">
               {sites.map((s) => {
+                // 리셀러가 관리하는 고객 사이트(본인 소유 아님) — 보라색 "고객" 배지.
+                const isCustomer = s.userId !== session.user.id;
                 const plan = PLAN_TAG[s.accountType] || PLAN_TAG["0"];
                 const isExpired = isSiteExpired(s);
                 const remainingDays = daysUntilExpiry(s);
@@ -268,9 +280,38 @@ export default async function SitesPage() {
                         {initials}
                       </div>
                       <div className="dv2-site-info">
-                        <div className="dv2-site-name">{s.name || s.shopId}</div>
+                        <div className="dv2-site-name">
+                          {s.name || s.shopId}
+                          {isCustomer && (
+                            <span
+                              title={t("siteCustomerBadgeTooltip", { email: s.user?.email ?? "" })}
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 4,
+                                marginLeft: 8,
+                                padding: "1px 8px",
+                                borderRadius: 10,
+                                fontSize: 11,
+                                fontWeight: 700,
+                                verticalAlign: "middle",
+                                background: "#f5f3ff",
+                                color: "#6d28d9",
+                              }}
+                            >
+                              <i className="fa-solid fa-user-tag" style={{ fontSize: 10 }} />
+                              {t("siteCustomerBadge")}
+                            </span>
+                          )}
+                        </div>
                         <div className="dv2-site-meta">
                           <span className="handle">@{s.shopId}</span>
+                          {isCustomer && s.user?.email && (
+                            <>
+                              <span className="dot" />
+                              <span className="handle">{s.user.email}</span>
+                            </>
+                          )}
                           <span className="dot" />
                           <a className="url" href={publicUrl} target="_blank" rel="noopener noreferrer">
                             {publicLabel}
