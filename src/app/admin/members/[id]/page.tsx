@@ -57,6 +57,13 @@ export default function AdminMemberDetailPage() {
   const [status, setStatus] = useState("");
   const [verifyingEmail, setVerifyingEmail] = useState(false);
 
+  // Password reset
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwError, setPwError] = useState("");
+  const [pwSuccess, setPwSuccess] = useState("");
+
   // Credits
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
   const [creditHistory, setCreditHistory] = useState<CreditTxn[]>([]);
@@ -130,6 +137,41 @@ export default function AdminMemberDetailPage() {
     fetchMember();
     loadCredits(id);
   }, [id, router]);
+
+  async function handleResetPassword() {
+    setPwError("");
+    setPwSuccess("");
+    if (newPassword.length < 8) {
+      setPwError("비밀번호는 8자 이상이어야 합니다.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPwError("비밀번호가 일치하지 않습니다.");
+      return;
+    }
+    if (!window.confirm("이 회원의 비밀번호를 변경하시겠습니까?")) return;
+    setPwSaving(true);
+    try {
+      const res = await fetch(`/api/admin/members/${id}/password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: newPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setPwError(data.error || "비밀번호 변경에 실패했습니다.");
+      } else {
+        setNewPassword("");
+        setConfirmPassword("");
+        setPwSuccess("비밀번호가 변경되었습니다.");
+        setTimeout(() => setPwSuccess(""), 3000);
+      }
+    } catch {
+      setPwError("네트워크 오류");
+    } finally {
+      setPwSaving(false);
+    }
+  }
 
   async function handleToggleEmailVerified() {
     if (!member) return;
@@ -358,6 +400,45 @@ export default function AdminMemberDetailPage() {
               </svg>
               이 고객에게 채팅 보내기
             </Link>
+          </div>
+        </div>
+
+        {/* Password reset */}
+        <div className="rounded-xl border border-slate-200 bg-white p-6 lg:col-span-2">
+          <h2 className="text-base font-semibold text-slate-800 mb-1">비밀번호 변경</h2>
+          <p className="text-xs text-slate-500 mb-4">
+            관리자가 이 회원의 로그인 비밀번호를 직접 설정합니다. 8자 이상 입력하세요.
+          </p>
+          {pwError && (
+            <div className="mb-3 rounded-lg border border-red-500/30 bg-red-50 p-3 text-sm text-red-700">{pwError}</div>
+          )}
+          {pwSuccess && (
+            <div className="mb-3 rounded-lg border border-emerald-500/30 bg-emerald-50 p-3 text-sm text-emerald-700">{pwSuccess}</div>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3">
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="새 비밀번호 (8자 이상)"
+              autoComplete="new-password"
+              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-[#3182f6] focus:outline-none"
+            />
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="새 비밀번호 확인"
+              autoComplete="new-password"
+              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-[#3182f6] focus:outline-none"
+            />
+            <button
+              onClick={handleResetPassword}
+              disabled={pwSaving || !newPassword || !confirmPassword}
+              className="rounded-lg bg-[#3182f6] px-4 py-2 text-sm font-medium text-white hover:bg-[#1b64da] disabled:opacity-50 transition-colors"
+            >
+              {pwSaving ? "변경 중..." : "비밀번호 변경"}
+            </button>
           </div>
         </div>
 
