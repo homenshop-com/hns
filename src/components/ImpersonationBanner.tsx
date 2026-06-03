@@ -24,12 +24,41 @@ export default function ImpersonationBanner() {
   const [impersonating, setImpersonating] = useState("");
 
   useEffect(() => {
+    let val = "";
     try {
-      const val = localStorage.getItem("impersonating");
-      if (val) setImpersonating(val);
+      val = localStorage.getItem("impersonating") || "";
     } catch {
       /* ignore storage errors */
     }
+    if (!val) return;
+
+    // The localStorage flag persists across logout/login, so on its own it
+    // would keep showing the banner even after the operator returned to their
+    // OWN account. Validate against the REAL session: only show the banner when
+    // the currently-logged-in email actually matches the impersonated email.
+    // Any mismatch (or no session) means the flag is stale → clear it.
+    let cancelled = false;
+    (async () => {
+      try {
+        const session = await fetch("/api/auth/session").then((r) => r.json());
+        const currentEmail = session?.user?.email || "";
+        if (cancelled) return;
+        if (currentEmail && currentEmail === val) {
+          setImpersonating(val);
+        } else {
+          try {
+            localStorage.removeItem("impersonating");
+          } catch {
+            /* ignore */
+          }
+        }
+      } catch {
+        /* network error — leave the banner hidden, don't false-positive */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   if (!impersonating) return null;
