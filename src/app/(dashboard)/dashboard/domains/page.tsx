@@ -6,6 +6,7 @@ import { getTranslations } from "next-intl/server";
 import AddDomainForm from "./add-domain-form";
 import ProvisionSslButton from "./provision-ssl-button";
 import DeleteDomainForm from "./delete-domain-form";
+import { getManageScope, manageableSiteWhere } from "@/lib/site-access";
 import DashboardShell from "../dashboard-shell";
 import { Icon } from "../dashboard-icons";
 import "../site/[siteId]/manage/manage-v2.css";
@@ -50,18 +51,24 @@ export default async function DashboardDomainsPage({ searchParams }: DomainsPage
   const params = await searchParams;
   const siteIdFilter = params.siteId;
 
+  // Scope: own sites OR (for a reseller operator) any customer site attributed
+  // to their reseller. Falls back to plain owner scope if signed out edge-case.
+  const scope = (await getManageScope()) ?? { userId: session.user.id, resellerId: null };
+  const siteScopeWhere = manageableSiteWhere(scope);
+
   const filteredSite = siteIdFilter
     ? await prisma.site.findFirst({
-        where: { id: siteIdFilter, userId: session.user.id },
-        select: { id: true, name: true, shopId: true },
+        where: { id: siteIdFilter, ...siteScopeWhere },
+        select: { id: true, name: true, shopId: true, userId: true },
       })
     : null;
   const effectiveSiteId = filteredSite?.id ?? null;
+  const filteredIsCustomer = !!filteredSite && filteredSite.userId !== session.user.id;
 
   const [domains, userSites, currentUser] = await Promise.all([
     prisma.domain.findMany({
       where: {
-        userId: session.user.id,
+        site: siteScopeWhere,
         ...(effectiveSiteId ? { siteId: effectiveSiteId } : {}),
       },
       orderBy: { createdAt: "desc" },
@@ -70,7 +77,7 @@ export default async function DashboardDomainsPage({ searchParams }: DomainsPage
       },
     }),
     prisma.site.findMany({
-      where: { userId: session.user.id, isTemplateStorage: false },
+      where: { ...siteScopeWhere, isTemplateStorage: false },
       select: { id: true, name: true, shopId: true },
       orderBy: { createdAt: "asc" },
     }),
@@ -138,6 +145,11 @@ export default async function DashboardDomainsPage({ searchParams }: DomainsPage
                     <Icon id="i-link" size={11} />
                     <span>
                       사이트 필터: <b>{filteredSite.name}</b>
+                      {filteredIsCustomer && (
+                        <span style={{ marginLeft: 6, padding: "1px 6px", borderRadius: 6, background: "#f5f3ff", color: "#6d28d9", fontWeight: 600, fontSize: 11 }}>
+                          <i className="fa-solid fa-user-tag" style={{ marginRight: 3 }} aria-hidden="true" />고객
+                        </span>
+                      )}
                     </span>
                     <Link href="/dashboard/domains" className="close" title="전체 보기">×</Link>
                   </div>

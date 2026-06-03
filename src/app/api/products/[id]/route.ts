@@ -2,6 +2,41 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { indexProduct, removeProduct } from "@/lib/search";
+import { getManageScope, canManage } from "@/lib/site-access";
+
+/**
+ * Load a product by id and verify the current session may manage its site
+ * (owner OR a reseller operator for an attributed customer site). Returns the
+ * product joined with the minimal site fields needed for search indexing, or
+ * null when not found / signed out / forbidden.
+ */
+async function loadManageableProduct(id: string) {
+  const scope = await getManageScope();
+  if (!scope) return null;
+  const product = await prisma.product.findUnique({
+    where: { id },
+    include: {
+      site: {
+        select: {
+          id: true,
+          name: true,
+          userId: true,
+          user: { select: { resellerId: true } },
+        },
+      },
+    },
+  });
+  if (!product) return null;
+  if (
+    !canManage(scope, {
+      userId: product.site.userId,
+      ownerResellerId: product.site.user.resellerId,
+    })
+  ) {
+    return null;
+  }
+  return product;
+}
 
 // GET /api/products/[id] — Get a single product
 export async function GET(
@@ -15,18 +50,7 @@ export async function GET(
 
   const { id } = await params;
 
-  const site = await prisma.site.findFirst({
-    where: { userId: session.user.id, isTemplateStorage: false },
-  });
-
-  if (!site) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-
-  const product = await prisma.product.findFirst({
-    where: { id, siteId: site.id },
-  });
-
+  const product = await loadManageableProduct(id);
   if (!product) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
@@ -46,22 +70,11 @@ export async function PUT(
 
   const { id } = await params;
 
-  const site = await prisma.site.findFirst({
-    where: { userId: session.user.id, isTemplateStorage: false },
-  });
-
-  if (!site) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-
-  // Verify the product belongs to user's site
-  const existing = await prisma.product.findFirst({
-    where: { id, siteId: site.id },
-  });
-
+  const existing = await loadManageableProduct(id);
   if (!existing) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+  const site = existing.site;
 
   const body = await request.json();
   const { name, description, price, salePrice, stock, category, status, images } = body;
@@ -115,18 +128,7 @@ export async function DELETE(
 
   const { id } = await params;
 
-  const site = await prisma.site.findFirst({
-    where: { userId: session.user.id, isTemplateStorage: false },
-  });
-
-  if (!site) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-
-  const existing = await prisma.product.findFirst({
-    where: { id, siteId: site.id },
-  });
-
+  const existing = await loadManageableProduct(id);
   if (!existing) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { promises as dns } from "dns";
+import { getManageScope, manageableSiteWhere } from "@/lib/site-access";
 
 const DOMAIN_REGEX = /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/;
 const SERVER_IP = "167.71.199.28";
@@ -21,8 +22,10 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const scope = (await getManageScope()) ?? { userId: session.user.id, resellerId: null };
+
   const domains = await prisma.domain.findMany({
-    where: { userId: session.user.id },
+    where: { site: manageableSiteWhere(scope) },
     orderBy: { createdAt: "desc" },
     include: {
       site: {
@@ -72,18 +75,21 @@ export async function POST(request: NextRequest) {
   }
 
   // Resolve target site:
-  //   · If caller provided a siteId (from the site-settings page), bind
-  //     to THAT site after verifying ownership
-  //   · Otherwise, fall back to the user's first real site (legacy
-  //     single-site behavior). Users with multiple sites should always
-  //     come in with an explicit siteId — the generic domains page now
-  //     requires it too.
+  //   · If caller provided a siteId (from the site-settings page, or a reseller
+  //     managing a customer site), bind to THAT site after verifying the
+  //     current scope may manage it (owner OR reseller-attributed customer).
+  //   · Otherwise, fall back to the caller's own first real site (legacy
+  //     single-site behavior). Users with multiple sites should always come in
+  //     with an explicit siteId — the generic domains page now requires it too.
+  const scope = (await getManageScope()) ?? { userId: session.user.id, resellerId: null };
+  const siteScopeWhere = manageableSiteWhere(scope);
+
   let site;
   if (bodySiteId && typeof bodySiteId === "string") {
     site = await prisma.site.findFirst({
       where: {
         id: bodySiteId,
-        userId: session.user.id,
+        ...siteScopeWhere,
         isTemplateStorage: false,
       },
     });
@@ -120,7 +126,10 @@ export async function POST(request: NextRequest) {
     data: {
       domain: normalizedDomain,
       siteId: site.id,
-      userId: session.user.id,
+      // Attribute the domain to the SITE OWNER, not the operator. When a
+      // reseller adds a domain on a customer's behalf it must belong to the
+      // customer so ownership/billing stays correct after handoff.
+      userId: site.userId,
       status: initialStatus,
     },
     include: {

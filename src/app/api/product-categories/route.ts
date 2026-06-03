@@ -1,17 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-
-async function getSite(userId: string) {
-  return prisma.site.findFirst({ where: { userId } });
-}
+import { resolveOperatingSite } from "@/lib/site-access";
 
 // GET — list categories
 export async function GET(request: NextRequest) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const site = await getSite(session.user.id);
+  const site = await resolveOperatingSite(request.nextUrl.searchParams.get("siteId"));
   if (!site) return NextResponse.json({ error: "No site" }, { status: 404 });
 
   const lang = request.nextUrl.searchParams.get("lang") || "";
@@ -47,11 +44,12 @@ export async function POST(request: NextRequest) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const site = await getSite(session.user.id);
+  const body = await request.json();
+  const { category, lang, parent, liststyle, rows: numRows, img_w, img_h, siteId } = body;
+
+  const site = await resolveOperatingSite(siteId);
   if (!site) return NextResponse.json({ error: "No site" }, { status: 404 });
 
-  const body = await request.json();
-  const { category, lang, parent, liststyle, rows: numRows, img_w, img_h } = body;
   if (!category || !lang) return NextResponse.json({ error: "category and lang required" }, { status: 400 });
 
   const maxCat = await prisma.productCategory.findFirst({
@@ -83,11 +81,12 @@ export async function PUT(request: NextRequest) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const site = await getSite(session.user.id);
+  const body = await request.json();
+  const { id, category, liststyle, rows: numRows, img_w, img_h, siteId } = body;
+
+  const site = await resolveOperatingSite(siteId);
   if (!site) return NextResponse.json({ error: "No site" }, { status: 404 });
 
-  const body = await request.json();
-  const { id, category, liststyle, rows: numRows, img_w, img_h } = body;
   if (!id || !category) return NextResponse.json({ error: "id and category required" }, { status: 400 });
 
   const legacyId = parseInt(id);
@@ -111,7 +110,7 @@ export async function DELETE(request: NextRequest) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const site = await getSite(session.user.id);
+  const site = await resolveOperatingSite(request.nextUrl.searchParams.get("siteId"));
   if (!site) return NextResponse.json({ error: "No site" }, { status: 404 });
 
   const id = request.nextUrl.searchParams.get("id");

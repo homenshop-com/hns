@@ -24,11 +24,14 @@ interface ProductEditClientProps {
     images: string[];
     imageVariants: ProductImage[];
   };
+  /** When a reseller manages a customer site, scope all reads/writes to it. */
+  siteId?: string;
 }
 
 export default function ProductEditClient({
   productId,
   initialData,
+  siteId,
 }: ProductEditClientProps) {
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
@@ -41,7 +44,7 @@ export default function ProductEditClient({
         method: "DELETE",
       });
       if (res.ok) {
-        router.push("/dashboard/products");
+        router.push(`/dashboard/products${siteId ? `?siteId=${siteId}` : ""}`);
         router.refresh();
       }
     } catch {
@@ -55,6 +58,7 @@ export default function ProductEditClient({
         mode="edit"
         productId={productId}
         initialData={initialData}
+        siteId={siteId}
       />
 
       <div className="mt-10 max-w-2xl border-t border-zinc-200 pt-6 dark:border-zinc-800">

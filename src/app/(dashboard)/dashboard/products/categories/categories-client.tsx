@@ -22,7 +22,8 @@ const LISTSTYLE_LABELS: Record<string, string> = {
   "2": "슬라이드쇼",
 };
 
-export default function CategoriesClient() {
+export default function CategoriesClient({ siteId }: { siteId?: string }) {
+  const listHref = siteId ? `/dashboard/products?siteId=${siteId}` : "/dashboard/products";
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -46,9 +47,11 @@ export default function CategoriesClient() {
 
   const fetchCategories = useCallback(async () => {
     try {
-      const url = filterLang
-        ? `/api/product-categories?lang=${filterLang}`
-        : "/api/product-categories";
+      const params = new URLSearchParams();
+      if (filterLang) params.set("lang", filterLang);
+      if (siteId) params.set("siteId", siteId);
+      const qs = params.toString();
+      const url = `/api/product-categories${qs ? `?${qs}` : ""}`;
       const res = await fetch(url);
       const data = await res.json();
       if (data.categories) {
@@ -68,7 +71,7 @@ export default function CategoriesClient() {
     } finally {
       setLoading(false);
     }
-  }, [filterLang]);
+  }, [filterLang, siteId]);
 
   useEffect(() => { fetchCategories(); }, [fetchCategories]);
 
@@ -88,6 +91,7 @@ export default function CategoriesClient() {
           category: newName.trim(),
           lang: newLang,
           parent: newParent,
+          ...(siteId ? { siteId } : {}),
         }),
       });
       if (!res.ok) {
@@ -118,6 +122,7 @@ export default function CategoriesClient() {
           rows: editRows,
           img_w: editImgW,
           img_h: editImgH,
+          ...(siteId ? { siteId } : {}),
         }),
       });
       if (!res.ok) {
@@ -137,7 +142,7 @@ export default function CategoriesClient() {
     if (!confirm(`"${name}" 카테고리를 삭제하시겠습니까?`)) return;
     setError("");
     try {
-      const res = await fetch(`/api/product-categories?id=${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/product-categories?id=${id}${siteId ? `&siteId=${siteId}` : ""}`, { method: "DELETE" });
       if (!res.ok) {
         const d = await res.json();
         throw new Error(d.error || "삭제 실패");
@@ -173,7 +178,7 @@ export default function CategoriesClient() {
   return (
     <div>
       <div className="mb-6">
-          <Link href="/dashboard/products" className="text-sm text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100">
+          <Link href={listHref} className="text-sm text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100">
             &larr; 상품 목록
           </Link>
         </div>
@@ -367,7 +372,7 @@ export default function CategoriesClient() {
         )}
 
       <div className="mt-6">
-        <Link href="/dashboard/products" className="text-sm text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100">
+        <Link href={listHref} className="text-sm text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100">
           &larr; 상품 목록으로 돌아가기
         </Link>
       </div>

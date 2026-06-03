@@ -2,17 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { indexProduct } from "@/lib/search";
+import { resolveOperatingSite } from "@/lib/site-access";
 
-// GET /api/products — List all products for user's site
-export async function GET() {
+// GET /api/products — List all products for the operating site (own default, or
+// a manageable customer site when ?siteId= is supplied by a reseller).
+export async function GET(request: NextRequest) {
   const session = await auth();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const site = await prisma.site.findFirst({
-    where: { userId: session.user.id, isTemplateStorage: false },
-  });
+  const siteId = request.nextUrl.searchParams.get("siteId");
+  const site = await resolveOperatingSite(siteId);
 
   if (!site) {
     return NextResponse.json({ products: [] });
@@ -33,9 +34,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const site = await prisma.site.findFirst({
-    where: { userId: session.user.id, isTemplateStorage: false },
-  });
+  const body = await request.json();
+  const { name, description, price, salePrice, stock, category, status, images, imageVariants, siteId } = body;
+
+  const site = await resolveOperatingSite(siteId);
 
   if (!site) {
     return NextResponse.json(
@@ -43,9 +45,6 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
-
-  const body = await request.json();
-  const { name, description, price, salePrice, stock, category, status, images, imageVariants } = body;
 
   if (!name) {
     return NextResponse.json(

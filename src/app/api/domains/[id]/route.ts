@@ -1,6 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getManageScope, canManage } from "@/lib/site-access";
+
+/**
+ * Whether the current scope may MANAGE a domain (view/delete): the site owner,
+ * a reseller operator for the attributed customer site, or an ADMIN. Privileged
+ * mutations (status / sslEnabled) remain admin-only and are gated separately.
+ */
+async function canManageDomain(domain: {
+  userId: string;
+  site: { userId: string; user: { resellerId: string | null } };
+}): Promise<boolean> {
+  const scope = await getManageScope();
+  if (!scope) return false;
+  return canManage(scope, {
+    userId: domain.site.userId,
+    ownerResellerId: domain.site.user.resellerId,
+  });
+}
+
+const DOMAIN_SCOPE_INCLUDE = {
+  site: { select: { id: true, name: true, userId: true, user: { select: { resellerId: true } } } },
+  user: { select: { id: true, email: true, name: true } },
+} as const;
 
 export async function GET(
   _request: NextRequest,
@@ -15,10 +38,7 @@ export async function GET(
 
   const domain = await prisma.domain.findUnique({
     where: { id },
-    include: {
-      site: { select: { id: true, name: true } },
-      user: { select: { id: true, email: true, name: true } },
-    },
+    include: DOMAIN_SCOPE_INCLUDE,
   });
 
   if (!domain) {
@@ -28,12 +48,12 @@ export async function GET(
     );
   }
 
-  // Only owner or admin
+  // Owner / reseller-for-customer / admin
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
   });
 
-  if (domain.userId !== session.user.id && user?.role !== "ADMIN") {
+  if (user?.role !== "ADMIN" && !(await canManageDomain(domain))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -51,7 +71,10 @@ export async function PUT(
 
   const { id } = await params;
 
-  const domain = await prisma.domain.findUnique({ where: { id } });
+  const domain = await prisma.domain.findUnique({
+    where: { id },
+    include: DOMAIN_SCOPE_INCLUDE,
+  });
   if (!domain) {
     return NextResponse.json(
       { error: "도메인을 찾을 수 없습니다." },
@@ -59,12 +82,13 @@ export async function PUT(
     );
   }
 
-  // Only owner or admin
+  // Owner / reseller-for-customer / admin may reach here; the actual
+  // status/sslEnabled mutations below stay strictly admin-only.
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
   });
 
-  if (domain.userId !== session.user.id && user?.role !== "ADMIN") {
+  if (user?.role !== "ADMIN" && !(await canManageDomain(domain))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -104,10 +128,7 @@ export async function PUT(
   const updated = await prisma.domain.update({
     where: { id },
     data: updateData,
-    include: {
-      site: { select: { id: true, name: true } },
-      user: { select: { id: true, email: true, name: true } },
-    },
+    include: DOMAIN_SCOPE_INCLUDE,
   });
 
   return NextResponse.json(updated);
@@ -124,7 +145,10 @@ export async function DELETE(
 
   const { id } = await params;
 
-  const domain = await prisma.domain.findUnique({ where: { id } });
+  const domain = await prisma.domain.findUnique({
+    where: { id },
+    include: DOMAIN_SCOPE_INCLUDE,
+  });
   if (!domain) {
     return NextResponse.json(
       { error: "도메인을 찾을 수 없습니다." },
@@ -132,12 +156,12 @@ export async function DELETE(
     );
   }
 
-  // Only owner or admin
+  // Owner / reseller-for-customer / admin
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
   });
 
-  if (domain.userId !== session.user.id && user?.role !== "ADMIN") {
+  if (user?.role !== "ADMIN" && !(await canManageDomain(domain))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

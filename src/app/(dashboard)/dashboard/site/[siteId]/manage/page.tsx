@@ -349,14 +349,14 @@ export default async function SiteManagePage({
                 {productCount === 0 ? (
                   <>
                     <div className="sub">아직 등록된 상품이 없어요</div>
-                    <Link href="/dashboard/products" className="kpi-action">
+                    <Link href={`/dashboard/products?siteId=${site.id}`} className="kpi-action">
                       상품 등록하기 →
                     </Link>
                   </>
                 ) : (
                   <div className="sub">
                     <Link
-                      href="/dashboard/products"
+                      href={`/dashboard/products?siteId=${site.id}`}
                       style={{ color: "var(--brand)", fontWeight: 600, textDecoration: "none" }}
                     >
                       상품 관리 →
@@ -556,14 +556,14 @@ export default async function SiteManagePage({
                   <div className="meta">{productCount}개</div>
                 </div>
                 <div className="mv2-list">
-                  <Link href="/dashboard/products" className="mv2-list-item">
+                  <Link href={`/dashboard/products?siteId=${site.id}`} className="mv2-list-item">
                     <div className="li-title"><span className="n">{tm("productList")}</span></div>
                     <div className="li-right">
                       <span className="count">{productCount}</span>
                       <span className="chev"><Icon id="i-chev-right" size={12} /></span>
                     </div>
                   </Link>
-                  <Link href="/dashboard/products/categories" className="mv2-list-item">
+                  <Link href={`/dashboard/products/categories?siteId=${site.id}`} className="mv2-list-item">
                     <div className="li-title"><span className="n">{tm("categoryManage")}</span></div>
                     <div className="li-right">
                       <span className="chev"><Icon id="i-chev-right" size={12} /></span>

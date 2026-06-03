@@ -16,6 +16,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { spawn } from "child_process";
+import { getManageScope, canManage } from "@/lib/site-access";
 
 const SCRIPT_PATH = "/root/scripts/provision-domain-ssl.sh";
 
@@ -34,7 +35,13 @@ export async function POST(
     where: { id },
     include: {
       site: {
-        select: { id: true, shopId: true, userId: true, defaultLanguage: true },
+        select: {
+          id: true,
+          shopId: true,
+          userId: true,
+          defaultLanguage: true,
+          user: { select: { resellerId: true } },
+        },
       },
     },
   });
@@ -42,7 +49,16 @@ export async function POST(
   if (!domain) {
     return NextResponse.json({ error: "도메인을 찾을 수 없습니다." }, { status: 404 });
   }
-  if (domain.site.userId !== session.user.id) {
+  // Owner OR a reseller operator for the attributed customer site may trigger
+  // SSL provisioning — resellers set sites up end-to-end for their customers.
+  const scope = await getManageScope();
+  if (
+    !scope ||
+    !canManage(scope, {
+      userId: domain.site.userId,
+      ownerResellerId: domain.site.user.resellerId,
+    })
+  ) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   if (domain.sslEnabled) {

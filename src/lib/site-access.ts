@@ -90,3 +90,28 @@ export async function canManageSite(
     ownerResellerId: site.user.resellerId,
   };
 }
+
+/**
+ * Resolve the "operating site" for surfaces that historically used the caller's
+ * single default site (products, domains, product-categories). When an explicit
+ * `siteId` is supplied (e.g. a reseller managing a customer site via `?siteId=`),
+ * resolve THAT site but only if the current scope may manage it. Otherwise fall
+ * back to the caller's own default (first non-template-storage) site.
+ *
+ * Returns the full Site row (so callers can read shopId/defaultLanguage/etc.),
+ * or null when signed out / not found / forbidden.
+ */
+export async function resolveOperatingSite(
+  siteId?: string | null,
+): Promise<Awaited<ReturnType<typeof prisma.site.findFirst>> | null> {
+  const scope = await getManageScope();
+  if (!scope) return null;
+  if (siteId) {
+    return prisma.site.findFirst({
+      where: { id: siteId, ...manageableSiteWhere(scope) },
+    });
+  }
+  return prisma.site.findFirst({
+    where: { userId: scope.userId, isTemplateStorage: false },
+  });
+}

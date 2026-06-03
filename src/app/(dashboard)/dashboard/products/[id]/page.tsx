@@ -5,11 +5,14 @@ import Link from "next/link";
 import ProductEditClient from "./product-edit-client";
 import DashboardShell from "../../dashboard-shell";
 import { getTempDomain } from "@/lib/temp-domains";
+import { resolveOperatingSite } from "@/lib/site-access";
 
 export default async function ProductDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ siteId?: string }>;
 }) {
   const session = await auth();
   if (!session) {
@@ -17,10 +20,9 @@ export default async function ProductDetailPage({
   }
 
   const { id } = await params;
+  const { siteId } = await searchParams;
 
-  const site = await prisma.site.findFirst({
-    where: { userId: session.user.id, isTemplateStorage: false },
-  });
+  const site = await resolveOperatingSite(siteId);
 
   if (!site) {
     notFound();
@@ -33,6 +35,8 @@ export default async function ProductDetailPage({
   if (!product) {
     notFound();
   }
+
+  const listHref = siteId ? `/dashboard/products?siteId=${siteId}` : "/dashboard/products";
 
   // Parse images. Newer rows store filenames in the `images` JSON field;
   // legacy/migrated rows still keep them as a pipe-separated string in
@@ -73,14 +77,14 @@ export default async function ProductDetailPage({
       active="products"
       breadcrumbs={[
         { label: "홈", href: "/dashboard" },
-        { label: "상품 관리", href: "/dashboard/products" },
+        { label: "상품 관리", href: listHref },
         { label: product.name },
       ]}
     >
       <div>
         <div className="mb-6">
           <Link
-            href="/dashboard/products"
+            href={listHref}
             className="text-sm text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
           >
             &larr; 상품 목록
@@ -89,7 +93,7 @@ export default async function ProductDetailPage({
 
         <h2 className="text-2xl font-bold mb-6">상품 수정</h2>
 
-        <ProductEditClient productId={id} initialData={initialData} />
+        <ProductEditClient productId={id} initialData={initialData} siteId={siteId} />
       </div>
     </DashboardShell>
   );

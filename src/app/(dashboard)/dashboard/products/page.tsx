@@ -6,6 +6,7 @@ import { Prisma } from "@/generated/prisma/client";
 import DashboardShell from "../dashboard-shell";
 import { parsePageParam } from "@/lib/pagination";
 import { getTempDomain } from "@/lib/temp-domains";
+import { resolveOperatingSite } from "@/lib/site-access";
 
 /**
  * Extract the first image filename from either the new `images` JSON field
@@ -71,19 +72,26 @@ const PER_PAGE = 30;
 export default async function ProductsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; page?: string; status?: string; cat?: string }>;
+  searchParams: Promise<{ q?: string; page?: string; status?: string; cat?: string; siteId?: string }>;
 }) {
   const session = await auth();
   if (!session) {
     redirect("/login");
   }
 
-  const { q, page: pageStr, status, cat } = await searchParams;
+  const { q, page: pageStr, status, cat, siteId } = await searchParams;
   const currentPage = parsePageParam(pageStr);
 
-  const site = await prisma.site.findFirst({
-    where: { userId: session.user.id, isTemplateStorage: false },
-  });
+  const site = await resolveOperatingSite(siteId);
+
+  // When a reseller manages a customer site via ?siteId=, the resolved site's
+  // owner differs from the session user — surface that we're editing on behalf.
+  const isCustomer = !!site && site.userId !== session.user.id;
+  // The siteId we thread back into links. Only when explicitly operating on a
+  // site other than the caller's default (i.e. a passed-through ?siteId=).
+  const linkSiteId = siteId && site ? site.id : undefined;
+  const base = (path: string) =>
+    linkSiteId ? `${path}?siteId=${linkSiteId}` : path;
 
   const categoryMap = site ? await getCategoryMap(site.id) : {};
 
@@ -122,6 +130,7 @@ export default async function ProductsPage({
   // Build query string helper
   function qs(overrides: Record<string, string | undefined>) {
     const params = new URLSearchParams();
+    if (linkSiteId) params.set("siteId", linkSiteId);
     if (q) params.set("q", q);
     if (status) params.set("status", status);
     if (cat) params.set("cat", cat);
@@ -146,6 +155,12 @@ export default async function ProductsPage({
       ]}
     >
       <div>
+        {isCustomer && (
+          <div className="mb-4 flex items-center gap-2 rounded-lg border border-violet-200 bg-[#f5f3ff] px-4 py-2.5 text-sm text-[#6d28d9] dark:border-violet-900 dark:bg-violet-950/40 dark:text-violet-300">
+            <i className="fa-solid fa-user-tag" aria-hidden="true" />
+            <span>고객 사이트 <strong>{site!.name}</strong>의 상품을 관리하고 있습니다.</span>
+          </div>
+        )}
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-2xl font-bold">상품 관리</h2>
@@ -158,14 +173,14 @@ export default async function ProductsPage({
           {/* 2026-05-17 사용자 요청: bg-violet-600 (보라) → Toss Blue 통일 */}
           <div className="flex gap-2">
             <Link
-              href="/dashboard/products/categories"
+              href={base("/dashboard/products/categories")}
               className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-white border border-zinc-200 px-4 h-10 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 hover:border-zinc-300 active:bg-zinc-100 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300"
             >
               <i className="fa-solid fa-folder-tree" aria-hidden="true" />
               카테고리 관리
             </Link>
             <Link
-              href="/dashboard/products/new"
+              href={base("/dashboard/products/new")}
               className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-[#3182f6] px-4 h-10 text-sm font-semibold text-white shadow-[0_1px_2px_rgba(49,130,246,0.25),0_2px_6px_rgba(49,130,246,0.18)] transition hover:bg-[#1b64da] hover:shadow-[0_2px_4px_rgba(49,130,246,0.35),0_4px_12px_rgba(49,130,246,0.22)] active:translate-y-px"
             >
               <i className="fa-solid fa-plus" aria-hidden="true" />
@@ -177,6 +192,7 @@ export default async function ProductsPage({
         {/* Search & Filter */}
         {site && (
           <form action="/dashboard/products" method="GET" className="mb-4 flex gap-2 items-center flex-wrap">
+            {linkSiteId && <input type="hidden" name="siteId" value={linkSiteId} />}
             <input
               type="text"
               name="q"
@@ -215,7 +231,7 @@ export default async function ProductsPage({
             </button>
             {(q || (status && status !== "ALL") || (cat && cat !== "ALL")) && (
               <Link
-                href="/dashboard/products"
+                href={base("/dashboard/products")}
                 className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-white border border-zinc-200 px-4 h-10 text-sm text-zinc-600 transition hover:bg-zinc-50 hover:border-zinc-300 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-400"
               >
                 <i className="fa-solid fa-rotate-left" aria-hidden="true" />
@@ -247,7 +263,7 @@ export default async function ProductsPage({
             </p>
             {!q && (
               <Link
-                href="/dashboard/products/new"
+                href={base("/dashboard/products/new")}
                 className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#3182f6] px-5 h-10 text-sm font-semibold text-white shadow-[0_1px_2px_rgba(49,130,246,0.25),0_2px_6px_rgba(49,130,246,0.18)] transition hover:bg-[#1b64da] active:translate-y-px"
               >
                 <i className="fa-solid fa-plus" aria-hidden="true" />
@@ -296,7 +312,7 @@ export default async function ProductsPage({
                   >
                     <td className="px-4 py-3">
                       <Link
-                        href={`/dashboard/products/${product.id}`}
+                        href={base(`/dashboard/products/${product.id}`)}
                         className="block w-14 h-14 overflow-hidden rounded-md border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800"
                       >
                         {thumb ? (
@@ -316,7 +332,7 @@ export default async function ProductsPage({
                     </td>
                     <td className="px-6 py-4">
                       <Link
-                        href={`/dashboard/products/${product.id}`}
+                        href={base(`/dashboard/products/${product.id}`)}
                         className="font-medium hover:underline"
                       >
                         {product.name}

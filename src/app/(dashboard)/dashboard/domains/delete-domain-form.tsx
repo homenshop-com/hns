@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getManageScope, manageableSiteWhere } from "@/lib/site-access";
 
 /**
  * Thin server-component wrapper for the per-row delete action.
@@ -13,8 +14,12 @@ export default function DeleteDomainForm({ domainId }: { domainId: string }) {
         "use server";
         const session = await auth();
         if (!session) return;
+        // Owner OR a reseller operator for the attributed customer site may
+        // delete the domain connection. Scope the delete by the domain's site.
+        const scope = await getManageScope();
+        if (!scope) return;
         await prisma.domain.deleteMany({
-          where: { id: domainId, userId: session.user.id },
+          where: { id: domainId, site: manageableSiteWhere(scope) },
         });
         const { revalidatePath } = await import("next/cache");
         revalidatePath("/dashboard/domains");

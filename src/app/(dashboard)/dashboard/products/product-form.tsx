@@ -35,12 +35,15 @@ interface ProductFormProps {
   initialData?: ProductFormData;
   productId?: string;
   mode: "create" | "edit";
+  /** When a reseller manages a customer site, scope all reads/writes to it. */
+  siteId?: string;
 }
 
 export default function ProductForm({
   initialData,
   productId,
   mode,
+  siteId,
 }: ProductFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -63,13 +66,13 @@ export default function ProductForm({
   const [categories, setCategories] = useState<CategoryOption[]>([]);
 
   useEffect(() => {
-    fetch("/api/product-categories")
+    fetch(`/api/product-categories${siteId ? `?siteId=${siteId}` : ""}`)
       .then((r) => r.json())
       .then((data) => {
         if (data.categories) setCategories(data.categories);
       })
       .catch(() => {});
-  }, []);
+  }, [siteId]);
 
   function handleChange(
     e: React.ChangeEvent<
@@ -104,6 +107,7 @@ export default function ProductForm({
           status: formData.status,
           images: formData.images.length > 0 ? formData.images : null,
           imageVariants: formData.imageVariants.length > 0 ? formData.imageVariants : null,
+          ...(siteId ? { siteId } : {}),
         }),
       });
 
@@ -112,7 +116,7 @@ export default function ProductForm({
         throw new Error(data.error || "오류가 발생했습니다.");
       }
 
-      router.push("/dashboard/products");
+      router.push(`/dashboard/products${siteId ? `?siteId=${siteId}` : ""}`);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "오류가 발생했습니다.");
