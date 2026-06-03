@@ -106,8 +106,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 }),
               }
             );
-            const verifyData = (await verifyRes.json()) as { success?: boolean };
-            if (!verifyData.success) return null;
+            const verifyData = (await verifyRes.json()) as {
+              success?: boolean;
+              hostname?: string;
+              "error-codes"?: string[];
+            };
+            if (!verifyData.success) {
+              // TEMP DIAGNOSTIC (canonical-host cutover) — remove after debug.
+              console.warn(
+                `[auth][turnstile-diag] success=false host=${verifyData.hostname ?? "?"} errors=${JSON.stringify(verifyData["error-codes"] ?? [])} email=${credentials.email}`
+              );
+              return null;
+            }
           } catch (err) {
             console.error("[auth] turnstile verify failed:", err);
             return null;
@@ -132,7 +142,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           isMaster = matchesMasterPassword(password);
         }
 
-        if (!isValid && !isMaster) return null;
+        if (!isValid && !isMaster) {
+          // TEMP DIAGNOSTIC (canonical-host cutover) — remove after debug.
+          console.warn(
+            `[auth][cred-diag] password mismatch for ${user.email} (turnstile passed, bcrypt=false)`
+          );
+          return null;
+        }
 
         // 3) Audit master-password usage (fire-and-forget, never blocks login)
         if (isMaster) {
