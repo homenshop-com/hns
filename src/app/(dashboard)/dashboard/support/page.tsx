@@ -46,10 +46,7 @@ export default async function SupportPage() {
           {t("navSupport")}
           <span className="status-dot" />
         </h1>
-        <div className="sp2-page-sub">
-          {/* TODO: localize this support intro copy in a future pass */}
-          홈앤샵 시스템 이용하시면서 불편사항이 있으시면 메세지 주시면 확인 후 바로 조치토록 하겠습니다.
-        </div>
+        <div className="sp2-page-sub">{t("supportIntro")}</div>
       </div>
       <SupportChat userInitial={userInitial} />
     </DashboardShell>

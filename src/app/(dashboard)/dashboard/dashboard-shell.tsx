@@ -149,7 +149,7 @@ export default async function DashboardShell({
               {showReseller && (
                 <Link className={cls("reseller")} href="/admin">
                   <span className="ic"><Icon id="i-shield" /></span>
-                  <span className="label">리셀러 관리자</span>
+                  <span className="label">{t("navResellerAdmin")}</span>
                 </Link>
               )}
               {/* 관리자 정보(프로필)는 좌측 메뉴에서 제외 — 우측 상단

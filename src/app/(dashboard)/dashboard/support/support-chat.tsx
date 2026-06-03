@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useLocale, useTranslations } from "next-intl";
 
 interface Message {
   id: string;
@@ -11,16 +12,16 @@ interface Message {
 
 const POLL_INTERVAL_MS = 5000;
 
-function timeLabel(iso: string) {
+function timeLabel(iso: string, locale: string) {
   const d = new Date(iso);
-  return d.toLocaleTimeString("ko-KR", {
+  return d.toLocaleTimeString(locale, {
     hour: "2-digit",
     minute: "2-digit",
   });
 }
 
-function dateKey(iso: string) {
-  return new Date(iso).toLocaleDateString("ko-KR", {
+function dateKey(iso: string, locale: string) {
+  return new Date(iso).toLocaleDateString(locale, {
     year: "numeric",
     month: "long",
     day: "numeric",
@@ -29,6 +30,8 @@ function dateKey(iso: string) {
 }
 
 export default function SupportChat({ userInitial }: { userInitial: string }) {
+  const t = useTranslations("dashboard");
+  const locale = useLocale();
   const [messages, setMessages] = useState<Message[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [composing, setComposing] = useState("");
@@ -107,7 +110,7 @@ export default function SupportChat({ userInitial }: { userInitial: string }) {
         body: JSON.stringify({ body: text }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "메시지 전송에 실패했습니다.");
+      if (!res.ok) throw new Error(data.error || t("supportSendError"));
       setComposing("");
       pinnedRef.current = true;
       // Optimistically append + refetch to pull real id from server.
@@ -141,7 +144,7 @@ export default function SupportChat({ userInitial }: { userInitial: string }) {
   const groups: Array<{ dateKey: string; items: Message[] }> = [];
   let current: { dateKey: string; items: Message[] } | null = null;
   for (const m of messages) {
-    const k = dateKey(m.createdAt);
+    const k = dateKey(m.createdAt, locale);
     if (!current || current.dateKey !== k) {
       current = { dateKey: k, items: [] };
       groups.push(current);
@@ -154,8 +157,8 @@ export default function SupportChat({ userInitial }: { userInitial: string }) {
       <div className="sp2-head">
         <div className="admin-avatar">H</div>
         <div>
-          <div className="nm">homeNshop 지원팀</div>
-          <div className="sub">평일 09–18시 · 보통 1시간 내 응답</div>
+          <div className="nm">{t("supportTeamName")}</div>
+          <div className="sub">{t("supportHours")}</div>
         </div>
       </div>
 
@@ -165,11 +168,8 @@ export default function SupportChat({ userInitial }: { userInitial: string }) {
             <div className="ic">
               <svg width={26} height={26}><use href="#i-chat" /></svg>
             </div>
-            <div className="t">무엇을 도와드릴까요?</div>
-            <div className="s">
-              사이트 설정·결제·도메인·크레딧 관련 문의를 아래 입력창에 남겨주세요.
-              보통 평일 업무시간 내 답변드립니다.
-            </div>
+            <div className="t">{t("supportEmptyTitle")}</div>
+            <div className="s">{t("supportEmptyDesc")}</div>
           </div>
         ) : (
           groups.map((g) => (
@@ -185,7 +185,7 @@ export default function SupportChat({ userInitial }: { userInitial: string }) {
                   </div>
                   <div>
                     <div className="bubble">{m.body}</div>
-                    <div className="meta">{timeLabel(m.createdAt)}</div>
+                    <div className="meta">{timeLabel(m.createdAt, locale)}</div>
                   </div>
                 </div>
               ))}
@@ -205,11 +205,11 @@ export default function SupportChat({ userInitial }: { userInitial: string }) {
             autoResize();
           }}
           onKeyDown={onKeyDown}
-          placeholder="메시지를 입력하세요 (Enter 전송 · Shift+Enter 줄바꿈)"
+          placeholder={t("supportComposerPlaceholder")}
           maxLength={4000}
         />
         <button type="button" onClick={send} disabled={sending || !composing.trim()}>
-          {sending ? "전송 중…" : "전송"}
+          {sending ? t("supportSending") : t("supportSend")}
         </button>
       </div>
     </div>
