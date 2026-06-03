@@ -51,16 +51,28 @@ function extractClientContext(request: Request | undefined): {
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   session: { strategy: "jwt" },
-  // Multi-domain (white-label reseller) support. We intentionally do NOT pin
-  // AUTH_URL so Auth.js derives the origin from the incoming request host
-  // (forwarded by nginx as `Host`). This makes the OAuth redirect_uri match
-  // the domain the user actually started on (e.g. homenshop.net), so the
-  // PKCE cookie — which is host-only — is present on the callback. Pinning
-  // AUTH_URL to homenshop.com broke Google login from every reseller domain:
-  // the cookie landed on homenshop.net but the callback went to homenshop.com.
-  // Each reseller login domain must be registered as an authorized redirect
-  // URI in Google Cloud Console.
+  // Multi-domain (white-label reseller) OAuth.
+  //
+  // Every reseller domain serves the whole Next.js app, but Google only allows
+  // a fixed allow-list of redirect_uri values. Registering each reseller domain
+  // (apex + www + home.*) by hand doesn't scale and hits Google's URI cap, so a
+  // login from any unregistered reseller host fails with redirect_uri_mismatch.
+  //
+  // Fix: Auth.js redirect-proxy. All OAuth flows send Google ONE redirect_uri
+  // (AUTH_REDIRECT_PROXY_URL → https://homenshop.com/api/auth/callback/google,
+  // which is already registered in the Cloud Console). At sign-in Auth.js stashes
+  // the originating host's real callback URL in the encrypted `state`. Google
+  // calls back to the proxy host; Auth.js then forwards the browser to that
+  // original callback, where the host-only PKCE cookie lives, completing the
+  // flow. All instances share AUTH_SECRET so the proxy can decode the state.
+  //
+  // We still do NOT pin AUTH_URL: trustHost lets Auth.js derive the request host
+  // (forwarded by nginx as `Host`) so sessions/cookies stay on the domain the
+  // user is actually on. The proxy only overrides the OAuth redirect_uri.
   trustHost: true,
+  // Set on the server (.env.local) to the canonical homenshop.com origin; left
+  // unset locally so dev uses the plain http://localhost:3000 callback.
+  redirectProxyUrl: process.env.AUTH_REDIRECT_PROXY_URL,
   pages: {
     signIn: "/login",
   },
