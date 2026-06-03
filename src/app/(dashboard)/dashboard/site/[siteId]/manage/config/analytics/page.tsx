@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import DashboardShell from "../../../../../dashboard-shell";
 import AnalyticsForm from "./AnalyticsForm";
 import { getServiceAccountEmail, getAnalyticsSummary } from "@/lib/analytics";
+import { canManageSite } from "@/lib/site-access";
 
 export default async function AnalyticsConfigPage({
   params,
@@ -29,7 +30,7 @@ export default async function AnalyticsConfigPage({
     },
   });
 
-  if (!site || site.userId !== session.user.id) {
+  if (!site || !(await canManageSite(siteId))) {
     redirect("/dashboard");
   }
 

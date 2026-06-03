@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { canManageSite } from "@/lib/site-access";
 
 // GET /api/sites/[id]/pages — 사이트 페이지 목록
 export async function GET(
@@ -23,7 +24,7 @@ export async function GET(
     );
   }
 
-  if (site.userId !== session.user.id) {
+  if (!(await canManageSite(id))) {
     return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 });
   }
 
@@ -67,7 +68,7 @@ export async function POST(
     );
   }
 
-  if (site.userId !== session.user.id) {
+  if (!(await canManageSite(id))) {
     return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 });
   }
 

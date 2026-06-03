@@ -12,6 +12,7 @@ import "./menus-v2.css";
 import { DashboardIconSprite, Icon } from "../../../../dashboard-icons";
 import DashboardShell from "../../../../dashboard-shell";
 import { getTempDomain } from "@/lib/temp-domains";
+import { canManageSite } from "@/lib/site-access";
 
 const SITE_THUMB_GRADS: Record<string, [string, string, string, string]> = {
   unionled:      ["#0a1630", "#1a3370", "#6fa0ff", "LED"],
@@ -66,7 +67,7 @@ export default async function MenuManagerPage({
     }),
   ]);
 
-  if (!site || site.userId !== session.user.id) redirect("/dashboard");
+  if (!site || !(await canManageSite(siteId))) redirect("/dashboard");
 
   const siteLanguages = site.languages || ["ko"];
   const activeDomain = site.domains[0];

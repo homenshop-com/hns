@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { canManageSite } from "@/lib/site-access";
 
 /**
  * Partial update for Site.productSettings (JSON column).
@@ -27,7 +28,7 @@ export async function PUT(
   const { id } = await params;
 
   const site = await prisma.site.findUnique({ where: { id } });
-  if (!site || site.userId !== session.user.id) {
+  if (!site || !(await canManageSite(id))) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

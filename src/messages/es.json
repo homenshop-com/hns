@@ -357,6 +357,8 @@
     "siteColLastModified": "Última modificación",
     "siteColManage": "Gestión del sitio",
     "siteWarnNoCustomDomain": "⚠ Sin dominio personalizado",
+    "siteCustomerBadge": "Cliente",
+    "siteCustomerBadgeTooltip": "Cuenta de cliente: {email} (gestión de diseño y datos)",
     "siteExpiryExpired": "Expirado",
     "siteExpiryToday": "Expira hoy",
     "siteExpiryDaysLeft": "{days} días restantes",

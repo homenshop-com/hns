@@ -357,6 +357,8 @@
     "siteColLastModified": "Last modified",
     "siteColManage": "Manage",
     "siteWarnNoCustomDomain": "⚠ No custom domain",
+    "siteCustomerBadge": "Customer",
+    "siteCustomerBadgeTooltip": "Customer account: {email} (design & data management)",
     "siteExpiryExpired": "Expired",
     "siteExpiryToday": "Expires today",
     "siteExpiryDaysLeft": "{days} days left",

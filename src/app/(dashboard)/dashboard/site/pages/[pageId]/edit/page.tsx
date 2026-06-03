@@ -6,6 +6,7 @@ import { readTemplateCss, rewriteAssetUrls } from "@/lib/template-parser";
 import { isEditorV2Enabled } from "@/lib/editor-flags";
 import DesignEditor from "./design-editor";
 import { getTempDomain } from "@/lib/temp-domains";
+import { getManageScope, canManage } from "@/lib/site-access";
 
 interface EditPageProps {
   params: Promise<{ pageId: string }>;
@@ -25,12 +26,14 @@ export default async function EditPagePage({ params }: EditPageProps) {
         include: {
           pages: { orderBy: { sortOrder: "asc" } },
           hmfTranslations: true,
+          user: { select: { resellerId: true } },
         },
       },
     },
   });
 
-  if (!currentPage || currentPage.site.userId !== session.user.id) {
+  const scope = await getManageScope();
+  if (!currentPage || !scope || !canManage(scope, { userId: currentPage.site.userId, ownerResellerId: currentPage.site.user.resellerId })) {
     redirect("/dashboard");
   }
 

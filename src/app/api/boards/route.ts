@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getManageScope, manageableSiteWhere } from "@/lib/site-access";
 
 // GET /api/boards — List all boards for user's site
 export async function GET() {
@@ -44,8 +45,9 @@ export async function POST(request: NextRequest) {
   let site;
   if (bodySiteId) {
     // Caller specified a siteId — verify it belongs to this user
+    const scope = await getManageScope();
     site = await prisma.site.findFirst({
-      where: { id: bodySiteId, userId: session.user.id },
+      where: { id: bodySiteId, ...(scope ? manageableSiteWhere(scope) : { userId: session.user.id }) },
     });
     if (!site) {
       return NextResponse.json(

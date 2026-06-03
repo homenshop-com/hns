@@ -18,6 +18,7 @@ import {
   shouldShowExpirationWarning,
 } from "@/lib/site-expiration";
 import { getTempDomain } from "@/lib/temp-domains";
+import { getManageScope, manageableSiteWhere } from "@/lib/site-access";
 
 /* ────────────────────────────────────────────────────────────────
  * Helpers
@@ -112,14 +113,23 @@ export default async function DashboardPage() {
   // dashboard-shell.tsx), so this must be wired here too.
   const showReseller = !!currentUser?.ownedReseller;
 
+  // Reseller operators see their own sites PLUS the sites of customers
+  // attributed to their reseller (design + data management only — billing stays
+  // owner-only). Ordinary members see only their own sites.
+  const manageScope = (await getManageScope()) ?? {
+    userId: session.user.id,
+    resellerId: null,
+  };
+
   const sites = await prisma.site.findMany({
-    where: { userId: session.user.id, isTemplateStorage: false },
+    where: { ...manageableSiteWhere(manageScope), isTemplateStorage: false },
     include: {
       domains: { where: { status: "ACTIVE" }, orderBy: { createdAt: "desc" } },
       pages: {
         select: { id: true, isHome: true, lang: true, updatedAt: true },
         orderBy: { sortOrder: "asc" },
       },
+      user: { select: { email: true } },
     },
     orderBy: { updatedAt: "desc" },
   });
@@ -857,6 +867,11 @@ export default async function DashboardPage() {
                       const monoTints = ["", "alt-a", "alt-b", "alt-c"];
                       const monoTint = monoTints[index % monoTints.length];
 
+                      // Reseller-managed customer site (not the operator's own).
+                      // Surfaced with a violet "고객" badge so the reseller can
+                      // tell their customers' sites apart from their own.
+                      const isCustomer = s.userId !== session.user.id;
+
                       return (
                         <div key={s.id} className="dv2-site-row">
                           <div className="dv2-site-main">
@@ -871,9 +886,36 @@ export default async function DashboardPage() {
                             <div className="dv2-site-info">
                               <div className="dv2-site-name">
                                 {s.name || s.shopId}
+                                {isCustomer && (
+                                  <span
+                                    title={t("siteCustomerBadgeTooltip", { email: s.user?.email ?? "" })}
+                                    style={{
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: 4,
+                                      marginLeft: 8,
+                                      padding: "1px 8px",
+                                      borderRadius: 10,
+                                      fontSize: 11,
+                                      fontWeight: 700,
+                                      verticalAlign: "middle",
+                                      background: "#f5f3ff",
+                                      color: "#6d28d9",
+                                    }}
+                                  >
+                                    <i className="fa-solid fa-user-tag" style={{ fontSize: 10 }} />
+                                    {t("siteCustomerBadge")}
+                                  </span>
+                                )}
                               </div>
                               <div className="dv2-site-meta">
                                 <span className="handle">@{s.shopId}</span>
+                                {isCustomer && s.user?.email && (
+                                  <>
+                                    <span className="dot" />
+                                    <span className="handle">{s.user.email}</span>
+                                  </>
+                                )}
                                 <span className="dot" />
                                 <a className="url" href={publicUrl} target="_blank" rel="noopener noreferrer">
                                   {publicLabel}

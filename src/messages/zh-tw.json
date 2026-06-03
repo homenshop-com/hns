@@ -357,6 +357,8 @@
     "siteColLastModified": "最近修改",
     "siteColManage": "網站管理",
     "siteWarnNoCustomDomain": "⚠ 未連接自訂網域",
+    "siteCustomerBadge": "客戶",
+    "siteCustomerBadgeTooltip": "客戶帳戶：{email}（設計與資料管理）",
     "siteExpiryExpired": "已過期",
     "siteExpiryToday": "今日到期",
     "siteExpiryDaysLeft": "剩餘 {days} 天",

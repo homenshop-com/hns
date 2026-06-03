@@ -358,6 +358,8 @@
     "siteColLastModified": "마지막 수정",
     "siteColManage": "홈페이지 관리",
     "siteWarnNoCustomDomain": "⚠ 커스텀 도메인 미연결",
+    "siteCustomerBadge": "고객",
+    "siteCustomerBadgeTooltip": "고객 계정: {email} (디자인·데이터 관리)",
     "siteExpiryExpired": "만료됨",
     "siteExpiryToday": "오늘 만료",
     "siteExpiryDaysLeft": "{days}일 남음",

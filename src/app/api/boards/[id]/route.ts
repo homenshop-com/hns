@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getManageScope, canManage } from "@/lib/site-access";
 
 // GET /api/boards/[id] — Get a single board
 export async function GET(
@@ -17,7 +18,7 @@ export async function GET(
   const board = await prisma.boardCategory.findUnique({
     where: { id },
     include: {
-      site: { select: { userId: true } },
+      site: { select: { userId: true, user: { select: { resellerId: true } } } },
       _count: { select: { posts: true } },
     },
   });
@@ -43,10 +44,11 @@ export async function PUT(
 
   const board = await prisma.boardCategory.findUnique({
     where: { id },
-    include: { site: { select: { userId: true } } },
+    include: { site: { select: { userId: true, user: { select: { resellerId: true } } } } },
   });
 
-  if (!board || board.site.userId !== session.user.id) {
+  const scope = await getManageScope();
+  if (!board || !scope || !canManage(scope, { userId: board.site.userId, ownerResellerId: board.site.user.resellerId })) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -79,10 +81,11 @@ export async function DELETE(
 
   const board = await prisma.boardCategory.findUnique({
     where: { id },
-    include: { site: { select: { userId: true } } },
+    include: { site: { select: { userId: true, user: { select: { resellerId: true } } } } },
   });
 
-  if (!board || board.site.userId !== session.user.id) {
+  const scope = await getManageScope();
+  if (!board || !scope || !canManage(scope, { userId: board.site.userId, ownerResellerId: board.site.user.resellerId })) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

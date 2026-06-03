@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getAnalyticsSummary } from "@/lib/analytics";
+import { canManageSite } from "@/lib/site-access";
 
 /**
  * GA4 data for a user-owned site.
@@ -37,7 +38,7 @@ export async function GET(
   if (!site) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  if (site.userId !== session.user.id) {
+  if (!(await canManageSite(siteId))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

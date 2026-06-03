@@ -4,6 +4,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import DashboardShell from "../../../../../dashboard-shell";
 import WebmasterForm from "./WebmasterForm";
+import { canManageSite } from "@/lib/site-access";
 
 export default async function WebmasterConfigPage({
   params,
@@ -20,7 +21,7 @@ export default async function WebmasterConfigPage({
     select: { id: true, shopId: true, userId: true, googleVerification: true },
   });
 
-  if (!site || site.userId !== session.user.id) {
+  if (!site || !(await canManageSite(siteId))) {
     redirect("/dashboard");
   }
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { uploadFile, uploadImageCompressed, uploadImageWithResize } from "@/lib/storage";
+import { getManageScope, manageableSiteWhere } from "@/lib/site-access";
 
 const ALLOWED_TYPES = new Set([
   "image/jpeg",
@@ -61,10 +62,13 @@ export async function POST(request: NextRequest) {
     // map to the same shopId-keyed folder.
     let scopedSlug: string | null = null;
     if (siteIdParam && folderRaw === "site-uploads") {
+      const scope = await getManageScope();
       const site = await prisma.site.findFirst({
         where: {
-          OR: [{ id: siteIdParam }, { shopId: siteIdParam }],
-          userId: session.user.id,
+          AND: [
+            { OR: [{ id: siteIdParam }, { shopId: siteIdParam }] },
+            scope ? manageableSiteWhere(scope) : { userId: session.user.id },
+          ],
         },
         select: { shopId: true },
       });

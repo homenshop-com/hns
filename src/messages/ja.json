@@ -357,6 +357,8 @@
     "siteColLastModified": "最終更新",
     "siteColManage": "ホームページ管理",
     "siteWarnNoCustomDomain": "⚠ カスタムドメイン未連携",
+    "siteCustomerBadge": "顧客",
+    "siteCustomerBadgeTooltip": "顧客アカウント: {email}（デザイン・データ管理）",
     "siteExpiryExpired": "期限切れ",
     "siteExpiryToday": "本日期限",
     "siteExpiryDaysLeft": "残り{days}日",

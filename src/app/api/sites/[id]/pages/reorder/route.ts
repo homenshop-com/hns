@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { canManageSite } from "@/lib/site-access";
 
 interface ReorderItem {
   id: string;
@@ -22,7 +23,7 @@ export async function PUT(
 
   const site = await prisma.site.findUnique({ where: { id } });
 
-  if (!site || site.userId !== session.user.id) {
+  if (!site || !(await canManageSite(id))) {
     return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 });
   }
 

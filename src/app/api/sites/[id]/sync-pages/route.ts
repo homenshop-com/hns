@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { canManageSite } from "@/lib/site-access";
 
 /**
  * POST /api/sites/[id]/sync-pages
@@ -30,7 +31,7 @@ export async function POST(
     },
   });
 
-  if (!site || site.userId !== session.user.id) {
+  if (!site || !(await canManageSite(siteId))) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

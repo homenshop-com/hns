@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
+import { canManageSite } from "@/lib/site-access";
 
 /**
  * One-shot endpoint: parse the site's headerHtml <nav> hash-anchor links
@@ -26,7 +27,7 @@ export async function POST(
   if (!site) {
     return NextResponse.json({ error: "Site not found" }, { status: 404 });
   }
-  if (site.userId !== session.user.id) {
+  if (!(await canManageSite(id))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

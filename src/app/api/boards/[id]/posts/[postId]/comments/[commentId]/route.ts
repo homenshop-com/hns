@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getManageScope, canManage } from "@/lib/site-access";
 
 // DELETE /api/boards/[id]/posts/[postId]/comments/[commentId]
 export async function DELETE(
@@ -19,12 +20,13 @@ export async function DELETE(
     where: { id: postId, categoryId: id },
     include: {
       category: {
-        include: { site: { select: { userId: true } } },
+        include: { site: { select: { userId: true, user: { select: { resellerId: true } } } } },
       },
     },
   });
 
-  if (!post || !post.category || post.category.site.userId !== session.user.id) {
+  const scope = await getManageScope();
+  if (!post || !post.category || !scope || !canManage(scope, { userId: post.category.site.userId, ownerResellerId: post.category.site.user.resellerId })) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

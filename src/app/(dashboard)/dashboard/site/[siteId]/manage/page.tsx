@@ -17,6 +17,7 @@ import DashboardShell from "../../../dashboard-shell";
 import { getTempDomain } from "@/lib/temp-domains";
 import { getAnalyticsSummary } from "@/lib/analytics";
 import AnalyticsPanel from "@/app/admin/analytics-panel";
+import { canManageSite } from "@/lib/site-access";
 
 /* ────────────────────────────────────────────────────────────────
  * Helpers
@@ -176,7 +177,7 @@ export default async function SiteManagePage({
     prisma.inquiry.count({ where: { siteId } }),
   ]);
 
-  if (!site || site.userId !== session.user.id) redirect("/dashboard");
+  if (!site || !(await canManageSite(siteId))) redirect("/dashboard");
 
   // ── Storage calculation ─────────────────────────────────────────
   // Legacy uploads: /var/www/legacy-data/userdata/{shopId}/uploaded/

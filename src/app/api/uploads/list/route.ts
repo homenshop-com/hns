@@ -16,6 +16,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getManageScope, manageableSiteWhere } from "@/lib/site-access";
 import { readdir, stat } from "fs/promises";
 import { join } from "path";
 
@@ -40,10 +41,13 @@ export async function GET(request: NextRequest) {
   // Verify the user owns this site + resolve to shopId. Without this,
   // knowing a siteId would let any logged-in user see another site's
   // uploads. Accepts either internal siteId (cuid) or shopId.
+  const scope = await getManageScope();
   const site = await prisma.site.findFirst({
     where: {
-      OR: [{ id: siteId }, { shopId: siteId }],
-      userId: session.user.id,
+      AND: [
+        { OR: [{ id: siteId }, { shopId: siteId }] },
+        scope ? manageableSiteWhere(scope) : { userId: session.user.id },
+      ],
     },
     select: { id: true, shopId: true },
   });

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getManageScope, canManage } from "@/lib/site-access";
 
 // GET /api/pages/[pageId]
 export async function GET(
@@ -15,10 +16,11 @@ export async function GET(
   const { pageId } = await params;
   const page = await prisma.page.findUnique({
     where: { id: pageId },
-    include: { site: { select: { userId: true } } },
+    include: { site: { select: { userId: true, user: { select: { resellerId: true } } } } },
   });
 
-  if (!page || page.site.userId !== session.user.id) {
+  const scope = await getManageScope();
+  if (!page || !scope || !canManage(scope, { userId: page.site.userId, ownerResellerId: page.site.user.resellerId })) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -38,10 +40,11 @@ export async function PUT(
   const { pageId } = await params;
   const page = await prisma.page.findUnique({
     where: { id: pageId },
-    include: { site: { select: { userId: true, id: true } } },
+    include: { site: { select: { userId: true, id: true, user: { select: { resellerId: true } } } } },
   });
 
-  if (!page || page.site.userId !== session.user.id) {
+  const scope = await getManageScope();
+  if (!page || !scope || !canManage(scope, { userId: page.site.userId, ownerResellerId: page.site.user.resellerId })) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -112,10 +115,11 @@ export async function DELETE(
   const { pageId } = await params;
   const page = await prisma.page.findUnique({
     where: { id: pageId },
-    include: { site: { select: { userId: true } } },
+    include: { site: { select: { userId: true, user: { select: { resellerId: true } } } } },
   });
 
-  if (!page || page.site.userId !== session.user.id) {
+  const scope = await getManageScope();
+  if (!page || !scope || !canManage(scope, { userId: page.site.userId, ownerResellerId: page.site.user.resellerId })) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

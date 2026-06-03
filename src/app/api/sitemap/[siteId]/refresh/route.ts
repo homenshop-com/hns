@@ -20,6 +20,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getManageScope, manageableSiteWhere } from "@/lib/site-access";
 
 // IndexNow endpoints. All accept POST {host, key, keyLocation, urlList}
 const INDEXNOW_TARGETS: Array<{ name: string; url: string }> = [
@@ -67,8 +68,9 @@ export async function POST(
 
   const { siteId } = await params;
 
+  const scope = await getManageScope();
   const site = await prisma.site.findFirst({
-    where: { id: siteId, userId: session.user.id },
+    where: { id: siteId, ...(scope ? manageableSiteWhere(scope) : { userId: session.user.id }) },
     select: {
       id: true,
       shopId: true,
@@ -191,8 +193,9 @@ export async function GET(
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const { siteId } = await params;
+  const scope = await getManageScope();
   const site = await prisma.site.findFirst({
-    where: { id: siteId, userId: session.user.id },
+    where: { id: siteId, ...(scope ? manageableSiteWhere(scope) : { userId: session.user.id }) },
     select: {
       id: true,
       defaultLanguage: true,

@@ -357,6 +357,8 @@
     "siteColLastModified": "最近修改",
     "siteColManage": "网站管理",
     "siteWarnNoCustomDomain": "⚠ 未连接自定义域名",
+    "siteCustomerBadge": "客户",
+    "siteCustomerBadgeTooltip": "客户账户：{email}（设计与数据管理）",
     "siteExpiryExpired": "已过期",
     "siteExpiryToday": "今日到期",
     "siteExpiryDaysLeft": "剩余 {days} 天",

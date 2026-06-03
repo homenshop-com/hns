@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { canManageSite } from "@/lib/site-access";
 
 // GET /api/pages?siteId=xxx&lang=xx - List pages for a site
 export async function GET(request: Request) {
@@ -16,7 +17,7 @@ export async function GET(request: Request) {
   }
 
   const site = await prisma.site.findUnique({ where: { id: siteId } });
-  if (!site || site.userId !== session.user.id) {
+  if (!site || !(await canManageSite(siteId))) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -66,7 +67,7 @@ export async function POST(request: Request) {
   }
 
   const site = await prisma.site.findUnique({ where: { id: siteId } });
-  if (!site || site.userId !== session.user.id) {
+  if (!site || !(await canManageSite(siteId))) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -130,7 +131,7 @@ export async function PUT(request: Request) {
   }
 
   const site = await prisma.site.findUnique({ where: { id: siteId } });
-  if (!site || site.userId !== session.user.id) {
+  if (!site || !(await canManageSite(siteId))) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

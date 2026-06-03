@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import { atomizeBodyHtml } from "@/lib/atomic-transform";
+import { canManageSite } from "@/lib/site-access";
 
 /**
  * One-shot endpoint: re-atomize all pages of an existing site so the design
@@ -26,7 +27,7 @@ export async function POST(
   if (!site) {
     return NextResponse.json({ error: "Site not found" }, { status: 404 });
   }
-  if (site.userId !== session.user.id) {
+  if (!(await canManageSite(id))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

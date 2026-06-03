@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { syncTemplateFromSiteIfLinked } from "@/lib/template-sync";
 import { TEMP_DOMAINS, isAllowedTempDomain } from "@/lib/temp-domains";
+import { canManageSite } from "@/lib/site-access";
 
 // GET /api/sites/[id] — 사이트 상세 조회
 export async function GET(
@@ -32,7 +33,8 @@ export async function GET(
     );
   }
 
-  if (site.userId !== session.user.id) {
+  // Owner OR a reseller operator managing this customer's site may read it.
+  if (!(await canManageSite(id))) {
     return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 });
   }
 
@@ -60,7 +62,9 @@ export async function PUT(
     );
   }
 
-  if (site.userId !== session.user.id) {
+  // Owner OR a reseller operator managing this customer's site may edit its
+  // design/content. (PUT only mutates design+data fields, never billing.)
+  if (!(await canManageSite(id))) {
     return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 });
   }
 

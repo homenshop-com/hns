@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { indexPost } from "@/lib/search";
 import { parsePageParam, parseLimitParam } from "@/lib/pagination";
+import { getManageScope, canManage } from "@/lib/site-access";
 
 // GET /api/boards/[id]/posts — List posts (public, paginated)
 export async function GET(
@@ -59,10 +60,11 @@ export async function POST(
   // Verify the board belongs to user's site
   const board = await prisma.boardCategory.findUnique({
     where: { id },
-    include: { site: { select: { id: true, userId: true, name: true } } },
+    include: { site: { select: { id: true, userId: true, name: true, user: { select: { resellerId: true } } } } },
   });
 
-  if (!board || board.site.userId !== session.user.id) {
+  const scope = await getManageScope();
+  if (!board || !scope || !canManage(scope, { userId: board.site.userId, ownerResellerId: board.site.user.resellerId })) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

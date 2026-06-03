@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import { atomizeBodyHtml } from "@/lib/atomic-transform";
+import { canManageSite } from "@/lib/site-access";
 
 // POST /api/sites/[id]/pages/[pageId]/atomize
 // Wraps bare h1/h2/p/img/a.btn/ul/table in .dragable so the design editor
@@ -19,7 +20,7 @@ export async function POST(
   const { id, pageId } = await params;
 
   const site = await prisma.site.findUnique({ where: { id } });
-  if (!site || site.userId !== session.user.id) {
+  if (!site || !(await canManageSite(id))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

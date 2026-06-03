@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { syncTemplateFromSiteIfLinked } from "@/lib/template-sync";
+import { canManageSite } from "@/lib/site-access";
 
 // GET /api/sites/[id]/pages/[pageId] — 페이지 상세 조회
 export async function GET(
@@ -17,7 +18,7 @@ export async function GET(
 
   const site = await prisma.site.findUnique({ where: { id } });
 
-  if (!site || site.userId !== session.user.id) {
+  if (!site || !(await canManageSite(id))) {
     return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 });
   }
 
@@ -50,7 +51,7 @@ export async function PUT(
 
   const site = await prisma.site.findUnique({ where: { id } });
 
-  if (!site || site.userId !== session.user.id) {
+  if (!site || !(await canManageSite(id))) {
     return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 });
   }
 
@@ -171,7 +172,7 @@ export async function DELETE(
 
   const site = await prisma.site.findUnique({ where: { id } });
 
-  if (!site || site.userId !== session.user.id) {
+  if (!site || !(await canManageSite(id))) {
     return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 });
   }
 

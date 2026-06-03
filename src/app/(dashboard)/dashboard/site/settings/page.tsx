@@ -18,6 +18,7 @@ import SupportUnreadIndicator from "../../support-unread-indicator";
 import { resolveExpiresAt, FREE_TRIAL_DAYS } from "@/lib/site-expiration";
 import { getTempDomain, TEMP_DOMAINS } from "@/lib/temp-domains";
 import TempDomainSelect from "./temp-domain-select";
+import { getManageScope, manageableSiteWhere } from "@/lib/site-access";
 import QrCodeGenerator from "./qr-code-generator";
 import "../../dashboard-v2.css";
 import "../[siteId]/manage/manage-v2.css";
@@ -68,9 +69,10 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
     seoAuditResult: true,
   } as const;
 
+  const scope = await getManageScope();
   const site = siteId
     ? await prisma.site.findFirst({
-        where: { id: siteId, userId: session.user.id },
+        where: { id: siteId, ...(scope ? manageableSiteWhere(scope) : { userId: session.user.id }) },
         include: {
           domains: true,
           pages: { select: _pageSelect, orderBy: [{ isHome: "desc" }, { sortOrder: "asc" }] },
