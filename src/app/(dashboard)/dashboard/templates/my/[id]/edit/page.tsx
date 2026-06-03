@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
@@ -21,12 +22,15 @@ export default async function EditMyTemplatePage({
 
   const { id } = await params;
 
+  const tt = await getTranslations("templatesDash");
+
   const template = await prisma.template.findUnique({ where: { id } });
   if (!template || template.userId !== session.user.id) {
     return (
       <ErrorScreen
-        title="템플릿을 찾을 수 없습니다"
-        message="본인 소유의 템플릿만 수정할 수 있습니다."
+        title={tt("editNotFoundTitle")}
+        message={tt("editNotFoundMessage")}
+        backLabel={tt("backToTemplates")}
       />
     );
   }
@@ -34,8 +38,9 @@ export default async function EditMyTemplatePage({
   if (!template.demoSiteId) {
     return (
       <ErrorScreen
-        title="이 템플릿은 원본 사이트 정보가 없습니다"
-        message="이전에 저장된 템플릿이라 연결된 사이트가 기록되지 않았습니다. 기존 사이트에서 편집 후 '나의 템플릿으로 저장'을 다시 실행해 주세요."
+        title={tt("editNoSourceTitle")}
+        message={tt("editNoSourceMessage")}
+        backLabel={tt("backToTemplates")}
       />
     );
   }
@@ -55,8 +60,9 @@ export default async function EditMyTemplatePage({
   if (!site || site.userId !== session.user.id) {
     return (
       <ErrorScreen
-        title="원본 사이트를 찾을 수 없습니다"
-        message="원본 사이트가 삭제되었거나 접근 권한이 없습니다."
+        title={tt("editNoSiteTitle")}
+        message={tt("editNoSiteMessage")}
+        backLabel={tt("backToTemplates")}
       />
     );
   }
@@ -75,8 +81,9 @@ export default async function EditMyTemplatePage({
   if (!homePageId) {
     return (
       <ErrorScreen
-        title="편집할 페이지가 없습니다"
-        message="원본 사이트에 페이지가 없습니다."
+        title={tt("editNoPageTitle")}
+        message={tt("editNoPageMessage")}
+        backLabel={tt("backToTemplates")}
       />
     );
   }
@@ -84,7 +91,7 @@ export default async function EditMyTemplatePage({
   redirect(`/dashboard/site/pages/${homePageId}/edit`);
 }
 
-function ErrorScreen({ title, message }: { title: string; message: string }) {
+function ErrorScreen({ title, message, backLabel }: { title: string; message: string; backLabel: string }) {
   return (
     <div style={{ maxWidth: 560, margin: "80px auto", padding: 24, background: "#fff", borderRadius: 10, boxShadow: "0 2px 20px rgba(0,0,0,0.06)" }}>
       <h2 style={{ margin: 0, marginBottom: 10, fontSize: 18, fontWeight: 700, color: "#991b1b" }}>
@@ -106,7 +113,7 @@ function ErrorScreen({ title, message }: { title: string; message: string }) {
           textDecoration: "none",
         }}
       >
-        템플릿 목록으로
+        {backLabel}
       </Link>
     </div>
   );

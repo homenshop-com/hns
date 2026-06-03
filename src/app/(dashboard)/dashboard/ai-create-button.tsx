@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 
 interface AICreateButtonProps {
   emailVerified: boolean;
@@ -79,15 +80,15 @@ type DesignStyle =
 
 // Progress-stage messages shown while AI generates the site
 // Designed to cycle on a schedule that roughly matches real generation phases
-const STAGE_MESSAGES_KO = [
-  { at: 0, label: "디자인 컨셉 분석 중" },
-  { at: 8, label: "컬러 팔레트 & 타이포그래피 결정 중" },
-  { at: 18, label: "사이트 구조 설계 중" },
-  { at: 32, label: "홈 페이지 콘텐츠 작성 중" },
-  { at: 48, label: "서브 페이지 구성 중" },
-  { at: 64, label: "CSS 디자인 시스템 생성 중" },
-  { at: 85, label: "마무리 및 검증 중" },
-  { at: 110, label: "곧 완료됩니다" },
+const STAGE_MESSAGES_KO: { at: number; key: string }[] = [
+  { at: 0, key: "stageConcept" },
+  { at: 8, key: "stagePalette" },
+  { at: 18, key: "stageStructure" },
+  { at: 32, key: "stageHomeContent" },
+  { at: 48, key: "stageSubPages" },
+  { at: 64, key: "stageCssSystem" },
+  { at: 85, key: "stageFinalize" },
+  { at: 110, key: "stageAlmostDone" },
 ];
 
 function formatElapsed(sec: number): string {
@@ -98,6 +99,7 @@ function formatElapsed(sec: number): string {
 
 export default function AICreateButton({ emailVerified, labels, renderAsCard }: AICreateButtonProps) {
   const router = useRouter();
+  const tm = useTranslations("miscDash");
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<"style" | "form" | "verify">("style");
   const [mode, setMode] = useState<"ai" | "zip">("ai");
@@ -133,7 +135,7 @@ export default function AICreateButton({ emailVerified, labels, renderAsCard }: 
     const incoming = Array.from(files);
     const tooBig = incoming.find((f) => f.size > MAX_ATTACHMENT_SIZE);
     if (tooBig) {
-      setError(`파일 크기 초과: ${tooBig.name} (최대 10MB)`);
+      setError(tm("fileSizeExceeded", { name: tooBig.name }));
       return;
     }
     setAttachments((prev) => {
@@ -733,9 +735,9 @@ export default function AICreateButton({ emailVerified, labels, renderAsCard }: 
             <div className="ic" style={{ display: "grid", placeItems: "center", fontSize: 22 }}>✨</div>
             <div className="text">
               <div className="ttl">
-                AI 홈페이지 제작 <span className="tag">NEW</span>
+                {tm("aiCardTitle")} <span className="tag">{tm("aiCardTag")}</span>
               </div>
-              <div className="desc">몇 문장만으로 5분 만에 완성</div>
+              <div className="desc">{tm("aiCardDesc")}</div>
             </div>
             <div className="arr" aria-hidden>
               <svg width={20} height={20} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
@@ -929,7 +931,7 @@ export default function AICreateButton({ emailVerified, labels, renderAsCard }: 
                           }}
                           disabled={zipUploading}
                           className="ai-zip-clear"
-                          aria-label="제거"
+                          aria-label={tm("removeAria")}
                         >
                           ✕
                         </button>
@@ -1148,7 +1150,7 @@ export default function AICreateButton({ emailVerified, labels, renderAsCard }: 
                     /contact info and uses them as source content. */}
                 <div className="tpl-modal-field" style={{ marginTop: 16, flexDirection: "column", alignItems: "stretch" }}>
                   <label style={{ marginBottom: 6, display: "block" }}>
-                    홍보물 첨부 <span style={{ color: "#868e96", fontWeight: 400, fontSize: 12 }}>(선택 · 이미지·PDF, 최대 5개)</span>:
+                    {tm("promoAttachLabel")} <span style={{ color: "#868e96", fontWeight: 400, fontSize: 12 }}>{tm("promoAttachHint")}</span>:
                   </label>
                   <div
                     onDragOver={(e) => {
@@ -1171,10 +1173,10 @@ export default function AICreateButton({ emailVerified, labels, renderAsCard }: 
                   >
                     <i className="fa-solid fa-cloud-arrow-up" style={{ fontSize: 22, color: "#868e96" }} />
                     <div style={{ marginTop: 6, fontSize: 13, color: "#495057" }}>
-                      전단지·브로셔·메뉴판 파일을 드래그하거나 클릭해서 추가
+                      {tm("promoDropHint")}
                     </div>
                     <div style={{ fontSize: 11, color: "#868e96", marginTop: 2 }}>
-                      JPG · PNG · GIF · WebP · PDF (각 10MB 이하)
+                      {tm("promoFileHint")}
                     </div>
                     <input
                       ref={fileInputRef}
@@ -1258,7 +1260,7 @@ export default function AICreateButton({ emailVerified, labels, renderAsCard }: 
                                 removeAttachment(i);
                               }}
                               disabled={creating}
-                              title="제거"
+                              title={tm("removeAria")}
                               style={{
                                 position: "absolute",
                                 top: 4,
@@ -1293,7 +1295,7 @@ export default function AICreateButton({ emailVerified, labels, renderAsCard }: 
                       <div className="ai-progress-spinner" aria-hidden="true" />
                       <div className="ai-progress-stage">
                         <span className="ai-progress-dot" />
-                        {currentStage.label}
+                        {tm(currentStage.key)}
                         <span className="ai-progress-ellipsis">
                           <i>.</i>
                           <i>.</i>
@@ -1325,13 +1327,13 @@ export default function AICreateButton({ emailVerified, labels, renderAsCard }: 
                             <span className="ai-step-mark">
                               {done ? "✓" : active ? "●" : "○"}
                             </span>
-                            <span className="ai-step-label">{s.label}</span>
+                            <span className="ai-step-label">{tm(s.key)}</span>
                           </li>
                         );
                       })}
                     </ul>
                     <p className="ai-progress-hint">
-                      이 과정은 보통 60–90초가 소요됩니다. 창을 닫지 말고 잠시 기다려 주세요.
+                      {tm("progressHint")}
                     </p>
                   </div>
                 )}
@@ -1398,12 +1400,18 @@ export default function AICreateButton({ emailVerified, labels, renderAsCard }: 
               ✨
             </div>
             <h3 style={{ fontSize: 18, fontWeight: 800, color: "#1a1a2e", margin: "0 0 10px" }}>
-              크레딧이 부족합니다
+              {tm("insufficientCreditsTitle")}
             </h3>
             <p style={{ fontSize: 14, color: "#4b5563", lineHeight: 1.6, margin: "0 0 24px" }}>
-              AI 홈페이지 생성에는 <b>{insufficientCredits.required} 크레딧</b>이 필요합니다.
+              {tm.rich("insufficientCreditsRequired", {
+                required: insufficientCredits.required,
+                b: (chunks) => <b>{chunks}</b>,
+              })}
               <br />
-              현재 잔액: <b>{insufficientCredits.balance.toLocaleString()} C</b>
+              {tm.rich("insufficientCreditsBalance", {
+                balance: insufficientCredits.balance.toLocaleString(),
+                b: (chunks) => <b>{chunks}</b>,
+              })}
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <a
@@ -1420,7 +1428,7 @@ export default function AICreateButton({ emailVerified, labels, renderAsCard }: 
                   textAlign: "center",
                 }}
               >
-                크레딧 충전하러 가기
+                {tm("goToCharge")}
               </a>
               <button
                 onClick={() => setInsufficientCredits(null)}
@@ -1435,7 +1443,7 @@ export default function AICreateButton({ emailVerified, labels, renderAsCard }: 
                   cursor: "pointer",
                 }}
               >
-                닫기
+                {tm("close")}
               </button>
             </div>
           </div>

@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import ProductEditClient from "./product-edit-client";
 import DashboardShell from "../../dashboard-shell";
 import { getTempDomain } from "@/lib/temp-domains";
@@ -19,6 +20,7 @@ export default async function ProductDetailPage({
     redirect("/login");
   }
 
+  const tp = await getTranslations("productsDash");
   const { id } = await params;
   const { siteId } = await searchParams;
 
@@ -76,8 +78,8 @@ export default async function ProductDetailPage({
     <DashboardShell
       active="products"
       breadcrumbs={[
-        { label: "홈", href: "/dashboard" },
-        { label: "상품 관리", href: listHref },
+        { label: tp("breadcrumbHome"), href: "/dashboard" },
+        { label: tp("breadcrumbProducts"), href: listHref },
         { label: product.name },
       ]}
     >
@@ -87,11 +89,11 @@ export default async function ProductDetailPage({
             href={listHref}
             className="text-sm text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
           >
-            &larr; 상품 목록
+            &larr; {tp("productList")}
           </Link>
         </div>
 
-        <h2 className="text-2xl font-bold mb-6">상품 수정</h2>
+        <h2 className="text-2xl font-bold mb-6">{tp("editProduct")}</h2>
 
         <ProductEditClient productId={id} initialData={initialData} siteId={siteId} />
       </div>

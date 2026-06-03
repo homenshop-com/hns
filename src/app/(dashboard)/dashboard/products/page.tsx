@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { Prisma } from "@/generated/prisma/client";
 import DashboardShell from "../dashboard-shell";
 import { parsePageParam } from "@/lib/pagination";
@@ -52,12 +53,6 @@ async function getCategoryMap(siteId: string): Promise<Record<string, string>> {
   return map;
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  ACTIVE: "판매중",
-  HIDDEN: "숨김",
-  SOLDOUT: "품절",
-};
-
 const STATUS_COLORS: Record<string, string> = {
   ACTIVE:
     "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
@@ -78,6 +73,14 @@ export default async function ProductsPage({
   if (!session) {
     redirect("/login");
   }
+
+  const tp = await getTranslations("productsDash");
+
+  const statusLabels: Record<string, string> = {
+    ACTIVE: tp("statusActive"),
+    HIDDEN: tp("statusHidden"),
+    SOLDOUT: tp("statusSoldout"),
+  };
 
   const { q, page: pageStr, status, cat, siteId } = await searchParams;
   const currentPage = parsePageParam(pageStr);
@@ -150,23 +153,23 @@ export default async function ProductsPage({
     <DashboardShell
       active="products"
       breadcrumbs={[
-        { label: "홈", href: "/dashboard" },
-        { label: "상품 관리" },
+        { label: tp("breadcrumbHome"), href: "/dashboard" },
+        { label: tp("breadcrumbProducts") },
       ]}
     >
       <div>
         {isCustomer && (
           <div className="mb-4 flex items-center gap-2 rounded-lg border border-violet-200 bg-[#f5f3ff] px-4 py-2.5 text-sm text-[#6d28d9] dark:border-violet-900 dark:bg-violet-950/40 dark:text-violet-300">
             <i className="fa-solid fa-user-tag" aria-hidden="true" />
-            <span>고객 사이트 <strong>{site!.name}</strong>의 상품을 관리하고 있습니다.</span>
+            <span>{tp.rich("managingCustomerSite", { name: site!.name, strong: (c) => <strong>{c}</strong> })}</span>
           </div>
         )}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-2xl font-bold">상품 관리</h2>
+            <h2 className="text-2xl font-bold">{tp("title")}</h2>
             <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              총 {totalCount}개의 상품
-              {q && <span> &middot; &quot;{q}&quot; 검색 결과</span>}
+              {tp("totalCount", { count: totalCount })}
+              {q && <span> &middot; {tp("searchResultFor", { q })}</span>}
               {cat && cat !== "ALL" && categoryMap[cat] && <span> &middot; {categoryMap[cat]}</span>}
             </p>
           </div>
@@ -177,14 +180,14 @@ export default async function ProductsPage({
               className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-white border border-zinc-200 px-4 h-10 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 hover:border-zinc-300 active:bg-zinc-100 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300"
             >
               <i className="fa-solid fa-folder-tree" aria-hidden="true" />
-              카테고리 관리
+              {tp("manageCategories")}
             </Link>
             <Link
               href={base("/dashboard/products/new")}
               className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-[#3182f6] px-4 h-10 text-sm font-semibold text-white shadow-[0_1px_2px_rgba(49,130,246,0.25),0_2px_6px_rgba(49,130,246,0.18)] transition hover:bg-[#1b64da] hover:shadow-[0_2px_4px_rgba(49,130,246,0.35),0_4px_12px_rgba(49,130,246,0.22)] active:translate-y-px"
             >
               <i className="fa-solid fa-plus" aria-hidden="true" />
-              상품 등록
+              {tp("addProduct")}
             </Link>
           </div>
         </div>
@@ -197,7 +200,7 @@ export default async function ProductsPage({
               type="text"
               name="q"
               defaultValue={q || ""}
-              placeholder="상품명 검색..."
+              placeholder={tp("searchPlaceholder")}
               className="flex-1 min-w-[200px] rounded-lg border border-zinc-300 bg-white px-4 h-10 text-sm outline-none transition focus:border-[#3182f6] focus:ring-2 focus:ring-[#3182f6]/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
             />
             {categoryOptions.length > 0 && (
@@ -206,7 +209,7 @@ export default async function ProductsPage({
                 defaultValue={cat || "ALL"}
                 className="rounded-lg border border-zinc-300 bg-white px-3 h-10 text-sm outline-none transition focus:border-[#3182f6] dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
               >
-                <option value="ALL">전체 카테고리</option>
+                <option value="ALL">{tp("allCategories")}</option>
                 {categoryOptions.map(c => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
@@ -217,17 +220,17 @@ export default async function ProductsPage({
               defaultValue={status || "ALL"}
               className="rounded-lg border border-zinc-300 bg-white px-3 h-10 text-sm outline-none transition focus:border-[#3182f6] dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
             >
-              <option value="ALL">전체 상태</option>
-              <option value="ACTIVE">판매중</option>
-              <option value="HIDDEN">숨김</option>
-              <option value="SOLDOUT">품절</option>
+              <option value="ALL">{tp("allStatuses")}</option>
+              <option value="ACTIVE">{tp("statusActive")}</option>
+              <option value="HIDDEN">{tp("statusHidden")}</option>
+              <option value="SOLDOUT">{tp("statusSoldout")}</option>
             </select>
             <button
               type="submit"
               className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-[#3182f6] px-4 h-10 text-sm font-semibold text-white shadow-[0_1px_2px_rgba(49,130,246,0.25),0_2px_6px_rgba(49,130,246,0.18)] transition hover:bg-[#1b64da] active:translate-y-px"
             >
               <i className="fa-solid fa-magnifying-glass" aria-hidden="true" />
-              검색
+              {tp("search")}
             </button>
             {(q || (status && status !== "ALL") || (cat && cat !== "ALL")) && (
               <Link
@@ -235,7 +238,7 @@ export default async function ProductsPage({
                 className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-white border border-zinc-200 px-4 h-10 text-sm text-zinc-600 transition hover:bg-zinc-50 hover:border-zinc-300 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-400"
               >
                 <i className="fa-solid fa-rotate-left" aria-hidden="true" />
-                초기화
+                {tp("reset")}
               </Link>
             )}
           </form>
@@ -244,14 +247,14 @@ export default async function ProductsPage({
         {!site && (
           <div className="rounded-xl border border-zinc-200 bg-white p-10 text-center dark:border-zinc-800 dark:bg-zinc-900">
             <p className="text-zinc-500 dark:text-zinc-400 mb-4">
-              사이트를 먼저 생성해주세요.
+              {tp("createSiteFirst")}
             </p>
             <Link
               href="/dashboard/sites"
               className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#3182f6] px-5 h-10 text-sm font-semibold text-white shadow-[0_1px_2px_rgba(49,130,246,0.25),0_2px_6px_rgba(49,130,246,0.18)] transition hover:bg-[#1b64da] active:translate-y-px"
             >
               <i className="fa-solid fa-store" aria-hidden="true" />
-              사이트 만들기
+              {tp("createSite")}
             </Link>
           </div>
         )}
@@ -259,7 +262,7 @@ export default async function ProductsPage({
         {site && products.length === 0 && (
           <div className="rounded-xl border border-zinc-200 bg-white p-10 text-center dark:border-zinc-800 dark:bg-zinc-900">
             <p className="text-zinc-500 dark:text-zinc-400 mb-4">
-              {q ? `"${q}" 검색 결과가 없습니다.` : "등록된 상품이 없습니다."}
+              {q ? tp("noSearchResults", { q }) : tp("noProducts")}
             </p>
             {!q && (
               <Link
@@ -267,7 +270,7 @@ export default async function ProductsPage({
                 className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#3182f6] px-5 h-10 text-sm font-semibold text-white shadow-[0_1px_2px_rgba(49,130,246,0.25),0_2px_6px_rgba(49,130,246,0.18)] transition hover:bg-[#1b64da] active:translate-y-px"
               >
                 <i className="fa-solid fa-plus" aria-hidden="true" />
-                첫 상품 등록하기
+                {tp("addFirstProduct")}
               </Link>
             )}
           </div>
@@ -279,25 +282,25 @@ export default async function ProductsPage({
               <thead>
                 <tr className="border-b border-zinc-200 dark:border-zinc-800">
                   <th className="w-20 px-4 py-3 text-left font-medium text-zinc-500 dark:text-zinc-400">
-                    이미지
+                    {tp("colImage")}
                   </th>
                   <th className="px-6 py-3 text-left font-medium text-zinc-500 dark:text-zinc-400">
-                    상품명
+                    {tp("colName")}
                   </th>
                   <th className="px-6 py-3 text-left font-medium text-zinc-500 dark:text-zinc-400">
-                    카테고리
+                    {tp("colCategory")}
                   </th>
                   <th className="px-6 py-3 text-right font-medium text-zinc-500 dark:text-zinc-400">
-                    판매가
+                    {tp("colPrice")}
                   </th>
                   <th className="px-6 py-3 text-right font-medium text-zinc-500 dark:text-zinc-400">
-                    재고
+                    {tp("colStock")}
                   </th>
                   <th className="px-6 py-3 text-center font-medium text-zinc-500 dark:text-zinc-400">
-                    상태
+                    {tp("colStatus")}
                   </th>
                   <th className="px-6 py-3 text-right font-medium text-zinc-500 dark:text-zinc-400">
-                    등록일
+                    {tp("colCreatedAt")}
                   </th>
                 </tr>
               </thead>
@@ -325,7 +328,7 @@ export default async function ProductsPage({
                           />
                         ) : (
                           <div className="w-full h-full grid place-items-center text-[10px] text-zinc-400">
-                            이미지 없음
+                            {tp("noImage")}
                           </div>
                         )}
                       </Link>
@@ -364,7 +367,7 @@ export default async function ProductsPage({
                       <span
                         className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_COLORS[product.status] ?? ""}`}
                       >
-                        {STATUS_LABELS[product.status] ?? product.status}
+                        {statusLabels[product.status] ?? product.status}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
@@ -388,7 +391,7 @@ export default async function ProductsPage({
                 href={`/dashboard/products${qs({ page: String(currentPage - 1) })}`}
                 className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
               >
-                이전
+                {tp("prev")}
               </Link>
             )}
             {Array.from({ length: totalPages }, (_, i) => i + 1)
@@ -420,7 +423,7 @@ export default async function ProductsPage({
                 href={`/dashboard/products${qs({ page: String(currentPage + 1) })}`}
                 className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
               >
-                다음
+                {tp("next")}
               </Link>
             )}
           </div>
@@ -431,7 +434,7 @@ export default async function ProductsPage({
             href="/dashboard"
             className="text-sm text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
           >
-            &larr; 대시보드로 돌아가기
+            &larr; {tp("backToDashboard")}
           </Link>
         </div>
       </div>

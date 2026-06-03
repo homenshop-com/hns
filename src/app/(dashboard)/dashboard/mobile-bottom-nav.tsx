@@ -19,6 +19,7 @@ export default function MobileBottomNav({ unreadInquiries }: { unreadInquiries?:
   // 네비 라벨은 dashboard.* 네임스페이스에 있음 (common.nav.* 아님).
   // 잘못된 네임스페이스 → "common.nav.navAdminMain" 같은 raw key가 노출되던 버그 수정.
   const t = useTranslations("dashboard");
+  const tm = useTranslations("miscDash");
 
   const isActive = (prefix: string) =>
     prefix === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(prefix);
@@ -37,7 +38,7 @@ export default function MobileBottomNav({ unreadInquiries }: { unreadInquiries?:
   ];
 
   return (
-    <nav className="dv2-mobile-nav" aria-label="모바일 탭">
+    <nav className="dv2-mobile-nav" aria-label={tm("mobileTabNavAria")}>
       {tabs.map((tab) => {
         const active = isActive(tab.href);
         return (
@@ -50,7 +51,7 @@ export default function MobileBottomNav({ unreadInquiries }: { unreadInquiries?:
             <span className="ic">
               <Icon id={tab.icon} size={20} />
               {tab.badge != null && (
-                <span className="badge" aria-label={`${tab.badge}개 알림`}>
+                <span className="badge" aria-label={tm("notificationsAria", { count: tab.badge })}>
                   {tab.badge > 99 ? "99+" : tab.badge}
                 </span>
               )}

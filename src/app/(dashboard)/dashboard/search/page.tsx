@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { searchProducts, searchPosts } from "@/lib/search";
 import DashboardShell from "../dashboard-shell";
 import { parsePageParam } from "@/lib/pagination";
@@ -17,6 +18,7 @@ export default async function SearchPage({
     redirect("/login");
   }
 
+  const tm = await getTranslations("miscDash");
   const resolvedParams = await searchParams;
   const q = resolvedParams.q || "";
   const type = (resolvedParams.type || "all") as SearchType;
@@ -53,21 +55,21 @@ export default async function SearchPage({
   const totalPages = Math.ceil(activeTotal / limit);
 
   const tabs: { key: SearchType; label: string }[] = [
-    { key: "all", label: "전체" },
-    { key: "products", label: "상품" },
-    { key: "posts", label: "게시글" },
+    { key: "all", label: tm("searchTabAll") },
+    { key: "products", label: tm("searchTabProducts") },
+    { key: "posts", label: tm("searchTabPosts") },
   ];
 
   return (
     <DashboardShell
       active="search"
       breadcrumbs={[
-        { label: "홈", href: "/dashboard" },
-        { label: "검색" },
+        { label: tm("breadcrumbHome"), href: "/dashboard" },
+        { label: tm("searchTitle") },
       ]}
     >
       <div>
-        <h2 className="mb-6 text-2xl font-bold">검색</h2>
+        <h2 className="mb-6 text-2xl font-bold">{tm("searchTitle")}</h2>
 
         {/* Search form */}
         <form method="GET" action="/dashboard/search" className="mb-6">
@@ -91,7 +93,7 @@ export default async function SearchPage({
                 type="text"
                 name="q"
                 defaultValue={q}
-                placeholder="검색어를 입력하세요..."
+                placeholder={tm("searchPlaceholder")}
                 className="h-11 w-full rounded-lg border border-zinc-200 bg-white pl-10 pr-4 text-sm outline-none transition focus:border-[#3182f6] focus:ring-2 focus:ring-[#3182f6]/20 dark:border-zinc-700 dark:bg-zinc-900 dark:focus:border-[#3182f6]"
               />
             </div>
@@ -100,7 +102,7 @@ export default async function SearchPage({
               className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-[#3182f6] px-6 h-11 text-sm font-semibold text-white shadow-[0_1px_2px_rgba(49,130,246,0.25),0_2px_6px_rgba(49,130,246,0.18)] transition hover:bg-[#1b64da] active:translate-y-px"
             >
               <i className="fa-solid fa-magnifying-glass" aria-hidden="true" />
-              검색
+              {tm("searchButton")}
             </button>
           </div>
         </form>
@@ -138,7 +140,7 @@ export default async function SearchPage({
                 <section className="mb-8">
                   {type === "all" && (
                     <h3 className="mb-3 text-lg font-semibold">
-                      상품 ({totalProducts})
+                      {tm("searchProductsHeading", { count: totalProducts })}
                     </h3>
                   )}
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -154,11 +156,11 @@ export default async function SearchPage({
                               {product.name as string}
                             </h4>
                             <span className="ml-2 rounded bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
-                              {product.category as string || "미분류"}
+                              {product.category as string || tm("uncategorized")}
                             </span>
                           </div>
                           <p className="mt-1 line-clamp-2 text-sm text-zinc-500 dark:text-zinc-400">
-                            {product.description as string || "설명 없음"}
+                            {product.description as string || tm("noDescription")}
                           </p>
                           <div className="mt-2 flex items-center gap-2">
                             {product.salePrice ? (
@@ -193,7 +195,7 @@ export default async function SearchPage({
                 <section className="mb-8">
                   {type === "all" && (
                     <h3 className="mb-3 text-lg font-semibold">
-                      게시글 ({totalPosts})
+                      {tm("searchPostsHeading", { count: totalPosts })}
                     </h3>
                   )}
                   <div className="space-y-3">
@@ -217,7 +219,7 @@ export default async function SearchPage({
                           </p>
                           <div className="mt-2 flex items-center gap-3 text-xs text-zinc-400">
                             <span>{post.author as string}</span>
-                            <span>조회 {post.views as number}</span>
+                            <span>{tm("postViews", { count: post.views as number })}</span>
                             <span>
                               {new Date(
                                 post.createdAt as string
@@ -237,9 +239,9 @@ export default async function SearchPage({
               (!productsResult || productsResult.hits.length === 0) &&
               (!postsResult || postsResult.hits.length === 0) && (
                 <div className="py-12 text-center text-zinc-500 dark:text-zinc-400">
-                  <p className="text-lg">검색 결과가 없습니다.</p>
+                  <p className="text-lg">{tm("noResults")}</p>
                   <p className="mt-1 text-sm">
-                    다른 검색어로 시도해 보세요.
+                    {tm("noResultsHint")}
                   </p>
                 </div>
               )}
@@ -252,7 +254,7 @@ export default async function SearchPage({
                     href={`/dashboard/search?q=${encodeURIComponent(q)}&type=${type}&page=${page - 1}`}
                     className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
                   >
-                    이전
+                    {tm("paginationPrev")}
                   </Link>
                 )}
                 <span className="text-sm text-zinc-500">
@@ -263,7 +265,7 @@ export default async function SearchPage({
                     href={`/dashboard/search?q=${encodeURIComponent(q)}&type=${type}&page=${page + 1}`}
                     className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
                   >
-                    다음
+                    {tm("paginationNext")}
                   </Link>
                 )}
               </div>
@@ -287,8 +289,8 @@ export default async function SearchPage({
                 d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
               />
             </svg>
-            <p className="text-lg">검색어를 입력하세요</p>
-            <p className="mt-1 text-sm">상품, 게시글을 검색할 수 있습니다.</p>
+            <p className="text-lg">{tm("emptyStateTitle")}</p>
+            <p className="mt-1 text-sm">{tm("emptyStateDesc")}</p>
           </div>
         )}
       </div>

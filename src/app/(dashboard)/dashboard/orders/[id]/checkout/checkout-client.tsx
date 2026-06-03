@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 interface OrderItem {
   id: string;
@@ -46,6 +47,7 @@ export default function CheckoutClient({
   customer,
 }: CheckoutClientProps) {
   const router = useRouter();
+  const tk = useTranslations("checkoutDash");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [sdkReady, setSdkReady] = useState(false);
@@ -65,7 +67,7 @@ export default function CheckoutClient({
       setSdkReady(true);
     };
     script.onerror = () => {
-      setError("결제 모듈을 불러올 수 없습니다. 새로고침 해주세요.");
+      setError(tk("errSdkLoad"));
     };
     document.head.appendChild(script);
 
@@ -76,12 +78,12 @@ export default function CheckoutClient({
 
   async function handlePayment() {
     if (!clientKey) {
-      setError("결제 설정이 완료되지 않았습니다. 관리자에게 문의해주세요.");
+      setError(tk("errNotConfigured"));
       return;
     }
 
     if (!window.TossPayments) {
-      setError("결제 모듈이 로드되지 않았습니다. 새로고침 해주세요.");
+      setError(tk("errSdkNotLoaded"));
       return;
     }
 
@@ -95,7 +97,7 @@ export default function CheckoutClient({
       const orderName =
         order.items.length === 1
           ? order.items[0].productName
-          : `${order.items[0].productName} 외 ${order.items.length - 1}건`;
+          : tk("orderNameMulti", { name: order.items[0].productName, count: order.items.length - 1 });
 
       const origin = window.location.origin;
 
@@ -112,9 +114,9 @@ export default function CheckoutClient({
       // User cancelled or payment error
       if (err instanceof Error) {
         if (err.message.includes("USER_CANCEL")) {
-          setError("결제가 취소되었습니다.");
+          setError(tk("errCancelled"));
         } else {
-          setError(err.message || "결제 처리 중 오류가 발생했습니다.");
+          setError(err.message || tk("errProcessing"));
         }
       }
       setLoading(false);
@@ -125,21 +127,21 @@ export default function CheckoutClient({
     <div className="space-y-6">
       {/* Order Summary */}
       <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden dark:border-zinc-800 dark:bg-zinc-900">
-        <h3 className="text-lg font-semibold px-6 pt-6 pb-4">주문 요약</h3>
+        <h3 className="text-lg font-semibold px-6 pt-6 pb-4">{tk("orderSummary")}</h3>
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-zinc-200 dark:border-zinc-800">
               <th className="px-6 py-3 text-left font-medium text-zinc-500 dark:text-zinc-400">
-                상품명
+                {tk("productName")}
               </th>
               <th className="px-6 py-3 text-right font-medium text-zinc-500 dark:text-zinc-400">
-                단가
+                {tk("unitPrice")}
               </th>
               <th className="px-6 py-3 text-right font-medium text-zinc-500 dark:text-zinc-400">
-                수량
+                {tk("quantity")}
               </th>
               <th className="px-6 py-3 text-right font-medium text-zinc-500 dark:text-zinc-400">
-                소계
+                {tk("subtotal")}
               </th>
             </tr>
           </thead>
@@ -163,7 +165,7 @@ export default function CheckoutClient({
           <tfoot>
             <tr className="border-t border-zinc-200 dark:border-zinc-800">
               <td colSpan={3} className="px-6 py-4 text-right font-semibold">
-                합계
+                {tk("total")}
               </td>
               <td className="px-6 py-4 text-right font-bold text-lg">
                 {order.totalAmount.toLocaleString("ko-KR")}원
@@ -176,21 +178,21 @@ export default function CheckoutClient({
       {/* Shipping Info */}
       {order.shippingName && (
         <div className="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-          <h3 className="text-lg font-semibold mb-4">배송 정보</h3>
+          <h3 className="text-lg font-semibold mb-4">{tk("shippingInfo")}</h3>
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <dt className="text-zinc-500">받는분</dt>
+              <dt className="text-zinc-500">{tk("recipient")}</dt>
               <dd>{order.shippingName}</dd>
             </div>
             {order.shippingPhone && (
               <div className="flex justify-between">
-                <dt className="text-zinc-500">연락처</dt>
+                <dt className="text-zinc-500">{tk("contact")}</dt>
                 <dd>{order.shippingPhone}</dd>
               </div>
             )}
             {order.shippingAddr && (
               <div className="flex justify-between">
-                <dt className="text-zinc-500">주소</dt>
+                <dt className="text-zinc-500">{tk("address")}</dt>
                 <dd>{order.shippingAddr}</dd>
               </div>
             )}
@@ -213,17 +215,17 @@ export default function CheckoutClient({
           className="w-full rounded-xl bg-blue-600 px-6 py-4 text-lg font-semibold text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {loading
-            ? "결제 처리 중..."
+            ? tk("processing")
             : !sdkReady
-              ? "결제 모듈 로딩 중..."
-              : `${order.totalAmount.toLocaleString("ko-KR")}원 결제하기`}
+              ? tk("sdkLoading")
+              : tk("payAmount", { amount: `${order.totalAmount.toLocaleString("ko-KR")}원` })}
         </button>
 
         <button
           onClick={() => router.push(`/dashboard/orders/${order.id}`)}
           className="w-full rounded-xl border border-zinc-300 bg-white px-6 py-3 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 transition-colors"
         >
-          취소
+          {tk("cancel")}
         </button>
       </div>
     </div>

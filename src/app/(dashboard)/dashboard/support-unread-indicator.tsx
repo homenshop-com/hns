@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 
 /**
  * Polls /api/support/unread every 30s and renders an unread indicator
@@ -18,6 +19,7 @@ export default function SupportUnreadIndicator({
   variant?: "dot" | "count";
   initialCount?: number;
 }) {
+  const tm = useTranslations("miscDash");
   const [count, setCount] = useState(initialCount);
 
   useEffect(() => {
@@ -79,8 +81,8 @@ export default function SupportUnreadIndicator({
         border: "2px solid #fff",
         pointerEvents: "none",
       }}
-      aria-label={`읽지 않은 메시지 ${count}개`}
-      title={`읽지 않은 지원 메시지 ${count}개`}
+      aria-label={tm("unreadMessagesAria", { count })}
+      title={tm("unreadSupportMessagesTitle", { count })}
     />
   );
 }

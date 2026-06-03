@@ -17,6 +17,8 @@ interface ProfileFormProps {
     saving: string;
     saved: string;
     error: string;
+    emailHelp: string;
+    phoneHelp: string;
   };
 }
 
@@ -57,7 +59,7 @@ export default function ProfileForm({ defaultName, defaultPhone, email, labels }
         <input type="email" value={email} readOnly />
         <div className="help">
           <svg width={11} height={11}><use href="#i-info" /></svg>
-          로그인 ID로 사용됩니다. 변경하려면 고객지원에 문의하세요.
+          {labels.emailHelp}
         </div>
       </div>
       <div className="pv2-field">
@@ -77,7 +79,7 @@ export default function ProfileForm({ defaultName, defaultPhone, email, labels }
           onChange={(e) => setPhone(e.target.value)}
           placeholder={labels.phonePlaceholder}
         />
-        <div className="help">SMS 알림 · 결제 본인인증에 사용됩니다</div>
+        <div className="help">{labels.phoneHelp}</div>
       </div>
       <button type="submit" disabled={saving} className="pv2-submit primary">
         <svg width={14} height={14}><use href="#i-save" /></svg>

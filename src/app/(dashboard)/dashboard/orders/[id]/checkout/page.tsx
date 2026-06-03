@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import CheckoutClient from "./checkout-client";
 import DashboardShell from "../../../dashboard-shell";
 
@@ -14,6 +15,8 @@ export default async function CheckoutPage({
   if (!session) {
     redirect("/login");
   }
+
+  const tk = await getTranslations("checkoutDash");
 
   const { id } = await params;
 
@@ -47,7 +50,7 @@ export default async function CheckoutPage({
     shippingAddr: order.shippingAddr,
     items: order.items.map((item) => ({
       id: item.id,
-      productName: item.product?.name ?? item.externalName ?? "(미매핑 SKU)",
+      productName: item.product?.name ?? item.externalName ?? tk("unmappedSku"),
       quantity: item.quantity,
       price: item.price,
     })),
@@ -62,10 +65,10 @@ export default async function CheckoutPage({
     <DashboardShell
       active="orders"
       breadcrumbs={[
-        { label: "홈", href: "/dashboard" },
-        { label: "주문 관리", href: "/dashboard/orders" },
+        { label: tk("breadcrumbHome"), href: "/dashboard" },
+        { label: tk("breadcrumbOrders"), href: "/dashboard/orders" },
         { label: order.orderNumber, href: `/dashboard/orders/${id}` },
-        { label: "결제" },
+        { label: tk("breadcrumbPayment") },
       ]}
     >
       <div>
@@ -74,11 +77,11 @@ export default async function CheckoutPage({
             href={`/dashboard/orders/${id}`}
             className="text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
           >
-            &larr; 주문 상세
+            &larr; {tk("backToOrderDetail")}
           </Link>
         </div>
 
-        <h2 className="text-2xl font-bold mb-6">결제하기</h2>
+        <h2 className="text-2xl font-bold mb-6">{tk("payNow")}</h2>
 
         <CheckoutClient order={orderData} customer={customerInfo} />
       </div>

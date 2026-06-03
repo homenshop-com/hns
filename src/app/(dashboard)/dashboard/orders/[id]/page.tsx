@@ -2,15 +2,16 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import DashboardShell from "../../dashboard-shell";
 
-const STATUS_LABELS: Record<string, string> = {
-  PENDING: "결제대기",
-  PAID: "결제완료",
-  SHIPPING: "배송중",
-  DELIVERED: "배송완료",
-  CANCELLED: "취소",
-  REFUNDED: "환불",
+const STATUS_KEYS: Record<string, string> = {
+  PENDING: "statusPending",
+  PAID: "statusPaid",
+  SHIPPING: "statusShipping",
+  DELIVERED: "statusDelivered",
+  CANCELLED: "statusCancelled",
+  REFUNDED: "statusRefunded",
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -26,10 +27,10 @@ const STATUS_COLORS: Record<string, string> = {
     "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
 };
 
-const ORDER_TYPE_LABELS: Record<string, string> = {
-  PRODUCT: "상품",
-  CREDIT_PACK: "크레딧 팩",
-  SUBSCRIPTION: "호스팅 연장",
+const ORDER_TYPE_KEYS: Record<string, string> = {
+  PRODUCT: "typeProduct",
+  CREDIT_PACK: "typeCreditPack",
+  SUBSCRIPTION: "typeSubscription",
 };
 
 const ORDER_TYPE_COLORS: Record<string, string> = {
@@ -47,6 +48,8 @@ export default async function DashboardOrderDetailPage({
   if (!session) {
     redirect("/login");
   }
+
+  const tk = await getTranslations("checkoutDash");
 
   const { id } = await params;
 
@@ -80,8 +83,8 @@ export default async function DashboardOrderDetailPage({
     <DashboardShell
       active="orders"
       breadcrumbs={[
-        { label: "홈", href: "/dashboard" },
-        { label: "주문 관리", href: "/dashboard/orders" },
+        { label: tk("breadcrumbHome"), href: "/dashboard" },
+        { label: tk("breadcrumbOrders"), href: "/dashboard/orders" },
         { label: order.orderNumber },
       ]}
     >
@@ -91,43 +94,43 @@ export default async function DashboardOrderDetailPage({
             href="/dashboard/orders"
             className="text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
           >
-            &larr; 주문 목록
+            &larr; {tk("backToOrderList")}
           </Link>
         </div>
 
         <div className="flex items-center gap-3 mb-6 flex-wrap">
-          <h2 className="text-2xl font-bold">주문 상세</h2>
+          <h2 className="text-2xl font-bold">{tk("orderDetailTitle")}</h2>
           <span
             className={`inline-block rounded-full px-3 py-1 text-sm font-medium ${ORDER_TYPE_COLORS[order.orderType] ?? ""}`}
           >
-            {ORDER_TYPE_LABELS[order.orderType] ?? order.orderType}
+            {ORDER_TYPE_KEYS[order.orderType] ? tk(ORDER_TYPE_KEYS[order.orderType]) : order.orderType}
           </span>
           <span
             className={`inline-block rounded-full px-3 py-1 text-sm font-medium ${STATUS_COLORS[order.status] ?? ""}`}
           >
-            {STATUS_LABELS[order.status] ?? order.status}
+            {STATUS_KEYS[order.status] ? tk(STATUS_KEYS[order.status]) : order.status}
           </span>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Order Info */}
           <div className="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-            <h3 className="text-lg font-semibold mb-4">주문 정보</h3>
+            <h3 className="text-lg font-semibold mb-4">{tk("orderInfo")}</h3>
             <dl className="space-y-3">
-              <InfoRow label="주문번호" value={order.orderNumber} mono />
+              <InfoRow label={tk("orderNumber")} value={order.orderNumber} mono />
               <InfoRow
-                label="유형"
-                value={ORDER_TYPE_LABELS[order.orderType] || order.orderType}
+                label={tk("type")}
+                value={ORDER_TYPE_KEYS[order.orderType] ? tk(ORDER_TYPE_KEYS[order.orderType]) : order.orderType}
               />
               {order.orderType === "CREDIT_PACK" && order.creditAmount && (
-                <InfoRow label="크레딧" value={`${order.creditAmount.toLocaleString()} C`} />
+                <InfoRow label={tk("credits")} value={`${order.creditAmount.toLocaleString()} C`} />
               )}
               {order.orderType === "SUBSCRIPTION" && order.subscriptionMonths && (
-                <InfoRow label="연장 기간" value={`${order.subscriptionMonths}개월`} />
+                <InfoRow label={tk("extensionPeriod")} value={tk("monthsValue", { count: order.subscriptionMonths })} />
               )}
               {order.orderType === "SUBSCRIPTION" && (
                 <InfoRow
-                  label="대상 사이트"
+                  label={tk("targetSite")}
                   value={
                     subscriptionSite
                       ? `${subscriptionSite.name} (${subscriptionSite.shopId})`
@@ -136,15 +139,15 @@ export default async function DashboardOrderDetailPage({
                 />
               )}
               <InfoRow
-                label="주문일"
+                label={tk("orderDate")}
                 value={new Date(order.createdAt).toLocaleString("ko-KR")}
               />
               <InfoRow
-                label="결제금액"
+                label={tk("paymentAmount")}
                 value={`${order.totalAmount.toLocaleString("ko-KR")}원`}
               />
               <InfoRow
-                label="결제수단"
+                label={tk("paymentMethod")}
                 value={order.paymentMethod || "-"}
               />
             </dl>
@@ -155,7 +158,7 @@ export default async function DashboardOrderDetailPage({
                   href={`/dashboard/orders/${order.id}/checkout`}
                   className="block w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white text-center hover:bg-blue-700 transition-colors"
                 >
-                  결제하기
+                  {tk("payNow")}
                 </Link>
               </div>
             )}
@@ -166,12 +169,12 @@ export default async function DashboardOrderDetailPage({
               hide this card and let the detail block expand. */}
           {order.orderType === "PRODUCT" && (
             <div className="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-              <h3 className="text-lg font-semibold mb-4">배송 정보</h3>
+              <h3 className="text-lg font-semibold mb-4">{tk("shippingInfo")}</h3>
               <dl className="space-y-3">
-                <InfoRow label="받는분" value={order.shippingName || "-"} />
-                <InfoRow label="연락처" value={order.shippingPhone || "-"} />
-                <InfoRow label="주소" value={order.shippingAddr || "-"} />
-                <InfoRow label="배송메모" value={order.shippingMemo || "-"} />
+                <InfoRow label={tk("recipient")} value={order.shippingName || "-"} />
+                <InfoRow label={tk("contact")} value={order.shippingPhone || "-"} />
+                <InfoRow label={tk("address")} value={order.shippingAddr || "-"} />
+                <InfoRow label={tk("shippingMemo")} value={order.shippingMemo || "-"} />
               </dl>
             </div>
           )}
@@ -181,21 +184,21 @@ export default async function DashboardOrderDetailPage({
             orders don't use OrderItem rows; show a tailored summary. */}
         {order.orderType === "PRODUCT" && (
           <div className="mt-6 rounded-xl border border-zinc-200 bg-white overflow-hidden dark:border-zinc-800 dark:bg-zinc-900">
-            <h3 className="text-lg font-semibold px-6 pt-6 pb-4">주문 상품</h3>
+            <h3 className="text-lg font-semibold px-6 pt-6 pb-4">{tk("orderProducts")}</h3>
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-zinc-200 dark:border-zinc-800">
                   <th className="px-6 py-3 text-left font-medium text-zinc-500 dark:text-zinc-400">
-                    상품명
+                    {tk("productName")}
                   </th>
                   <th className="px-6 py-3 text-right font-medium text-zinc-500 dark:text-zinc-400">
-                    단가
+                    {tk("unitPrice")}
                   </th>
                   <th className="px-6 py-3 text-right font-medium text-zinc-500 dark:text-zinc-400">
-                    수량
+                    {tk("quantity")}
                   </th>
                   <th className="px-6 py-3 text-right font-medium text-zinc-500 dark:text-zinc-400">
-                    소계
+                    {tk("subtotal")}
                   </th>
                 </tr>
               </thead>
@@ -206,7 +209,7 @@ export default async function DashboardOrderDetailPage({
                     className="border-b border-zinc-100 last:border-0 dark:border-zinc-800"
                   >
                     <td className="px-6 py-4 font-medium">
-                      {item.product?.name ?? item.externalName ?? "(미매핑 SKU)"}
+                      {item.product?.name ?? item.externalName ?? tk("unmappedSku")}
                     </td>
                     <td className="px-6 py-4 text-right whitespace-nowrap">
                       {item.price.toLocaleString("ko-KR")}원
@@ -220,7 +223,7 @@ export default async function DashboardOrderDetailPage({
                 {order.items.length === 0 && (
                   <tr>
                     <td colSpan={4} className="px-6 py-8 text-center text-zinc-500 text-sm">
-                      주문 상품이 없습니다.
+                      {tk("noOrderProducts")}
                     </td>
                   </tr>
                 )}
@@ -231,7 +234,7 @@ export default async function DashboardOrderDetailPage({
                     colSpan={3}
                     className="px-6 py-4 text-right font-semibold"
                   >
-                    합계
+                    {tk("total")}
                   </td>
                   <td className="px-6 py-4 text-right font-bold text-lg">
                     {order.totalAmount.toLocaleString("ko-KR")}원
@@ -244,7 +247,7 @@ export default async function DashboardOrderDetailPage({
 
         {order.orderType === "CREDIT_PACK" && (
           <div className="mt-6 rounded-xl border border-[#d6e8ff] bg-gradient-to-br from-[#e8f3ff] to-white p-6 dark:border-blue-900 dark:from-blue-950 dark:to-zinc-900">
-            <h3 className="text-lg font-semibold mb-4">주문 내용 — 크레딧 팩</h3>
+            <h3 className="text-lg font-semibold mb-4">{tk("orderContentsCreditPack")}</h3>
             <div className="flex items-center gap-4 flex-wrap">
               <div className="w-14 h-14 rounded-xl bg-[#3182f6] text-white grid place-items-center text-xl font-bold shrink-0 shadow-[0_2px_6px_rgba(49,130,246,0.3)]">
                 C
@@ -252,10 +255,10 @@ export default async function DashboardOrderDetailPage({
               <div className="flex-1 min-w-0">
                 <div className="text-lg font-bold">
                   {order.creditAmount ? order.creditAmount.toLocaleString() : "?"} C
-                  <span className="text-sm text-zinc-500 ml-2 font-normal">크레딧 충전</span>
+                  <span className="text-sm text-zinc-500 ml-2 font-normal">{tk("creditRecharge")}</span>
                 </div>
                 <div className="text-xs text-zinc-500 mt-1">
-                  결제 완료 시 내 계정에 자동 적립됩니다.
+                  {tk("creditAutoCredited")}
                 </div>
               </div>
               <div className="text-right">
@@ -264,7 +267,7 @@ export default async function DashboardOrderDetailPage({
                 </div>
                 {order.creditAmount && order.creditAmount > 0 && (
                   <div className="text-xs text-zinc-500">
-                    크레딧당 ₩{Math.round(order.totalAmount / order.creditAmount).toLocaleString()}
+                    {tk("perCredit", { amount: Math.round(order.totalAmount / order.creditAmount).toLocaleString() })}
                   </div>
                 )}
               </div>
@@ -274,14 +277,14 @@ export default async function DashboardOrderDetailPage({
 
         {order.orderType === "SUBSCRIPTION" && (
           <div className="mt-6 rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-6 dark:border-emerald-900 dark:from-emerald-950 dark:to-zinc-900">
-            <h3 className="text-lg font-semibold mb-4">주문 내용 — 호스팅 연장</h3>
+            <h3 className="text-lg font-semibold mb-4">{tk("orderContentsSubscription")}</h3>
             <div className="flex items-center gap-4 flex-wrap">
               <div className="w-14 h-14 rounded-xl bg-emerald-600 text-white grid place-items-center text-xl font-bold shrink-0">
                 ∞
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-lg font-bold">
-                  {order.subscriptionMonths ? `${order.subscriptionMonths}개월` : "?"} 연장
+                  {order.subscriptionMonths ? tk("monthsExtension", { count: order.subscriptionMonths }) : tk("unknownExtension")}
                   {subscriptionSite && (
                     <span className="text-sm text-zinc-500 ml-2 font-normal">
                       · {subscriptionSite.name} ({subscriptionSite.shopId})
@@ -289,14 +292,14 @@ export default async function DashboardOrderDetailPage({
                   )}
                 </div>
                 <div className="text-xs text-zinc-500 mt-1">
-                  결제 완료 시 해당 사이트의 만료일이 자동 연장됩니다.
+                  {tk("subscriptionAutoExtend")}
                 </div>
                 {subscriptionSite && (
                   <Link
                     href={`/dashboard/site/settings?id=${subscriptionSite.id}`}
                     className="text-xs text-blue-600 hover:underline mt-1 inline-block"
                   >
-                    사이트 설정 보기 →
+                    {tk("viewSiteSettings")} →
                   </Link>
                 )}
               </div>
@@ -306,7 +309,7 @@ export default async function DashboardOrderDetailPage({
                 </div>
                 {order.subscriptionMonths && order.subscriptionMonths > 0 && (
                   <div className="text-xs text-zinc-500">
-                    월 ₩{Math.round(order.totalAmount / order.subscriptionMonths).toLocaleString()}
+                    {tk("perMonth", { amount: Math.round(order.totalAmount / order.subscriptionMonths).toLocaleString() })}
                   </div>
                 )}
               </div>
@@ -319,7 +322,7 @@ export default async function DashboardOrderDetailPage({
             href="/dashboard/orders"
             className="text-sm text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
           >
-            &larr; 주문 목록으로 돌아가기
+            &larr; {tk("backToOrderListReturn")}
           </Link>
         </div>
       </div>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import React from "react";
 
 interface Category {
@@ -16,13 +17,13 @@ interface Category {
   defaultkey: string;
 }
 
-const LISTSTYLE_LABELS: Record<string, string> = {
-  "0": "리스트",
-  "1": "갤러리",
-  "2": "슬라이드쇼",
-};
-
 export default function CategoriesClient({ siteId }: { siteId?: string }) {
+  const tp = useTranslations("productsDash");
+  const listStyleLabels: Record<string, string> = {
+    "0": tp("listStyleList"),
+    "1": tp("listStyleGallery"),
+    "2": tp("listStyleSlideshow"),
+  };
   const listHref = siteId ? `/dashboard/products?siteId=${siteId}` : "/dashboard/products";
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,11 +68,11 @@ export default function CategoriesClient({ siteId }: { siteId?: string }) {
         }
       }
     } catch {
-      setError("카테고리를 불러올 수 없습니다.");
+      setError(tp("loadCategoriesError"));
     } finally {
       setLoading(false);
     }
-  }, [filterLang, siteId]);
+  }, [filterLang, siteId, tp]);
 
   useEffect(() => { fetchCategories(); }, [fetchCategories]);
 
@@ -96,13 +97,13 @@ export default function CategoriesClient({ siteId }: { siteId?: string }) {
       });
       if (!res.ok) {
         const d = await res.json();
-        throw new Error(d.error || "생성 실패");
+        throw new Error(d.error || tp("createFailed"));
       }
       setNewName("");
       setNewParent("0");
       fetchCategories();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "오류 발생");
+      setError(err instanceof Error ? err.message : tp("errorOccurred"));
     } finally {
       setSaving(false);
     }
@@ -127,29 +128,29 @@ export default function CategoriesClient({ siteId }: { siteId?: string }) {
       });
       if (!res.ok) {
         const d = await res.json();
-        throw new Error(d.error || "수정 실패");
+        throw new Error(d.error || tp("updateFailed"));
       }
       setEditId(null);
       fetchCategories();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "오류 발생");
+      setError(err instanceof Error ? err.message : tp("errorOccurred"));
     } finally {
       setSaving(false);
     }
   }
 
   async function handleDelete(id: string, name: string) {
-    if (!confirm(`"${name}" 카테고리를 삭제하시겠습니까?`)) return;
+    if (!confirm(tp("confirmDeleteCategory", { name }))) return;
     setError("");
     try {
       const res = await fetch(`/api/product-categories?id=${id}${siteId ? `&siteId=${siteId}` : ""}`, { method: "DELETE" });
       if (!res.ok) {
         const d = await res.json();
-        throw new Error(d.error || "삭제 실패");
+        throw new Error(d.error || tp("deleteFailed"));
       }
       fetchCategories();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "오류 발생");
+      setError(err instanceof Error ? err.message : tp("errorOccurred"));
     }
   }
 
@@ -179,20 +180,20 @@ export default function CategoriesClient({ siteId }: { siteId?: string }) {
     <div>
       <div className="mb-6">
           <Link href={listHref} className="text-sm text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100">
-            &larr; 상품 목록
+            &larr; {tp("productList")}
           </Link>
         </div>
 
         <div className="flex items-center justify-between mb-2">
-          <h2 className="text-2xl font-bold">상품 카테고리 관리</h2>
+          <h2 className="text-2xl font-bold">{tp("categoriesTitle")}</h2>
           {langs.length > 1 && (
             <div className="flex items-center gap-2">
-              <span className="text-xs text-zinc-500">언어:</span>
+              <span className="text-xs text-zinc-500">{tp("languageLabel")}</span>
               <button
                 onClick={() => setFilterLang("")}
                 className={`px-3 h-7 rounded-full text-xs font-medium transition ${!filterLang ? "bg-[#3182f6] text-white shadow-sm" : "bg-white border border-zinc-200 text-zinc-600 hover:border-[#3182f6] hover:text-[#3182f6] dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-400"}`}
               >
-                전체
+                {tp("filterAll")}
               </button>
               {langs.map(l => (
                 <button
@@ -206,7 +207,7 @@ export default function CategoriesClient({ siteId }: { siteId?: string }) {
             </div>
           )}
         </div>
-        <p className="text-sm text-zinc-500 mb-6">총 {categories.length}개 카테고리</p>
+        <p className="text-sm text-zinc-500 mb-6">{tp("totalCategories", { count: categories.length })}</p>
 
         {error && (
           <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600 dark:bg-red-950 dark:text-red-400">
@@ -217,17 +218,17 @@ export default function CategoriesClient({ siteId }: { siteId?: string }) {
         {/* Add new category */}
         <form onSubmit={handleCreate} className="mb-6 flex gap-2 items-end flex-wrap">
           <div className="flex-1 min-w-[200px]">
-            <label className="block text-xs font-medium text-zinc-500 mb-1">카테고리명</label>
+            <label className="block text-xs font-medium text-zinc-500 mb-1">{tp("categoryNameLabel")}</label>
             <input
               type="text"
               value={newName}
               onChange={e => setNewName(e.target.value)}
-              placeholder="새 카테고리명"
+              placeholder={tp("newCategoryPlaceholder")}
               className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-zinc-500 mb-1">언어</label>
+            <label className="block text-xs font-medium text-zinc-500 mb-1">{tp("language")}</label>
             <select
               value={newLang}
               onChange={e => setNewLang(e.target.value)}
@@ -240,13 +241,13 @@ export default function CategoriesClient({ siteId }: { siteId?: string }) {
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-zinc-500 mb-1">상위 카테고리</label>
+            <label className="block text-xs font-medium text-zinc-500 mb-1">{tp("parentCategory")}</label>
             <select
               value={newParent}
               onChange={e => setNewParent(e.target.value)}
               className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
             >
-              <option value="0">없음 (최상위)</option>
+              <option value="0">{tp("parentNone")}</option>
               {roots.map(r => (
                 <option key={r.id} value={r.id}>{r.category}</option>
               ))}
@@ -258,29 +259,29 @@ export default function CategoriesClient({ siteId }: { siteId?: string }) {
             className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-[#3182f6] px-4 h-10 text-sm font-semibold text-white shadow-[0_1px_2px_rgba(49,130,246,0.25),0_2px_6px_rgba(49,130,246,0.18)] transition hover:bg-[#1b64da] active:translate-y-px disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <i className="fa-solid fa-plus" aria-hidden="true" />
-            <span>추가</span>
+            <span>{tp("add")}</span>
           </button>
         </form>
 
         {/* Category list */}
         {loading ? (
-          <div className="text-center py-12 text-zinc-400">불러오는 중...</div>
+          <div className="text-center py-12 text-zinc-400">{tp("loading")}</div>
         ) : categories.length === 0 ? (
           <div className="rounded-xl border border-zinc-200 bg-white p-8 text-center dark:border-zinc-800 dark:bg-zinc-900">
-            <p className="text-zinc-500">등록된 카테고리가 없습니다.</p>
+            <p className="text-zinc-500">{tp("noCategories")}</p>
           </div>
         ) : (
           <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden dark:border-zinc-800 dark:bg-zinc-900">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50">
-                  <th className="px-4 py-3 text-left font-medium text-zinc-500 w-10">ID</th>
-                  <th className="px-4 py-3 text-left font-medium text-zinc-500 w-12">언어</th>
-                  <th className="px-4 py-3 text-left font-medium text-zinc-500">카테고리명</th>
-                  <th className="px-4 py-3 text-center font-medium text-zinc-500">표시방식</th>
-                  <th className="px-4 py-3 text-center font-medium text-zinc-500">행수</th>
-                  <th className="px-4 py-3 text-center font-medium text-zinc-500">이미지 크기</th>
-                  <th className="px-4 py-3 text-right font-medium text-zinc-500 w-32">작업</th>
+                  <th className="px-4 py-3 text-left font-medium text-zinc-500 w-10">{tp("colId")}</th>
+                  <th className="px-4 py-3 text-left font-medium text-zinc-500 w-12">{tp("colLang")}</th>
+                  <th className="px-4 py-3 text-left font-medium text-zinc-500">{tp("colCategoryName")}</th>
+                  <th className="px-4 py-3 text-center font-medium text-zinc-500">{tp("colDisplayStyle")}</th>
+                  <th className="px-4 py-3 text-center font-medium text-zinc-500">{tp("colRows")}</th>
+                  <th className="px-4 py-3 text-center font-medium text-zinc-500">{tp("colImageSize")}</th>
+                  <th className="px-4 py-3 text-right font-medium text-zinc-500 w-32">{tp("colActions")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -301,19 +302,19 @@ export default function CategoriesClient({ siteId }: { siteId?: string }) {
                           <span style={{ paddingLeft: depth * 20 }}>
                             {depth > 0 && <span className="text-zinc-300 mr-1">└</span>}
                             <span className="font-medium">{cat.category}</span>
-                            {cat.defaultkey === "1" && <span className="ml-1 text-xs text-blue-500">(기본)</span>}
+                            {cat.defaultkey === "1" && <span className="ml-1 text-xs text-blue-500">{tp("defaultMark")}</span>}
                           </span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-center">
                         {isEditing ? (
                           <select value={editListstyle} onChange={e => setEditListstyle(e.target.value)} className={inputCls}>
-                            <option value="0">리스트</option>
-                            <option value="1">갤러리</option>
-                            <option value="2">슬라이드쇼</option>
+                            <option value="0">{tp("listStyleList")}</option>
+                            <option value="1">{tp("listStyleGallery")}</option>
+                            <option value="2">{tp("listStyleSlideshow")}</option>
                           </select>
                         ) : (
-                          <span className="text-zinc-500">{LISTSTYLE_LABELS[cat.liststyle] || cat.liststyle}</span>
+                          <span className="text-zinc-500">{listStyleLabels[cat.liststyle] || cat.liststyle}</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-center">
@@ -340,12 +341,12 @@ export default function CategoriesClient({ siteId }: { siteId?: string }) {
                             <button onClick={() => handleUpdate(cat.id)} disabled={saving}
                               className="inline-flex items-center gap-1 rounded bg-[#3182f6] px-2.5 py-1 text-xs font-semibold text-white shadow-sm hover:bg-[#1b64da] active:translate-y-px disabled:opacity-50">
                               <i className="fa-solid fa-check" aria-hidden="true" />
-                              저장
+                              {tp("save")}
                             </button>
                             <button onClick={() => setEditId(null)}
                               className="inline-flex items-center gap-1 rounded border border-zinc-200 bg-white px-2.5 py-1 text-xs text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300">
                               <i className="fa-solid fa-xmark" aria-hidden="true" />
-                              취소
+                              {tp("cancel")}
                             </button>
                           </span>
                         ) : (
@@ -353,12 +354,12 @@ export default function CategoriesClient({ siteId }: { siteId?: string }) {
                             <button onClick={() => startEdit(cat)}
                               className="inline-flex items-center gap-1 rounded border border-zinc-200 bg-white px-2.5 py-1 text-xs text-zinc-600 hover:bg-zinc-50 hover:border-[#3182f6] hover:text-[#3182f6]">
                               <i className="fa-solid fa-pen" aria-hidden="true" />
-                              수정
+                              {tp("edit")}
                             </button>
                             <button onClick={() => handleDelete(cat.id, cat.category)}
                               className="inline-flex items-center gap-1 rounded border border-red-200 bg-white px-2.5 py-1 text-xs text-red-500 hover:bg-red-50">
                               <i className="fa-solid fa-trash" aria-hidden="true" />
-                              삭제
+                              {tp("delete")}
                             </button>
                           </span>
                         )}
@@ -373,7 +374,7 @@ export default function CategoriesClient({ siteId }: { siteId?: string }) {
 
       <div className="mt-6">
         <Link href={listHref} className="text-sm text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100">
-          &larr; 상품 목록으로 돌아가기
+          &larr; {tp("backToProductList")}
         </Link>
       </div>
     </div>

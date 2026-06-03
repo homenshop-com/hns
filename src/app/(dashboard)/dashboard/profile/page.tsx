@@ -69,9 +69,10 @@ export default async function ProfilePage() {
 
   const credits = await getBalance(user.id);
 
-  const [t, tDash] = await Promise.all([
+  const [t, tDash, tp] = await Promise.all([
     getTranslations("profile"),
     getTranslations("dashboard"),
+    getTranslations("profileDash"),
   ]);
   const displayName = user.name || user.email.split("@")[0];
   const avatarLetter = (user.name || user.email)[0].toUpperCase();
@@ -106,16 +107,16 @@ export default async function ProfilePage() {
                 </div>
                 <div className="pv2-stats">
                   <div className="pv2-stat">
-                    <div className="pk">보유 사이트</div>
-                    <div className="pv">{siteCount}개</div>
+                    <div className="pk">{tp("statSites")}</div>
+                    <div className="pv">{tp("sitesCount", { count: siteCount })}</div>
                   </div>
                   <div className="pv2-stat">
-                    <div className="pk">보유 크레딧</div>
+                    <div className="pk">{tp("statCredits")}</div>
                     <div className="pv">{credits.toLocaleString()} C</div>
                   </div>
                   <div className="pv2-stat">
-                    <div className="pk">가입 기간</div>
-                    <div className="pv">{years > 0 ? `${years}년차` : "신규"}</div>
+                    <div className="pk">{tp("statMembership")}</div>
+                    <div className="pv">{years > 0 ? tp("yearsCount", { count: years }) : tp("membershipNew")}</div>
                   </div>
                 </div>
               </div>
@@ -128,7 +129,7 @@ export default async function ProfilePage() {
                     day: "numeric",
                   })}
                 </div>
-                {years > 0 && <div className="yrs">{years}년차 사용자 · 🏆</div>}
+                {years > 0 && <div className="yrs">{tp("yearsUser", { count: years })} · 🏆</div>}
               </div>
             </div>
 
@@ -158,6 +159,8 @@ export default async function ProfilePage() {
                     saving: t("saving"),
                     saved: t("saved"),
                     error: t("error"),
+                    emailHelp: tp("emailHelp"),
+                    phoneHelp: tp("phoneHelp"),
                   }}
                 />
               </section>
@@ -183,6 +186,10 @@ export default async function ProfilePage() {
                     passwordMismatch: t("passwordMismatch"),
                     passwordTooShort: t("passwordTooShort"),
                     error: t("error"),
+                    strengthHelp: tp("strengthHelp"),
+                    mismatchHelp: tp("mismatchHelp"),
+                    matchHelp: tp("matchHelp"),
+                    securityTips: tp("securityTips"),
                   }}
                 />
               </section>
@@ -213,10 +220,10 @@ export default async function ProfilePage() {
               <div className="pv2-panel-head">
                 <h2>
                   {t("mySites")}
-                  <span className="count">{siteCount}개</span>
+                  <span className="count">{tp("sitesCount", { count: siteCount })}</span>
                 </h2>
                 <Link href="/dashboard" className="pv2-tool-btn primary">
-                  <Icon id="i-plus" size={13} /> 새 사이트
+                  <Icon id="i-plus" size={13} /> {tp("newSite")}
                 </Link>
               </div>
               {user.sites.length > 0 ? (
@@ -233,7 +240,7 @@ export default async function ProfilePage() {
                       : type === "paid"
                         ? "pv2-os-plan pro"
                         : "pv2-os-plan free";
-                    const planLabel = isExpired ? "만료" : type === "paid" ? "유료" : "무료";
+                    const planLabel = isExpired ? tp("planExpired") : type === "paid" ? tp("planPaid") : tp("planFree");
                     return (
                       <div key={s.id} className="pv2-os-row">
                         <div
@@ -264,10 +271,10 @@ export default async function ProfilePage() {
               ) : (
                 <div className="pv2-owned-empty">
                   <div className="ic"><Icon id="i-info" size={22} /></div>
-                  <div className="t">아직 사이트가 없습니다</div>
-                  <div className="s">대시보드에서 첫 사이트를 만들어보세요.</div>
+                  <div className="t">{tp("emptyTitle")}</div>
+                  <div className="s">{tp("emptyDesc")}</div>
                   <Link href="/dashboard" className="cta">
-                    <Icon id="i-plus" size={13} /> 사이트 만들기
+                    <Icon id="i-plus" size={13} /> {tp("createSite")}
                   </Link>
                 </div>
               )}

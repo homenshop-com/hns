@@ -361,11 +361,11 @@ const CHANNEL_FIELDS_STATIC: Record<Exclude<Channel, "SHOPIFY">, FieldDef[]> = {
     { key: "region", label: "Region", placeholder: "us-east-1" },
   ],
   QOO10: [
-    { key: "apiKey", label: "API Key", type: "password", hint: "QSM > 통합관리 > API Setup" },
+    { key: "apiKey", label: "API Key", type: "password", hint: "__qoo10ApiKeyHint__" },
     { key: "userId", label: "Q account ID" },
     { key: "password", label: "Q account Password", type: "password" },
     { key: "region", label: "Region", placeholder: "JP", hint: "JP / KR / SG" },
-    { key: "sellerId", label: "Seller ID (선택)" },
+    { key: "sellerId", label: "__qoo10SellerIdLabel__" },
   ],
   RAKUTEN: [
     { key: "serviceSecret", label: "Service Secret", type: "password" },
@@ -400,8 +400,9 @@ function ConnectModal({
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const ti = useTranslations("integrationsDash");
 
-  const fields: FieldDef[] = channel === "SHOPIFY"
+  const rawFields: FieldDef[] = channel === "SHOPIFY"
     ? [{
         key: "shop",
         label: t("fieldShopDomain"),
@@ -409,6 +410,12 @@ function ConnectModal({
         hint: t("fieldShopDomainHint"),
       }]
     : CHANNEL_FIELDS_STATIC[channel];
+  // Resolve locale-dependent tokens embedded in the static field map.
+  const fields: FieldDef[] = rawFields.map((f) => ({
+    ...f,
+    label: f.label === "__qoo10SellerIdLabel__" ? ti("qoo10SellerIdLabel") : f.label,
+    hint: f.hint === "__qoo10ApiKeyHint__" ? ti("qoo10ApiKeyHint") : f.hint,
+  }));
   const isOAuth = channel === "SHOPIFY";
 
   async function submit(e: React.FormEvent) {

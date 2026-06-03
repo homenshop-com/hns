@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -96,6 +97,7 @@ export default function TemplateGallery({
   labels,
 }: TemplateGalleryProps) {
   const router = useRouter();
+  const tt = useTranslations("templatesDash");
   const [tab, setTab] = useState<Tab>("public");
   const [keyword, setKeyword] = useState(currentKeyword);
   const [modalStep, setModalStep] = useState<ModalStep>(null);
@@ -164,11 +166,11 @@ export default function TemplateGallery({
     if (!editTarget) return;
     // Client-side guards that mirror the server (give faster feedback)
     if (!/^image\/(png|jpeg|jpg|webp|gif)$/i.test(file.type)) {
-      setEditError("이미지 파일만 업로드 가능합니다 (PNG/JPG/WEBP/GIF).");
+      setEditError(tt("errImageOnly"));
       return;
     }
     if (file.size > 10 * 1024 * 1024) {
-      setEditError("파일 크기는 10MB 이하여야 합니다.");
+      setEditError(tt("errFileTooLarge"));
       return;
     }
 
@@ -183,7 +185,7 @@ export default function TemplateGallery({
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        setEditError(err.error || `업로드 실패 (${res.status})`);
+        setEditError(err.error || tt("errUploadFailed", { status: res.status }));
         return;
       }
       const data = await res.json();
@@ -217,7 +219,7 @@ export default function TemplateGallery({
     const url = editUrlInput.trim();
     if (!url) return;
     if (!/^(?:https?:\/\/|\/)/i.test(url)) {
-      setEditError("URL은 http(s):// 또는 / 로 시작해야 합니다.");
+      setEditError(tt("errUrlFormat"));
       return;
     }
     setEditBusy(true);
@@ -230,7 +232,7 @@ export default function TemplateGallery({
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        setEditError(err.error || `저장 실패 (${res.status})`);
+        setEditError(err.error || tt("errSaveFailed", { status: res.status }));
         return;
       }
       const data = await res.json();
@@ -250,7 +252,7 @@ export default function TemplateGallery({
   async function clearThumbnail() {
     if (!editTarget) return;
     if (!editTarget.thumbnailUrl) return;
-    if (!confirm("썸네일을 제거하시겠습니까?")) return;
+    if (!confirm(tt("confirmRemoveThumbnail"))) return;
     setEditBusy(true);
     setEditError("");
     try {
@@ -261,7 +263,7 @@ export default function TemplateGallery({
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        setEditError(err.error || `제거 실패 (${res.status})`);
+        setEditError(err.error || tt("errRemoveFailed", { status: res.status }));
         return;
       }
       setEditTarget({ ...editTarget, thumbnailUrl: null });
@@ -279,7 +281,7 @@ export default function TemplateGallery({
     e.preventDefault();
     if (!editTarget) return;
     if (!editName.trim()) {
-      setEditError("이름을 입력해 주세요.");
+      setEditError(tt("errNameRequired"));
       return;
     }
     if (editName.trim() === editTarget.name) {
@@ -297,7 +299,7 @@ export default function TemplateGallery({
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        setEditError(err.error || `저장 실패 (${res.status})`);
+        setEditError(err.error || tt("errSaveFailed", { status: res.status }));
         setEditBusy(false);
         return;
       }
@@ -521,8 +523,8 @@ export default function TemplateGallery({
 
   async function handleToggleVisibility(id: string, nextPublic: boolean) {
     const msg = nextPublic
-      ? "이 템플릿을 공개 템플릿으로 전환하시겠습니까?\n다른 사용자도 이 템플릿으로 사이트를 만들 수 있게 됩니다."
-      : "이 템플릿을 비공개로 되돌리시겠습니까?";
+      ? tt("confirmMakePublic")
+      : tt("confirmMakePrivate");
     if (!confirm(msg)) return;
     try {
       const res = await fetch(`/api/templates/my/${id}/visibility`, {
@@ -532,14 +534,14 @@ export default function TemplateGallery({
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        alert(`변경 실패: ${err.error || res.status}`);
+        alert(tt("errToggleFailed", { detail: err.error || res.status }));
         return;
       }
       setMyTemplates((prev) =>
         prev.map((t) => (t.id === id ? { ...t, isPublic: nextPublic } : t))
       );
     } catch (e) {
-      alert(`변경 실패: ${String(e)}`);
+      alert(tt("errToggleFailed", { detail: String(e) }));
     }
   }
 
@@ -613,7 +615,7 @@ export default function TemplateGallery({
               {/* Type filter — segmented control: 전체 / 반응형 / Fix형 */}
               <div
                 role="group"
-                aria-label="템플릿 유형 필터"
+                aria-label={tt("typeFilterLabel")}
                 style={{
                   display: "inline-flex",
                   background: "#f1f5f9",
@@ -624,9 +626,9 @@ export default function TemplateGallery({
                 }}
               >
                 {([
-                  { v: "" as const, label: "전체" },
-                  { v: "responsive" as const, label: "반응형" },
-                  { v: "fixed" as const, label: "Fix형" },
+                  { v: "" as const, label: tt("typeAll") },
+                  { v: "responsive" as const, label: tt("typeResponsive") },
+                  { v: "fixed" as const, label: tt("typeFixed") },
                 ]).map((opt) => {
                   const active = currentType === opt.v;
                   return (
@@ -706,9 +708,9 @@ export default function TemplateGallery({
                         background: "#7b5cff",
                         color: "#fff",
                       }}
-                      title="모바일 반응형 디자인 — 한 레이아웃이 모든 화면에 자동 대응"
+                      title={tt("badgeResponsiveTitle")}
                     >
-                      반응형
+                      {tt("typeResponsive")}
                     </span>
                   ) : (
                     <span
@@ -719,9 +721,9 @@ export default function TemplateGallery({
                         background: "#94a3b8",
                         color: "#fff",
                       }}
-                      title="고정 폭 디자인 — 데스크탑/모바일 별도 레이아웃 필요"
+                      title={tt("badgeFixedTitle")}
                     >
-                      Fix형
+                      {tt("typeFixed")}
                     </span>
                   )}
                   {(() => {
@@ -738,7 +740,7 @@ export default function TemplateGallery({
                           fontSize: 10,
                           letterSpacing: "0.06em",
                         }}
-                        title={`이 템플릿에 포함된 페이지 언어: ${tpl.languages?.join(", ")}`}
+                        title={tt("langBadgeTitle", { langs: tpl.languages?.join(", ") ?? "" })}
                       >
                         {t}
                       </span>
@@ -875,7 +877,7 @@ export default function TemplateGallery({
                             fontSize: 10,
                             letterSpacing: "0.06em",
                           }}
-                          title={`이 템플릿에 포함된 페이지 언어: ${tpl.languages?.join(", ")}`}
+                          title={tt("langBadgeTitle", { langs: tpl.languages?.join(", ") ?? "" })}
                         >
                           {t}
                         </span>
@@ -893,19 +895,19 @@ export default function TemplateGallery({
                       className="tpl-create-cta"
                       onClick={() => openPreview(tpl)}
                     >
-                      이 템플릿으로 홈페이지 제작
+                      {tt("createWithThisTemplate")}
                     </button>
                     <div style={{ position: "relative", flexShrink: 0 }}>
                       <button
                         type="button"
                         className="tpl-kebab-btn"
-                        aria-label="더보기"
+                        aria-label={tt("more")}
                         aria-haspopup="menu"
                         aria-expanded={openMenuId === tpl.id}
                         onClick={() =>
                           setOpenMenuId(openMenuId === tpl.id ? null : tpl.id)
                         }
-                        title="더보기"
+                        title={tt("more")}
                       >
                         <svg
                           width="18"
@@ -937,7 +939,7 @@ export default function TemplateGallery({
                                 <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
                               </svg>
                             </span>
-                            디자인 수정
+                            {tt("editDesign")}
                           </Link>
                           <button
                             type="button"
@@ -954,7 +956,7 @@ export default function TemplateGallery({
                                 <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
                               </svg>
                             </span>
-                            정보 수정
+                            {tt("editInfo")}
                           </button>
                           <button
                             type="button"
@@ -978,7 +980,7 @@ export default function TemplateGallery({
                                 </svg>
                               )}
                             </span>
-                            {tpl.isPublic ? "비공개로 전환" : "공개로 전환"}
+                            {tpl.isPublic ? tt("makePrivate") : tt("makePublic")}
                           </button>
                           <div className="tpl-kebab-sep" />
                           <button
@@ -1155,7 +1157,11 @@ export default function TemplateGallery({
                         color: "#78350f",
                       }}
                     >
-                      이 템플릿은 <b>{sourceLabel}</b> 페이지만 포함합니다. <b>{targetLabel}</b>(으)로 생성하시면, {sourceLabel} 페이지를 그대로 복제해 <b>{targetLabel}</b> 초안으로 사용합니다. 텍스트만 번역해서 사용하세요.
+                      {tt.rich("langFallbackNotice", {
+                        source: sourceLabel,
+                        target: targetLabel,
+                        b: (chunks) => <b>{chunks}</b>,
+                      })}
                     </div>
                   );
                 })()}
@@ -1233,10 +1239,10 @@ export default function TemplateGallery({
             }}
           >
             <h3 style={{ margin: 0, marginBottom: 6, fontSize: 18, fontWeight: 700 }}>
-              템플릿 수정
+              {tt("editModalTitle")}
             </h3>
             <p style={{ margin: 0, marginBottom: 18, fontSize: 13, color: "#6b7280" }}>
-              이름과 썸네일을 변경할 수 있습니다. 썸네일 업로드는 즉시 반영됩니다.
+              {tt("editModalDesc")}
             </p>
 
             {editError && (
@@ -1247,7 +1253,7 @@ export default function TemplateGallery({
 
             {/* Thumbnail — dropzone + click upload + URL paste */}
             <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
-              썸네일
+              {tt("thumbnail")}
             </label>
             <div
               onClick={() => editThumbRef.current?.click()}
@@ -1319,7 +1325,7 @@ export default function TemplateGallery({
                     <svg className="animate-spin" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                       <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                     </svg>
-                    <span style={{ fontSize: 13, fontWeight: 600 }}>업로드 중...</span>
+                    <span style={{ fontSize: 13, fontWeight: 600 }}>{tt("uploadingShort")}</span>
                   </>
                 ) : (
                   <>
@@ -1329,10 +1335,10 @@ export default function TemplateGallery({
                       <line x1="12" y1="3" x2="12" y2="15" />
                     </svg>
                     <div style={{ fontSize: 13, fontWeight: 600 }}>
-                      {editTarget.thumbnailUrl ? "이미지 변경 — 클릭 또는 드래그" : "클릭하여 업로드 또는 여기로 드래그"}
+                      {editTarget.thumbnailUrl ? tt("thumbChangeHint") : tt("thumbUploadHint")}
                     </div>
                     <div style={{ fontSize: 11, opacity: editTarget.thumbnailUrl ? 0.9 : 0.6 }}>
-                      PNG · JPG · WEBP · GIF · 최대 10MB
+                      {tt("thumbFormatHint")}
                     </div>
                   </>
                 )}
@@ -1353,7 +1359,7 @@ export default function TemplateGallery({
                 type="url"
                 value={editUrlInput}
                 onChange={(e) => setEditUrlInput(e.target.value)}
-                placeholder="또는 이미지 URL 붙여넣기 (https://...)"
+                placeholder={tt("thumbUrlPlaceholder")}
                 disabled={editBusy || editThumbUploading}
                 style={{
                   flex: 1,
@@ -1380,7 +1386,7 @@ export default function TemplateGallery({
                   opacity: editUrlInput.trim() ? 1 : 0.6,
                 }}
               >
-                URL 적용
+                {tt("applyUrl")}
               </button>
               {editTarget.thumbnailUrl && (
                 <button
@@ -1397,16 +1403,16 @@ export default function TemplateGallery({
                     borderRadius: 6,
                     cursor: "pointer",
                   }}
-                  title="썸네일 제거"
+                  title={tt("removeThumbnail")}
                 >
-                  제거
+                  {tt("remove")}
                 </button>
               )}
             </div>
 
             <div style={{ marginBottom: 20 }}>
               <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
-                템플릿 이름 <span style={{ color: "#e03131" }}>*</span>
+                {tt("templateNameLabel")} <span style={{ color: "#e03131" }}>*</span>
               </label>
               <input
                 type="text"
@@ -1442,7 +1448,7 @@ export default function TemplateGallery({
                   cursor: editBusy || editThumbUploading ? "default" : "pointer",
                 }}
               >
-                취소
+                {tt("cancel")}
               </button>
               <button
                 type="submit"
@@ -1458,7 +1464,7 @@ export default function TemplateGallery({
                   cursor: editBusy || editThumbUploading ? "default" : "pointer",
                 }}
               >
-                {editBusy ? "저장 중..." : "이름 저장"}
+                {editBusy ? tt("savingShort") : tt("saveName")}
               </button>
             </div>
           </form>

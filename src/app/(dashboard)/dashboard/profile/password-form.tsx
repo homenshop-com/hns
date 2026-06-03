@@ -14,6 +14,10 @@ interface PasswordFormProps {
     passwordMismatch: string;
     passwordTooShort: string;
     error: string;
+    strengthHelp: string;
+    mismatchHelp: string;
+    matchHelp: string;
+    securityTips: string;
   };
 }
 
@@ -113,7 +117,7 @@ export default function PasswordForm({ labels }: PasswordFormProps) {
           <span className={segmentClass(score, 2)} />
           <span className={segmentClass(score, 3)} />
         </div>
-        <div className="help">안전한 비밀번호일수록 강도가 높아집니다</div>
+        <div className="help">{labels.strengthHelp}</div>
       </div>
       <div className="pv2-field">
         <label>{labels.confirmPassword}</label>
@@ -125,10 +129,10 @@ export default function PasswordForm({ labels }: PasswordFormProps) {
           autoComplete="new-password"
         />
         {confirmPw && confirmPw !== newPw && (
-          <div className="help err">비밀번호가 일치하지 않습니다</div>
+          <div className="help err">{labels.mismatchHelp}</div>
         )}
         {confirmPw && confirmPw === newPw && newPw.length >= 6 && (
-          <div className="help ok">일치합니다</div>
+          <div className="help ok">{labels.matchHelp}</div>
         )}
       </div>
       <button type="submit" disabled={saving} className="pv2-submit dark">
@@ -138,7 +142,7 @@ export default function PasswordForm({ labels }: PasswordFormProps) {
 
       <div className="pv2-security-tips">
         <svg width={13} height={13}><use href="#i-shield" /></svg>
-        <div>비밀번호는 주기적으로 변경하세요. 다른 사이트와 다른 비밀번호를 사용하면 더 안전합니다.</div>
+        <div>{labels.securityTips}</div>
       </div>
 
       {msg && (

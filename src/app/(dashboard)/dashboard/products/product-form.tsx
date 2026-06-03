@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import ImageUpload from "@/components/ImageUpload";
 
 interface CategoryOption {
@@ -46,6 +47,7 @@ export default function ProductForm({
   siteId,
 }: ProductFormProps) {
   const router = useRouter();
+  const tp = useTranslations("productsDash");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -113,13 +115,13 @@ export default function ProductForm({
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "오류가 발생했습니다.");
+        throw new Error(data.error || tp("genericError"));
       }
 
       router.push(`/dashboard/products${siteId ? `?siteId=${siteId}` : ""}`);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "오류가 발생했습니다.");
+      setError(err instanceof Error ? err.message : tp("genericError"));
     } finally {
       setLoading(false);
     }
@@ -137,14 +139,14 @@ export default function ProductForm({
       )}
 
       <div>
-        <label className="block text-sm font-medium mb-1">상품 이미지</label>
+        <label className="block text-sm font-medium mb-1">{tp("productImages")}</label>
         {formData.images.length > 0 && (
           <div className="flex gap-2 flex-wrap mb-3">
             {formData.images.map((url, i) => (
               <div key={i} className="relative group">
                 <img
                   src={url}
-                  alt={`상품 이미지 ${i + 1}`}
+                  alt={tp("productImageAlt", { index: i + 1 })}
                   className="w-24 h-24 object-cover rounded-lg border border-zinc-200 dark:border-zinc-700"
                 />
                 <button
@@ -181,7 +183,7 @@ export default function ProductForm({
 
       <div>
         <label htmlFor="name" className="block text-sm font-medium mb-1">
-          상품명 <span className="text-red-500">*</span>
+          {tp("fieldName")} <span className="text-red-500">*</span>
         </label>
         <input
           id="name"
@@ -191,7 +193,7 @@ export default function ProductForm({
           value={formData.name}
           onChange={handleChange}
           className={inputClass}
-          placeholder="상품명을 입력하세요"
+          placeholder={tp("namePlaceholder")}
         />
       </div>
 
@@ -200,7 +202,7 @@ export default function ProductForm({
           htmlFor="description"
           className="block text-sm font-medium mb-1"
         >
-          상품 설명
+          {tp("fieldDescription")}
         </label>
         <textarea
           id="description"
@@ -209,14 +211,14 @@ export default function ProductForm({
           value={formData.description}
           onChange={handleChange}
           className={inputClass}
-          placeholder="상품에 대한 설명을 입력하세요"
+          placeholder={tp("descriptionPlaceholder")}
         />
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor="price" className="block text-sm font-medium mb-1">
-            판매가 (원)
+            {tp("fieldPrice")}
           </label>
           <input
             id="price"
@@ -235,7 +237,7 @@ export default function ProductForm({
             htmlFor="salePrice"
             className="block text-sm font-medium mb-1"
           >
-            할인가 (원)
+            {tp("fieldSalePrice")}
           </label>
           <input
             id="salePrice"
@@ -245,7 +247,7 @@ export default function ProductForm({
             value={formData.salePrice}
             onChange={handleChange}
             className={inputClass}
-            placeholder="할인가 (선택사항)"
+            placeholder={tp("salePricePlaceholder")}
           />
         </div>
       </div>
@@ -253,7 +255,7 @@ export default function ProductForm({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor="stock" className="block text-sm font-medium mb-1">
-            재고 수량
+            {tp("fieldStock")}
           </label>
           <input
             id="stock"
@@ -272,7 +274,7 @@ export default function ProductForm({
             htmlFor="category"
             className="block text-sm font-medium mb-1"
           >
-            카테고리
+            {tp("fieldCategory")}
           </label>
           <select
             id="category"
@@ -281,7 +283,7 @@ export default function ProductForm({
             onChange={handleChange}
             className={inputClass}
           >
-            <option value="">선택 안함</option>
+            <option value="">{tp("categoryNone")}</option>
             {categories.map((cat) => (
               <option key={cat.id} value={cat.id}>
                 {cat.depth !== "0" && cat.parent !== "0" ? "└ " : ""}
@@ -294,7 +296,7 @@ export default function ProductForm({
 
       <div>
         <label htmlFor="status" className="block text-sm font-medium mb-1">
-          상태
+          {tp("fieldStatus")}
         </label>
         <select
           id="status"
@@ -303,9 +305,9 @@ export default function ProductForm({
           onChange={handleChange}
           className={inputClass}
         >
-          <option value="ACTIVE">판매중</option>
-          <option value="HIDDEN">숨김</option>
-          <option value="SOLDOUT">품절</option>
+          <option value="ACTIVE">{tp("statusActive")}</option>
+          <option value="HIDDEN">{tp("statusHidden")}</option>
+          <option value="SOLDOUT">{tp("statusSoldout")}</option>
         </select>
       </div>
 
@@ -316,11 +318,11 @@ export default function ProductForm({
           className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-[#3182f6] px-6 h-11 text-sm font-semibold text-white shadow-[0_1px_2px_rgba(49,130,246,0.25),0_2px_6px_rgba(49,130,246,0.18)] transition hover:bg-[#1b64da] active:translate-y-px disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? (
-            <><i className="fa-solid fa-spinner fa-spin" />저장 중...</>
+            <><i className="fa-solid fa-spinner fa-spin" />{tp("saving")}</>
           ) : mode === "create" ? (
-            <><i className="fa-solid fa-plus" />상품 등록</>
+            <><i className="fa-solid fa-plus" />{tp("addProduct")}</>
           ) : (
-            <><i className="fa-solid fa-floppy-disk" />상품 수정</>
+            <><i className="fa-solid fa-floppy-disk" />{tp("editProduct")}</>
           )}
         </button>
         <button
@@ -328,7 +330,7 @@ export default function ProductForm({
           onClick={() => router.back()}
           className="rounded-lg border border-zinc-300 px-6 py-2.5 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
         >
-          취소
+          {tp("cancel")}
         </button>
       </div>
     </form>

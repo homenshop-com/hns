@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 interface OrderData {
   id: string;
@@ -33,6 +34,7 @@ declare global {
 
 export default function CreditCheckoutClient({ order, customer }: Props) {
   const router = useRouter();
+  const tk = useTranslations("checkoutDash");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [sdkReady, setSdkReady] = useState(false);
@@ -48,17 +50,17 @@ export default function CreditCheckoutClient({ order, customer }: Props) {
     script.src = "https://js.tosspayments.com/v2/standard";
     script.async = true;
     script.onload = () => setSdkReady(true);
-    script.onerror = () => setError("결제 모듈을 불러올 수 없습니다. 새로고침 해주세요.");
+    script.onerror = () => setError(tk("errSdkLoad"));
     document.head.appendChild(script);
   }, []);
 
   async function handlePayment() {
     if (!clientKey) {
-      setError("결제 설정이 완료되지 않았습니다. 관리자에게 문의해주세요.");
+      setError(tk("errNotConfigured"));
       return;
     }
     if (!window.TossPayments) {
-      setError("결제 모듈이 로드되지 않았습니다. 새로고침 해주세요.");
+      setError(tk("errSdkNotLoaded"));
       return;
     }
 
@@ -67,14 +69,14 @@ export default function CreditCheckoutClient({ order, customer }: Props) {
 
     try {
       const tossPayments = window.TossPayments(clientKey);
-      const orderName = `AI 크레딧 ${order.creditAmount.toLocaleString()} C 충전`;
+      const orderName = tk("creditOrderName", { amount: order.creditAmount.toLocaleString() });
       const origin = window.location.origin;
 
       await tossPayments.requestPayment("카드", {
         amount: order.totalAmount,
         orderId: order.orderNumber,
         orderName,
-        customerName: customer.name || "고객",
+        customerName: customer.name || tk("defaultCustomer"),
         customerEmail: customer.email,
         successUrl: `${origin}/dashboard/credits/checkout/success`,
         failUrl: `${origin}/dashboard/credits?error=payment_failed`,
@@ -82,9 +84,9 @@ export default function CreditCheckoutClient({ order, customer }: Props) {
     } catch (err) {
       if (err instanceof Error) {
         if (err.message.includes("USER_CANCEL")) {
-          setError("결제가 취소되었습니다.");
+          setError(tk("errCancelled"));
         } else {
-          setError(err.message || "결제 처리 중 오류가 발생했습니다.");
+          setError(err.message || tk("errProcessing"));
         }
       }
       setLoading(false);
@@ -100,16 +102,16 @@ export default function CreditCheckoutClient({ order, customer }: Props) {
         className="credits-checkout-btn primary"
       >
         {loading
-          ? "결제 처리 중..."
+          ? tk("processing")
           : !sdkReady
-            ? "결제 모듈 로딩 중..."
-            : `₩${order.totalAmount.toLocaleString()} 결제하기`}
+            ? tk("sdkLoading")
+            : tk("payAmount", { amount: `₩${order.totalAmount.toLocaleString()}` })}
       </button>
       <button
         onClick={() => router.push("/dashboard/credits")}
         className="credits-checkout-btn secondary"
       >
-        취소
+        {tk("cancel")}
       </button>
     </div>
   );

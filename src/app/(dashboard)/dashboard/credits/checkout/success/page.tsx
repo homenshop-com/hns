@@ -3,9 +3,11 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 export default function CreditCheckoutSuccessPage() {
   const searchParams = useSearchParams();
+  const tk = useTranslations("checkoutDash");
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [error, setError] = useState("");
   const [granted, setGranted] = useState<number | null>(null);
@@ -18,7 +20,7 @@ export default function CreditCheckoutSuccessPage() {
 
       if (!paymentKey || !tossOrderId || !amount) {
         setStatus("error");
-        setError("결제 정보가 올바르지 않습니다.");
+        setError(tk("errInvalidPaymentInfo"));
         return;
       }
 
@@ -39,11 +41,11 @@ export default function CreditCheckoutSuccessPage() {
           setStatus("success");
         } else {
           setStatus("error");
-          setError(data.error || "결제 승인에 실패했습니다.");
+          setError(data.error || tk("errApprovalFailed"));
         }
       } catch {
         setStatus("error");
-        setError("결제 처리 중 오류가 발생했습니다.");
+        setError(tk("errProcessing"));
       }
     }
     confirm();
@@ -54,8 +56,8 @@ export default function CreditCheckoutSuccessPage() {
       <div className="credits-page">
         <div className="credits-result">
           <div className="credits-result-spinner" />
-          <p className="credits-result-title">결제를 확인하고 있습니다…</p>
-          <p className="credits-result-hint">잠시만 기다려 주세요.</p>
+          <p className="credits-result-title">{tk("confirming")}</p>
+          <p className="credits-result-hint">{tk("pleaseWait")}</p>
         </div>
       </div>
     );
@@ -66,11 +68,11 @@ export default function CreditCheckoutSuccessPage() {
       <div className="credits-page">
         <div className="credits-result error">
           <div className="credits-result-icon">⚠</div>
-          <h1 className="credits-result-title">결제 실패</h1>
+          <h1 className="credits-result-title">{tk("paymentFailed")}</h1>
           <p className="credits-result-hint">{error}</p>
           <div className="credits-result-actions">
             <Link href="/dashboard/credits" className="credits-checkout-btn primary">
-              크레딧 페이지로
+              {tk("toCreditsPage")}
             </Link>
           </div>
         </div>
@@ -82,21 +84,21 @@ export default function CreditCheckoutSuccessPage() {
     <div className="credits-page">
       <div className="credits-result success">
         <div className="credits-result-icon">✓</div>
-        <h1 className="credits-result-title">크레딧이 충전되었습니다</h1>
+        <h1 className="credits-result-title">{tk("creditsCharged")}</h1>
         {granted !== null && (
           <p className="credits-result-amount">
             +{granted.toLocaleString()} <span>C</span>
           </p>
         )}
         <p className="credits-result-hint">
-          잔액이 업데이트됐습니다. 대시보드 상단 또는 크레딧 페이지에서 확인하세요.
+          {tk("balanceUpdated")}
         </p>
         <div className="credits-result-actions">
           <Link href="/dashboard/credits" className="credits-checkout-btn primary">
-            크레딧 내역 보기
+            {tk("viewCreditHistory")}
           </Link>
           <Link href="/dashboard" className="credits-checkout-btn secondary">
-            대시보드로
+            {tk("toDashboard")}
           </Link>
         </div>
       </div>
