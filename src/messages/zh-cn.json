@@ -978,10 +978,92 @@
       "nameLabel": "模板名称",
       "nameRequired": "请输入模板名称。",
       "namePlaceholder": "例：我的商城模板 v1",
+      "descLabel": "说明（可选）",
+      "descPlaceholder": "对此模板的简短说明",
+      "thumbLabel": "缩略图 URL（可选）",
+      "cancel": "取消",
+      "save": "保存",
       "saving": "保存中…",
-      "saved": "已保存！请在模板列表中查看。",
-      "error": "保存失败",
-      "submit": "保存"
+      "saveFailed": "保存失败",
+      "savedSuccess": "已保存到我的模板。\n请在 控制台 > 模板 > 我的模板 标签中查看。"
+    },
+    "siteSettingsModal": {
+      "title": "站点设置",
+      "close": "关闭",
+      "siteLabel": "站点",
+      "headerLogo": "页眉 · Logo",
+      "changeLogo": "更换 Logo",
+      "resetHeader": "重置页眉",
+      "logoTip": "您也可以直接点击画布上的 Logo，用 ↻ 按钮替换。",
+      "menu": "菜单",
+      "menuAuto": "菜单管理自动",
+      "menuCustom": "自定义编辑",
+      "openMenuMgr": "打开菜单管理",
+      "menuAutoTip": "将应用在菜单管理页面中设置的菜单。",
+      "menuCustomTip": "双击画布上的菜单进行直接编辑。",
+      "footer": "页脚",
+      "resetFooter": "重置页脚",
+      "footerTip": "双击画布上的页脚进行编辑。",
+      "doneClose": "关闭",
+      "headerLayout": "页眉布局",
+      "stickyLabel": "滚动时固定在顶部（sticky）",
+      "heightLabel": "高度",
+      "bgLabel": "背景",
+      "headerLayoutNote": "数值以 :root CSS 变量形式保存到页面 CSS 中（HNS-HEADER-LAYOUT 块）。",
+      "languageLabel": "语言",
+      "saveLanguages": "保存语言设置",
+      "savingLanguages": "保存中…",
+      "minOneLang": "请至少选择一种语言。",
+      "savedLanguages": "已保存。刷新页面后生效。",
+      "saveFailed": "保存失败",
+      "setDefault": "设为默认语言",
+      "isDefault": "默认",
+      "makeDefault": "设为默认",
+      "currentlyEditing": "正在编辑的语言",
+      "confirmFooterReset": "要将页脚恢复到初始状态吗？",
+      "confirmHeaderReset": "要将页眉恢复到初始状态吗？"
+    },
+    "viewport": {
+      "mobile": "📱 移动",
+      "desktop": "🖥 桌面"
+    },
+    "zoom": {
+      "out": "缩小",
+      "outTitle": "缩小（⌘−）",
+      "in": "放大",
+      "inTitle": "放大（⌘+）",
+      "fit": "适应屏幕",
+      "fitTitle": "适应屏幕（⇧1）"
+    },
+    "tooltip": {
+      "doubleClick": "双击即可编辑该对象。"
+    },
+    "publishModal": {
+      "title": "发布完成！",
+      "desc": "您的站点已成功发布。",
+      "preview": "预览",
+      "continue": "继续编辑"
+    },
+    "creditsModal": {
+      "title": "积分不足",
+      "needPrefix": "此操作需要",
+      "needSuffix": "积分。",
+      "currentBalance": "当前余额",
+      "topUp": "去充值积分",
+      "close": "关闭"
+    },
+    "statusBar": {
+      "ariaLabel": "编辑器状态栏",
+      "saving": "保存中…",
+      "savingFailed": "保存失败",
+      "savedJustNow": "已保存 · 刚刚",
+      "allSaved": "所有更改已保存",
+      "page": "页面",
+      "element": "元素",
+      "language": "语言",
+      "cursor": "光标",
+      "zoom": "缩放",
+      "viewport": "视口"
     },
     "inspector": {
       "ariaLabel": "检查器面板",
@@ -998,106 +1080,88 @@
         "section": "图片",
         "source": "来源URL",
         "sourcePlaceholder": "https://… 或 /path/to/img.png",
+        "uploading": "上传中…",
+        "uploadFile": "上传文件",
+        "uploadFailed": "上传失败",
         "alt": "替代文字（alt）",
         "altPlaceholder": "图片描述",
         "link": "点击链接",
         "linkPlaceholder": "https://…",
-        "uploadFile": "上传文件",
-        "uploading": "上传中…",
-        "uploadFailed": "上传失败"
+        "fitLabel": "适应",
+        "fitAuto": "自动"
       },
       "bgImage": {
         "section": "背景图片",
-        "source": "图片URL",
-        "uploadFile": "上传文件",
         "uploading": "上传中…",
-        "uploadFailed": "上传失败",
-        "size": "大小",
-        "position": "位置",
-        "repeat": "重复"
+        "upload": "上传背景图片",
+        "remove": "移除背景图片",
+        "uploadFailed": "上传失败"
       },
       "position": {
-        "section": "位置·尺寸",
-        "x": "X",
-        "y": "Y",
-        "w": "W",
-        "h": "H",
-        "unit": "单位",
-        "unitPx": "px（固定）",
-        "unitPct": "% （相对）",
-        "constrainRatio": "保持比例",
-        "resetRatio": "重置比例"
+        "section": "位置·尺寸"
       },
       "typography": {
         "section": "排版",
+        "font": "字体",
         "size": "大小",
+        "weight": "字重",
         "lineHeight": "行高",
         "letterSpacing": "字间距",
         "color": "颜色"
       },
       "fill": {
         "section": "填充",
-        "type": "类型",
-        "solid": "纯色",
-        "transparent": "透明",
-        "gradient": "渐变",
-        "color": "颜色",
-        "gradientFrom": "起始",
-        "gradientTo": "结束",
-        "gradientAngle": "角度"
+        "bg": "背景",
+        "opacity": "不透明度"
       },
       "border": {
         "section": "边框",
-        "style": "样式",
-        "none": "无",
-        "solid": "实线",
-        "dashed": "虚线",
-        "dotted": "点线",
+        "color": "颜色",
         "width": "宽度",
         "radius": "圆角",
-        "color": "颜色"
+        "style": "样式",
+        "styleNone": "无"
       },
       "effect": {
-        "section": "效果",
-        "opacity": "不透明度",
-        "shadowX": "阴影 X",
-        "shadowY": "阴影 Y",
-        "shadowBlur": "模糊",
-        "shadowColor": "颜色"
+        "section": "效果"
       },
-      "interactionEmpty": "无交互",
+      "interactionEmpty": {
+        "title": "未选择元素",
+        "l1": "要添加交互，",
+        "l2": "请先选择一个图层"
+      },
       "interaction": {
         "section": "交互",
-        "type": "动作类型",
-        "none": "无",
-        "link": "链接",
-        "scrollTo": "滚动到",
-        "modal": "弹窗",
-        "toggle": "切换",
-        "urlLabel": "URL",
-        "urlPlaceholder": "https://…",
-        "targetLabel": "目标ID",
-        "targetPlaceholder": "#section-id",
-        "modalLabel": "弹窗内容",
-        "modalPlaceholder": "<div>弹窗内容</div>",
-        "toggleLabel": "要切换的元素ID",
-        "togglePlaceholder": "#element-id"
+        "action": "动作",
+        "actionNone": "无",
+        "actionLink": "跳转链接",
+        "actionScrollTo": "滚动到区块",
+        "actionModal": "打开弹窗",
+        "actionToggle": "切换类",
+        "target": "目标",
+        "targetSelf": "当前标签页",
+        "targetBlank": "新标签页",
+        "targetId": "目标 ID",
+        "smooth": "平滑",
+        "smoothYes": "是（smooth）",
+        "smoothNo": "否",
+        "modalId": "弹窗 ID",
+        "className": "类",
+        "remove": "移除交互",
+        "note": "交互保存后将在已发布站点上生效。"
       },
       "fontFamily": {
-        "label": "字体",
-        "search": "搜索字体…",
-        "all": "全部",
-        "gothic": "黑体",
-        "serif": "衬线",
-        "display": "展示",
-        "handwriting": "手写",
-        "mono": "等宽",
-        "latin": "拉丁"
+        "default": "默认",
+        "defaultLong": "默认（站点字体）",
+        "defaultTitle": "默认字体",
+        "sample": "你好 Aa 123"
       },
       "align": {
+        "ariaLabel": "对齐",
         "left": "左对齐",
         "center": "居中",
-        "right": "右对齐"
+        "right": "右对齐",
+        "justify": "两端对齐"
       }
     },
     "layers": {

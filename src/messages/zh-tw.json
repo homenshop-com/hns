@@ -978,10 +978,92 @@
       "nameLabel": "範本名稱",
       "nameRequired": "請輸入範本名稱。",
       "namePlaceholder": "例：我的商城範本 v1",
+      "descLabel": "說明（選填）",
+      "descPlaceholder": "對此範本的簡短說明",
+      "thumbLabel": "縮圖 URL（選填）",
+      "cancel": "取消",
+      "save": "儲存",
       "saving": "儲存中…",
-      "saved": "已儲存！請在範本列表中查看。",
-      "error": "儲存失敗",
-      "submit": "儲存"
+      "saveFailed": "儲存失敗",
+      "savedSuccess": "已儲存至我的範本。\n請於 儀表板 > 範本 > 我的範本 分頁中查看。"
+    },
+    "siteSettingsModal": {
+      "title": "網站設定",
+      "close": "關閉",
+      "siteLabel": "網站",
+      "headerLogo": "頁首 · Logo",
+      "changeLogo": "變更 Logo",
+      "resetHeader": "重設頁首",
+      "logoTip": "您也可以直接點擊畫布上的 Logo，並以 ↻ 按鈕替換。",
+      "menu": "選單",
+      "menuAuto": "選單管理自動",
+      "menuCustom": "自訂編輯",
+      "openMenuMgr": "開啟選單管理",
+      "menuAutoTip": "將套用於選單管理頁面中設定的選單。",
+      "menuCustomTip": "雙擊畫布上的選單進行直接編輯。",
+      "footer": "頁尾",
+      "resetFooter": "重設頁尾",
+      "footerTip": "雙擊畫布上的頁尾進行編輯。",
+      "doneClose": "關閉",
+      "headerLayout": "頁首版面",
+      "stickyLabel": "捲動時固定於頂端（sticky）",
+      "heightLabel": "高度",
+      "bgLabel": "背景",
+      "headerLayoutNote": "數值會以 :root CSS 變數形式儲存至頁面 CSS 中（HNS-HEADER-LAYOUT 區塊）。",
+      "languageLabel": "語言",
+      "saveLanguages": "儲存語言設定",
+      "savingLanguages": "儲存中…",
+      "minOneLang": "請至少選擇一種語言。",
+      "savedLanguages": "已儲存。重新整理頁面後生效。",
+      "saveFailed": "儲存失敗",
+      "setDefault": "設為預設語言",
+      "isDefault": "預設",
+      "makeDefault": "設為預設",
+      "currentlyEditing": "正在編輯的語言",
+      "confirmFooterReset": "要將頁尾還原為初始狀態嗎？",
+      "confirmHeaderReset": "要將頁首還原為初始狀態嗎？"
+    },
+    "viewport": {
+      "mobile": "📱 行動裝置",
+      "desktop": "🖥 桌面"
+    },
+    "zoom": {
+      "out": "縮小",
+      "outTitle": "縮小（⌘−）",
+      "in": "放大",
+      "inTitle": "放大（⌘+）",
+      "fit": "符合畫面",
+      "fitTitle": "符合畫面（⇧1）"
+    },
+    "tooltip": {
+      "doubleClick": "雙擊即可編輯此物件。"
+    },
+    "publishModal": {
+      "title": "發佈完成！",
+      "desc": "您的網站已成功發佈。",
+      "preview": "預覽",
+      "continue": "繼續編輯"
+    },
+    "creditsModal": {
+      "title": "點數不足",
+      "needPrefix": "此操作需要",
+      "needSuffix": "點數。",
+      "currentBalance": "目前餘額",
+      "topUp": "前往儲值點數",
+      "close": "關閉"
+    },
+    "statusBar": {
+      "ariaLabel": "編輯器狀態列",
+      "saving": "儲存中…",
+      "savingFailed": "儲存失敗",
+      "savedJustNow": "已儲存 · 剛剛",
+      "allSaved": "所有變更已儲存",
+      "page": "頁面",
+      "element": "元素",
+      "language": "語言",
+      "cursor": "游標",
+      "zoom": "縮放",
+      "viewport": "檢視區"
     },
     "inspector": {
       "ariaLabel": "檢查器面板",
@@ -998,106 +1080,88 @@
         "section": "圖片",
         "source": "來源URL",
         "sourcePlaceholder": "https://… 或 /path/to/img.png",
+        "uploading": "上傳中…",
+        "uploadFile": "上傳檔案",
+        "uploadFailed": "上傳失敗",
         "alt": "替代文字（alt）",
         "altPlaceholder": "圖片描述",
         "link": "點擊連結",
         "linkPlaceholder": "https://…",
-        "uploadFile": "上傳檔案",
-        "uploading": "上傳中…",
-        "uploadFailed": "上傳失敗"
+        "fitLabel": "符合",
+        "fitAuto": "自動"
       },
       "bgImage": {
         "section": "背景圖片",
-        "source": "圖片URL",
-        "uploadFile": "上傳檔案",
         "uploading": "上傳中…",
-        "uploadFailed": "上傳失敗",
-        "size": "大小",
-        "position": "位置",
-        "repeat": "重複"
+        "upload": "上傳背景圖片",
+        "remove": "移除背景圖片",
+        "uploadFailed": "上傳失敗"
       },
       "position": {
-        "section": "位置·尺寸",
-        "x": "X",
-        "y": "Y",
-        "w": "W",
-        "h": "H",
-        "unit": "單位",
-        "unitPx": "px（固定）",
-        "unitPct": "% （相對）",
-        "constrainRatio": "維持比例",
-        "resetRatio": "重置比例"
+        "section": "位置·尺寸"
       },
       "typography": {
         "section": "字體排版",
+        "font": "字型",
         "size": "大小",
+        "weight": "字重",
         "lineHeight": "行高",
         "letterSpacing": "字距",
         "color": "顏色"
       },
       "fill": {
         "section": "填色",
-        "type": "類型",
-        "solid": "純色",
-        "transparent": "透明",
-        "gradient": "漸層",
-        "color": "顏色",
-        "gradientFrom": "起始",
-        "gradientTo": "結束",
-        "gradientAngle": "角度"
+        "bg": "背景",
+        "opacity": "不透明度"
       },
       "border": {
         "section": "邊框",
-        "style": "樣式",
-        "none": "無",
-        "solid": "實線",
-        "dashed": "虛線",
-        "dotted": "點線",
+        "color": "顏色",
         "width": "寬度",
         "radius": "圓角",
-        "color": "顏色"
+        "style": "樣式",
+        "styleNone": "無"
       },
       "effect": {
-        "section": "效果",
-        "opacity": "不透明度",
-        "shadowX": "陰影 X",
-        "shadowY": "陰影 Y",
-        "shadowBlur": "模糊",
-        "shadowColor": "顏色"
+        "section": "效果"
       },
-      "interactionEmpty": "無互動",
+      "interactionEmpty": {
+        "title": "未選取任何元素",
+        "l1": "若要新增互動，",
+        "l2": "請先選取一個圖層"
+      },
       "interaction": {
         "section": "互動",
-        "type": "動作類型",
-        "none": "無",
-        "link": "連結",
-        "scrollTo": "捲動至",
-        "modal": "彈窗",
-        "toggle": "切換",
-        "urlLabel": "URL",
-        "urlPlaceholder": "https://…",
-        "targetLabel": "目標ID",
-        "targetPlaceholder": "#section-id",
-        "modalLabel": "彈窗內容",
-        "modalPlaceholder": "<div>彈窗內容</div>",
-        "toggleLabel": "要切換的元素ID",
-        "togglePlaceholder": "#element-id"
+        "action": "動作",
+        "actionNone": "無",
+        "actionLink": "前往連結",
+        "actionScrollTo": "捲動至區塊",
+        "actionModal": "開啟強制回應視窗",
+        "actionToggle": "切換類別",
+        "target": "目標",
+        "targetSelf": "同一分頁",
+        "targetBlank": "新分頁",
+        "targetId": "目標 ID",
+        "smooth": "平滑",
+        "smoothYes": "是（smooth）",
+        "smoothNo": "否",
+        "modalId": "視窗 ID",
+        "className": "類別",
+        "remove": "移除互動",
+        "note": "互動在儲存後會於已發佈的網站上運作。"
       },
       "fontFamily": {
-        "label": "字體",
-        "search": "搜尋字體…",
-        "all": "全部",
-        "gothic": "黑體",
-        "serif": "明體",
-        "display": "展示",
-        "handwriting": "手寫",
-        "mono": "等寬",
-        "latin": "拉丁"
+        "default": "預設",
+        "defaultLong": "預設（網站字型）",
+        "defaultTitle": "預設字型",
+        "sample": "你好 Aa 123"
       },
       "align": {
+        "ariaLabel": "對齊",
         "left": "靠左",
         "center": "置中",
-        "right": "靠右"
+        "right": "靠右",
+        "justify": "兩端對齊"
       }
     },
     "layers": {

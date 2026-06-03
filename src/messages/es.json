@@ -978,10 +978,92 @@
       "nameLabel": "Nombre de plantilla",
       "nameRequired": "Por favor, introduce un nombre de plantilla.",
       "namePlaceholder": "ej: Mi plantilla de tienda v1",
+      "descLabel": "Descripción (opcional)",
+      "descPlaceholder": "Una breve descripción de esta plantilla",
+      "thumbLabel": "URL de miniatura (opcional)",
+      "cancel": "Cancelar",
+      "save": "Guardar",
       "saving": "Guardando…",
-      "saved": "¡Guardado! Compruébalo en la lista de plantillas.",
-      "error": "Error al guardar",
-      "submit": "Guardar"
+      "saveFailed": "Error al guardar",
+      "savedSuccess": "Guardada en tus plantillas.\nEncuéntrala en Panel > Plantillas > Mis plantillas."
+    },
+    "siteSettingsModal": {
+      "title": "Configuración del sitio",
+      "close": "Cerrar",
+      "siteLabel": "Sitio",
+      "headerLogo": "Encabezado · Logo",
+      "changeLogo": "Cambiar logo",
+      "resetHeader": "Restablecer encabezado",
+      "logoTip": "También puedes hacer clic en el logo del lienzo y reemplazarlo con el botón ↻.",
+      "menu": "Menú",
+      "menuAuto": "Automático desde el gestor de menús",
+      "menuCustom": "Edición personalizada",
+      "openMenuMgr": "Abrir gestor de menús",
+      "menuAutoTip": "Se aplica el menú configurado en la página de gestión de menús.",
+      "menuCustomTip": "Haz doble clic en el menú del lienzo para editarlo directamente.",
+      "footer": "Pie de página",
+      "resetFooter": "Restablecer pie de página",
+      "footerTip": "Haz doble clic en el pie de página del lienzo para editarlo.",
+      "doneClose": "Cerrar",
+      "headerLayout": "Diseño del encabezado",
+      "stickyLabel": "Fijar arriba al desplazar (sticky)",
+      "heightLabel": "Altura",
+      "bgLabel": "Fondo",
+      "headerLayoutNote": "Los valores se guardan en el CSS de la página como variables :root (bloque HNS-HEADER-LAYOUT).",
+      "languageLabel": "Idioma",
+      "saveLanguages": "Guardar configuración de idioma",
+      "savingLanguages": "Guardando…",
+      "minOneLang": "Selecciona al menos un idioma.",
+      "savedLanguages": "Guardado. Actualiza la página para aplicar los cambios.",
+      "saveFailed": "Error al guardar",
+      "setDefault": "Establecer como idioma predeterminado",
+      "isDefault": "Predeterminado",
+      "makeDefault": "Establecer como predeterminado",
+      "currentlyEditing": "Idioma en edición",
+      "confirmFooterReset": "¿Restablecer el pie de página a su estado inicial?",
+      "confirmHeaderReset": "¿Restablecer el encabezado a su estado inicial?"
+    },
+    "viewport": {
+      "mobile": "📱 Móvil",
+      "desktop": "🖥 Escritorio"
+    },
+    "zoom": {
+      "out": "Alejar",
+      "outTitle": "Alejar (⌘−)",
+      "in": "Acercar",
+      "inTitle": "Acercar (⌘+)",
+      "fit": "Ajustar a pantalla",
+      "fitTitle": "Ajustar a pantalla (⇧1)"
+    },
+    "tooltip": {
+      "doubleClick": "Haz doble clic para editar este objeto."
+    },
+    "publishModal": {
+      "title": "¡Publicado!",
+      "desc": "Tu sitio se ha publicado correctamente.",
+      "preview": "Vista previa",
+      "continue": "Seguir editando"
+    },
+    "creditsModal": {
+      "title": "Créditos insuficientes",
+      "needPrefix": "Esta acción requiere",
+      "needSuffix": "créditos.",
+      "currentBalance": "Saldo actual",
+      "topUp": "Recargar créditos",
+      "close": "Cerrar"
+    },
+    "statusBar": {
+      "ariaLabel": "Barra de estado del editor",
+      "saving": "Guardando…",
+      "savingFailed": "Error al guardar",
+      "savedJustNow": "Guardado · ahora mismo",
+      "allSaved": "Todos los cambios guardados",
+      "page": "Página",
+      "element": "Elemento",
+      "language": "Idioma",
+      "cursor": "Cursor",
+      "zoom": "Zoom",
+      "viewport": "Viewport"
     },
     "inspector": {
       "ariaLabel": "Panel de inspector",
@@ -998,106 +1080,88 @@
         "section": "Imagen",
         "source": "URL de origen",
         "sourcePlaceholder": "https://… o /ruta/a/img.png",
+        "uploading": "Subiendo…",
+        "uploadFile": "Subir archivo",
+        "uploadFailed": "Error al subir",
         "alt": "Texto alternativo (alt)",
         "altPlaceholder": "Descripción de la imagen",
         "link": "Enlace al hacer clic",
         "linkPlaceholder": "https://…",
-        "uploadFile": "Subir archivo",
-        "uploading": "Subiendo…",
-        "uploadFailed": "Error al subir"
+        "fitLabel": "Ajuste",
+        "fitAuto": "Automático"
       },
       "bgImage": {
         "section": "Imagen de fondo",
-        "source": "URL de imagen",
-        "uploadFile": "Subir archivo",
         "uploading": "Subiendo…",
-        "uploadFailed": "Error al subir",
-        "size": "Tamaño",
-        "position": "Posición",
-        "repeat": "Repetición"
+        "upload": "Subir imagen de fondo",
+        "remove": "Quitar imagen de fondo",
+        "uploadFailed": "Error al subir"
       },
       "position": {
-        "section": "Posición · Tamaño",
-        "x": "X",
-        "y": "Y",
-        "w": "W",
-        "h": "H",
-        "unit": "Unidad",
-        "unitPx": "px (fijo)",
-        "unitPct": "% (relativo)",
-        "constrainRatio": "Mantener proporción",
-        "resetRatio": "Restablecer proporción"
+        "section": "Posición · Tamaño"
       },
       "typography": {
         "section": "Tipografía",
+        "font": "Fuente",
         "size": "Tamaño",
+        "weight": "Grosor",
         "lineHeight": "Interlineado",
         "letterSpacing": "Espaciado entre letras",
         "color": "Color"
       },
       "fill": {
         "section": "Relleno",
-        "type": "Tipo",
-        "solid": "Sólido",
-        "transparent": "Transparente",
-        "gradient": "Degradado",
-        "color": "Color",
-        "gradientFrom": "Desde",
-        "gradientTo": "Hasta",
-        "gradientAngle": "Ángulo"
+        "bg": "Fondo",
+        "opacity": "Opacidad"
       },
       "border": {
         "section": "Borde",
-        "style": "Estilo",
-        "none": "Ninguno",
-        "solid": "Sólido",
-        "dashed": "Discontinuo",
-        "dotted": "Punteado",
+        "color": "Color",
         "width": "Grosor",
         "radius": "Radio",
-        "color": "Color"
+        "style": "Estilo",
+        "styleNone": "Ninguno"
       },
       "effect": {
-        "section": "Efectos",
-        "opacity": "Opacidad",
-        "shadowX": "Sombra X",
-        "shadowY": "Sombra Y",
-        "shadowBlur": "Desenfoque",
-        "shadowColor": "Color"
+        "section": "Efectos"
       },
-      "interactionEmpty": "Sin interacciones",
+      "interactionEmpty": {
+        "title": "Ningún elemento seleccionado",
+        "l1": "Para añadir una interacción,",
+        "l2": "selecciona primero una capa"
+      },
       "interaction": {
         "section": "Interacción",
-        "type": "Tipo de acción",
-        "none": "Ninguno",
-        "link": "Enlace",
-        "scrollTo": "Desplazar a",
-        "modal": "Modal",
-        "toggle": "Alternar",
-        "urlLabel": "URL",
-        "urlPlaceholder": "https://…",
-        "targetLabel": "ID de destino",
-        "targetPlaceholder": "#section-id",
-        "modalLabel": "Contenido del modal",
-        "modalPlaceholder": "<div>Contenido del modal</div>",
-        "toggleLabel": "ID del elemento a alternar",
-        "togglePlaceholder": "#element-id"
+        "action": "Acción",
+        "actionNone": "Ninguna",
+        "actionLink": "Ir al enlace",
+        "actionScrollTo": "Desplazar a sección",
+        "actionModal": "Abrir modal",
+        "actionToggle": "Alternar clase",
+        "target": "Destino",
+        "targetSelf": "Misma pestaña",
+        "targetBlank": "Nueva pestaña",
+        "targetId": "ID de destino",
+        "smooth": "Suave",
+        "smoothYes": "Sí (smooth)",
+        "smoothNo": "No",
+        "modalId": "ID de modal",
+        "className": "Clase",
+        "remove": "Quitar interacción",
+        "note": "Las interacciones funcionan en el sitio publicado tras guardar."
       },
       "fontFamily": {
-        "label": "Fuente",
-        "search": "Buscar fuentes…",
-        "all": "Todas",
-        "gothic": "Sans-serif",
-        "serif": "Serif",
-        "display": "Display",
-        "handwriting": "Manuscrita",
-        "mono": "Monoespaciada",
-        "latin": "Latina"
+        "default": "Predeterminada",
+        "defaultLong": "Predeterminada (fuente del sitio)",
+        "defaultTitle": "Fuente predeterminada",
+        "sample": "Aa 123"
       },
       "align": {
+        "ariaLabel": "Alinear",
         "left": "Izquierda",
         "center": "Centro",
-        "right": "Derecha"
+        "right": "Derecha",
+        "justify": "Justificar"
       }
     },
     "layers": {

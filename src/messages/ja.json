@@ -978,10 +978,92 @@
       "nameLabel": "テンプレート名",
       "nameRequired": "テンプレート名を入力してください。",
       "namePlaceholder": "例: マイショップテンプレート v1",
+      "descLabel": "説明（任意）",
+      "descPlaceholder": "このテンプレートの簡単な説明",
+      "thumbLabel": "サムネイルURL（任意）",
+      "cancel": "キャンセル",
+      "save": "保存",
       "saving": "保存中…",
-      "saved": "保存されました！テンプレート一覧でご確認ください。",
-      "error": "保存失敗",
-      "submit": "保存"
+      "saveFailed": "保存に失敗しました",
+      "savedSuccess": "マイテンプレートに保存しました。\nダッシュボード > テンプレート > マイテンプレート タブで確認できます。"
+    },
+    "siteSettingsModal": {
+      "title": "サイト設定",
+      "close": "閉じる",
+      "siteLabel": "サイト",
+      "headerLogo": "ヘッダー · ロゴ",
+      "changeLogo": "ロゴを変更",
+      "resetHeader": "ヘッダーをリセット",
+      "logoTip": "キャンバスのロゴを直接クリックし、↻ ボタンで差し替えることもできます。",
+      "menu": "メニュー",
+      "menuAuto": "メニュー管理から自動",
+      "menuCustom": "カスタム編集",
+      "openMenuMgr": "メニュー管理を開く",
+      "menuAutoTip": "メニュー管理ページで設定したメニューが適用されます。",
+      "menuCustomTip": "キャンバスのメニューをダブルクリックして直接編集します。",
+      "footer": "フッター",
+      "resetFooter": "フッターをリセット",
+      "footerTip": "キャンバスのフッターをダブルクリックして編集します。",
+      "doneClose": "閉じる",
+      "headerLayout": "ヘッダーレイアウト",
+      "stickyLabel": "スクロール時に上部固定（sticky）",
+      "heightLabel": "高さ",
+      "bgLabel": "背景",
+      "headerLayoutNote": "値は :root CSS変数としてページCSSに保存されます（HNS-HEADER-LAYOUT ブロック）。",
+      "languageLabel": "言語",
+      "saveLanguages": "言語設定を保存",
+      "savingLanguages": "保存中…",
+      "minOneLang": "言語を1つ以上選択してください。",
+      "savedLanguages": "保存しました。ページを再読み込みすると反映されます。",
+      "saveFailed": "保存に失敗しました",
+      "setDefault": "デフォルト言語に設定",
+      "isDefault": "デフォルト",
+      "makeDefault": "デフォルトに設定",
+      "currentlyEditing": "編集中の言語",
+      "confirmFooterReset": "フッターを初期状態に戻しますか？",
+      "confirmHeaderReset": "ヘッダーを初期状態に戻しますか？"
+    },
+    "viewport": {
+      "mobile": "📱 モバイル",
+      "desktop": "🖥 デスクトップ"
+    },
+    "zoom": {
+      "out": "縮小",
+      "outTitle": "縮小（⌘−）",
+      "in": "拡大",
+      "inTitle": "拡大（⌘+）",
+      "fit": "画面に合わせる",
+      "fitTitle": "画面に合わせる（⇧1）"
+    },
+    "tooltip": {
+      "doubleClick": "ダブルクリックでこのオブジェクトを編集できます。"
+    },
+    "publishModal": {
+      "title": "公開しました！",
+      "desc": "サイトが正常に公開されました。",
+      "preview": "プレビュー",
+      "continue": "編集を続ける"
+    },
+    "creditsModal": {
+      "title": "クレジットが不足しています",
+      "needPrefix": "この操作には",
+      "needSuffix": "クレジットが必要です。",
+      "currentBalance": "現在の残高",
+      "topUp": "クレジットをチャージ",
+      "close": "閉じる"
+    },
+    "statusBar": {
+      "ariaLabel": "エディターステータスバー",
+      "saving": "保存中…",
+      "savingFailed": "保存に失敗しました",
+      "savedJustNow": "保存済み · たった今",
+      "allSaved": "すべての変更を保存しました",
+      "page": "ページ",
+      "element": "要素",
+      "language": "言語",
+      "cursor": "カーソル",
+      "zoom": "ズーム",
+      "viewport": "ビューポート"
     },
     "inspector": {
       "ariaLabel": "インスペクターパネル",
@@ -998,106 +1080,88 @@
         "section": "画像",
         "source": "ソースURL",
         "sourcePlaceholder": "https://… または /path/to/img.png",
+        "uploading": "アップロード中…",
+        "uploadFile": "ファイルをアップロード",
+        "uploadFailed": "アップロード失敗",
         "alt": "代替テキスト（alt）",
         "altPlaceholder": "画像の説明",
         "link": "クリックリンク",
         "linkPlaceholder": "https://…",
-        "uploadFile": "ファイルをアップロード",
-        "uploading": "アップロード中…",
-        "uploadFailed": "アップロード失敗"
+        "fitLabel": "フィット",
+        "fitAuto": "自動"
       },
       "bgImage": {
         "section": "背景画像",
-        "source": "画像URL",
-        "uploadFile": "ファイルをアップロード",
         "uploading": "アップロード中…",
-        "uploadFailed": "アップロード失敗",
-        "size": "サイズ",
-        "position": "位置",
-        "repeat": "繰り返し"
+        "upload": "背景画像をアップロード",
+        "remove": "背景画像を削除",
+        "uploadFailed": "アップロード失敗"
       },
       "position": {
-        "section": "位置・サイズ",
-        "x": "X",
-        "y": "Y",
-        "w": "W",
-        "h": "H",
-        "unit": "単位",
-        "unitPx": "px（固定）",
-        "unitPct": "% （相対）",
-        "constrainRatio": "縦横比を維持",
-        "resetRatio": "縦横比をリセット"
+        "section": "位置・サイズ"
       },
       "typography": {
         "section": "タイポグラフィ",
+        "font": "フォント",
         "size": "サイズ",
+        "weight": "太さ",
         "lineHeight": "行間",
         "letterSpacing": "字間",
         "color": "色"
       },
       "fill": {
         "section": "塗りつぶし",
-        "type": "タイプ",
-        "solid": "単色",
-        "transparent": "透明",
-        "gradient": "グラデーション",
-        "color": "色",
-        "gradientFrom": "開始",
-        "gradientTo": "終了",
-        "gradientAngle": "角度"
+        "bg": "背景",
+        "opacity": "不透明度"
       },
       "border": {
         "section": "ボーダー",
-        "style": "スタイル",
-        "none": "なし",
-        "solid": "実線",
-        "dashed": "破線",
-        "dotted": "点線",
+        "color": "色",
         "width": "太さ",
         "radius": "角丸",
-        "color": "色"
+        "style": "スタイル",
+        "styleNone": "なし"
       },
       "effect": {
-        "section": "エフェクト",
-        "opacity": "不透明度",
-        "shadowX": "影 X",
-        "shadowY": "影 Y",
-        "shadowBlur": "ぼかし",
-        "shadowColor": "色"
+        "section": "エフェクト"
       },
-      "interactionEmpty": "インタラクションなし",
+      "interactionEmpty": {
+        "title": "要素が選択されていません",
+        "l1": "インタラクションを追加するには",
+        "l2": "まずレイヤーを選択してください"
+      },
       "interaction": {
         "section": "インタラクション",
-        "type": "アクションタイプ",
-        "none": "なし",
-        "link": "リンク",
-        "scrollTo": "スクロール",
-        "modal": "モーダル",
-        "toggle": "トグル",
-        "urlLabel": "URL",
-        "urlPlaceholder": "https://…",
-        "targetLabel": "ターゲットID",
-        "targetPlaceholder": "#section-id",
-        "modalLabel": "モーダルコンテンツ",
-        "modalPlaceholder": "<div>モーダルの内容</div>",
-        "toggleLabel": "トグルする要素のID",
-        "togglePlaceholder": "#element-id"
+        "action": "アクション",
+        "actionNone": "なし",
+        "actionLink": "リンクへ移動",
+        "actionScrollTo": "セクションへスクロール",
+        "actionModal": "モーダルを開く",
+        "actionToggle": "クラスを切り替え",
+        "target": "ターゲット",
+        "targetSelf": "同じタブ",
+        "targetBlank": "新しいタブ",
+        "targetId": "ターゲットID",
+        "smooth": "スムーズ",
+        "smoothYes": "はい（smooth）",
+        "smoothNo": "いいえ",
+        "modalId": "モーダルID",
+        "className": "クラス",
+        "remove": "インタラクションを削除",
+        "note": "インタラクションは保存後、公開サイトで動作します。"
       },
       "fontFamily": {
-        "label": "フォント",
-        "search": "フォントを検索…",
-        "all": "すべて",
-        "gothic": "ゴシック",
-        "serif": "明朝",
-        "display": "ディスプレイ",
-        "handwriting": "手書き",
-        "mono": "等幅",
-        "latin": "ラテン"
+        "default": "デフォルト",
+        "defaultLong": "デフォルト（サイトフォント）",
+        "defaultTitle": "デフォルトフォント",
+        "sample": "あいう Aa 123"
       },
       "align": {
+        "ariaLabel": "整列",
         "left": "左揃え",
         "center": "中央揃え",
-        "right": "右揃え"
+        "right": "右揃え",
+        "justify": "両端"
       }
     },
     "layers": {

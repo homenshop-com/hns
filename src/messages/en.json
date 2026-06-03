@@ -992,10 +992,92 @@
       "nameLabel": "Template name",
       "nameRequired": "Please enter a template name.",
       "namePlaceholder": "e.g. My Shop Template v1",
+      "descLabel": "Description (optional)",
+      "descPlaceholder": "A short description of this template",
+      "thumbLabel": "Thumbnail URL (optional)",
+      "cancel": "Cancel",
+      "save": "Save",
       "saving": "Saving…",
-      "saved": "Saved! Check it in the template list.",
-      "error": "Save failed",
-      "submit": "Save"
+      "saveFailed": "Save failed",
+      "savedSuccess": "Saved to your templates.\nFind it under Dashboard > Templates > My Templates."
+    },
+    "siteSettingsModal": {
+      "title": "Site settings",
+      "close": "Close",
+      "siteLabel": "Site",
+      "headerLogo": "Header · Logo",
+      "changeLogo": "Change logo",
+      "resetHeader": "Reset header",
+      "logoTip": "You can also click the logo on the canvas and swap it with the ↻ button.",
+      "menu": "Menu",
+      "menuAuto": "Auto from menu manager",
+      "menuCustom": "Custom edit",
+      "openMenuMgr": "Open menu manager",
+      "menuAutoTip": "The menu set in the menu manager is applied.",
+      "menuCustomTip": "Double-click the menu on the canvas to edit it directly.",
+      "footer": "Footer",
+      "resetFooter": "Reset footer",
+      "footerTip": "Double-click the footer on the canvas to edit it.",
+      "doneClose": "Close",
+      "headerLayout": "Header layout",
+      "stickyLabel": "Stick to top on scroll (sticky)",
+      "heightLabel": "Height",
+      "bgLabel": "Background",
+      "headerLayoutNote": "Values are saved to the page CSS as :root variables (HNS-HEADER-LAYOUT block).",
+      "languageLabel": "Language",
+      "saveLanguages": "Save language settings",
+      "savingLanguages": "Saving…",
+      "minOneLang": "Select at least one language.",
+      "savedLanguages": "Saved. Refresh the page to apply.",
+      "saveFailed": "Save failed",
+      "setDefault": "Set as default language",
+      "isDefault": "Default",
+      "makeDefault": "Set as default",
+      "currentlyEditing": "Editing language",
+      "confirmFooterReset": "Reset the footer to its initial state?",
+      "confirmHeaderReset": "Reset the header to its initial state?"
+    },
+    "viewport": {
+      "mobile": "📱 Mobile",
+      "desktop": "🖥 Desktop"
+    },
+    "zoom": {
+      "out": "Zoom out",
+      "outTitle": "Zoom out (⌘−)",
+      "in": "Zoom in",
+      "inTitle": "Zoom in (⌘+)",
+      "fit": "Fit to screen",
+      "fitTitle": "Fit to screen (⇧1)"
+    },
+    "tooltip": {
+      "doubleClick": "Double-click to edit this object."
+    },
+    "publishModal": {
+      "title": "Published!",
+      "desc": "Your site has been published successfully.",
+      "preview": "Preview",
+      "continue": "Keep editing"
+    },
+    "creditsModal": {
+      "title": "Not enough credits",
+      "needPrefix": "This action requires",
+      "needSuffix": "credits.",
+      "currentBalance": "Current balance",
+      "topUp": "Top up credits",
+      "close": "Close"
+    },
+    "statusBar": {
+      "ariaLabel": "Editor status bar",
+      "saving": "Saving…",
+      "savingFailed": "Save failed",
+      "savedJustNow": "Saved · just now",
+      "allSaved": "All changes saved",
+      "page": "Page",
+      "element": "Element",
+      "language": "Language",
+      "cursor": "Cursor",
+      "zoom": "Zoom",
+      "viewport": "Viewport"
     },
     "inspector": {
       "ariaLabel": "Inspector panel",
@@ -1012,106 +1094,88 @@
         "section": "Image",
         "source": "Source URL",
         "sourcePlaceholder": "https://… or /path/to/img.png",
+        "uploading": "Uploading…",
+        "uploadFile": "Upload file",
+        "uploadFailed": "Upload failed",
         "alt": "Alt text",
         "altPlaceholder": "Image description",
         "link": "Click link",
         "linkPlaceholder": "https://…",
-        "uploadFile": "Upload file",
-        "uploading": "Uploading…",
-        "uploadFailed": "Upload failed"
+        "fitLabel": "Fit",
+        "fitAuto": "Auto"
       },
       "bgImage": {
         "section": "Background Image",
-        "source": "Image URL",
-        "uploadFile": "Upload file",
         "uploading": "Uploading…",
-        "uploadFailed": "Upload failed",
-        "size": "Size",
-        "position": "Position",
-        "repeat": "Repeat"
+        "upload": "Upload background image",
+        "remove": "Remove background image",
+        "uploadFailed": "Upload failed"
       },
       "position": {
-        "section": "Position · Size",
-        "x": "X",
-        "y": "Y",
-        "w": "W",
-        "h": "H",
-        "unit": "Unit",
-        "unitPx": "px (fixed)",
-        "unitPct": "% (relative)",
-        "constrainRatio": "Constrain ratio",
-        "resetRatio": "Reset ratio"
+        "section": "Position · Size"
       },
       "typography": {
         "section": "Typography",
+        "font": "Font",
         "size": "Size",
+        "weight": "Weight",
         "lineHeight": "Line height",
         "letterSpacing": "Letter spacing",
         "color": "Color"
       },
       "fill": {
         "section": "Fill",
-        "type": "Type",
-        "solid": "Solid",
-        "transparent": "Transparent",
-        "gradient": "Gradient",
-        "color": "Color",
-        "gradientFrom": "From",
-        "gradientTo": "To",
-        "gradientAngle": "Angle"
+        "bg": "Background",
+        "opacity": "Opacity"
       },
       "border": {
         "section": "Border",
-        "style": "Style",
-        "none": "None",
-        "solid": "Solid",
-        "dashed": "Dashed",
-        "dotted": "Dotted",
+        "color": "Color",
         "width": "Width",
         "radius": "Radius",
-        "color": "Color"
+        "style": "Style",
+        "styleNone": "None"
       },
       "effect": {
-        "section": "Effects",
-        "opacity": "Opacity",
-        "shadowX": "Shadow X",
-        "shadowY": "Shadow Y",
-        "shadowBlur": "Blur",
-        "shadowColor": "Color"
+        "section": "Effects"
       },
-      "interactionEmpty": "No interactions",
+      "interactionEmpty": {
+        "title": "No element selected",
+        "l1": "To add an interaction,",
+        "l2": "select a layer first"
+      },
       "interaction": {
         "section": "Interaction",
-        "type": "Action type",
-        "none": "None",
-        "link": "Link",
-        "scrollTo": "Scroll to",
-        "modal": "Modal",
-        "toggle": "Toggle",
-        "urlLabel": "URL",
-        "urlPlaceholder": "https://…",
-        "targetLabel": "Target ID",
-        "targetPlaceholder": "#section-id",
-        "modalLabel": "Modal content",
-        "modalPlaceholder": "<div>Modal content</div>",
-        "toggleLabel": "Element ID to toggle",
-        "togglePlaceholder": "#element-id"
+        "action": "Action",
+        "actionNone": "None",
+        "actionLink": "Go to link",
+        "actionScrollTo": "Scroll to section",
+        "actionModal": "Open modal",
+        "actionToggle": "Toggle class",
+        "target": "Target",
+        "targetSelf": "Same tab",
+        "targetBlank": "New tab",
+        "targetId": "Target ID",
+        "smooth": "Smooth",
+        "smoothYes": "Yes (smooth)",
+        "smoothNo": "No",
+        "modalId": "Modal ID",
+        "className": "Class",
+        "remove": "Remove interaction",
+        "note": "Interactions work on the live site after saving."
       },
       "fontFamily": {
-        "label": "Font",
-        "search": "Search fonts…",
-        "all": "All",
-        "gothic": "Sans-serif",
-        "serif": "Serif",
-        "display": "Display",
-        "handwriting": "Handwriting",
-        "mono": "Monospace",
-        "latin": "Latin"
+        "default": "Default",
+        "defaultLong": "Default (site font)",
+        "defaultTitle": "Default font",
+        "sample": "Aa 123"
       },
       "align": {
+        "ariaLabel": "Align",
         "left": "Left",
         "center": "Center",
-        "right": "Right"
+        "right": "Right",
+        "justify": "Justify"
       }
     },
     "layers": {
