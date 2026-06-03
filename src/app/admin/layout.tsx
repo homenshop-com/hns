@@ -36,9 +36,9 @@ const resellerNavItems = [
   { href: "/admin/prospects", label: "잠재고객", icon: "members" },
   { href: "/admin/sites", label: "계정 관리", icon: "sites" },
   { href: "/admin/orders", label: "주문 관리", icon: "orders" },
-  // Settlement still lives in the member dashboard (/dashboard/reseller);
-  // expose it here so the reseller admin console is the single hub.
-  { href: "/dashboard/reseller", label: "리셀러 정산", icon: "orders" },
+  // Settlement renders inside the admin console (/admin/settlement) so the
+  // operator keeps this scoped sidebar instead of bouncing to the member shell.
+  { href: "/admin/settlement", label: "리셀러 정산", icon: "orders" },
   // Self-service white-label settings (site name, logo, copyright, SEO) for
   // the operator's own reseller. Domain / revenue-share stay admin-only.
   { href: "/admin/account", label: "리셀러 설정", icon: "settings" },
