@@ -11,6 +11,20 @@ import Turnstile from "@/components/turnstile";
 
 const TURNSTILE_ENABLED = !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
+// The canonical host where the Turnstile site key is valid. White-label reseller
+// domains serve the same login page, but the widget can't mint a token there
+// (site keys are hostname-bound), so we only render/require Turnstile on the
+// canonical host — mirroring the server-side gate in src/lib/auth.ts.
+const CANONICAL_HOST = (() => {
+  try {
+    return new URL(process.env.NEXT_PUBLIC_BASE_URL || "https://homenshop.com")
+      .host.replace(/^www\./, "")
+      .toLowerCase();
+  } catch {
+    return "homenshop.com";
+  }
+})();
+
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -22,7 +36,17 @@ export default function LoginPage() {
   // Tokens are one-shot — on failed login we bump this key to remount the
   // widget and obtain a fresh token for the next attempt.
   const [turnstileKey, setTurnstileKey] = useState(0);
+  // Whether Turnstile is actually active for THIS host. Only the canonical host
+  // (where the site key is valid) renders the widget and requires a token; on
+  // reseller white-label domains it stays off so login isn't blocked.
+  const [turnstileActive, setTurnstileActive] = useState(false);
   const t = useTranslations("auth.login");
+
+  useEffect(() => {
+    if (!TURNSTILE_ENABLED) return;
+    const host = window.location.hostname.replace(/^www\./, "").toLowerCase();
+    setTurnstileActive(host === CANONICAL_HOST);
+  }, []);
 
   const handleTurnstileVerify = useCallback((token: string) => {
     setTurnstileToken(token);
@@ -79,7 +103,7 @@ export default function LoginPage() {
       setError(t("error"));
       // Burned token — reset so the user can retry without being silently
       // blocked by an already-consumed challenge.
-      if (TURNSTILE_ENABLED) {
+      if (turnstileActive) {
         setTurnstileToken("");
         setTurnstileKey((k) => k + 1);
       }
@@ -146,7 +170,7 @@ export default function LoginPage() {
             <Link href="/forgot-password">{t("forgotPassword")}</Link>
           </div>
 
-          {TURNSTILE_ENABLED && (
+          {turnstileActive && (
             <Turnstile
               key={turnstileKey}
               onVerify={handleTurnstileVerify}
@@ -156,7 +180,7 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            disabled={loading || (TURNSTILE_ENABLED && !turnstileToken)}
+            disabled={loading || (turnstileActive && !turnstileToken)}
             className="auth-btn"
           >
             {loading ? t("submitting") : t("submit")}

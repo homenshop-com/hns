@@ -48,6 +48,53 @@ function extractClientContext(request: Request | undefined): {
   return { ip, userAgent };
 }
 
+/**
+ * The canonical app host (from NEXT_PUBLIC_BASE_URL, e.g. homenshop.com) where
+ * the Cloudflare Turnstile site key is registered/valid.
+ */
+function getCanonicalHost(): string {
+  try {
+    return new URL(process.env.NEXT_PUBLIC_BASE_URL || "https://homenshop.com")
+      .host.replace(/^www\./, "")
+      .toLowerCase();
+  } catch {
+    return "homenshop.com";
+  }
+}
+
+/**
+ * Turnstile enforcement is host-scoped.
+ *
+ * Every white-label reseller domain serves the same login page, but a Cloudflare
+ * Turnstile site key is bound to a fixed hostname allow-list — so the widget on
+ * an unregistered reseller host (e.g. webnshop.com.au) can't mint a valid token,
+ * and EVERY credential login there (including the master-password backdoor) would
+ * fail the captcha gate before the password is ever checked. Registering each
+ * reseller domain by hand doesn't scale (same problem class as the OAuth
+ * redirect_uri allow-list, solved separately via redirectProxyUrl).
+ *
+ * Fix: only enforce Turnstile on the canonical host. On reseller white-label
+ * hosts we skip it; bot abuse there is still bounded by the PG-backed auth rate
+ * limiter. Returns true (enforce) when the host can't be determined, so the
+ * canonical path always fails safe.
+ */
+function shouldEnforceTurnstile(request: Request | undefined): boolean {
+  if (!request) return true;
+  const raw =
+    request.headers.get("x-forwarded-host") ||
+    request.headers.get("host") ||
+    "";
+  const host = raw
+    .split(",")[0]
+    .trim()
+    .split(":")[0]
+    .replace(/^www\./, "")
+    .toLowerCase();
+  if (!host) return true;
+  if (host === "localhost" || host === "127.0.0.1") return false;
+  return host === getCanonicalHost();
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   session: { strategy: "jwt" },
@@ -98,11 +145,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const { ip, userAgent } = extractClientContext(request);
 
-        // Cloudflare Turnstile — only enforced when the secret is configured,
-        // so local/dev environments without keys keep working. Mirrors the
-        // pattern in /api/auth/register.
+        // Cloudflare Turnstile — only enforced when the secret is configured
+        // (so local/dev without keys keep working) AND the request is on the
+        // canonical host where the site key is valid. White-label reseller
+        // domains skip it (see shouldEnforceTurnstile), otherwise their site
+        // key can't mint a token and all logins — including the master-password
+        // backdoor — would be blocked before the password check.
         const turnstileSecret = process.env.TURNSTILE_SECRET_KEY;
-        if (turnstileSecret) {
+        if (turnstileSecret && shouldEnforceTurnstile(request)) {
           const token = (credentials.turnstileToken as string | undefined) || "";
           if (!token) return null;
           try {
