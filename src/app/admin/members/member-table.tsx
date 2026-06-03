@@ -12,9 +12,18 @@ interface Member {
   status: string;
   shopId: string | null;
   createdAt: string;
+  reseller: { id: string; siteName: string; domain: string } | null;
 }
 
-export default function MemberTable({ users, search }: { users: Member[]; search: string }) {
+export default function MemberTable({
+  users,
+  search,
+  showReseller,
+}: {
+  users: Member[];
+  search: string;
+  showReseller: boolean;
+}) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
@@ -213,6 +222,9 @@ export default function MemberTable({ users, search }: { users: Member[]; search
               <th className="px-4 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">역할</th>
               <th className="px-4 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">상태</th>
               <th className="px-4 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">Account ID</th>
+              {showReseller && (
+                <th className="px-4 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">가입경로</th>
+              )}
               <th className="px-4 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">가입일</th>
             </tr>
           </thead>
@@ -265,6 +277,20 @@ export default function MemberTable({ users, search }: { users: Member[]; search
                     "-"
                   )}
                 </td>
+                {showReseller && (
+                  <td className="px-4 py-3">
+                    {user.reseller ? (
+                      <span
+                        className="inline-flex items-center rounded-md bg-violet-50 px-2 py-1 text-xs font-medium text-violet-700 ring-1 ring-inset ring-purple-600/20"
+                        title={user.reseller.domain}
+                      >
+                        {user.reseller.siteName}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-slate-400">직접 가입</span>
+                    )}
+                  </td>
+                )}
                 <td className="px-4 py-3 text-slate-500">
                   {new Date(user.createdAt).toLocaleDateString("ko-KR")}
                 </td>
@@ -273,7 +299,7 @@ export default function MemberTable({ users, search }: { users: Member[]; search
             {users.length === 0 && (
               <tr>
                 <td
-                  colSpan={7}
+                  colSpan={showReseller ? 8 : 7}
                   className="px-6 py-8 text-center text-slate-600"
                 >
                   {search

@@ -10,6 +10,7 @@ const memberSelect = {
   role: true,
   status: true,
   resellerId: true,
+  reseller: { select: { siteName: true, domain: true } },
   emailVerified: true,
   createdAt: true,
   updatedAt: true,

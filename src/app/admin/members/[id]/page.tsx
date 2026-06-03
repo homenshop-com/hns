@@ -20,6 +20,7 @@ interface MemberDetail {
   role: string;
   status: string;
   emailVerified: string | null;
+  reseller: { siteName: string; domain: string } | null;
   createdAt: string;
   updatedAt: string;
   sites: SiteInfo[];
@@ -336,6 +337,19 @@ export default function AdminMemberDetailPage() {
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">수정일</label>
                 <p className="text-xs text-slate-600">{new Date(member.updatedAt).toLocaleString("ko-KR")}</p>
+              </div>
+              <div className="col-span-2">
+                <label className="block text-xs font-medium text-slate-500 mb-1">가입경로</label>
+                {member.reseller ? (
+                  <span
+                    className="inline-flex items-center rounded-md bg-violet-50 px-2 py-1 text-xs font-medium text-violet-700 ring-1 ring-inset ring-purple-600/20"
+                    title={member.reseller.domain}
+                  >
+                    {member.reseller.siteName} ({member.reseller.domain})
+                  </span>
+                ) : (
+                  <p className="text-xs text-slate-500">직접 가입 (homenshop.net)</p>
+                )}
               </div>
             </div>
           </div>
