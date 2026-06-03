@@ -42,7 +42,7 @@ export default function ForgotPasswordPage() {
   return (
     <div className="auth-page">
       <div className="auth-lang">
-        <LanguageSwitcher />
+        <LanguageSwitcher variant="globe" />
       </div>
       <div className="auth-card login">
         <h1 className="auth-title">비밀번호 찾기</h1>

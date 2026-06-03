@@ -11,6 +11,7 @@ import MobileBottomNav from "./mobile-bottom-nav";
 import SupportUnreadIndicator from "./support-unread-indicator";
 import { DashboardIconSprite, Icon } from "./dashboard-icons";
 import DashboardBrand from "./dashboard-brand";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 import "./dashboard-v2.css";
 
 export type DashboardNavKey =
@@ -210,6 +211,7 @@ export default async function DashboardShell({
             )}
             <div className="dv2-spacer" />
             <div className="dv2-topbar-actions">
+              <LanguageSwitcher variant="globe" />
               <Link
                 className="dv2-coin-pill"
                 href="/dashboard/credits"

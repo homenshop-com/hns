@@ -214,7 +214,7 @@ export default function RegisterPage() {
   return (
     <div className="auth-page">
       <div className="auth-lang">
-        <LanguageSwitcher />
+        <LanguageSwitcher variant="globe" />
       </div>
       <div className="auth-card register">
         <h1 className="auth-title">{t("title")}</h1>

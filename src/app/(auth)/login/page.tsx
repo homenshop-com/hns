@@ -127,7 +127,7 @@ export default function LoginPage() {
   return (
     <div className="auth-page">
       <div className="auth-lang">
-        <LanguageSwitcher />
+        <LanguageSwitcher variant="globe" />
       </div>
       <div className="auth-card login">
         <h1 className="auth-title">{t("title")}</h1>

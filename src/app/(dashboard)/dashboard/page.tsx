@@ -12,6 +12,7 @@ import { canAccessIntegrations } from "@/lib/feature-flags";
 import "./dashboard-v2.css";
 import { DashboardIconSprite, Icon } from "./dashboard-icons";
 import DashboardBrand from "./dashboard-brand";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 import SupportUnreadIndicator from "./support-unread-indicator";
 import {
   daysUntilExpiry,
@@ -525,6 +526,7 @@ export default async function DashboardPage({
                 패턴과 동일하게 복원. */}
             <div className="dv2-spacer" />
             <div className="dv2-topbar-actions">
+              <LanguageSwitcher variant="globe" />
               <Link className="dv2-coin-pill" href="/dashboard/credits" title="AI 제작 코인">
                 <span className="ball">C</span>
                 <span>{credits.toLocaleString()}</span>
