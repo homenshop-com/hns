@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import ResellerLogoField from "@/components/admin/ResellerLogoField";
 import ResellerDomainGuide from "@/components/admin/ResellerDomainGuide";
+import { normalizeDomain, normalizeDomainInput } from "@/lib/normalize-domain";
 
 const TiptapEditor = lazy(() => import("@/components/tiptap-editor"));
 
@@ -153,7 +154,7 @@ export default function AdminResellerDetailPage() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          domain,
+          domain: normalizeDomain(domain),
           siteName,
           logo,
           copyright: normalizeHtml(copyright),
@@ -336,7 +337,8 @@ export default function AdminResellerDetailPage() {
             <input
               type="text"
               value={domain}
-              onChange={(e) => setDomain(e.target.value)}
+              onChange={(e) => setDomain(normalizeDomainInput(e.target.value))}
+              onBlur={(e) => setDomain(normalizeDomain(e.target.value))}
               className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
               placeholder="reseller.example.com"
             />

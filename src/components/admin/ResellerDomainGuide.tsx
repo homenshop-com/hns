@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { normalizeDomain } from "@/lib/normalize-domain";
 
 /**
  * Domain-setup guidance for the reseller (white-label) admin forms.
@@ -52,11 +53,7 @@ export default function ResellerDomainGuide({ domain }: { domain: string }) {
   const [dnsCheck, setDnsCheck] = useState<DnsCheck | null>(null);
   const [error, setError] = useState("");
 
-  const normalized = domain
-    .trim()
-    .toLowerCase()
-    .replace(/^https?:\/\//, "")
-    .replace(/\/.*$/, "");
+  const normalized = normalizeDomain(domain);
 
   async function runDnsCheck() {
     if (!normalized) return;
@@ -83,59 +80,8 @@ export default function ResellerDomainGuide({ domain }: { domain: string }) {
 
   return (
     <div className="border-t border-slate-100 pt-4">
-      <h2 className="text-sm font-semibold text-slate-800 mb-1">도메인 연결 안내</h2>
-      <p className="text-xs text-slate-400 mb-3">
-        리셀러 도메인이 실제로 접속되려면, 도메인을 구입한 업체의{" "}
-        <b>DNS 관리 페이지</b>에서 아래 <b>A 레코드</b>를 추가해 도메인을 홈앤샵
-        서버로 향하게 해야 합니다. DNS가 서버를 가리킨 뒤 SSL 인증서가 발급됩니다.
-      </p>
-
-      <div className="rounded-lg border border-slate-200 overflow-hidden">
-        <div className="flex items-center gap-2 bg-slate-50 px-3 py-2 border-b border-slate-200">
-          <span className="text-xs font-semibold text-slate-700">DNS 설정 (A 레코드)</span>
-          <span className="ml-auto text-[11px] text-slate-400">필수 2개</span>
-        </div>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-[11px] text-slate-500 border-b border-slate-100">
-              <th className="px-3 py-2 font-medium w-16">타입</th>
-              <th className="px-3 py-2 font-medium">호스트 / 이름</th>
-              <th className="px-3 py-2 font-medium">값 (IP 주소)</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr className="border-b border-slate-50">
-              <td className="px-3 py-2">
-                <span className="inline-block rounded bg-blue-50 px-1.5 py-0.5 text-[11px] font-medium text-[#3182f6]">A</span>
-              </td>
-              <td className="px-3 py-2 text-slate-700">
-                @ <span className="text-slate-400 text-xs">(또는 빈칸 / 도메인명)</span>
-              </td>
-              <td className="px-3 py-2 font-mono text-slate-800">
-                {SERVER_IP}
-                <CopyButton value={SERVER_IP} />
-              </td>
-            </tr>
-            <tr>
-              <td className="px-3 py-2">
-                <span className="inline-block rounded bg-blue-50 px-1.5 py-0.5 text-[11px] font-medium text-[#3182f6]">A</span>
-              </td>
-              <td className="px-3 py-2 text-slate-700">www</td>
-              <td className="px-3 py-2 font-mono text-slate-800">
-                {SERVER_IP}
-                <CopyButton value={SERVER_IP} />
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <div className="flex flex-wrap gap-2 px-3 py-2 bg-slate-50 border-t border-slate-100 text-[11px] text-slate-500">
-          <span className="rounded-full bg-white border border-slate-200 px-2 py-0.5">⏱ DNS 전파: 최대 48시간</span>
-          <span className="rounded-full bg-white border border-slate-200 px-2 py-0.5">🔒 SSL 자동 발급 (Let&apos;s Encrypt · 무료)</span>
-        </div>
-      </div>
-
-      {/* DNS check */}
-      <div className="mt-3 flex items-center gap-2">
+      {/* DNS check — sits directly under the domain input */}
+      <div className="flex items-center gap-2">
         <button
           type="button"
           onClick={runDnsCheck}
@@ -210,6 +156,57 @@ export default function ResellerDomainGuide({ domain }: { domain: string }) {
           )}
         </div>
       )}
+
+      <h2 className="text-sm font-semibold text-slate-800 mb-1 mt-4">도메인 연결 안내</h2>
+      <p className="text-xs text-slate-400 mb-3">
+        리셀러 도메인이 실제로 접속되려면, 도메인을 구입한 업체의{" "}
+        <b>DNS 관리 페이지</b>에서 아래 <b>A 레코드</b>를 추가해 도메인을 홈앤샵
+        서버로 향하게 해야 합니다. DNS가 서버를 가리킨 뒤 SSL 인증서가 발급됩니다.
+      </p>
+
+      <div className="rounded-lg border border-slate-200 overflow-hidden">
+        <div className="flex items-center gap-2 bg-slate-50 px-3 py-2 border-b border-slate-200">
+          <span className="text-xs font-semibold text-slate-700">DNS 설정 (A 레코드)</span>
+          <span className="ml-auto text-[11px] text-slate-400">필수 2개</span>
+        </div>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-[11px] text-slate-500 border-b border-slate-100">
+              <th className="px-3 py-2 font-medium w-16">타입</th>
+              <th className="px-3 py-2 font-medium">호스트 / 이름</th>
+              <th className="px-3 py-2 font-medium">값 (IP 주소)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="border-b border-slate-50">
+              <td className="px-3 py-2">
+                <span className="inline-block rounded bg-blue-50 px-1.5 py-0.5 text-[11px] font-medium text-[#3182f6]">A</span>
+              </td>
+              <td className="px-3 py-2 text-slate-700">
+                @ <span className="text-slate-400 text-xs">(또는 빈칸 / 도메인명)</span>
+              </td>
+              <td className="px-3 py-2 font-mono text-slate-800">
+                {SERVER_IP}
+                <CopyButton value={SERVER_IP} />
+              </td>
+            </tr>
+            <tr>
+              <td className="px-3 py-2">
+                <span className="inline-block rounded bg-blue-50 px-1.5 py-0.5 text-[11px] font-medium text-[#3182f6]">A</span>
+              </td>
+              <td className="px-3 py-2 text-slate-700">www</td>
+              <td className="px-3 py-2 font-mono text-slate-800">
+                {SERVER_IP}
+                <CopyButton value={SERVER_IP} />
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div className="flex flex-wrap gap-2 px-3 py-2 bg-slate-50 border-t border-slate-100 text-[11px] text-slate-500">
+          <span className="rounded-full bg-white border border-slate-200 px-2 py-0.5">⏱ DNS 전파: 최대 48시간</span>
+          <span className="rounded-full bg-white border border-slate-200 px-2 py-0.5">🔒 SSL 자동 발급 (Let&apos;s Encrypt · 무료)</span>
+        </div>
+      </div>
     </div>
   );
 }
