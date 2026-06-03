@@ -35,6 +35,7 @@ export default function SitesTable({
   perPage,
   buildUrlBase,
   showReseller,
+  useImpersonateApi,
 }: {
   sites: SiteRow[];
   totalCount: number;
@@ -43,10 +44,45 @@ export default function SitesTable({
   perPage: number;
   buildUrlBase: string;
   showReseller: boolean;
+  // Reseller operators can't fetch the master password (ADMIN-only). For them
+  // the "Login" button instead calls the impersonate API, which mints a scoped
+  // session (own attributed MEMBER only) without exposing any password. Full
+  // admins keep the master-password new-tab flow.
+  useImpersonateApi: boolean;
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
+  const [loggingIn, setLoggingIn] = useState<string | null>(null);
   const router = useRouter();
+
+  async function impersonate(site: SiteRow) {
+    setLoggingIn(site.id);
+    try {
+      const res = await fetch("/api/admin/impersonate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: site.userId }),
+      });
+      if (!res.ok) {
+        alert("이 계정으로 로그인할 권한이 없습니다.");
+        setLoggingIn(null);
+        return;
+      }
+      const data = (await res.json()) as { redirectUrl?: string };
+      // Surface the impersonation banner on the customer dashboard. The session
+      // cookie was just swapped in-place; the banner's "관리자로 돌아가기"
+      // restores our reseller session via DELETE /api/admin/impersonate.
+      try {
+        localStorage.setItem("impersonating", site.email);
+      } catch {
+        /* ignore storage errors */
+      }
+      window.location.href = data.redirectUrl || "/dashboard";
+    } catch {
+      alert("로그인 처리 중 오류가 발생했습니다.");
+      setLoggingIn(null);
+    }
+  }
 
   const allChecked = sites.length > 0 && selected.size === sites.length;
 
@@ -220,27 +256,37 @@ export default function SitesTable({
                     >
                       View
                     </Link>
-                    <button
-                      onClick={() => {
-                        // Mark impersonation for the banner to pick up, then
-                        // open /login in a new tab — the login page will
-                        // fetch the master password from /api/admin/master-password
-                        // (admin session only) and auto-fill.
-                        try {
-                          localStorage.setItem("impersonating", site.email);
-                        } catch {
-                          /* ignore storage errors (e.g. Safari private mode) */
-                        }
-                        window.open(
-                          `/login?email=${encodeURIComponent(site.email)}`,
-                          "_blank",
-                          "noopener"
-                        );
-                      }}
-                      className="bg-amber-500 text-white px-3 py-1 rounded text-xs font-medium hover:bg-amber-600 ml-1"
-                    >
-                      Login
-                    </button>
+                    {useImpersonateApi ? (
+                      <button
+                        onClick={() => impersonate(site)}
+                        disabled={loggingIn === site.id}
+                        className="bg-amber-500 text-white px-3 py-1 rounded text-xs font-medium hover:bg-amber-600 ml-1 disabled:opacity-50"
+                      >
+                        {loggingIn === site.id ? "..." : "Login"}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          // Mark impersonation for the banner to pick up, then
+                          // open /login in a new tab — the login page will
+                          // fetch the master password from /api/admin/master-password
+                          // (admin session only) and auto-fill.
+                          try {
+                            localStorage.setItem("impersonating", site.email);
+                          } catch {
+                            /* ignore storage errors (e.g. Safari private mode) */
+                          }
+                          window.open(
+                            `/login?email=${encodeURIComponent(site.email)}`,
+                            "_blank",
+                            "noopener"
+                          );
+                        }}
+                        className="bg-amber-500 text-white px-3 py-1 rounded text-xs font-medium hover:bg-amber-600 ml-1"
+                      >
+                        Login
+                      </button>
+                    )}
                     <button
                       onClick={() => {
                         const url = `https://homenshop.net/login?email=${encodeURIComponent(site.email)}`;

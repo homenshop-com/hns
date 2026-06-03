@@ -289,6 +289,7 @@ export default async function AdminSitesPage({
         perPage={perPage}
         buildUrlBase={buildUrlBase}
         showReseller={!rid}
+        useImpersonateApi={!!rid}
       />
     </div>
   );

@@ -4,15 +4,21 @@ import { useEffect, useState } from "react";
 import { signOut } from "next-auth/react";
 
 /**
- * Shown on customer dashboards when an admin is impersonating them via the
- * master-password flow. The signal is a localStorage flag set by the admin
- * panel's "Login" button (src/app/admin/sites/sites-table.tsx).
+ * Shown on customer dashboards when an operator is impersonating them. The
+ * signal is a localStorage flag set by the admin panel's "Login" button
+ * (src/app/admin/sites/sites-table.tsx).
  *
- * "관리자로 돌아가기" signs the current (customer) session out and returns
- * to /login. Because the admin's real session was never replaced in the
- * original admin tab (master password login happens in a new tab with its
- * own form submit), the admin typically still has a live session there and
- * can keep working. This button only cleans up the new tab.
+ * Two impersonation mechanisms feed this banner:
+ *  1. Master-password flow (full admins): a new-tab /login with the master
+ *     password auto-filled. The admin's real session was never replaced in
+ *     the original tab, so "return" just signs THIS session out → /login.
+ *  2. Impersonate API (reseller operators): /api/admin/impersonate swaps the
+ *     session cookie in-place and backs up the operator's session in an
+ *     admin-session-backup cookie. "return" must restore that backup via
+ *     DELETE rather than signing out (which would drop the reseller session).
+ *
+ * "관리자로 돌아가기" therefore tries the DELETE restore first; if there is no
+ * backup (master-password flow → 400) it falls back to signOut → /login.
  */
 export default function ImpersonationBanner() {
   const [impersonating, setImpersonating] = useState("");
@@ -34,6 +40,19 @@ export default function ImpersonationBanner() {
     } catch {
       /* ignore */
     }
+    // Impersonate-API flow: restore the backed-up operator (reseller/admin)
+    // session and go to wherever the API points us (their /admin/sites).
+    try {
+      const res = await fetch("/api/admin/impersonate", { method: "DELETE" });
+      if (res.ok) {
+        const data = (await res.json()) as { redirectUrl?: string };
+        window.location.href = data.redirectUrl || "/admin/sites";
+        return;
+      }
+    } catch {
+      /* fall through to sign-out */
+    }
+    // Master-password flow (no backup to restore): just drop this session.
     await signOut({ redirect: false });
     window.location.href = "/login";
   }
