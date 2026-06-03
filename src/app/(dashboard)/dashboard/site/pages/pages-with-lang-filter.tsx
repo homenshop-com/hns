@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import DeletePageButton from "./delete-page-button";
 
 interface PageItem {
@@ -38,6 +39,7 @@ export default function PagesWithLangFilter({
   languages,
   defaultLanguage,
 }: Props) {
+  const t = useTranslations("sitePages");
   const [selectedLang, setSelectedLang] = useState(defaultLanguage);
 
   const filteredPages = pages.filter((p) => p.lang === selectedLang);
@@ -84,14 +86,14 @@ export default function PagesWithLangFilter({
       {orderedPages.length === 0 ? (
         <div className="rounded-xl border border-zinc-200 bg-white p-12 text-center dark:border-zinc-800 dark:bg-zinc-900">
           <p className="text-zinc-500 dark:text-zinc-400 mb-4">
-            {langNames[selectedLang] || selectedLang} 페이지가 없습니다.
+            {t("noPagesForLang", { lang: langNames[selectedLang] || selectedLang })}
           </p>
           <Link
             href="/dashboard/site/pages/new"
             className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-[#3182f6] px-6 h-11 text-sm font-semibold text-white shadow-[0_1px_2px_rgba(49,130,246,0.25),0_2px_6px_rgba(49,130,246,0.18)] transition hover:bg-[#1b64da] active:translate-y-px"
           >
             <i className="fa-solid fa-plus" aria-hidden="true" />
-            첫 페이지 만들기
+            {t("createFirstPage")}
           </Link>
         </div>
       ) : (
@@ -114,17 +116,17 @@ export default function PagesWithLangFilter({
                     </span>
                     {page.isHome && (
                       <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                        홈
+                        {t("badgeHome")}
                       </span>
                     )}
                     {page.externalUrl && (
                       <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-200">
-                        외부링크
+                        {t("badgeExternalLink")}
                       </span>
                     )}
                     {page.showInMenu === false && (
                       <span className="inline-flex items-center rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
-                        숨김
+                        {t("badgeHidden")}
                       </span>
                     )}
                   </div>
@@ -132,7 +134,7 @@ export default function PagesWithLangFilter({
                     {page.externalUrl || `/${page.slug}`}
                   </span>
                   <span className="ml-3 text-xs text-zinc-400">
-                    순서: {page.sortOrder}
+                    {t("order", { order: page.sortOrder })}
                   </span>
                 </div>
                 <div className="flex items-center gap-3">
@@ -141,7 +143,7 @@ export default function PagesWithLangFilter({
                       href={`/dashboard/site/pages/${page.id}/edit`}
                       className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
                     >
-                      디자인 편집
+                      {t("editDesign")}
                     </Link>
                   )}
                   <span className="text-xs text-zinc-400">

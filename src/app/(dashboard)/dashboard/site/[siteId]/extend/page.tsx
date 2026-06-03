@@ -21,6 +21,7 @@ export default async function ExtendPage({
 
   const t = await getTranslations("extend");
   const ts = await getTranslations("settings");
+  const tx = await getTranslations("siteExtend");
 
   const ACCOUNT_TYPES: Record<string, string> = {
     "0": ts("accountFree"),
@@ -84,7 +85,7 @@ export default async function ExtendPage({
     <DashboardShell
       active="sites"
       breadcrumbs={[
-        { label: "홈", href: "/dashboard" },
+        { label: tx("home"), href: "/dashboard" },
         { label: t("pageTitle") },
       ]}
     >
@@ -133,7 +134,7 @@ export default async function ExtendPage({
               </div>
               {isFreeType && !site.expiresAt && effectiveExpiry && !isExpired && (
                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", marginTop: 3 }}>
-                  무료 체험 {FREE_TRIAL_DAYS}일 · 생성일로부터
+                  {tx("freeTrialNote", { days: FREE_TRIAL_DAYS })}
                 </div>
               )}
             </div>
@@ -156,7 +157,7 @@ export default async function ExtendPage({
             }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <span style={{ fontSize: 15, fontWeight: 700, color: "#1a1a2e" }}>
-                  PayPal 자동결제
+                  {tx("paypalAutoPay")}
                 </span>
                 <span style={{
                   fontSize: 11,
@@ -167,10 +168,10 @@ export default async function ExtendPage({
                   borderRadius: 20,
                   letterSpacing: 0.3,
                 }}>
-                  해외 고객 전용
+                  {tx("overseasOnly")}
                 </span>
               </div>
-              <span style={{ fontSize: 11.5, color: "#9ca3af" }}>USD · 자동갱신</span>
+              <span style={{ fontSize: 11.5, color: "#9ca3af" }}>{tx("usdAutoRenew")}</span>
             </div>
             <div style={{ padding: 28 }}>
               <PaypalSection
@@ -201,7 +202,7 @@ export default async function ExtendPage({
               fontWeight: 700,
               color: "#1a1a2e",
             }}>
-              {t("selectPlan")} <span style={{ fontSize: 12, fontWeight: 400, color: "#868e96" }}>KRW · 일회성</span>
+              {t("selectPlan")} <span style={{ fontSize: 12, fontWeight: 400, color: "#868e96" }}>{tx("krwOneTime")}</span>
             </div>
             <div style={{ padding: 28 }}>
               <ExtendForm
@@ -258,7 +259,7 @@ export default async function ExtendPage({
                   <tbody>
                     <tr>
                       <td style={{ padding: "6px 0", color: "#868e96", width: 80 }}>{t("bank")}</td>
-                      <td style={{ padding: "6px 0", fontWeight: 600 }}>우리은행</td>
+                      <td style={{ padding: "6px 0", fontWeight: 600 }}>{tx("bankName")}</td>
                     </tr>
                     <tr>
                       <td style={{ padding: "6px 0", color: "#868e96" }}>{t("accountNumber")}</td>
@@ -266,7 +267,7 @@ export default async function ExtendPage({
                     </tr>
                     <tr>
                       <td style={{ padding: "6px 0", color: "#868e96" }}>{t("accountHolder")}</td>
-                      <td style={{ padding: "6px 0", fontWeight: 600 }}>(주)홈앤샵</td>
+                      <td style={{ padding: "6px 0", fontWeight: 600 }}>{tx("accountHolderName")}</td>
                     </tr>
                   </tbody>
                 </table>

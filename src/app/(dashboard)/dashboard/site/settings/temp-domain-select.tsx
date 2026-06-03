@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 interface TempDomainSelectProps {
   siteId: string;
@@ -17,6 +18,7 @@ export default function TempDomainSelect({
   options,
   initialValue,
 }: TempDomainSelectProps) {
+  const t = useTranslations("siteSettings");
   const [value, setValue] = useState(initialValue);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<"idle" | "ok" | "err">("idle");
@@ -35,14 +37,14 @@ export default function TempDomainSelect({
       });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
-        throw new Error(j.error || "저장 실패");
+        throw new Error(j.error || t("saveFailed"));
       }
       setValue(next);
       setStatus("ok");
       setTimeout(() => setStatus("idle"), 2000);
     } catch (e) {
       setStatus("err");
-      setErrMsg(e instanceof Error ? e.message : "저장 실패");
+      setErrMsg(e instanceof Error ? e.message : t("saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -137,15 +139,15 @@ export default function TempDomainSelect({
             gap: 5,
             transition: "all .15s",
           }}
-          aria-label="URL 복사"
+          aria-label={t("copyUrl")}
         >
           <i className={copied ? "fa-solid fa-check" : "fa-regular fa-copy"} aria-hidden="true" />
-          {copied ? "복사됨" : "복사"}
+          {copied ? t("copied") : t("copy")}
         </button>
       </div>
 
-      {saving && <div style={{ fontSize: 13, color: "var(--ink-3)" }}>저장 중...</div>}
-      {status === "ok" && <div style={{ fontSize: 13, color: "var(--ok, #16a34a)", fontWeight: 600 }}>✓ 저장됨</div>}
+      {saving && <div style={{ fontSize: 13, color: "var(--ink-3)" }}>{t("saving")}</div>}
+      {status === "ok" && <div style={{ fontSize: 13, color: "var(--ok, #16a34a)", fontWeight: 600 }}>✓ {t("saved")}</div>}
       {status === "err" && (
         <div style={{ fontSize: 13, color: "var(--err, #dc2626)", fontWeight: 600 }}>{errMsg}</div>
       )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 const ALL_LANGUAGES: { code: string; name: string }[] = [
   { code: "ko", name: "한국어" },
@@ -18,6 +19,7 @@ interface Props {
 }
 
 export default function LanguageGridV2({ siteId, languages: initial, defaultLanguage: initialDefault }: Props) {
+  const t = useTranslations("siteSettings");
   const [languages, setLanguages] = useState<string[]>(initial);
   const [defaultLang, setDefaultLang] = useState(initialDefault);
   const [saving, setSaving] = useState(false);
@@ -34,9 +36,9 @@ export default function LanguageGridV2({ siteId, languages: initial, defaultLang
       });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "저장에 실패했습니다.");
+        throw new Error(data.error || t("saveFailed"));
       }
-      setMsg({ type: "ok", text: "저장됨" });
+      setMsg({ type: "ok", text: t("saved") });
       setTimeout(() => setMsg(null), 2000);
     } catch (e) {
       setMsg({ type: "err", text: (e as Error).message });
@@ -69,7 +71,7 @@ export default function LanguageGridV2({ siteId, languages: initial, defaultLang
   return (
     <>
       <div style={{ fontSize: 12, color: "var(--ink-2)" }}>
-        사이트에서 지원할 언어를 선택하세요.
+        {t("selectLanguages")}
       </div>
 
       <div className="sv2-lang-grid">
@@ -83,13 +85,13 @@ export default function LanguageGridV2({ siteId, languages: initial, defaultLang
               onClick={() => toggle(lang.code)}
               disabled={saving || (active && languages.length <= 1)}
               className={`sv2-lang-opt${active ? " on" : ""}`}
-              title={active && languages.length <= 1 ? "최소 1개 언어는 유지해야 합니다" : undefined}
+              title={active && languages.length <= 1 ? t("keepAtLeastOne") : undefined}
             >
               <span className="chk">
                 <svg width={12} height={12}><use href="#i-check" /></svg>
               </span>
               <span className="nm">{lang.name}</span>
-              {isDefault && <span className="star">기본</span>}
+              {isDefault && <span className="star">{t("defaultBadge")}</span>}
               <span className="f">{lang.code}</span>
             </button>
           );
@@ -98,7 +100,7 @@ export default function LanguageGridV2({ siteId, languages: initial, defaultLang
 
       {languages.length > 1 && (
         <div className="sv2-field" style={{ marginTop: 6 }}>
-          <span className="lbl">기본 언어</span>
+          <span className="lbl">{t("defaultLanguage")}</span>
           <select
             className="sv2-select"
             value={defaultLang}
@@ -115,7 +117,7 @@ export default function LanguageGridV2({ siteId, languages: initial, defaultLang
             })}
           </select>
           <span className="hint">
-            방문자의 브라우저 언어가 지원되지 않으면 기본 언어로 표시됩니다.
+            {t("defaultLanguageHint")}
           </span>
         </div>
       )}

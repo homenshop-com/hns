@@ -1,14 +1,16 @@
+import { getTranslations } from "next-intl/server";
 import DashboardShell from "../../../dashboard-shell";
 import NewPostClient from "./new-post-client";
 
-export default function NewPostPage() {
+export default async function NewPostPage() {
+  const t = await getTranslations("boardsDash");
   return (
     <DashboardShell
       active="boards"
       breadcrumbs={[
-        { label: "홈", href: "/dashboard" },
-        { label: "게시판", href: "/dashboard/boards" },
-        { label: "글쓰기" },
+        { label: t("breadcrumbHome"), href: "/dashboard" },
+        { label: t("breadcrumbBoards"), href: "/dashboard/boards" },
+        { label: t("breadcrumbWrite") },
       ]}
     >
       <NewPostClient />

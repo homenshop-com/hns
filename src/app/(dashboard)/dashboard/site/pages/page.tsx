@@ -1,11 +1,13 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/db";
 import DashboardShell from "../../dashboard-shell";
 import PagesWithLangFilter from "./pages-with-lang-filter";
 
 export default async function PagesPage() {
   const session = await auth();
+  const t = await getTranslations("sitePages");
 
   if (!session) {
     redirect("/login");
@@ -30,9 +32,9 @@ export default async function PagesPage() {
     <DashboardShell
       active="sites"
       breadcrumbs={[
-        { label: "홈", href: "/dashboard" },
-        { label: "내 홈페이지", href: "/dashboard/site" },
-        { label: "페이지" },
+        { label: t("breadcrumbHome"), href: "/dashboard" },
+        { label: t("breadcrumbSite"), href: "/dashboard/site" },
+        { label: t("breadcrumbPages") },
       ]}
     >
       <PagesWithLangFilter

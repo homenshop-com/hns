@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import LanguageSettings from "@/components/LanguageSettings";
 
 const LANG_NAMES: Record<string, string> = {
@@ -58,6 +59,7 @@ export default function MenuManagerClient({
   defaultLanguage: initialDefault,
   embedded = false,
 }: Props) {
+  const t = useTranslations("siteManage");
   const [pages, setPages] = useState<PageItem[]>(initialPages);
   const [languages, setLanguages] = useState<string[]>(initialLanguages);
   const [defaultLanguage, setDefaultLanguage] = useState(initialDefault);
@@ -120,7 +122,7 @@ export default function MenuManagerClient({
       if (langPageCount < defaultPageCount && lang !== defaultLanguage) {
         const synced = await syncPages();
         if (synced && synced > 0) {
-          showMsgFn(`${synced}개 페이지가 동기화되었습니다.`);
+          showMsgFn(t("pagesSynced", { count: synced }));
         }
       }
     },
@@ -331,12 +333,12 @@ export default function MenuManagerClient({
         body: JSON.stringify({ siteId, pages: langPages }),
       });
       if (res.ok) {
-        showMsg("저장되었습니다.");
+        showMsg(t("savedMsg"));
       } else {
-        showMsg("저장 실패", "error");
+        showMsg(t("saveFailed"), "error");
       }
     } catch {
-      showMsg("저장 실패", "error");
+      showMsg(t("saveFailed"), "error");
     }
     setSaving(false);
   };
@@ -344,15 +346,15 @@ export default function MenuManagerClient({
   // Create page
   const handleCreate = async () => {
     if (!newTitle.trim()) {
-      showMsg("제목을 입력하세요.", "error");
+      showMsg(t("enterTitle"), "error");
       return;
     }
     if (createType === "page" && !newSlug.trim()) {
-      showMsg("파일명을 입력하세요.", "error");
+      showMsg(t("enterFileName"), "error");
       return;
     }
     if (createType === "external" && !newExternalUrl.trim()) {
-      showMsg("URL을 입력하세요.", "error");
+      showMsg(t("enterUrl"), "error");
       return;
     }
 
@@ -382,21 +384,21 @@ export default function MenuManagerClient({
         // Sync to all languages after creating
         if (languages.length > 1) {
           await syncPages();
-          showMsg(createType === "external" ? "외부 링크가 모든 언어에 추가되었습니다." : "페이지가 모든 언어에 생성되었습니다.");
+          showMsg(createType === "external" ? t("externalLinkAddedAllLangs") : t("pageCreatedAllLangs"));
         } else {
           const data = await res.json();
           setPages((prev) => [...prev, data.page]);
-          showMsg(createType === "external" ? "외부 링크가 추가되었습니다." : "페이지가 생성되었습니다.");
+          showMsg(createType === "external" ? t("externalLinkAdded") : t("pageCreated"));
         }
       } else {
         const err = await res.json();
         showMsg(
-          err.error === "Slug already exists" ? "이미 존재하는 파일명입니다." : err.error || "생성 실패",
+          err.error === "Slug already exists" ? t("slugExists") : err.error || t("createFailed"),
           "error"
         );
       }
     } catch {
-      showMsg("생성 실패", "error");
+      showMsg(t("createFailed"), "error");
     }
   };
 
@@ -412,11 +414,11 @@ export default function MenuManagerClient({
   const handleUpdate = async () => {
     if (!showEditModal) return;
     if (!editTitle.trim()) {
-      showMsg("제목을 입력하세요.", "error");
+      showMsg(t("enterTitle"), "error");
       return;
     }
     if (editMenuType === "page" && !editSlug.trim()) {
-      showMsg("파일명을 입력하세요.", "error");
+      showMsg(t("enterFileName"), "error");
       return;
     }
 
@@ -460,13 +462,13 @@ export default function MenuManagerClient({
           )
         );
         setShowEditModal(null);
-        showMsg("수정되었습니다.");
+        showMsg(t("updatedMsg"));
       } else {
         const err = await res.json();
-        showMsg(err.error === "Slug already exists" ? "이미 존재하는 파일명입니다." : "수정 실패", "error");
+        showMsg(err.error === "Slug already exists" ? t("slugExists") : t("updateFailed"), "error");
       }
     } catch {
-      showMsg("수정 실패", "error");
+      showMsg(t("updateFailed"), "error");
     }
   };
 
@@ -483,20 +485,20 @@ export default function MenuManagerClient({
         setPages((prev) =>
           prev.map((p) => (p.id === page.id ? { ...p, showInMenu: newVal } : p))
         );
-        showMsg(newVal ? "메뉴에 표시됩니다." : "메뉴에서 숨겨집니다.");
+        showMsg(newVal ? t("nowShownInMenu") : t("nowHiddenFromMenu"));
       }
     } catch {
-      showMsg("변경 실패", "error");
+      showMsg(t("changeFailed"), "error");
     }
   };
 
   // Delete page
   const handleDelete = async (pageId: string, isHome: boolean) => {
     if (isHome) {
-      showMsg("홈 페이지는 삭제할 수 없습니다.", "error");
+      showMsg(t("cannotDeleteHome"), "error");
       return;
     }
-    if (!confirm("이 페이지를 삭제하시겠습니까?")) return;
+    if (!confirm(t("confirmDeletePage"))) return;
     try {
       const res = await fetch(`/api/pages/${pageId}`, { method: "DELETE" });
       if (res.ok) {
@@ -507,12 +509,12 @@ export default function MenuManagerClient({
             .filter((p) => p.id !== pageId)
             .map((p) => (p.parentId === pageId ? { ...p, parentId: null } : p));
         });
-        showMsg("삭제되었습니다.");
+        showMsg(t("deletedMsg"));
       } else {
-        showMsg("삭제 실패", "error");
+        showMsg(t("deleteFailed"), "error");
       }
     } catch {
-      showMsg("삭제 실패", "error");
+      showMsg(t("deleteFailed"), "error");
     }
   };
 
@@ -586,10 +588,10 @@ export default function MenuManagerClient({
               </Link>
               <span style={{ margin: "0 4px" }}>&gt;&gt;</span>
               <Link href={`/dashboard/site/${siteId}/manage`} style={{ color: "#2563eb", textDecoration: "none" }}>
-                관리자모드
+                {t("adminMode")}
               </Link>
               <span style={{ margin: "0 4px" }}>&gt;&gt;</span>
-              <span style={{ color: "#111827", fontWeight: 500 }}>메뉴관리</span>
+              <span style={{ color: "#111827", fontWeight: 500 }}>{t("menuManagementTitle")}</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ fontSize: 13, color: "#374151" }}>{userName}</span>
@@ -597,13 +599,13 @@ export default function MenuManagerClient({
                 href={`/dashboard/site/settings`}
                 style={{ fontSize: 13, color: "#6b7280", textDecoration: "none", padding: "6px 12px", border: "1px solid #d1d5db", borderRadius: 4 }}
               >
-                사이트 설정
+                {t("siteSettings")}
               </Link>
               <Link
                 href="/dashboard"
                 style={{ fontSize: 13, color: "#6b7280", textDecoration: "none", padding: "6px 12px", border: "1px solid #d1d5db", borderRadius: 4 }}
               >
-                대시보드
+                {t("dashboardLink")}
               </Link>
             </div>
           </div>
@@ -648,7 +650,7 @@ export default function MenuManagerClient({
             }}
           >
             <div style={{ fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 8 }}>
-              사이트 언어 설정
+              {t("siteLanguageSettings")}
             </div>
             <LanguageSettings
               siteId={siteId}
@@ -665,7 +667,7 @@ export default function MenuManagerClient({
                 if (newLangs.length > languages.length) {
                   const synced = await syncPages();
                   if (synced && synced > 0) {
-                    showMsg(`${synced}개 페이지가 새 언어에 동기화되었습니다.`);
+                    showMsg(t("pagesSyncedNewLang", { count: synced }));
                   }
                 }
               }}
@@ -725,7 +727,7 @@ export default function MenuManagerClient({
           }}
         >
           <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, color: "#111827" }}>
-            메뉴관리
+            {t("menuManagementTitle")}
             {languages.length > 1 && (
               <span style={{ fontSize: 14, fontWeight: 400, color: "#6b7280", marginLeft: 12 }}>
                 [{LANG_NAMES[activeLang] || activeLang}]
@@ -741,7 +743,7 @@ export default function MenuManagerClient({
               }}
               style={btnOutline}
             >
-              + 페이지 추가
+              {t("addPage")}
             </button>
             <button
               onClick={() => {
@@ -751,7 +753,7 @@ export default function MenuManagerClient({
               }}
               style={{ ...btnOutline, color: "#7c3aed", borderColor: "#c4b5fd" }}
             >
-              + 외부 링크
+              {t("addExternalLink")}
             </button>
             <Link
               href={`/dashboard/site/pages/${displayList[0]?.id || ""}/edit`}
@@ -762,7 +764,7 @@ export default function MenuManagerClient({
                 textDecoration: "none",
               }}
             >
-              디자인 관리
+              {t("manageDesign")}
             </Link>
           </div>
         </div>
@@ -789,7 +791,7 @@ export default function MenuManagerClient({
             }}
           >
             <span>
-              {syncing ? "동기화 중..." : `${displayList.length}개 항목`}
+              {syncing ? t("syncing") : t("itemsCountLabel", { count: displayList.length })}
             </span>
             <button
               onClick={handleSave}
@@ -805,7 +807,7 @@ export default function MenuManagerClient({
                 cursor: saving ? "default" : "pointer",
               }}
             >
-              {saving ? "저장 중..." : "순서 저장"}
+              {saving ? t("saving") : t("saveOrder")}
             </button>
           </div>
 
@@ -841,7 +843,7 @@ export default function MenuManagerClient({
                 <div className="mnv2-mleft" style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
                   {/* Drag handle + arrows */}
                   <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                    <span style={{ cursor: "grab", color: "#9ca3af", fontSize: 16, userSelect: "none" }} title="드래그">
+                    <span style={{ cursor: "grab", color: "#9ca3af", fontSize: 16, userSelect: "none" }} title={t("drag")}>
                       ☰
                     </span>
                     <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
@@ -923,17 +925,17 @@ export default function MenuManagerClient({
                     )}
                     {page.menuType === "external" && (
                       <span style={{ fontSize: 11, background: "#ede9fe", color: "#7c3aed", padding: "2px 8px", borderRadius: 4, fontWeight: 500 }}>
-                        외부링크
+                        {t("badgeExternal")}
                       </span>
                     )}
                     {!page.showInMenu && (
                       <span style={{ fontSize: 11, background: "#fef3c7", color: "#92400e", padding: "2px 8px", borderRadius: 4, fontWeight: 500 }}>
-                        숨김
+                        {t("badgeHidden")}
                       </span>
                     )}
                     {page.parentId && (
                       <span style={{ fontSize: 11, background: "#f3f4f6", color: "#6b7280", padding: "2px 8px", borderRadius: 4 }}>
-                        하위
+                        {t("badgeChild")}
                       </span>
                     )}
                   </div>
@@ -945,7 +947,7 @@ export default function MenuManagerClient({
                   <button
                     onClick={() => toggleShowInMenu(page)}
                     data-mact="vis"
-                    title={page.showInMenu ? "메뉴에서 숨기기" : "메뉴에 표시하기"}
+                    title={page.showInMenu ? t("hideFromMenu") : t("showInMenu")}
                     style={{
                       width: 32,
                       height: 32,
@@ -985,7 +987,7 @@ export default function MenuManagerClient({
                       }}
                     >
                       <i className="fa-solid fa-palette" style={{ fontSize: 12 }} />
-                      <span className="lbl">디자인</span>
+                      <span className="lbl">{t("design")}</span>
                     </Link>
                   )}
                   <button
@@ -1008,7 +1010,7 @@ export default function MenuManagerClient({
                     }}
                   >
                     <i className="fa-solid fa-pen" style={{ fontSize: 11 }} />
-                    <span className="lbl">수정</span>
+                    <span className="lbl">{t("edit")}</span>
                   </button>
                   {!page.isHome && (
                     <button
@@ -1030,7 +1032,7 @@ export default function MenuManagerClient({
                       }}
                     >
                       <i className="fa-solid fa-trash" style={{ fontSize: 11 }} />
-                      <span className="lbl">삭제</span>
+                      <span className="lbl">{t("delete")}</span>
                     </button>
                   )}
                 </div>
@@ -1040,7 +1042,7 @@ export default function MenuManagerClient({
 
             {displayList.length === 0 && (
               <div style={{ padding: "40px 0", textAlign: "center", color: "#9ca3af", fontSize: 14 }}>
-                {activeLang} 언어의 페이지가 없습니다. &quot;페이지 추가&quot; 버튼으로 첫 페이지를 만들어 보세요.
+                {t("noPagesForLang", { lang: activeLang })}
               </div>
             )}
           </div>
@@ -1063,7 +1065,7 @@ export default function MenuManagerClient({
               }}
               style={btnPrimary}
             >
-              페이지 생성
+              {t("createPage")}
             </button>
             <button
               onClick={handleSave}
@@ -1073,7 +1075,7 @@ export default function MenuManagerClient({
                 background: saving ? "#9ca3af" : "#374151",
               }}
             >
-              {saving ? "저장 중..." : "순서 저장"}
+              {saving ? t("saving") : t("saveOrder")}
             </button>
           </div>
         </div>
@@ -1087,7 +1089,7 @@ export default function MenuManagerClient({
         >
           <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 12, padding: 32, width: 460, boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
             <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 20, color: "#111827" }}>
-              {createType === "external" ? "외부 링크 추가" : "새 페이지 생성"}
+              {createType === "external" ? t("addExternalLinkTitle") : t("createPageTitle")}
             </h2>
 
             {/* Type toggle */}
@@ -1106,7 +1108,7 @@ export default function MenuManagerClient({
                   color: createType === "page" ? "#2563eb" : "#6b7280",
                 }}
               >
-                페이지
+                {t("typePage")}
               </button>
               <button
                 onClick={() => setCreateType("external")}
@@ -1122,32 +1124,32 @@ export default function MenuManagerClient({
                   color: createType === "external" ? "#7c3aed" : "#6b7280",
                 }}
               >
-                외부 링크
+                {t("typeExternal")}
               </button>
             </div>
 
             <div style={{ marginBottom: 16 }}>
               <label style={labelStyle}>
-                {createType === "external" ? "링크 제목 (메뉴명)" : "페이지 제목 (메뉴명)"}
+                {createType === "external" ? t("linkTitleLabel") : t("pageTitleLabel")}
               </label>
               <input
                 type="text"
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
-                placeholder={createType === "external" ? "예: 블로그" : "예: ABOUTUS"}
+                placeholder={createType === "external" ? t("linkTitlePlaceholder") : t("pageTitlePlaceholder")}
                 style={inputStyle}
               />
             </div>
 
             {createType === "page" ? (
               <div style={{ marginBottom: 16 }}>
-                <label style={labelStyle}>파일명 (slug)</label>
+                <label style={labelStyle}>{t("slugLabel")}</label>
                 <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                   <input
                     type="text"
                     value={newSlug}
                     onChange={(e) => setNewSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ""))}
-                    placeholder="예: aboutus"
+                    placeholder={t("slugPlaceholder")}
                     style={{ ...inputStyle, flex: 1 }}
                   />
                   <span style={{ color: "#6b7280", fontSize: 14 }}>.html</span>
@@ -1169,13 +1171,13 @@ export default function MenuManagerClient({
             {/* Parent selection */}
             {topLevelPages.length > 0 && (
               <div style={{ marginBottom: 20 }}>
-                <label style={labelStyle}>상위 메뉴 (선택사항)</label>
+                <label style={labelStyle}>{t("parentMenuOptional")}</label>
                 <select
                   value={newParentId}
                   onChange={(e) => setNewParentId(e.target.value)}
                   style={{ ...inputStyle, cursor: "pointer" }}
                 >
-                  <option value="">최상위 메뉴</option>
+                  <option value="">{t("topLevelMenu")}</option>
                   {topLevelPages.map((p) => (
                     <option key={p.id} value={p.id}>
                       └ {p.title}
@@ -1187,10 +1189,10 @@ export default function MenuManagerClient({
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
               <button onClick={() => setShowCreateModal(false)} style={btnOutline}>
-                취소
+                {t("cancel")}
               </button>
               <button onClick={handleCreate} style={btnPrimary}>
-                {createType === "external" ? "추가" : "생성"}
+                {createType === "external" ? t("add") : t("create")}
               </button>
             </div>
           </div>
@@ -1208,7 +1210,7 @@ export default function MenuManagerClient({
             style={{ background: "#fff", borderRadius: 12, padding: 32, width: 480, maxHeight: "85vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}
           >
             <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 20, color: "#111827" }}>
-              상세정보 수정
+              {t("editDetailsTitle")}
             </h2>
 
             {/* Menu type toggle */}
@@ -1227,7 +1229,7 @@ export default function MenuManagerClient({
                   color: editMenuType === "page" ? "#2563eb" : "#6b7280",
                 }}
               >
-                페이지
+                {t("typePage")}
               </button>
               <button
                 onClick={() => setEditMenuType("external")}
@@ -1243,29 +1245,29 @@ export default function MenuManagerClient({
                   color: editMenuType === "external" ? "#7c3aed" : "#6b7280",
                 }}
               >
-                외부 링크
+                {t("typeExternal")}
               </button>
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={labelStyle}>페이지 제목</label>
+              <label style={labelStyle}>{t("pageTitleSimple")}</label>
               <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} style={inputStyle} />
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={labelStyle}>메뉴 표시명 (비워두면 제목 사용)</label>
+              <label style={labelStyle}>{t("menuDisplayName")}</label>
               <input
                 type="text"
                 value={editMenuTitle}
                 onChange={(e) => setEditMenuTitle(e.target.value)}
-                placeholder="메뉴에 다른 이름으로 표시"
+                placeholder={t("menuDisplayNamePlaceholder")}
                 style={inputStyle}
               />
             </div>
 
             {editMenuType === "page" ? (
               <div style={{ marginBottom: 16 }}>
-                <label style={labelStyle}>파일명 (slug)</label>
+                <label style={labelStyle}>{t("slugLabel")}</label>
                 <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                   <input
                     type="text"
@@ -1291,13 +1293,13 @@ export default function MenuManagerClient({
 
             {/* Parent selection (exclude self and own children) */}
             <div style={{ marginBottom: 16 }}>
-              <label style={labelStyle}>상위 메뉴</label>
+              <label style={labelStyle}>{t("mmParentMenu")}</label>
               <select
                 value={editParentId}
                 onChange={(e) => setEditParentId(e.target.value)}
                 style={{ ...inputStyle, cursor: "pointer" }}
               >
-                <option value="">최상위 메뉴</option>
+                <option value="">{t("topLevelMenu")}</option>
                 {topLevelPages
                   .filter((p) => p.id !== showEditModal.id)
                   .map((p) => (
@@ -1311,27 +1313,27 @@ export default function MenuManagerClient({
             {/* SEO Fields */}
             {editMenuType === "page" && (
               <div style={{ borderTop: "1px solid #e5e7eb", paddingTop: 16, marginBottom: 16 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "#374151", marginBottom: 12 }}>SEO 설정</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "#374151", marginBottom: 12 }}>{t("mmSeoSettings")}</div>
                 <div style={{ marginBottom: 12 }}>
-                  <label style={labelStyle}>SEO 제목</label>
-                  <input type="text" value={editSeoTitle} onChange={(e) => setEditSeoTitle(e.target.value)} placeholder="검색결과에 표시될 제목" style={inputStyle} />
+                  <label style={labelStyle}>{t("mmSeoTitle")}</label>
+                  <input type="text" value={editSeoTitle} onChange={(e) => setEditSeoTitle(e.target.value)} placeholder={t("mmSeoTitlePlaceholder")} style={inputStyle} />
                 </div>
                 <div style={{ marginBottom: 12 }}>
-                  <label style={labelStyle}>SEO 설명</label>
+                  <label style={labelStyle}>{t("mmSeoDesc")}</label>
                   <textarea
                     value={editSeoDesc}
                     onChange={(e) => setEditSeoDesc(e.target.value)}
-                    placeholder="검색결과에 표시될 설명"
+                    placeholder={t("mmSeoDescPlaceholder")}
                     rows={3}
                     style={{ ...inputStyle, resize: "vertical" as const }}
                   />
                 </div>
                 <div style={{ marginBottom: 12 }}>
-                  <label style={labelStyle}>SEO 키워드</label>
-                  <input type="text" value={editSeoKeywords} onChange={(e) => setEditSeoKeywords(e.target.value)} placeholder="키워드1, 키워드2" style={inputStyle} />
+                  <label style={labelStyle}>{t("mmSeoKeywords")}</label>
+                  <input type="text" value={editSeoKeywords} onChange={(e) => setEditSeoKeywords(e.target.value)} placeholder={t("mmSeoKeywordsPlaceholder")} style={inputStyle} />
                 </div>
                 <div>
-                  <label style={labelStyle}>OG 이미지 URL</label>
+                  <label style={labelStyle}>{t("mmOgImageUrl")}</label>
                   <input type="text" value={editOgImage} onChange={(e) => setEditOgImage(e.target.value)} placeholder="https://..." style={inputStyle} />
                 </div>
               </div>
@@ -1339,10 +1341,10 @@ export default function MenuManagerClient({
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
               <button onClick={() => setShowEditModal(null)} style={btnOutline}>
-                취소
+                {t("cancel")}
               </button>
               <button onClick={handleUpdate} style={btnPrimary}>
-                수정
+                {t("mmUpdate")}
               </button>
             </div>
           </div>

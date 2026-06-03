@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 interface EditSiteFormProps {
   site: {
@@ -26,6 +27,7 @@ const DESC_TARGET = 160;
 
 export default function EditSiteForm({ site }: EditSiteFormProps) {
   const router = useRouter();
+  const t = useTranslations("siteCore");
   const [name, setName] = useState(site.name);
   const [description, setDescription] = useState(site.description || "");
   const [defaultLang, setDefaultLang] = useState(site.defaultLanguage);
@@ -63,12 +65,12 @@ export default function EditSiteForm({ site }: EditSiteFormProps) {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "수정에 실패했습니다.");
+      if (!res.ok) throw new Error(data.error || t("updateFailed"));
       setSuccess(true);
       setTimeout(() => setSuccess(false), 2500);
       router.refresh();
     } catch (e) {
-      setError((e as Error).message || "오류가 발생했습니다.");
+      setError((e as Error).message || t("errorOccurred"));
     } finally {
       setSaving(false);
     }
@@ -87,7 +89,7 @@ export default function EditSiteForm({ site }: EditSiteFormProps) {
       <div className="sv2-card-body">
         <div className="sv2-field">
           <span className="lbl">
-            사이트 이름 <span className="req">*</span>
+            {t("siteNameLabel")} <span className="req">*</span>
           </span>
           <input
             className="sv2-input"
@@ -96,11 +98,11 @@ export default function EditSiteForm({ site }: EditSiteFormProps) {
             required
             maxLength={80}
           />
-          <span className="hint">브라우저 탭, 검색 결과, 공유 카드에 노출됩니다.</span>
+          <span className="hint">{t("siteNameHint")}</span>
         </div>
 
         <div className="sv2-field">
-          <span className="lbl">설명 (메타 description)</span>
+          <span className="lbl">{t("descMetaLabel")}</span>
           <textarea
             className="sv2-input"
             rows={3}
@@ -109,12 +111,16 @@ export default function EditSiteForm({ site }: EditSiteFormProps) {
             maxLength={320}
           />
           <span className={`hint ${descOver ? "danger" : descLen > DESC_TARGET * 0.9 ? "warn" : ""}`}>
-            <b>{descLen}</b> / {DESC_TARGET}자 · 검색 결과 노출 길이에 최적
+            {t.rich("descCounter", {
+              count: descLen,
+              target: DESC_TARGET,
+              b: (c) => <b>{c}</b>,
+            })}
           </span>
         </div>
 
         <div className="sv2-field">
-          <span className="lbl">기본 언어</span>
+          <span className="lbl">{t("defaultLanguage")}</span>
           <select
             className="sv2-select"
             value={defaultLang}
@@ -133,9 +139,9 @@ export default function EditSiteForm({ site }: EditSiteFormProps) {
         {error ? (
           <span className="msg err">⚠️ {error}</span>
         ) : success ? (
-          <span className="msg ok">✓ 저장되었습니다</span>
+          <span className="msg ok">✓ {t("saved")}</span>
         ) : dirty ? (
-          <span className="msg" style={{ color: "var(--ink-3)" }}>변경사항 있음</span>
+          <span className="msg" style={{ color: "var(--ink-3)" }}>{t("hasChanges")}</span>
         ) : null}
         <button
           type="button"
@@ -143,7 +149,7 @@ export default function EditSiteForm({ site }: EditSiteFormProps) {
           disabled={saving || !dirty}
           className="sv2-foot-btn"
         >
-          초기화
+          {t("reset")}
         </button>
         <button
           type="submit"
@@ -151,7 +157,7 @@ export default function EditSiteForm({ site }: EditSiteFormProps) {
           className="sv2-foot-btn primary"
         >
           <svg width={13} height={13}><use href="#i-check" /></svg>
-          {saving ? "저장 중…" : "수정 저장"}
+          {saving ? t("saving") : t("saveChanges")}
         </button>
       </div>
     </form>

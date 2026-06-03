@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 interface Submission {
   target: string;
@@ -45,6 +46,7 @@ export default function SitemapRefreshButton({
   initialLastModified,
   hasCustomDomain,
 }: Props) {
+  const t = useTranslations("siteSettings");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<SitemapRefreshResult | null>(null);
   const [error, setError] = useState<string>("");
@@ -64,10 +66,10 @@ export default function SitemapRefreshButton({
         headers: { "Content-Type": "application/json" },
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "새로고침 실패");
+      if (!res.ok) throw new Error(data.error || t("refreshFailed"));
       setResult(data as SitemapRefreshResult);
     } catch (e) {
-      setError((e as Error).message || "오류");
+      setError((e as Error).message || t("error"));
     } finally {
       setLoading(false);
     }
@@ -79,9 +81,12 @@ export default function SitemapRefreshButton({
         <use href="#i-sitemap" />
       </svg>
       <span>
-        <span className="count">{urlCount.toLocaleString()}개</span> URL 등록됨
+        {t.rich("urlsRegistered", {
+          count: urlCount.toLocaleString(),
+          c: (chunks) => <span className="count">{chunks}</span>,
+        })}
       </span>
-      <span className="t">최종 수정 {formatTimestamp(lastMod)}</span>
+      <span className="t">{t("lastModified", { time: formatTimestamp(lastMod) })}</span>
       <button
         type="button"
         onClick={handleRefresh}
@@ -91,7 +96,7 @@ export default function SitemapRefreshButton({
         <svg width={13} height={13}>
           <use href="#i-refresh" />
         </svg>
-        {loading ? "확인 중…" : "사이트맵 새로고침"}
+        {loading ? t("checking") : t("refreshSitemap")}
       </button>
 
       {result && result.submissions.length > 0 && (
@@ -106,12 +111,12 @@ export default function SitemapRefreshButton({
 
       {result && hasCustomDomain && !result.indexNowConfigured && (
         <div className="hint-line" style={{ flexBasis: "100%" }}>
-          💡 검색엔진 자동 통지(IndexNow) 미설정 — 서버 관리자에게 INDEXNOW_KEY 설정 요청하세요.
+          💡 {t("indexNowNotConfigured")}
         </div>
       )}
       {result && !hasCustomDomain && (
         <div className="hint-line" style={{ flexBasis: "100%" }}>
-          💡 커스텀 도메인 연결 후에는 Bing·Yandex·Naver에도 자동 통지됩니다.
+          💡 {t("autoNotifyHint")}
         </div>
       )}
       {error && (
@@ -127,7 +132,7 @@ export default function SitemapRefreshButton({
           className="gsc-link"
           style={{ flexBasis: "100%" }}
         >
-          🔗 Google Search Console에서 사이트맵 제출하기 →
+          🔗 {t("submitToGsc")} →
         </a>
       )}
     </div>

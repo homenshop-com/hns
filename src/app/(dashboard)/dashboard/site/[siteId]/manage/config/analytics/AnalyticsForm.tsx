@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 /**
  * Site-level Google Analytics setup form.
@@ -29,6 +30,7 @@ export default function AnalyticsForm({
   currentPropertyId: string;
   serviceAccountEmail: string | null;
 }) {
+  const t = useTranslations("siteManage");
   const [measurementId, setMeasurementId] = useState(currentMeasurementId);
   const [propertyId, setPropertyId] = useState(currentPropertyId);
   const [saving, setSaving] = useState(false);
@@ -49,12 +51,12 @@ export default function AnalyticsForm({
       });
       if (!res.ok) {
         const data = await res.json();
-        setMessage({ kind: "err", text: data.error || "저장에 실패했습니다." });
+        setMessage({ kind: "err", text: data.error || t("saveFailed") });
       } else {
-        setMessage({ kind: "ok", text: "저장되었습니다. 사이트 측 gtag.js 는 다음 퍼블리시 후 반영됩니다." });
+        setMessage({ kind: "ok", text: t("gaSavedGtagNote") });
       }
     } catch {
-      setMessage({ kind: "err", text: "네트워크 오류가 발생했습니다." });
+      setMessage({ kind: "err", text: t("networkError") });
     } finally {
       setSaving(false);
     }
@@ -84,9 +86,9 @@ export default function AnalyticsForm({
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
         <div>
           <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#4e5968", marginBottom: 6 }}>
-            측정 ID
+            {t("gaMeasurementId")}
             <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 400, color: "#6b7684" }}>
-              gtag.js 에 사용
+              {t("gaMeasurementIdHint")}
             </span>
           </label>
           <input
@@ -97,14 +99,14 @@ export default function AnalyticsForm({
             style={inputBase}
           />
           <p style={{ fontSize: 11, color: "#8b95a1", marginTop: 4, marginBottom: 0 }}>
-            GA → 관리 → 데이터 스트림 → 웹 스트림
+            {t("gaMeasurementIdPath")}
           </p>
         </div>
         <div>
           <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#4e5968", marginBottom: 6 }}>
             Property ID
             <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 400, color: "#6b7684" }}>
-              대시보드 통계용 (선택)
+              {t("gaPropertyIdHint")}
             </span>
           </label>
           <input
@@ -115,7 +117,7 @@ export default function AnalyticsForm({
             style={inputBase}
           />
           <p style={{ fontSize: 11, color: "#8b95a1", marginTop: 4, marginBottom: 0 }}>
-            GA → 관리 → 속성 세부정보 → 9~10자리 숫자
+            {t("gaPropertyIdPath")}
           </p>
         </div>
       </div>
@@ -134,7 +136,7 @@ export default function AnalyticsForm({
           cursor: saving ? "default" : "pointer",
         }}
       >
-        {saving ? "저장 중..." : "저장"}
+        {saving ? t("saving") : t("save")}
       </button>
       {message && (
         <div
@@ -181,12 +183,11 @@ export default function AnalyticsForm({
               !
             </span>
             <h3 style={{ fontSize: 14, fontWeight: 700, color: "#581c87", margin: 0 }}>
-              마지막 한 단계 — 우리 서비스 계정에 Viewer 권한 부여
+              {t("gaGrantTitle")}
             </h3>
           </div>
           <p style={{ fontSize: 13, color: "#6b21a8", lineHeight: 1.6, margin: "0 0 14px" }}>
-            데이터를 이 대시보드에 표시하려면 아래 이메일을 회원님의 GA Property 에 <strong>뷰어</strong>로 추가해야
-            합니다 (단 한번만 하면 끝).
+            {t.rich("gaGrantDesc", { strong: (c) => <strong>{c}</strong> })}
           </p>
 
           {/* Email + copy */}
@@ -219,7 +220,7 @@ export default function AnalyticsForm({
                 whiteSpace: "nowrap",
               }}
             >
-              {copied ? "✓ 복사됨" : "복사"}
+              {copied ? `✓ ${t("copied")}` : t("copy")}
             </button>
           </div>
 
@@ -232,21 +233,21 @@ export default function AnalyticsForm({
                 rel="noopener noreferrer"
                 style={{ color: "#7c3aed", fontWeight: 600 }}
               >
-                내 속성 액세스 관리 페이지 열기 ↗
+                {t("gaGrantStep1Link")} ↗
               </a>{" "}
-              (위 Property ID 로 자동 이동)
+              {t("gaGrantStep1Note")}
             </li>
-            <li>우측 상단 <strong>+</strong> 버튼 → <strong>사용자 추가</strong></li>
-            <li>위 이메일 붙여넣기 → 역할 <strong>뷰어</strong> 선택 → <strong>추가</strong> 클릭</li>
+            <li>{t.rich("gaGrantStep2", { strong: (c) => <strong>{c}</strong> })}</li>
+            <li>{t.rich("gaGrantStep3", { strong: (c) => <strong>{c}</strong> })}</li>
           </ol>
 
           {/* Known GA UI bug workaround */}
           <details style={{ marginTop: 14, fontSize: 12, color: "#6b7684" }}>
             <summary style={{ cursor: "pointer", color: "#6b21a8", fontWeight: 600 }}>
-              "이메일이 Google 계정과 일치하지 않습니다" 오류가 나는 경우
+              {t("gaErrorSummary")}
             </summary>
             <div style={{ marginTop: 8, paddingLeft: 12, borderLeft: "2px solid #e9d5ff", lineHeight: 1.7 }}>
-              현재 GA UI의 알려진 버그입니다. 우회 방법:
+              {t("gaErrorIntro")}
               <ol style={{ marginTop: 6, paddingLeft: 16 }}>
                 <li>
                   <a
@@ -255,13 +256,13 @@ export default function AnalyticsForm({
                     rel="noopener noreferrer"
                     style={{ color: "#7c3aed" }}
                   >
-                    공식 API Explorer ↗
+                    {t("gaErrorApiExplorer")} ↗
                   </a>{" "}
-                  접속
+                  {t("gaErrorApiAccess")}
                 </li>
-                <li>"Try this method" 패널에서 parent = <code>properties/{propertyId.trim()}</code></li>
+                <li>{t("gaErrorParent")} <code>properties/{propertyId.trim()}</code></li>
                 <li>
-                  Request body 에 아래 JSON 붙여넣기 후 Execute:
+                  {t("gaErrorRequestBody")}
                   <pre
                     style={{
                       marginTop: 6,

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 interface PageItem {
   id: string;
@@ -31,6 +32,7 @@ export default function PageListWithLang({
   languages,
   defaultLanguage,
 }: PageListWithLangProps) {
+  const t = useTranslations("siteCore");
   const [selectedLang, setSelectedLang] = useState(defaultLanguage);
 
   const filteredPages = pages.filter((p) => p.lang === selectedLang);
@@ -39,7 +41,7 @@ export default function PageListWithLang({
     <div className="site-page-list">
       <div className="site-page-header">
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <h3>페이지 목록</h3>
+          <h3>{t("pageListTitle")}</h3>
           {languages.length > 1 && (
             <div style={{ display: "flex", gap: 4 }}>
               {languages.map((lang) => (
@@ -65,16 +67,16 @@ export default function PageListWithLang({
           )}
         </div>
         <Link href="/dashboard/site/pages/new" className="dash-action-btn blue">
-          새 페이지
+          {t("newPage")}
         </Link>
       </div>
 
       {filteredPages.length === 0 ? (
         <div className="dash-empty">
           <div className="dash-empty-title">
-            {langNames[selectedLang] || selectedLang} 페이지가 없습니다
+            {t("noPagesForLang", { lang: langNames[selectedLang] || selectedLang })}
           </div>
-          <div className="dash-empty-desc">새 페이지를 추가해보세요.</div>
+          <div className="dash-empty-desc">{t("addNewPagePrompt")}</div>
         </div>
       ) : (
         filteredPages.map((page) => (
@@ -82,7 +84,7 @@ export default function PageListWithLang({
             <div>
               <div className="site-page-title">
                 {page.title}
-                {page.isHome && <span className="site-home-badge">홈</span>}
+                {page.isHome && <span className="site-home-badge">{t("homeBadge")}</span>}
               </div>
               <div className="site-page-slug">/{page.slug}</div>
             </div>
@@ -91,14 +93,14 @@ export default function PageListWithLang({
                 href={`/dashboard/site/pages/${page.id}/edit`}
                 className="dash-manage-btn"
               >
-                디자인 편집
+                {t("editDesign")}
               </Link>
               <Link
                 href={`/preview/${page.id}`}
                 className="dash-manage-btn"
                 target="_blank"
               >
-                미리보기
+                {t("preview")}
               </Link>
             </div>
           </div>

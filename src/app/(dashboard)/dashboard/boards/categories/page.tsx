@@ -1,14 +1,16 @@
+import { getTranslations } from "next-intl/server";
 import DashboardShell from "../../dashboard-shell";
 import CategoriesClient from "./categories-client";
 
-export default function BoardCategoriesPage() {
+export default async function BoardCategoriesPage() {
+  const t = await getTranslations("boardsDash");
   return (
     <DashboardShell
       active="boards"
       breadcrumbs={[
-        { label: "홈", href: "/dashboard" },
-        { label: "게시판", href: "/dashboard/boards" },
-        { label: "카테고리 관리" },
+        { label: t("breadcrumbHome"), href: "/dashboard" },
+        { label: t("breadcrumbBoards"), href: "/dashboard/boards" },
+        { label: t("breadcrumbCategories") },
       ]}
     >
       <CategoriesClient />

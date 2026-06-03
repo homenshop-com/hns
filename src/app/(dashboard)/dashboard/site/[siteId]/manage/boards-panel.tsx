@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 export interface BoardItem {
   pgId: string;      // Prisma UUID — used for API calls
@@ -27,6 +28,7 @@ export default function BoardsPanel({
   initialBoards,
   labels,
 }: BoardsPanelProps) {
+  const t = useTranslations("siteManage");
   const [boards, setBoards] = useState<BoardItem[]>(initialBoards);
   const [totalPostCount, setTotalPostCount] = useState(initialTotal);
 
@@ -51,7 +53,7 @@ export default function BoardsPanel({
         body: JSON.stringify({ siteId, name: newName.trim(), lang: "ko" }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "게시판 생성에 실패했습니다.");
+      if (!res.ok) throw new Error(data.error ?? t("boardCreateFailed"));
       const b = data.board;
       setBoards((prev) => [
         ...prev,
@@ -60,7 +62,7 @@ export default function BoardsPanel({
       setNewName("");
       setShowCreate(false);
     } catch (err) {
-      setCreateError(err instanceof Error ? err.message : "오류가 발생했습니다.");
+      setCreateError(err instanceof Error ? err.message : t("errorOccurred"));
     } finally {
       setCreating(false);
     }
@@ -68,16 +70,16 @@ export default function BoardsPanel({
 
   async function handleDelete(board: BoardItem) {
     if (board.cnt > 0) {
-      if (!confirm(`"${board.name}" 게시판에 게시글 ${board.cnt}건이 있습니다. 게시글도 함께 삭제됩니다. 계속하시겠습니까?`)) return;
+      if (!confirm(t("confirmDeleteBoardWithPosts", { name: board.name, count: board.cnt }))) return;
     } else {
-      if (!confirm(`"${board.name}" 게시판을 삭제하시겠습니까?`)) return;
+      if (!confirm(t("confirmDeleteBoard", { name: board.name }))) return;
     }
     setDeletingId(board.pgId);
     try {
       const res = await fetch(`/api/boards/${board.pgId}`, { method: "DELETE" });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        alert(data.error ?? "삭제에 실패했습니다.");
+        alert(data.error ?? t("deleteFailed"));
         return;
       }
       setBoards((prev) => prev.filter((b) => b.pgId !== board.pgId));
@@ -100,7 +102,7 @@ export default function BoardsPanel({
           <h3 style={{ margin: 0 }}>{labels.boardManage}</h3>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span className="meta">{boards.length}개 · 총 {totalPostCount}건</span>
+          <span className="meta">{t("boardsMeta", { boards: boards.length, posts: totalPostCount })}</span>
           <button
             type="button"
             onClick={() => { setShowCreate((v) => !v); setCreateError(null); }}
@@ -115,7 +117,7 @@ export default function BoardsPanel({
               cursor: "pointer",
             }}
           >
-            {showCreate ? "취소" : "+ 새 게시판"}
+            {showCreate ? t("cancel") : t("newBoard")}
           </button>
         </div>
       </div>
@@ -140,7 +142,7 @@ export default function BoardsPanel({
             autoFocus
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
-            placeholder="새 게시판 이름"
+            placeholder={t("newBoardNamePlaceholder")}
             style={{
               flex: 1,
               minWidth: 120,
@@ -166,7 +168,7 @@ export default function BoardsPanel({
               whiteSpace: "nowrap",
             }}
           >
-            {creating ? "생성 중..." : "게시판 만들기"}
+            {creating ? t("creating") : t("createBoard")}
           </button>
           {createError && (
             <div style={{ width: "100%", fontSize: 12, color: "#dc2626", marginTop: 2 }}>
@@ -182,11 +184,11 @@ export default function BoardsPanel({
         <Link href={`/dashboard/boards/posts?siteId=${siteId}`} className="mv2-list-item">
           <div className="li-title">
             <span className="n">{labels.postManage}</span>
-            <span className="lang-chip">전체</span>
+            <span className="lang-chip">{t("all")}</span>
           </div>
           <div className="li-right">
             <span className="count">{totalPostCount}</span>
-            <span>건</span>
+            <span>{t("unitPosts")}</span>
             <span className="chev">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
             </span>
@@ -195,7 +197,7 @@ export default function BoardsPanel({
 
         {visibleBoards.length === 0 && (
           <div style={{ padding: "20px 16px", fontSize: 13, color: "var(--ink-3)", textAlign: "center" }}>
-            게시판이 없습니다. 위 버튼으로 추가하세요.
+            {t("noBoards")}
           </div>
         )}
 
@@ -233,7 +235,7 @@ export default function BoardsPanel({
                 </div>
                 <div className="li-right" style={{ paddingRight: 4 }}>
                   <span className="count">{b.cnt}</span>
-                  <span>건</span>
+                  <span>{t("unitPosts")}</span>
                   <span className="chev">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
                   </span>
@@ -244,7 +246,7 @@ export default function BoardsPanel({
                 type="button"
                 onClick={() => handleDelete(b)}
                 disabled={isDeleting}
-                title={`"${b.name}" 게시판 삭제`}
+                title={t("deleteBoardTitle", { name: b.name })}
                 style={{
                   padding: "6px 10px",
                   marginRight: 6,
@@ -257,7 +259,7 @@ export default function BoardsPanel({
                   opacity: 0.7,
                 }}
               >
-                {isDeleting ? "..." : "삭제"}
+                {isDeleting ? "..." : t("delete")}
               </button>
             </div>
           );

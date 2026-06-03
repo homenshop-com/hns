@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 
 interface Comment {
   id: string;
@@ -18,6 +19,7 @@ export default function CommentSection({
   boardId: string;
   postId: string;
 }) {
+  const t = useTranslations("boardsDash");
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -96,7 +98,7 @@ export default function CommentSection({
   }
 
   async function handleDelete(commentId: string) {
-    if (!confirm("댓글을 삭제하시겠습니까?")) return;
+    if (!confirm(t("confirmDeleteComment"))) return;
 
     try {
       const res = await fetch(`/api/boards/${boardId}/posts/${postId}/comments/${commentId}`, {
@@ -166,7 +168,7 @@ export default function CommentSection({
                   padding: 0,
                 }}
               >
-                {replyTo === comment.id ? "취소" : "답글"}
+                {replyTo === comment.id ? t("cancel") : t("reply")}
               </button>
             )}
             <button
@@ -180,7 +182,7 @@ export default function CommentSection({
                 padding: 0,
               }}
             >
-              삭제
+              {t("delete")}
             </button>
           </div>
         </div>
@@ -195,14 +197,14 @@ export default function CommentSection({
               type="text"
               value={replyAuthor}
               onChange={(e) => setReplyAuthor(e.target.value)}
-              placeholder="작성자"
+              placeholder={t("authorLabel")}
               style={{ ...inputStyle, width: 120, flex: "none" }}
             />
             <input
               type="text"
               value={replyContent}
               onChange={(e) => setReplyContent(e.target.value)}
-              placeholder="답글을 입력하세요"
+              placeholder={t("replyPlaceholder")}
               style={inputStyle}
               autoFocus
             />
@@ -221,7 +223,7 @@ export default function CommentSection({
                 whiteSpace: "nowrap",
               }}
             >
-              등록
+              {t("submit")}
             </button>
           </form>
         )}
@@ -253,18 +255,18 @@ export default function CommentSection({
           justifyContent: "space-between",
         }}>
           <h3 style={{ fontSize: 15, fontWeight: 700, color: "#1a1a2e", margin: 0 }}>
-            댓글 {totalCount > 0 && <span style={{ color: "#4a90d9" }}>{totalCount}</span>}
+            {t("commentsHeading")} {totalCount > 0 && <span style={{ color: "#4a90d9" }}>{totalCount}</span>}
           </h3>
         </div>
 
         {/* Comment list */}
         {loading ? (
           <div style={{ padding: 24, textAlign: "center", color: "#868e96", fontSize: 13 }}>
-            로딩 중...
+            {t("loading")}
           </div>
         ) : comments.length === 0 ? (
           <div style={{ padding: 24, textAlign: "center", color: "#868e96", fontSize: 13 }}>
-            아직 댓글이 없습니다. 첫 댓글을 남겨보세요.
+            {t("noComments")}
           </div>
         ) : (
           <div>{comments.map((c) => renderComment(c))}</div>
@@ -285,14 +287,14 @@ export default function CommentSection({
             type="text"
             value={author}
             onChange={(e) => setAuthor(e.target.value)}
-            placeholder="작성자"
+            placeholder={t("authorLabel")}
             style={{ ...inputStyle, width: 120, flex: "none" }}
           />
           <input
             type="text"
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            placeholder="댓글을 입력하세요"
+            placeholder={t("commentPlaceholder")}
             style={inputStyle}
           />
           <button
@@ -310,7 +312,7 @@ export default function CommentSection({
               whiteSpace: "nowrap",
             }}
           >
-            {submitting ? "등록 중..." : "댓글 등록"}
+            {submitting ? t("submitting") : t("submitComment")}
           </button>
         </form>
       </div>

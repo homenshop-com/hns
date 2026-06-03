@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 type ButtonMode = "sales" | "inquiry" | "none";
 
@@ -53,19 +54,19 @@ const inputStyle: React.CSSProperties = {
   boxSizing: "border-box",
 };
 
-// Inline UI strings for the new "buttonMode" picker. Kept here (not in the
-// parent's labels prop) so we don't need to thread translations through the
-// manage page just to add one field; matches the existing `hint` pattern in
-// the v2 markup.
-const MODE_LABEL = "상세 페이지 버튼";
-const MODE_HINT = "상품 상세 페이지에 표시할 액션 버튼을 선택합니다.";
-const MODE_OPTIONS: { code: "sales" | "inquiry" | "none"; title: string; desc: string }[] = [
-  { code: "sales",   title: "구매 모드",   desc: "[구매하기] + [바로구매] — 일반 쇼핑몰" },
-  { code: "inquiry", title: "문의 모드",   desc: "[Send inquiry] — B2B / 해외 수출" },
-  { code: "none",    title: "표시 안 함",  desc: "버튼 없이 상세 정보만 노출" },
-];
-
 export default function ProductSettings({ siteId, initialSettings, labels, variant = "legacy" }: ProductSettingsProps) {
+  const t = useTranslations("siteManage");
+  // Inline UI strings for the new "buttonMode" picker. Kept here (not in the
+  // parent's labels prop) so we don't need to thread translations through the
+  // manage page just to add one field; matches the existing `hint` pattern in
+  // the v2 markup.
+  const MODE_LABEL = t("modeLabel");
+  const MODE_HINT = t("modeHint");
+  const MODE_OPTIONS: { code: "sales" | "inquiry" | "none"; title: string; desc: string }[] = [
+    { code: "sales",   title: t("modeSalesTitle"),   desc: t("modeSalesDesc") },
+    { code: "inquiry", title: t("modeInquiryTitle"), desc: t("modeInquiryDesc") },
+    { code: "none",    title: t("modeNoneTitle"),    desc: t("modeNoneDesc") },
+  ];
   const [settings, setSettings] = useState<ProductSettingsData>({
     ...initialSettings,
     buttonMode: initialSettings.buttonMode ?? "sales",
@@ -101,7 +102,7 @@ export default function ProductSettings({ siteId, initialSettings, labels, varia
     return (
       <div className="mv2-sub-section">
         <h4>
-          {labels.productDisplaySettings} <span className="hint">쇼룸 페이지에 적용</span>
+          {labels.productDisplaySettings} <span className="hint">{t("appliesToShowroom")}</span>
         </h4>
         <div className="mv2-field-row">
           <div className="mv2-field">
@@ -129,7 +130,12 @@ export default function ProductSettings({ siteId, initialSettings, labels, varia
           <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">
             <circle cx="10" cy="10" r="7.5" /><path d="M10 9v5" /><circle cx="10" cy="6" r="1" fill="currentColor" stroke="none" />
           </svg>
-          페이지당 <b>{settings.itemsPerRow} × {settings.totalRows} = {perPage}</b>개 상품이 표시됩니다
+          {t.rich("perPageHint", {
+            cols: settings.itemsPerRow,
+            rows: settings.totalRows,
+            total: perPage,
+            b: (c) => <b>{c}</b>,
+          })}
         </div>
         <div className="mv2-field-row">
           <div className="mv2-field">

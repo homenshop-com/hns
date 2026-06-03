@@ -54,6 +54,7 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
   if (!session) redirect("/login");
 
   const t = await getTranslations("settings");
+  const ts = await getTranslations("siteSettings");
 
   const params = await searchParams;
   const siteId = params.id;
@@ -151,7 +152,7 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
   const sitemapApiUrl = `https://homenshop.net/api/sitemap/${site.id}`;
   const sitemapCustomUrl = activeDomain ? `https://${activeDomain.domain}/sitemap.xml` : null;
 
-  const displayName = currentUser?.name || currentUser?.email?.split("@")[0] || "게스트";
+  const displayName = currentUser?.name || currentUser?.email?.split("@")[0] || ts("guest");
   const credits = currentUser?.credits ?? 0;
   const [thumbFrom, thumbTo, thumbColor, thumbLabel] = pickThumb(site.shopId);
   const siteName = site.name || site.shopId;
@@ -238,16 +239,16 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                   <Icon id="i-menu" size={14} /> {t("menuManage")}
                 </Link>
                 <a className="mv2-btn-secondary" href={publicUrl} target="_blank" rel="noopener noreferrer">
-                  <Icon id="i-external" size={14} /> 사이트 열기
+                  <Icon id="i-external" size={14} /> {ts("openSite")}
                 </a>
               </div>
             </div>
 
             {/* Page head */}
             <div className="sv2-page-head">
-              <h1 className="sv2-page-title">기본정보 관리</h1>
+              <h1 className="sv2-page-title">{ts("pageHeading")}</h1>
               <div className="sv2-page-sub">
-                사이트 이름·설명·도메인·언어·분석 도구 등 사이트의 기본 정보를 설정합니다.
+                {ts("pageHeadingSub")}
               </div>
             </div>
 
@@ -281,7 +282,7 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                     <svg className="ic" width={16} height={16}><use href="#i-lang" /></svg>
                     {t("languageSettings")}
                   </h3>
-                  <span className="status ok"><b>{siteLanguages.length}</b>&nbsp;활성</span>
+                  <span className="status ok"><b>{siteLanguages.length}</b>&nbsp;{ts("active")}</span>
                 </div>
                 <div className="sv2-card-body">
                   <LanguageGridV2
@@ -298,12 +299,12 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                   <div className="accent"></div>
                   <h3>
                     <svg className="ic" width={16} height={16}><use href="#i-globe" /></svg>
-                    도메인
+                    {ts("domain")}
                   </h3>
                   {activeDomain ? (
-                    <span className="status ok">커스텀 연결됨</span>
+                    <span className="status ok">{ts("customConnected")}</span>
                   ) : site.domains.length > 0 ? (
-                    <span className="status warn">대기중</span>
+                    <span className="status warn">{ts("pending")}</span>
                   ) : null}
                 </div>
                 <div className="sv2-card-body" style={{ gap: 18 }}>
@@ -311,10 +312,10 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                   <div>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 700, color: "var(--ink-1)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.3 }}>
                       <i className="fa-solid fa-cloud" aria-hidden="true" style={{ fontSize: 11, color: "var(--ink-3)" }} />
-                      임시 도메인
+                      {ts("tempDomain")}
                     </div>
                     <p style={{ margin: "0 0 10px", fontSize: 13, lineHeight: 1.5, color: "var(--ink-2)" }}>
-                      커스텀 도메인이 연결되기 전까지 사용하는 공개 주소입니다. 선택한 도메인이 canonical/sitemap에 반영됩니다.
+                      {ts("tempDomainDesc")}
                     </p>
                     <TempDomainSelect
                       siteId={site.id}
@@ -340,7 +341,7 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                           <span className="host">{activeDomain.domain}</span>
                           {activeDomain.sslEnabled && <span className="sv2-ssl-tag">SSL</span>}
                           <Link href={`/dashboard/domains?siteId=${site.id}`} className="sv2-tiny-btn">
-                            <svg width={11} height={11}><use href="#i-edit" /></svg>편집
+                            <svg width={11} height={11}><use href="#i-edit" /></svg>{ts("edit")}
                           </Link>
                         </div>
                         <div className="sv2-dns-rec">
@@ -348,7 +349,7 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                           <span style={{ color: "var(--ink-3)" }}>@ →</span>
                           <span className="v">167.71.199.28</span>
                           <span style={{ color: "var(--ink-3)", marginLeft: "auto" }}>
-                            {activeDomain.sslEnabled ? "✓ 전파 완료" : "⏳ 전파 중"}
+                            {activeDomain.sslEnabled ? `✓ ${ts("propagationDone")}` : `⏳ ${ts("propagating")}`}
                           </span>
                         </div>
                         <div className="sv2-links-row">
@@ -356,9 +357,9 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                             {t("domainManage")} →
                           </Link>
                           <span className="sep">·</span>
-                          <a href="#" className="muted">DNS 설정 가이드</a>
+                          <a href="#" className="muted">{ts("dnsGuide")}</a>
                           <span className="sep">·</span>
-                          <Link href={`/dashboard/domains?siteId=${site.id}`} className="muted">SSL 재발급</Link>
+                          <Link href={`/dashboard/domains?siteId=${site.id}`} className="muted">{ts("sslReissue")}</Link>
                         </div>
                       </>
                     ) : site.domains.length > 0 ? (
@@ -379,7 +380,7 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                         <div className="sv2-empty-domain">
                           <p style={{ margin: "0 0 8px", fontSize: 14, fontWeight: 600, color: "var(--ink-1)" }}>{t("noDomains")}</p>
                           <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: "var(--ink-3)" }}>
-                            커스텀 도메인 연결 시 브랜드 주소로 사이트를 운영할 수 있습니다.
+                            {ts("noDomainsDesc")}
                           </p>
                         </div>
                         {/* 2026-05-17 사용자 요청: '도메인 연결하기' 텍스트 링크
@@ -403,7 +404,7 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                             }}
                           >
                             <i className="fa-solid fa-link" aria-hidden="true" style={{ fontSize: 12 }} />
-                            도메인 연결하기
+                            {ts("connectDomain")}
                           </Link>
                         </div>
                       </>
@@ -418,7 +419,7 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                   <div className="accent"></div>
                   <h3>
                     <i className="fa-solid fa-qrcode" aria-hidden="true" style={{ fontSize: 14, marginRight: 6 }} />
-                    QR 코드 생성기
+                    {ts("qrGenerator")}
                   </h3>
                 </div>
                 <div className="sv2-card-body">
@@ -427,7 +428,7 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                     defaultUrl={publicUrl}
                     alternateUrls={[
                       ...(activeDomain
-                        ? [{ label: "임시 URL", url: `https://${defaultUrlLabel}` }]
+                        ? [{ label: ts("tempUrl"), url: `https://${defaultUrlLabel}` }]
                         : []),
                     ]}
                   />
@@ -440,13 +441,13 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                   <div className="accent"></div>
                   <h3>
                     <svg width={16} height={16}><use href="#i-google" /></svg>
-                    Google 설정 · SEO
+                    {ts("googleSeo")}
                   </h3>
                   <span className="status">
                     <b style={{ color: seoConnectedCount === 2 ? "var(--ok)" : "var(--ink-3)" }}>
                       {seoConnectedCount}
                     </b>
-                    &nbsp;/ 2 연결됨
+                    &nbsp;{ts("connectedCount")}
                   </span>
                 </div>
                 <div className="sv2-card-body">
@@ -457,8 +458,8 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                         <div className="nm">Google Analytics</div>
                         <div className={`st ${gaConnected ? "ok" : "off"}`}>
                           {gaConnected
-                            ? `${site.googleAnalyticsId} · 연결됨`
-                            : "연결되지 않음"}
+                            ? `${site.googleAnalyticsId} · ${ts("connected")}`
+                            : ts("notConnected")}
                         </div>
                       </div>
                       <div className="ac">
@@ -466,7 +467,7 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                           href={`/dashboard/site/${site.id}/manage/config/analytics`}
                           className={`sv2-tiny-btn${gaConnected ? "" : " primary"}`}
                         >
-                          {gaConnected ? "관리" : "연결"}
+                          {gaConnected ? ts("manage") : ts("connect")}
                         </Link>
                       </div>
                     </div>
@@ -476,8 +477,8 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                         <div className="nm">Google Search Console</div>
                         <div className={`st ${gscConnected ? "ok" : "off"}`}>
                           {gscConnected
-                            ? `소유 확인 완료 · ${sitemapUrlCount.toLocaleString()} URL 색인`
-                            : "연결되지 않음"}
+                            ? ts("gscVerified", { count: sitemapUrlCount.toLocaleString() })
+                            : ts("notConnected")}
                         </div>
                       </div>
                       <div className="ac">
@@ -485,7 +486,7 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                           href={`/dashboard/site/${site.id}/manage/config/search-console`}
                           className={`sv2-tiny-btn${gscConnected ? "" : " primary"}`}
                         >
-                          {gscConnected ? "관리" : "연결"}
+                          {gscConnected ? ts("manage") : ts("connect")}
                         </Link>
                       </div>
                     </div>
@@ -576,7 +577,7 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                           <span style={{ color: isExpired ? "var(--danger)" : undefined }}>{expiresLabel}</span>
                           {isDerivedExpiry && (
                             <div style={{ fontSize: 10.5, color: "var(--ink-3)", fontWeight: 500, marginTop: 2 }}>
-                              무료 체험 {FREE_TRIAL_DAYS}일
+                              {ts("freeTrialDays", { days: FREE_TRIAL_DAYS })}
                             </div>
                           )}
                         </>
@@ -589,8 +590,8 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                     <div className="sv2-upgrade">
                       <div className="ic"><Icon id="i-sparkle" size={17} /></div>
                       <div>
-                        <div className="tt">Pro 업그레이드로 더 많은 혜택</div>
-                        <div className="sub">용량 10GB · AI 기능 · 커스텀 도메인 · 월 ₩9,900</div>
+                        <div className="tt">{ts("proUpgradeTitle")}</div>
+                        <div className="sub">{ts("proUpgradeSub")}</div>
                       </div>
                       <Link href={`/dashboard/site/${site.id}/extend`} className="cta">
                         {t("extend")} <Icon id="i-chev-right" size={12} />
@@ -631,8 +632,7 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                 </div>
                 <div className="sv2-danger-body">
                   <div className="txt">
-                    계정을 삭제하면 <b>모든 페이지·게시판·상품 데이터</b>가 영구적으로 삭제됩니다.
-                    삭제 후 <b>30일간</b> 복구 요청이 가능하며, 그 이후에는 복구할 수 없습니다.
+                    {ts.rich("deleteWarning", { b: (c) => <b>{c}</b> })}
                   </div>
                   <DeleteSiteButton siteId={site.id} shopId={site.shopId} />
                 </div>

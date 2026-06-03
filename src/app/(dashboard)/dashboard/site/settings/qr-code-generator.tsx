@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import QRCode from "qrcode";
 
 interface QrCodeGeneratorProps {
@@ -20,6 +21,7 @@ export default function QrCodeGenerator({
   alternateUrls = [],
   shopId,
 }: QrCodeGeneratorProps) {
+  const t = useTranslations("siteSettings");
   const presets = useMemo(() => {
     const seen = new Set<string>();
     const out: { label: string; url: string }[] = [];
@@ -28,10 +30,10 @@ export default function QrCodeGenerator({
       seen.add(url);
       out.push({ label, url });
     };
-    add("기본 URL", defaultUrl);
+    add(t("defaultUrl"), defaultUrl);
     for (const a of alternateUrls) add(a.label, a.url);
     return out;
-  }, [defaultUrl, alternateUrls]);
+  }, [defaultUrl, alternateUrls, t]);
 
   const [text, setText] = useState(defaultUrl);
   const [size, setSize] = useState<SizeKey>("M");
@@ -61,7 +63,7 @@ export default function QrCodeGenerator({
       .catch((e: unknown) => {
         if (cancelled) return;
         setDataUrl("");
-        setError(e instanceof Error ? e.message : "생성 실패");
+        setError(e instanceof Error ? e.message : t("generationFailed"));
       });
     return () => {
       cancelled = true;
@@ -115,7 +117,7 @@ img{max-width:90vmin;height:auto}
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.5, color: "var(--ink-2)" }}>
-        명함·전단지·매장 안내 등에 사용할 수 있는 QR 코드를 생성합니다. URL을 자유롭게 수정할 수 있습니다.
+        {t("qrDesc")}
       </p>
 
       {presets.length > 1 && (
@@ -147,7 +149,7 @@ img{max-width:90vmin;height:auto}
 
       <div>
         <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)", marginBottom: 6 }}>
-          URL 또는 텍스트
+          {t("urlOrText")}
         </label>
         <input
           type="text"
@@ -178,7 +180,7 @@ img{max-width:90vmin;height:auto}
       >
         <div>
           <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)", marginBottom: 6 }}>
-            크기
+            {t("size")}
           </label>
           <div style={{ display: "flex", gap: 4 }}>
             {(Object.keys(SIZE_PX) as SizeKey[]).map((s) => {
@@ -209,7 +211,7 @@ img{max-width:90vmin;height:auto}
 
         <div>
           <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)", marginBottom: 6 }}>
-            오류 복원 (ECC)
+            {t("eccLabel")}
           </label>
           <div style={{ display: "flex", gap: 4 }}>
             {ECC_LEVELS.map((lv) => {
@@ -219,9 +221,9 @@ img{max-width:90vmin;height:auto}
                   key={lv}
                   type="button"
                   onClick={() => setEcc(lv)}
-                  title={
-                    lv === "L" ? "7% 복원" : lv === "M" ? "15% 복원" : lv === "Q" ? "25% 복원" : "30% 복원"
-                  }
+                  title={t("eccRecovery", {
+                    percent: lv === "L" ? 7 : lv === "M" ? 15 : lv === "Q" ? 25 : 30,
+                  })}
                   style={{
                     flex: 1,
                     padding: "8px 0",
@@ -244,7 +246,7 @@ img{max-width:90vmin;height:auto}
 
       <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
         <label style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "var(--ink-2)", fontWeight: 600 }}>
-          전경
+          {t("foreground")}
           <input
             type="color"
             value={fg}
@@ -253,7 +255,7 @@ img{max-width:90vmin;height:auto}
           />
         </label>
         <label style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "var(--ink-2)", fontWeight: 600 }}>
-          배경
+          {t("background")}
           <input
             type="color"
             value={bg}
@@ -278,7 +280,7 @@ img{max-width:90vmin;height:auto}
             cursor: "pointer",
           }}
         >
-          색상 초기화
+          {t("resetColors")}
         </button>
       </div>
 
@@ -324,7 +326,7 @@ img{max-width:90vmin;height:auto}
               borderRadius: 8,
             }}
           >
-            {error || "URL을 입력하세요"}
+            {error || t("enterUrl")}
           </div>
         )}
 
@@ -348,7 +350,7 @@ img{max-width:90vmin;height:auto}
               cursor: dataUrl ? "pointer" : "not-allowed",
             }}
           >
-            <i className="fa-solid fa-download" aria-hidden="true" /> PNG 다운로드
+            <i className="fa-solid fa-download" aria-hidden="true" /> {t("downloadPng")}
           </button>
           <button
             type="button"
@@ -392,7 +394,7 @@ img{max-width:90vmin;height:auto}
               opacity: dataUrl ? 1 : 0.5,
             }}
           >
-            <i className="fa-solid fa-print" aria-hidden="true" /> 인쇄
+            <i className="fa-solid fa-print" aria-hidden="true" /> {t("print")}
           </button>
         </div>
       </div>

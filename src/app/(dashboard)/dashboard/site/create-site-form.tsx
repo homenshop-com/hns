@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 export default function CreateSiteForm() {
   const router = useRouter();
+  const t = useTranslations("siteCore");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -28,7 +30,7 @@ export default function CreateSiteForm() {
     setLoading(false);
 
     if (!res.ok) {
-      setError(data.error || "사이트 생성에 실패했습니다.");
+      setError(data.error || t("createFailed"));
     } else {
       router.refresh();
     }
@@ -44,7 +46,7 @@ export default function CreateSiteForm() {
 
       <div>
         <label htmlFor="name" className="block text-sm font-medium mb-1">
-          사이트 이름 <span className="text-red-500">*</span>
+          {t("siteNameLabel")} <span className="text-red-500">*</span>
         </label>
         <input
           id="name"
@@ -52,20 +54,20 @@ export default function CreateSiteForm() {
           type="text"
           required
           className="w-full rounded-lg border border-zinc-300 px-4 py-2.5 text-sm focus:border-zinc-900 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:focus:border-zinc-400"
-          placeholder="내 웹사이트"
+          placeholder={t("siteNamePlaceholder")}
         />
       </div>
 
       <div>
         <label htmlFor="description" className="block text-sm font-medium mb-1">
-          사이트 설명 <span className="text-zinc-400">(선택)</span>
+          {t("siteDescLabel")} <span className="text-zinc-400">{t("optional")}</span>
         </label>
         <textarea
           id="description"
           name="description"
           rows={3}
           className="w-full rounded-lg border border-zinc-300 px-4 py-2.5 text-sm focus:border-zinc-900 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:focus:border-zinc-400"
-          placeholder="사이트에 대한 간단한 설명을 입력하세요"
+          placeholder={t("siteDescPlaceholder")}
         />
       </div>
 
@@ -75,9 +77,9 @@ export default function CreateSiteForm() {
         className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-[#3182f6] px-6 h-11 text-sm font-semibold text-white shadow-[0_1px_2px_rgba(49,130,246,0.25),0_2px_6px_rgba(49,130,246,0.18)] transition hover:bg-[#1b64da] active:translate-y-px disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {loading ? (
-          <><i className="fa-solid fa-spinner fa-spin" />생성 중...</>
+          <><i className="fa-solid fa-spinner fa-spin" />{t("creating")}</>
         ) : (
-          <><i className="fa-solid fa-store" />사이트 만들기</>
+          <><i className="fa-solid fa-store" />{t("createSite")}</>
         )}
       </button>
     </form>

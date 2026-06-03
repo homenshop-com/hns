@@ -6,6 +6,7 @@ import DashboardShell from "../../../../../dashboard-shell";
 import AnalyticsForm from "./AnalyticsForm";
 import { getServiceAccountEmail, getAnalyticsSummary } from "@/lib/analytics";
 import { canManageSite } from "@/lib/site-access";
+import { getTranslations } from "next-intl/server";
 
 export default async function AnalyticsConfigPage({
   params,
@@ -16,6 +17,7 @@ export default async function AnalyticsConfigPage({
   if (!session) redirect("/login");
 
   const { siteId } = await params;
+  const t = await getTranslations("siteManage");
 
   const site = await prisma.site.findUnique({
     where: { id: siteId },
@@ -52,15 +54,15 @@ export default async function AnalyticsConfigPage({
     <DashboardShell
       active="sites"
       breadcrumbs={[
-        { label: "홈", href: "/dashboard" },
-        { label: "데이타관리", href: `/dashboard/site/${siteId}/manage` },
+        { label: t("breadcrumbHome"), href: "/dashboard" },
+        { label: t("dataManage"), href: `/dashboard/site/${siteId}/manage` },
         { label: "Google Analytics" },
       ]}
     >
       <div>
         <div style={{ marginBottom: 16 }}>
           <Link href={`/dashboard/site/${siteId}/manage`} style={{ fontSize: 13, color: "#868e96", textDecoration: "none" }}>
-            &larr; 데이타관리
+            &larr; {t("dataManage")}
           </Link>
         </div>
 
@@ -90,7 +92,7 @@ export default async function AnalyticsConfigPage({
                   borderRadius: 999,
                   background: "#10b981",
                 }} />
-                연결됨
+                {t("gaConnected")}
               </span>
             )}
             {site.googleAnalyticsId && summary && !summary.configured && (
@@ -106,13 +108,12 @@ export default async function AnalyticsConfigPage({
                 fontWeight: 600,
                 border: "1px solid #fde68a",
               }}>
-                권한 대기 중
+                {t("gaPendingAccess")}
               </span>
             )}
           </div>
           <p style={{ fontSize: 14, color: "#6b7684", marginBottom: 28, lineHeight: 1.6, marginTop: 0 }}>
-            측정 ID로 사이트에 GA 추적 코드가 자동 삽입되고, Property ID + 서비스 계정 권한을 추가하면 이 대시보드에서
-            방문자 통계를 바로 확인할 수 있습니다.
+            {t("gaIntro")}
           </p>
 
           <AnalyticsForm
@@ -126,13 +127,13 @@ export default async function AnalyticsConfigPage({
           {summary?.configured && (
             <div style={{ marginTop: 28, padding: 20, background: "#f0fdfa", border: "1px solid #99f6e4", borderRadius: 10 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: "#0f766e", marginBottom: 12, letterSpacing: 0.5 }}>
-                📊 최근 7일 — 실시간 미리보기
+                📊 {t("gaLive7d")}
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
-                <Stat label="활성 사용자" value={summary.totalUsers} />
-                <Stat label="페이지뷰" value={summary.pageViews} />
-                <Stat label="세션" value={summary.sessions} />
-                <Stat label="실시간" value={summary.activeUsersNow} pulse />
+                <Stat label={t("gaActiveUsers")} value={summary.totalUsers} />
+                <Stat label={t("gaPageViews")} value={summary.pageViews} />
+                <Stat label={t("gaSessions")} value={summary.sessions} />
+                <Stat label={t("gaRealtime")} value={summary.activeUsersNow} pulse />
               </div>
               <Link
                 href={`/dashboard/site/${siteId}/manage`}
@@ -145,7 +146,7 @@ export default async function AnalyticsConfigPage({
                   textDecoration: "none",
                 }}
               >
-                전체 통계는 데이타관리 페이지에서 보기 →
+                {t("gaViewFullStats")} →
               </Link>
             </div>
           )}
@@ -160,8 +161,7 @@ export default async function AnalyticsConfigPage({
               color: "#92400e",
               lineHeight: 1.6,
             }}>
-              <strong>아직 데이터를 불러올 수 없습니다.</strong> 위 보라색 카드 안내대로 서비스 계정에
-              뷰어 권한을 부여하셨는지 확인해주세요. (응답: <code style={{ fontSize: 11 }}>{summary.reason}</code>)
+              <strong>{t("gaNoDataYet")}</strong> {t("gaNoDataYetDesc")} ({t("gaResponseLabel")}: <code style={{ fontSize: 11 }}>{summary.reason}</code>)
             </div>
           )}
         </div>
@@ -175,21 +175,20 @@ export default async function AnalyticsConfigPage({
           boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
         }}>
           <h2 style={{ fontSize: 15, fontWeight: 700, color: "#191f28", marginTop: 0, marginBottom: 14 }}>
-            처음 설정하시나요? — 3분 가이드
+            {t("gaGuideTitle")}
           </h2>
           <ol style={{ fontSize: 13.5, color: "#4e5968", lineHeight: 1.9, margin: 0, paddingLeft: 22 }}>
             <li>
               <a href="https://analytics.google.com/" target="_blank" rel="noopener noreferrer" style={{ color: "#3182f6", fontWeight: 600 }}>
                 Google Analytics ↗
               </a>{" "}
-              에 본인 Google 계정으로 로그인 (없으면 신규 계정 생성)
+              {t("gaGuideStep1")}
             </li>
             <li>
-              <strong>관리 → + 새 속성 만들기</strong> → 속성 이름 입력 → 단계 진행 →
-              마지막에 <strong>"웹"</strong> 데이터 스트림 추가:
+              {t.rich("gaGuideStep2", { strong: (c) => <strong>{c}</strong> })}
               <ul style={{ marginTop: 6, marginBottom: 6, paddingLeft: 18, color: "#6b7684" }}>
                 <li>
-                  웹사이트 URL:{" "}
+                  {t("gaGuideStep2Url")}:{" "}
                   <code style={{ background: "#f2f4f6", padding: "1px 6px", borderRadius: 3, fontSize: 12 }}>
                     {customDomains[0]?.domain
                       ? `https://${customDomains[0].domain}`
@@ -198,18 +197,17 @@ export default async function AnalyticsConfigPage({
                         : `https://home.homenshop.com/${site.shopId}`}
                   </code>
                 </li>
-                <li>스트림 이름: 사이트 이름 (예: My Shop)</li>
+                <li>{t("gaGuideStep2Stream")}</li>
               </ul>
             </li>
             <li>
-              생성된 데이터 스트림에서 <strong>측정 ID (G-XXXXXXXXXX)</strong> 복사 → 위 입력란에 붙여넣기 → <strong>저장</strong>
+              {t.rich("gaGuideStep3", { strong: (c) => <strong>{c}</strong> })}
             </li>
             <li>
-              <strong>관리 → 속성 세부정보</strong> 페이지에서 우측 상단의 <strong>Property ID (9~10자리 숫자)</strong>{" "}
-              복사 → 위 입력란에 붙여넣기 → <strong>저장</strong>
+              {t.rich("gaGuideStep4", { strong: (c) => <strong>{c}</strong> })}
             </li>
-            <li>저장 후 나타나는 보라색 카드의 안내대로 서비스 계정 이메일을 본인 GA 속성에 추가</li>
-            <li>완료! 데이터 수집 후 24~48시간 안에 첫 통계가 표시됩니다 (실시간은 즉시)</li>
+            <li>{t("gaGuideStep5")}</li>
+            <li>{t("gaGuideStep6")}</li>
           </ol>
         </div>
 
@@ -223,10 +221,10 @@ export default async function AnalyticsConfigPage({
             padding: "20px 28px",
           }}>
             <h2 style={{ fontSize: 14, fontWeight: 700, color: "#92400e", marginTop: 0, marginBottom: 10 }}>
-              🌐 커스텀 도메인 사용자 — 추가 안내
+              🌐 {t("gaCustomDomainTitle")}
             </h2>
             <p style={{ fontSize: 13, color: "#78350f", margin: "0 0 10px", lineHeight: 1.7 }}>
-              본인 도메인{" "}
+              {t("gaCustomDomainPrefix")}{" "}
               {customDomains.map((d, i) => (
                 <span key={d.domain}>
                   <code style={{ background: "#fef3c7", padding: "1px 6px", borderRadius: 3, fontSize: 12, fontWeight: 700 }}>
@@ -235,21 +233,21 @@ export default async function AnalyticsConfigPage({
                   {i < customDomains.length - 1 && ", "}
                 </span>
               ))}
-              {" "}을(를) GA 에 등록하실 때 주의할 점:
+              {" "}{t("gaCustomDomainSuffix")}
             </p>
             <ul style={{ fontSize: 13, color: "#78350f", lineHeight: 1.8, margin: 0, paddingLeft: 18 }}>
               <li>
-                데이터 스트림의 <strong>웹사이트 URL</strong> 은 반드시{" "}
+                {t.rich("gaCustomDomainNote1Pre", { strong: (c) => <strong>{c}</strong> })}{" "}
                 <code style={{ background: "#fef3c7", padding: "1px 6px", borderRadius: 3, fontSize: 12 }}>
                   https://{customDomains[0].domain}
                 </code>{" "}
-                로 입력 (homenshop.com 임시 URL 아님)
+                {t("gaCustomDomainNote1Post")}
               </li>
               <li>
-                www 와 non-www 둘 다 사용 가능하다면 GA 에서 두 도메인을 모두 추가해야 합치된 통계가 표시됩니다
+                {t("gaCustomDomainNote2")}
               </li>
               <li>
-                gtag.js 는 도메인 무관하게 같은 측정 ID 로 작동 — 도메인 추가 후 별도 코드 수정 불필요
+                {t("gaCustomDomainNote3")}
               </li>
             </ul>
           </div>

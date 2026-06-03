@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 /* ─── Types ─── */
 interface PageItem {
@@ -49,6 +50,7 @@ export default function MenuManager({
   defaultLanguage,
 }: Props) {
   const router = useRouter();
+  const t = useTranslations("sitePages");
   const [pages, setPages] = useState(initialPages);
   const [selectedLang, setSelectedLang] = useState(defaultLanguage);
   const [editing, setEditing] = useState<EditingState | null>(null);
@@ -126,7 +128,7 @@ export default function MenuManager({
       setEditing(null);
     } else {
       const data = await res.json();
-      alert(data.error || "저장에 실패했습니다.");
+      alert(data.error || t("saveFailed"));
     }
   }
 
@@ -278,23 +280,23 @@ export default function MenuManager({
    * that happens after template migration. */
   async function syncWithCanvas() {
     if (syncing) return;
-    if (!confirm("캔버스 디자인에 표시된 메뉴 항목만 '메뉴에 표시' 상태로 동기화합니다.\n계속하시겠습니까?")) return;
+    if (!confirm(t("syncConfirm"))) return;
     setSyncing(true);
     try {
       const res = await fetch(`/api/sites/${siteId}/sync-menu-visibility`, {
         method: "POST",
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "동기화에 실패했습니다.");
+      if (!res.ok) throw new Error(data.error || t("syncFailed"));
 
       if (data.synced === 0) {
-        alert(data.message || "이미 동기화되어 있습니다.");
+        alert(data.message || t("syncAlreadyDone"));
       } else {
-        alert(`동기화 완료: ${data.synced}개 페이지 변경 (표시 ${data.shownCount ?? 0}, 숨김 ${data.hiddenCount ?? 0})`);
+        alert(t("syncDone", { synced: data.synced, shown: data.shownCount ?? 0, hidden: data.hiddenCount ?? 0 }));
         router.refresh();
       }
     } catch (err) {
-      alert(err instanceof Error ? err.message : "오류가 발생했습니다.");
+      alert(err instanceof Error ? err.message : t("errorOccurred"));
     } finally {
       setSyncing(false);
     }
@@ -329,7 +331,7 @@ export default function MenuManager({
       router.refresh();
     } else {
       const data = await res.json();
-      alert(data.error || "추가에 실패했습니다.");
+      alert(data.error || t("addFailed"));
     }
   }
 
@@ -359,7 +361,7 @@ export default function MenuManager({
         `}
       >
         {/* 드래그 핸들 */}
-        <span className="cursor-grab text-zinc-400 select-none" title="드래그하여 순서 변경">
+        <span className="cursor-grab text-zinc-400 select-none" title={t("dragToReorder")}>
           ⠿
         </span>
 
@@ -371,17 +373,17 @@ export default function MenuManager({
             </span>
             {page.isHome && (
               <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                홈
+                {t("badgeHome")}
               </span>
             )}
             {page.externalUrl && (
               <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-200">
-                외부링크
+                {t("badgeExternalLink")}
               </span>
             )}
             {isChild && (
               <span className="inline-flex items-center rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
-                하위
+                {t("badgeChild")}
               </span>
             )}
           </div>
@@ -394,7 +396,7 @@ export default function MenuManager({
         <button
           onClick={() => toggleVisibility(page)}
           className={`text-lg ${page.showInMenu ? "text-zinc-600" : "text-zinc-300"} hover:text-zinc-900 dark:hover:text-zinc-100`}
-          title={page.showInMenu ? "메뉴에 표시 중 (클릭하여 숨김)" : "메뉴에서 숨김 (클릭하여 표시)"}
+          title={page.showInMenu ? t("toggleHideTitle") : t("toggleShowTitle")}
         >
           {page.showInMenu ? "👁" : "👁‍🗨"}
         </button>
@@ -408,7 +410,7 @@ export default function MenuManager({
               : "border-zinc-300 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
           }`}
         >
-          {isEditing ? "닫기" : "설정"}
+          {isEditing ? t("close") : t("settings")}
         </button>
       </div>
     );
@@ -423,14 +425,14 @@ export default function MenuManager({
     return (
       <div className="border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950 rounded-lg p-5 mb-6">
         <h3 className="text-sm font-bold mb-4">
-          &quot;{page.title}&quot; 메뉴 설정
+          {t("menuSettingsFor", { title: page.title })}
         </h3>
 
         <div className="space-y-4">
           {/* 메뉴 표시명 */}
           <div>
             <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
-              메뉴 표시명 (비우면 페이지 제목 사용)
+              {t("menuDisplayNameHelp")}
             </label>
             <input
               type="text"
@@ -450,14 +452,14 @@ export default function MenuManager({
               onChange={(e) => setEditing({ ...editing, showInMenu: e.target.checked })}
             />
             <label htmlFor="showInMenu" className="text-sm">
-              메뉴에 표시
+              {t("showInMenu")}
             </label>
           </div>
 
           {/* 상위 메뉴 선택 */}
           <div>
             <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
-              상위 메뉴 (없으면 최상위)
+              {t("parentMenuHelp")}
             </label>
             <select
               value={editing.parentId || ""}
@@ -466,7 +468,7 @@ export default function MenuManager({
               }
               className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
             >
-              <option value="">없음 (최상위)</option>
+              <option value="">{t("noneTopLevel")}</option>
               {parentCandidates.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.menuTitle || p.title}
@@ -479,7 +481,7 @@ export default function MenuManager({
           {page.externalUrl !== null && (
             <div>
               <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
-                외부 링크 URL
+                {t("externalLinkUrl")}
               </label>
               <input
                 type="url"
@@ -500,13 +502,13 @@ export default function MenuManager({
               disabled={saving}
               className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
             >
-              {saving ? "저장 중..." : "저장"}
+              {saving ? t("saving") : t("save")}
             </button>
             <button
               onClick={() => setEditing(null)}
               className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
             >
-              취소
+              {t("cancel")}
             </button>
           </div>
         </div>
@@ -542,19 +544,19 @@ export default function MenuManager({
       {/* 안내 + 동기화 */}
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
         <p className="text-xs text-zinc-400">
-          드래그하여 순서 변경. 항목 위 가운데로 드래그하면 하위 메뉴로 설정됩니다. (최대 2단계)
+          {t("dragHelp")}
         </p>
         <button
           onClick={syncWithCanvas}
           disabled={syncing}
-          title="캔버스 디자인의 헤더/메뉴 HTML에 실제로 포함된 페이지만 '메뉴에 표시'로 활성화합니다."
+          title={t("syncButtonTitle")}
           className={`rounded-lg border px-3 py-1.5 text-xs font-medium whitespace-nowrap ${
             syncing
               ? "bg-zinc-100 text-zinc-400 border-zinc-200 cursor-default"
               : "bg-white text-blue-600 border-blue-300 hover:bg-blue-50"
           }`}
         >
-          {syncing ? "동기화 중..." : "🔄 캔버스 메뉴와 동기화"}
+          {syncing ? t("syncing") : t("syncButton")}
         </button>
       </div>
 
@@ -565,7 +567,7 @@ export default function MenuManager({
       {langPages.length === 0 ? (
         <div className="rounded-xl border border-zinc-200 bg-white p-12 text-center dark:border-zinc-800 dark:bg-zinc-900">
           <p className="text-zinc-500 dark:text-zinc-400">
-            {langNames[selectedLang] || selectedLang} 페이지가 없습니다.
+            {t("noPagesForLang", { lang: langNames[selectedLang] || selectedLang })}
           </p>
         </div>
       ) : (
@@ -573,10 +575,10 @@ export default function MenuManager({
           {/* 헤더 */}
           <div className="flex items-center justify-between px-4 py-3 bg-zinc-50 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-700">
             <span className="text-xs font-medium text-zinc-500 uppercase">
-              메뉴 구조 ({langNames[selectedLang] || selectedLang})
+              {t("menuStructure", { lang: langNames[selectedLang] || selectedLang })}
             </span>
             <span className="text-xs text-zinc-400">
-              {langPages.filter((p) => p.showInMenu).length}개 표시 / {langPages.length}개 전체
+              {t("shownCountSummary", { shown: langPages.filter((p) => p.showInMenu).length, total: langPages.length })}
             </span>
           </div>
 
@@ -596,7 +598,7 @@ export default function MenuManager({
           onClick={() => setShowAddModal(true)}
           className="rounded-lg border border-dashed border-zinc-400 px-4 py-2 text-sm text-zinc-500 hover:border-zinc-600 hover:text-zinc-700 dark:border-zinc-600 dark:hover:border-zinc-400"
         >
-          + 외부 링크 추가
+          {t("addExternalLink")}
         </button>
       </div>
 
@@ -604,25 +606,25 @@ export default function MenuManager({
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="w-full max-w-md rounded-xl bg-white p-6 dark:bg-zinc-900">
-            <h3 className="text-lg font-bold mb-4">외부 링크 추가</h3>
+            <h3 className="text-lg font-bold mb-4">{t("addExternalLinkTitle")}</h3>
 
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
-                  메뉴 표시명
+                  {t("menuDisplayName")}
                 </label>
                 <input
                   type="text"
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="예: 블로그"
+                  placeholder={t("menuDisplayNamePlaceholder")}
                   className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
-                  URL
+                  {t("url")}
                 </label>
                 <input
                   type="url"
@@ -635,14 +637,14 @@ export default function MenuManager({
 
               <div>
                 <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
-                  상위 메뉴
+                  {t("parentMenu")}
                 </label>
                 <select
                   value={newParentId || ""}
                   onChange={(e) => setNewParentId(e.target.value || null)}
                   className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
                 >
-                  <option value="">없음 (최상위)</option>
+                  <option value="">{t("noneTopLevel")}</option>
                   {parentCandidates.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.menuTitle || p.title}
@@ -658,7 +660,7 @@ export default function MenuManager({
                 disabled={adding || !newTitle.trim() || !newUrl.trim()}
                 className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
               >
-                {adding ? "추가 중..." : "추가"}
+                {adding ? t("adding") : t("add")}
               </button>
               <button
                 onClick={() => {
@@ -669,7 +671,7 @@ export default function MenuManager({
                 }}
                 className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
               >
-                취소
+                {t("cancel")}
               </button>
             </div>
           </div>

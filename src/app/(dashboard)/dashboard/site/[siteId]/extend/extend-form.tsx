@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { MONTHLY_PRICE } from "@/lib/subscription";
 
 const PLANS = [
@@ -48,6 +49,7 @@ declare global {
 }
 
 export default function ExtendForm({ siteId, labels }: ExtendFormProps) {
+  const tx = useTranslations("siteExtend");
   const [selected, setSelected] = useState(12);
   const [loading, setLoading] = useState(false);
   const [tossLoading, setTossLoading] = useState(false);
@@ -84,12 +86,12 @@ export default function ExtendForm({ siteId, labels }: ExtendFormProps) {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "주문 생성에 실패했습니다.");
+        setError(data.error || tx("orderCreateFailed"));
         return;
       }
       setOrder(data.order);
     } catch {
-      setError("네트워크 오류가 발생했습니다.");
+      setError(tx("networkError"));
     } finally {
       setLoading(false);
     }
@@ -99,7 +101,7 @@ export default function ExtendForm({ siteId, labels }: ExtendFormProps) {
   async function handleToss() {
     const clientKey = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY;
     if (!clientKey || !sdkReady || !window.TossPayments) {
-      setError("Toss 결제 모듈이 준비되지 않았습니다. 잠시 후 다시 시도해 주세요.");
+      setError(tx("tossNotReadyMsg"));
       return;
     }
     setTossLoading(true);
@@ -113,7 +115,7 @@ export default function ExtendForm({ siteId, labels }: ExtendFormProps) {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "주문 생성에 실패했습니다.");
+        setError(data.error || tx("orderCreateFailed"));
         return;
       }
       const orderNumber: string = data.order.orderNumber;
@@ -124,13 +126,13 @@ export default function ExtendForm({ siteId, labels }: ExtendFormProps) {
       await toss.requestPayment("카드", {
         amount: totalPrice,
         orderId: orderNumber,
-        orderName: `홈앤샵 호스팅 ${selected}개월`,
-        customerName: "고객",
+        orderName: tx("tossOrderName", { months: selected }),
+        customerName: tx("customerName"),
         successUrl: `${origin}/dashboard/site/${siteId}/extend/toss-success`,
         failUrl: `${origin}/dashboard/site/${siteId}/extend?error=payment_failed`,
       });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "결제가 취소되었습니다.";
+      const msg = err instanceof Error ? err.message : tx("paymentCancelled");
       setError(msg);
     } finally {
       setTossLoading(false);
@@ -155,12 +157,15 @@ export default function ExtendForm({ siteId, labels }: ExtendFormProps) {
         >
           <div style={{ fontSize: 32, marginBottom: 8 }}>✓</div>
           <div style={{ fontSize: 16, fontWeight: 700, color: "#065f46", marginBottom: 8 }}>
-            주문이 접수되었습니다
+            {tx("orderReceived")}
           </div>
           <div style={{ fontSize: 13, color: "#047857", lineHeight: 1.7 }}>
-            아래 계좌로 <b>{order.totalAmount.toLocaleString()}원</b>을 입금해 주세요.
-            <br />
-            입금 확인 후 <b>{order.subscriptionMonths}개월</b> 기간이 연장됩니다.
+            {tx.rich("depositGuide", {
+              amount: order.totalAmount.toLocaleString(),
+              months: order.subscriptionMonths,
+              b: (c) => <b>{c}</b>,
+              br: () => <br />,
+            })}
           </div>
         </div>
 
@@ -173,7 +178,7 @@ export default function ExtendForm({ siteId, labels }: ExtendFormProps) {
             marginBottom: 16,
           }}
         >
-          <div style={{ fontSize: 12, color: "#64748b", marginBottom: 6 }}>주문번호 (입금자명 뒤에 적어주세요)</div>
+          <div style={{ fontSize: 12, color: "#64748b", marginBottom: 6 }}>{tx("orderNumberLabel")}</div>
           <div
             style={{
               fontFamily: "monospace",
@@ -206,7 +211,7 @@ export default function ExtendForm({ siteId, labels }: ExtendFormProps) {
                 fontWeight: 600,
               }}
             >
-              복사
+              {tx("copy")}
             </button>
           </div>
         </div>
@@ -225,7 +230,7 @@ export default function ExtendForm({ siteId, labels }: ExtendFormProps) {
               textDecoration: "none",
             }}
           >
-            대시보드로 돌아가기
+            {tx("backToDashboard")}
           </a>
         </div>
       </div>
@@ -353,7 +358,7 @@ export default function ExtendForm({ siteId, labels }: ExtendFormProps) {
           transition: "background 0.15s",
         }}
       >
-        {tossLoading ? "처리 중..." : `${totalPrice.toLocaleString()}${labels.won} 카드결제 (Toss)`}
+        {tossLoading ? tx("processingDots") : tx("tossPayButton", { amount: totalPrice.toLocaleString(), won: labels.won })}
       </button>
 
       {/* Bank transfer */}
@@ -375,11 +380,11 @@ export default function ExtendForm({ siteId, labels }: ExtendFormProps) {
           transition: "background 0.15s",
         }}
       >
-        {loading ? labels.processing : "무통장 입금 신청"}
+        {loading ? labels.processing : tx("applyBankTransfer")}
       </button>
 
       <p style={{ fontSize: 12, color: "#adb5bd", textAlign: "center", marginTop: 12, lineHeight: 1.5 }}>
-        카드결제는 즉시 활성화 · 무통장 입금은 확인 후 연장
+        {tx("paymentMethodsNote")}
       </p>
     </div>
   );

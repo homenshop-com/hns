@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import DashboardShell from "../../dashboard-shell";
 import { parsePageParam } from "@/lib/pagination";
 
@@ -44,12 +45,14 @@ export default async function BoardPostsPage({
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
+  const t = await getTranslations("boardsDash");
+
   return (
     <DashboardShell
       active="boards"
       breadcrumbs={[
-        { label: "홈", href: "/dashboard" },
-        { label: "게시판", href: "/dashboard/boards" },
+        { label: t("breadcrumbHome"), href: "/dashboard" },
+        { label: t("breadcrumbBoards"), href: "/dashboard/boards" },
         { label: board.name },
       ]}
     >
@@ -58,26 +61,26 @@ export default async function BoardPostsPage({
           <div>
             <div style={{ marginBottom: 8 }}>
               <Link href="/dashboard/boards" style={{ fontSize: 13, color: "#868e96", textDecoration: "none" }}>
-                &larr; 게시판 목록
+                &larr; {t("boardListLink")}
               </Link>
             </div>
             <h1 className="dash-title">{board.name}</h1>
-            <span style={{ fontSize: 13, color: "#868e96" }}>총 {totalCount}개의 게시글</span>
+            <span style={{ fontSize: 13, color: "#868e96" }}>{t("totalPosts", { count: totalCount })}</span>
           </div>
           <Link
             href={`/dashboard/boards/${boardId}/new`}
             className="dash-action-btn blue"
           >
-            + 글쓰기
+            {t("writePost")}
           </Link>
         </div>
 
         {posts.length === 0 ? (
           <div style={{ background: "#fff", borderRadius: 8, boxShadow: "0 1px 8px rgba(0,0,0,0.06)", padding: "48px 24px", textAlign: "center", color: "#868e96", fontSize: 14 }}>
-            등록된 게시글이 없습니다.
+            {t("noPosts")}
             <br />
             <Link href={`/dashboard/boards/${boardId}/new`} style={{ color: "#4a90d9", textDecoration: "none", fontWeight: 600 }}>
-              첫 게시글 작성하기
+              {t("writeFirstPost")}
             </Link>
           </div>
         ) : (
@@ -85,10 +88,10 @@ export default async function BoardPostsPage({
             <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ background: "#f8f9fa", borderBottom: "1px solid #e2e8f0" }}>
-                  <th style={{ padding: "12px 20px", textAlign: "left", fontWeight: 700, color: "#495057" }}>제목</th>
-                  <th style={{ padding: "12px 20px", textAlign: "center", fontWeight: 700, color: "#495057" }}>작성자</th>
-                  <th style={{ padding: "12px 20px", textAlign: "right", fontWeight: 700, color: "#495057" }}>조회수</th>
-                  <th style={{ padding: "12px 20px", textAlign: "right", fontWeight: 700, color: "#495057" }}>작성일</th>
+                  <th style={{ padding: "12px 20px", textAlign: "left", fontWeight: 700, color: "#495057" }}>{t("colTitle")}</th>
+                  <th style={{ padding: "12px 20px", textAlign: "center", fontWeight: 700, color: "#495057" }}>{t("colAuthor")}</th>
+                  <th style={{ padding: "12px 20px", textAlign: "right", fontWeight: 700, color: "#495057" }}>{t("colViews")}</th>
+                  <th style={{ padding: "12px 20px", textAlign: "right", fontWeight: 700, color: "#495057" }}>{t("colDate")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -115,11 +118,11 @@ export default async function BoardPostsPage({
         {totalPages > 1 && (
           <div style={{ marginTop: 20, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
             {page > 1 && (
-              <Link href={`/dashboard/boards/${boardId}?page=${page - 1}`} className="dash-manage-btn">이전</Link>
+              <Link href={`/dashboard/boards/${boardId}?page=${page - 1}`} className="dash-manage-btn">{t("prev")}</Link>
             )}
-            <span style={{ fontSize: 13, color: "#868e96" }}>{page} / {totalPages} 페이지</span>
+            <span style={{ fontSize: 13, color: "#868e96" }}>{t("pageOf", { page, totalPages })}</span>
             {page < totalPages && (
-              <Link href={`/dashboard/boards/${boardId}?page=${page + 1}`} className="dash-manage-btn">다음</Link>
+              <Link href={`/dashboard/boards/${boardId}?page=${page + 1}`} className="dash-manage-btn">{t("next")}</Link>
             )}
           </div>
         )}

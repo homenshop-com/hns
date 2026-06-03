@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 interface PaypalSectionProps {
   siteId: string;
@@ -24,17 +25,17 @@ interface PaypalSectionProps {
 const PLANS = [
   {
     id: "monthly",
-    label: "월간",
+    labelKey: "planMonthly",
     price: "$4.99",
-    billing: "매월 자동결제",
-    badge: null,
+    billingKey: "billingMonthly",
+    badgeKey: null,
   },
   {
     id: "yearly",
-    label: "연간",
+    labelKey: "planYearly",
     price: "$49.99",
-    billing: "매년 자동결제",
-    badge: "17% 할인",
+    billingKey: "billingYearly",
+    badgeKey: "yearlyBadge",
   },
 ] as const;
 
@@ -44,6 +45,7 @@ export default function PaypalSection({
   returnedFromPayPal,
   isKoreanUser,
 }: PaypalSectionProps) {
+  const tx = useTranslations("siteExtend");
   const [selected, setSelected] = useState<"monthly" | "yearly">("yearly");
   const [loading, setLoading] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -62,13 +64,13 @@ export default function PaypalSection({
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "결제 초기화에 실패했습니다.");
+        setError(data.error ?? tx("paymentInitFailed"));
         return;
       }
       // Redirect to PayPal approval page
       window.location.href = data.approveUrl;
     } catch {
-      setError("네트워크 오류가 발생했습니다. 다시 시도해 주세요.");
+      setError(tx("networkErrorRetry"));
     } finally {
       setLoading(false);
     }
@@ -76,7 +78,7 @@ export default function PaypalSection({
 
   /* ── Cancel subscription ── */
   async function handleCancel() {
-    if (!confirm("구독을 해지하시겠습니까? 현재 결제 기간 종료 시까지 이용할 수 있습니다.")) return;
+    if (!confirm(tx("cancelConfirm"))) return;
     setCancelling(true);
     setError(null);
     try {
@@ -87,12 +89,12 @@ export default function PaypalSection({
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "해지 처리에 실패했습니다.");
+        setError(data.error ?? tx("cancelFailed"));
         return;
       }
       setCancelDone(true);
     } catch {
-      setError("네트워크 오류가 발생했습니다.");
+      setError(tx("networkError"));
     } finally {
       setCancelling(false);
     }
@@ -112,12 +114,10 @@ export default function PaypalSection({
       >
         <div style={{ fontSize: 28, marginBottom: 8 }}>⏳</div>
         <div style={{ fontSize: 15, fontWeight: 700, color: "#1e40af", marginBottom: 6 }}>
-          결제 확인 중...
+          {tx("confirmingPayment")}
         </div>
         <div style={{ fontSize: 13, color: "#3b82f6", lineHeight: 1.7 }}>
-          PayPal 결제가 접수되었습니다. 잠시 후 구독이 활성화됩니다.
-          <br />
-          페이지를 새로고침하면 업데이트된 상태를 확인하실 수 있습니다.
+          {tx.rich("paypalPending", { br: () => <br /> })}
         </div>
       </div>
     );
@@ -148,14 +148,14 @@ export default function PaypalSection({
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
             <span style={{ fontSize: 18 }}>{isCancelled ? "⚠️" : "✅"}</span>
             <span style={{ fontWeight: 700, fontSize: 14, color: isCancelled ? "#92400e" : "#166534" }}>
-              {isCancelled ? "구독 해지 예정" : "PayPal 자동결제 활성"}
+              {isCancelled ? tx("subCancelScheduled") : tx("subActive")}
             </span>
           </div>
           {periodEnd && (
             <div style={{ fontSize: 13, color: isCancelled ? "#92400e" : "#166534" }}>
               {isCancelled
-                ? `구독 이용 기간: ${periodEnd}까지`
-                : `다음 결제일: ${periodEnd}`}
+                ? tx("subUntil", { date: periodEnd })
+                : tx("nextBilling", { date: periodEnd })}
             </div>
           )}
         </div>
@@ -176,7 +176,7 @@ export default function PaypalSection({
               fontWeight: 500,
             }}
           >
-            {cancelling ? "처리 중..." : "구독 해지 요청"}
+            {cancelling ? tx("processingDots") : tx("requestCancel")}
           </button>
         )}
 
@@ -201,7 +201,7 @@ export default function PaypalSection({
           fontSize: 13,
         }}
       >
-        구독 해지가 접수되었습니다. 현재 결제 기간 종료 시까지 서비스를 이용하실 수 있습니다.
+        {tx("cancelDone")}
       </div>
     );
   }
@@ -226,12 +226,13 @@ export default function PaypalSection({
           <span style={{ fontSize: 18, lineHeight: 1.3 }}>⚠️</span>
           <div>
             <div style={{ fontSize: 13, fontWeight: 700, color: "#92400e", marginBottom: 4 }}>
-              한국 결제 주소는 PayPal 이용 불가
+              {tx("krBlockTitle")}
             </div>
             <div style={{ fontSize: 12.5, color: "#78350f", lineHeight: 1.65 }}>
-              정부 규정에 따라 한국 결제 주소를 가진 고객은 한국 판매자에게 PayPal로 결제할 수 없습니다.
-              <br />
-              아래 <strong>Toss 카드결제</strong> 또는 <strong>무통장 입금</strong>을 이용해 주세요.
+              {tx.rich("krBlockBody", {
+                br: () => <br />,
+                strong: (c) => <strong>{c}</strong>,
+              })}
             </div>
           </div>
         </div>
@@ -256,7 +257,7 @@ export default function PaypalSection({
                 position: "relative",
               }}
             >
-              {plan.badge && (
+              {plan.badgeKey && (
                 <div
                   style={{
                     position: "absolute",
@@ -270,16 +271,16 @@ export default function PaypalSection({
                     borderRadius: 4,
                   }}
                 >
-                  {plan.badge}
+                  {tx(plan.badgeKey)}
                 </div>
               )}
               <div style={{ fontSize: 15, fontWeight: 700, color: "#1a1a2e", marginBottom: 4 }}>
-                {plan.label}
+                {tx(plan.labelKey)}
               </div>
               <div style={{ fontSize: 22, fontWeight: 700, color: "#0070ba", marginBottom: 4 }}>
                 {plan.price}
               </div>
-              <div style={{ fontSize: 12, color: "#868e96" }}>{plan.billing}</div>
+              <div style={{ fontSize: 12, color: "#868e96" }}>{tx(plan.billingKey)}</div>
             </button>
           );
         })}
@@ -324,7 +325,7 @@ export default function PaypalSection({
         }}
       >
         {loading ? (
-          "처리 중..."
+          tx("processingDots")
         ) : (
           <>
             {/* PayPal wordmark (simplified inline SVG) */}
@@ -332,15 +333,15 @@ export default function PaypalSection({
               <text x="0" y="16" fontFamily="Arial" fontWeight="bold" fontSize="16" fill="#003087">Pay</text>
               <text x="32" y="16" fontFamily="Arial" fontWeight="bold" fontSize="16" fill="#009cde">Pal</text>
             </svg>
-            <span>로 결제</span>
+            <span>{tx("payWith")}</span>
           </>
         )}
       </button>
 
       <p style={{ fontSize: 11.5, color: "#9ca3af", textAlign: "center", marginTop: 10, lineHeight: 1.5 }}>
-        PayPal 계정 또는 해외 카드로 결제. 언제든지 해지 가능. 자동 갱신.
+        {tx("paypalFootLine1")}
         <br />
-        <span style={{ color: "#0070ba" }}>해외 결제 주소 고객 전용</span> · 한국 결제 주소는 Toss / 무통장 이용
+        <span style={{ color: "#0070ba" }}>{tx("overseasAddressOnly")}</span>{tx("paypalFootLine2")}
       </p>
     </div>
   );

@@ -26,6 +26,7 @@ export default async function PostDetailPage({
   if (!post || !post.category || post.category.site.userId !== session.user.id) notFound();
 
   const tb = await getTranslations("boardsPage");
+  const t = await getTranslations("boardsDash");
 
   await prisma.boardPost.update({
     where: { id: postId },
@@ -36,8 +37,8 @@ export default async function PostDetailPage({
     <DashboardShell
       active="boards"
       breadcrumbs={[
-        { label: "홈", href: "/dashboard" },
-        { label: "게시판", href: "/dashboard/boards" },
+        { label: t("breadcrumbHome"), href: "/dashboard" },
+        { label: t("breadcrumbBoards"), href: "/dashboard/boards" },
         { label: post.category.name, href: `/dashboard/boards/${boardId}` },
         { label: post.title },
       ]}

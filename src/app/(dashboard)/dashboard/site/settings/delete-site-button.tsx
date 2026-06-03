@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 export default function DeleteSiteButton({ siteId, shopId }: { siteId: string; shopId: string }) {
+  const t = useTranslations("siteSettings");
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [confirmText, setConfirmText] = useState("");
@@ -17,11 +19,11 @@ export default function DeleteSiteButton({ siteId, shopId }: { siteId: string; s
       const res = await fetch(`/api/sites/${siteId}`, { method: "DELETE" });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "삭제에 실패했습니다.");
+        throw new Error(data.error || t("deleteFailed"));
       }
       router.push("/dashboard");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "오류가 발생했습니다.");
+      setError(err instanceof Error ? err.message : t("errorOccurred"));
       setLoading(false);
     }
   }
@@ -34,7 +36,7 @@ export default function DeleteSiteButton({ siteId, shopId }: { siteId: string; s
         className="sv2-btn-danger"
       >
         <svg width={14} height={14}><use href="#i-trash" /></svg>
-        계정 삭제
+        {t("deleteAccount")}
       </button>
     );
   }
@@ -42,9 +44,11 @@ export default function DeleteSiteButton({ siteId, shopId }: { siteId: string; s
   return (
     <div className="sv2-danger-confirm">
       <p style={{ margin: 0, fontSize: 12.5, color: "var(--ink-2)" }}>
-        삭제를 확인하려면 계정 ID{" "}
-        <b style={{ color: "var(--danger)", fontFamily: "'JetBrains Mono', monospace" }}>{shopId}</b>{" "}
-        를 입력하세요. 이 작업은 되돌릴 수 없습니다.
+        {t.rich("deleteConfirmPrompt", {
+          id: () => (
+            <b style={{ color: "var(--danger)", fontFamily: "'JetBrains Mono', monospace" }}>{shopId}</b>
+          ),
+        })}
       </p>
 
       {error && (
@@ -66,7 +70,7 @@ export default function DeleteSiteButton({ siteId, shopId }: { siteId: string; s
           className="sv2-btn-danger solid"
         >
           <svg width={14} height={14}><use href="#i-trash" /></svg>
-          {loading ? "삭제 중…" : "삭제 확인"}
+          {loading ? t("deleting") : t("confirmDelete")}
         </button>
         <button
           type="button"
@@ -77,7 +81,7 @@ export default function DeleteSiteButton({ siteId, shopId }: { siteId: string; s
           }}
           className="sv2-foot-btn"
         >
-          취소
+          {t("cancel")}
         </button>
       </div>
     </div>

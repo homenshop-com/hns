@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 export default function WebmasterForm({
   siteId,
@@ -9,6 +10,7 @@ export default function WebmasterForm({
   siteId: string;
   currentValue: string;
 }) {
+  const t = useTranslations("siteManage");
   const [value, setValue] = useState(currentValue);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -35,12 +37,12 @@ export default function WebmasterForm({
       });
       if (!res.ok) {
         const data = await res.json();
-        setMessage(data.error || "저장에 실패했습니다.");
+        setMessage(data.error || t("saveFailed"));
       } else {
-        setMessage("저장되었습니다.");
+        setMessage(t("savedMsg"));
       }
     } catch {
-      setMessage("네트워크 오류가 발생했습니다.");
+      setMessage(t("networkError"));
     } finally {
       setSaving(false);
     }
@@ -49,14 +51,14 @@ export default function WebmasterForm({
   return (
     <div>
       <label style={{ display: "block", fontSize: 14, fontWeight: 500, color: "#374151", marginBottom: 8 }}>
-        Google Verification Content 값
+        {t("scContentLabel")}
       </label>
       <div style={{ display: "flex", gap: 8 }}>
         <input
           type="text"
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          placeholder="예: abc123def456..."
+          placeholder={t("wmContentPlaceholder")}
           style={{
             flex: 1,
             padding: "10px 14px",
@@ -81,19 +83,19 @@ export default function WebmasterForm({
             cursor: saving ? "default" : "pointer",
           }}
         >
-          {saving ? "저장 중..." : "저장"}
+          {saving ? t("saving") : t("save")}
         </button>
       </div>
       {value && (
         <div style={{ marginTop: 12, padding: "10px 14px", background: "#f9fafb", borderRadius: 6, border: "1px solid #e5e7eb" }}>
-          <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 4 }}>페이지에 삽입될 메타 태그:</div>
+          <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 4 }}>{t("wmMetaTagPreview")}</div>
           <code style={{ fontSize: 13, color: "#374151" }}>
             {`<meta name="google-site-verification" content="${extractContent(value)}" />`}
           </code>
         </div>
       )}
       {message && (
-        <div style={{ marginTop: 8, fontSize: 13, color: message === "저장되었습니다." ? "#059669" : "#dc2626" }}>
+        <div style={{ marginTop: 8, fontSize: 13, color: message === t("savedMsg") ? "#059669" : "#dc2626" }}>
           {message}
         </div>
       )}

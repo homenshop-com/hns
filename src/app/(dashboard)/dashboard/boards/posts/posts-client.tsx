@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 const TiptapEditor = lazy(() => import("@/components/tiptap-editor"));
 
@@ -27,6 +28,7 @@ interface BoardCategory {
 }
 
 export default function BoardPostsClient() {
+  const t = useTranslations("boardsDash");
   const searchParams = useSearchParams();
   const initialCat = searchParams.get("category") || "";
 
@@ -67,11 +69,11 @@ export default function BoardPostsClient() {
       setCategories(data.categories || []);
       setTotal(data.total || 0);
     } catch {
-      setError("게시물을 불러올 수 없습니다.");
+      setError(t("loadPostsError"));
     } finally {
       setLoading(false);
     }
-  }, [page, filterCat]);
+  }, [page, filterCat, t]);
 
   useEffect(() => { fetchPosts(); }, [fetchPosts]);
 
@@ -88,7 +90,7 @@ export default function BoardPostsClient() {
         setShowNew(false);
       }
     } catch {
-      setError("게시물을 불러올 수 없습니다.");
+      setError(t("loadPostsError"));
     }
   }
 
@@ -110,30 +112,30 @@ export default function BoardPostsClient() {
       });
       if (!res.ok) {
         const d = await res.json();
-        throw new Error(d.error || "수정 실패");
+        throw new Error(d.error || t("updateFailed"));
       }
       setEditPost(null);
       fetchPosts();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "오류 발생");
+      setError(err instanceof Error ? err.message : t("errorOccurred"));
     } finally {
       setSaving(false);
     }
   }
 
   async function handleDelete(id: string, title: string) {
-    if (!confirm(`"${title}" 게시물을 삭제하시겠습니까?`)) return;
+    if (!confirm(t("confirmDeletePost", { title }))) return;
     setError("");
     try {
       const res = await fetch(`/api/legacy-boards?id=${id}`, { method: "DELETE" });
       if (!res.ok) {
         const d = await res.json();
-        throw new Error(d.error || "삭제 실패");
+        throw new Error(d.error || t("deleteFailed"));
       }
       if (editPost?.id === id) setEditPost(null);
       fetchPosts();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "오류 발생");
+      setError(err instanceof Error ? err.message : t("errorOccurred"));
     }
   }
 
@@ -154,7 +156,7 @@ export default function BoardPostsClient() {
       });
       if (!res.ok) {
         const d = await res.json();
-        throw new Error(d.error || "생성 실패");
+        throw new Error(d.error || t("createFailed"));
       }
       setNewTitle("");
       setNewContents("");
@@ -162,7 +164,7 @@ export default function BoardPostsClient() {
       setShowNew(false);
       fetchPosts();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "오류 발생");
+      setError(err instanceof Error ? err.message : t("errorOccurred"));
     } finally {
       setSaving(false);
     }
@@ -186,7 +188,7 @@ export default function BoardPostsClient() {
     <div>
       <div className="mb-6">
           <Link href="/dashboard" className="text-sm text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100">
-            &larr; 대시보드
+            &larr; {t("dashboardLink")}
           </Link>
         </div>
 
@@ -194,9 +196,9 @@ export default function BoardPostsClient() {
             로 토스블루 CTA가 좁은 화면에서도 잘리지 않게 함. */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div className="min-w-0">
-            <h2 className="text-2xl font-bold">게시물 관리</h2>
+            <h2 className="text-2xl font-bold">{t("postManageTitle")}</h2>
             <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              총 {total}건
+              {t("totalCount", { count: total })}
               {filterCat && categories.find(c => c.id === filterCat) && (
                 <span> &middot; {categories.find(c => c.id === filterCat)!.category}</span>
               )}
@@ -205,14 +207,14 @@ export default function BoardPostsClient() {
           <div className="grid grid-cols-2 gap-2 sm:flex sm:gap-2 sm:flex-shrink-0">
             <Link href="/dashboard/boards/categories" className={btnSecondary}>
               <i className="fa-solid fa-folder-tree" aria-hidden="true" />
-              <span>카테고리 관리</span>
+              <span>{t("categoryManage")}</span>
             </Link>
             <button
               onClick={() => { setShowNew(!showNew); setEditPost(null); }}
               className={btnPrimary}
             >
               <i className={showNew ? "fa-solid fa-xmark" : "fa-solid fa-plus"} aria-hidden="true" />
-              <span>{showNew ? "취소" : "게시물 등록"}</span>
+              <span>{showNew ? t("cancel") : t("addPost")}</span>
             </button>
           </div>
         </div>
@@ -220,12 +222,12 @@ export default function BoardPostsClient() {
         {/* Category filter */}
         {categories.filter(c => c.category !== "Default").length > 0 && (
           <div className="flex items-center gap-2 mb-4 flex-wrap">
-            <span className="text-xs text-zinc-500">카테고리:</span>
+            <span className="text-xs text-zinc-500">{t("categoryFilterLabel")}</span>
             <button
               onClick={() => { setFilterCat(""); setPage(1); }}
               className={`px-3 h-7 rounded-full text-xs font-medium transition ${!filterCat ? "bg-[#3182f6] text-white shadow-sm" : "bg-white border border-zinc-200 text-zinc-600 hover:border-[#3182f6] hover:text-[#3182f6] dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-400"}`}
             >
-              전체
+              {t("all")}
             </button>
             {categories.filter(c => c.category !== "Default").map(c => (
               <button
@@ -246,21 +248,21 @@ export default function BoardPostsClient() {
         {/* New post form */}
         {showNew && (
           <div className="mb-6 rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-            <h3 className="text-lg font-bold mb-4">새 게시물 작성</h3>
+            <h3 className="text-lg font-bold mb-4">{t("newPostTitle")}</h3>
             <div className="space-y-3">
               <div className="flex gap-3">
                 <div className="flex-1">
-                  <label className="block text-xs font-medium text-zinc-500 mb-1">제목</label>
-                  <input type="text" value={newTitle} onChange={e => setNewTitle(e.target.value)} className={inputCls} placeholder="제목" />
+                  <label className="block text-xs font-medium text-zinc-500 mb-1">{t("fieldTitle")}</label>
+                  <input type="text" value={newTitle} onChange={e => setNewTitle(e.target.value)} className={inputCls} placeholder={t("fieldTitle")} />
                 </div>
                 <div className="w-32">
-                  <label className="block text-xs font-medium text-zinc-500 mb-1">작성자</label>
+                  <label className="block text-xs font-medium text-zinc-500 mb-1">{t("fieldAuthor")}</label>
                   <input type="text" value={newUsername} onChange={e => setNewUsername(e.target.value)} className={inputCls} placeholder="admin" />
                 </div>
                 <div className="w-40">
-                  <label className="block text-xs font-medium text-zinc-500 mb-1">카테고리</label>
+                  <label className="block text-xs font-medium text-zinc-500 mb-1">{t("category")}</label>
                   <select value={newCategory} onChange={e => setNewCategory(e.target.value)} className={inputCls}>
-                    <option value="">선택</option>
+                    <option value="">{t("select")}</option>
                     {categories.map(c => (
                       <option key={c.id} value={c.id}>{c.category}{c.lang ? ` (${c.lang.toUpperCase()})` : ""}</option>
                     ))}
@@ -268,15 +270,15 @@ export default function BoardPostsClient() {
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-zinc-500 mb-1">내용</label>
-                <Suspense fallback={<div className="border border-zinc-300 rounded-lg p-4 text-zinc-400 text-sm">에디터 로딩중...</div>}>
+                <label className="block text-xs font-medium text-zinc-500 mb-1">{t("fieldContent")}</label>
+                <Suspense fallback={<div className="border border-zinc-300 rounded-lg p-4 text-zinc-400 text-sm">{t("editorLoading")}</div>}>
                   <TiptapEditor initialHtml={newContents} onChange={setNewContents} minHeight={200} />
                 </Suspense>
               </div>
               <div className="flex gap-2 justify-end">
-                <button onClick={() => setShowNew(false)} className={btnSecondary}>취소</button>
+                <button onClick={() => setShowNew(false)} className={btnSecondary}>{t("cancel")}</button>
                 <button onClick={handleCreate} disabled={saving || !newTitle.trim()} className={btnPrimary}>
-                  {saving ? (<><i className="fa-solid fa-spinner fa-spin" /><span>저장중...</span></>) : (<><i className="fa-solid fa-check" /><span>등록</span></>)}
+                  {saving ? (<><i className="fa-solid fa-spinner fa-spin" /><span>{t("savingShort")}</span></>) : (<><i className="fa-solid fa-check" /><span>{t("submit")}</span></>)}
                 </button>
               </div>
             </div>
@@ -286,19 +288,19 @@ export default function BoardPostsClient() {
         {/* Edit form */}
         {editPost && (
           <div className="mb-6 rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-            <h3 className="text-lg font-bold mb-4">게시물 수정 <span className="text-sm font-normal text-zinc-400">#{editPost.id}</span></h3>
+            <h3 className="text-lg font-bold mb-4">{t("editPostHeading")} <span className="text-sm font-normal text-zinc-400">#{editPost.id}</span></h3>
             <div className="space-y-3">
               <div className="flex gap-3">
                 <div className="flex-1">
-                  <label className="block text-xs font-medium text-zinc-500 mb-1">제목</label>
+                  <label className="block text-xs font-medium text-zinc-500 mb-1">{t("fieldTitle")}</label>
                   <input type="text" value={editTitle} onChange={e => setEditTitle(e.target.value)} className={inputCls} />
                 </div>
                 <div className="w-32">
-                  <label className="block text-xs font-medium text-zinc-500 mb-1">작성자</label>
+                  <label className="block text-xs font-medium text-zinc-500 mb-1">{t("fieldAuthor")}</label>
                   <input type="text" value={editUsername} onChange={e => setEditUsername(e.target.value)} className={inputCls} />
                 </div>
                 <div className="w-40">
-                  <label className="block text-xs font-medium text-zinc-500 mb-1">카테고리</label>
+                  <label className="block text-xs font-medium text-zinc-500 mb-1">{t("category")}</label>
                   <select value={editCategory} onChange={e => setEditCategory(e.target.value)} className={inputCls}>
                     {categories.map(c => (
                       <option key={c.id} value={c.id}>{c.category}{c.lang ? ` (${c.lang.toUpperCase()})` : ""}</option>
@@ -307,15 +309,15 @@ export default function BoardPostsClient() {
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-zinc-500 mb-1">내용</label>
-                <Suspense fallback={<div className="border border-zinc-300 rounded-lg p-4 text-zinc-400 text-sm">에디터 로딩중...</div>}>
+                <label className="block text-xs font-medium text-zinc-500 mb-1">{t("fieldContent")}</label>
+                <Suspense fallback={<div className="border border-zinc-300 rounded-lg p-4 text-zinc-400 text-sm">{t("editorLoading")}</div>}>
                   <TiptapEditor initialHtml={editContents} onChange={setEditContents} minHeight={300} />
                 </Suspense>
               </div>
               <div className="flex gap-2 justify-end">
-                <button onClick={() => setEditPost(null)} className={btnSecondary}>취소</button>
+                <button onClick={() => setEditPost(null)} className={btnSecondary}>{t("cancel")}</button>
                 <button onClick={handleUpdate} disabled={saving} className={btnPrimary}>
-                  {saving ? (<><i className="fa-solid fa-spinner fa-spin" /><span>저장중...</span></>) : (<><i className="fa-solid fa-floppy-disk" /><span>저장</span></>)}
+                  {saving ? (<><i className="fa-solid fa-spinner fa-spin" /><span>{t("savingShort")}</span></>) : (<><i className="fa-solid fa-floppy-disk" /><span>{t("save")}</span></>)}
                 </button>
               </div>
             </div>
@@ -324,23 +326,23 @@ export default function BoardPostsClient() {
 
         {/* Post list */}
         {loading ? (
-          <div className="text-center py-12 text-zinc-400">불러오는 중...</div>
+          <div className="text-center py-12 text-zinc-400">{t("loadingShort")}</div>
         ) : posts.length === 0 ? (
           <div className="rounded-xl border border-zinc-200 bg-white p-8 text-center dark:border-zinc-800 dark:bg-zinc-900">
-            <p className="text-zinc-500">게시물이 없습니다.</p>
+            <p className="text-zinc-500">{t("noPostsShort")}</p>
           </div>
         ) : (
           <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden dark:border-zinc-800 dark:bg-zinc-900">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-zinc-200 dark:border-zinc-800">
-                  <th className="px-6 py-3 text-left font-medium text-zinc-500 dark:text-zinc-400 w-12">ID</th>
-                  <th className="px-6 py-3 text-left font-medium text-zinc-500 dark:text-zinc-400">제목</th>
-                  <th className="px-6 py-3 text-left font-medium text-zinc-500 dark:text-zinc-400">카테고리</th>
-                  <th className="px-6 py-3 text-left font-medium text-zinc-500 dark:text-zinc-400">작성자</th>
-                  <th className="px-6 py-3 text-center font-medium text-zinc-500 dark:text-zinc-400">날짜</th>
-                  <th className="px-6 py-3 text-right font-medium text-zinc-500 dark:text-zinc-400">조회</th>
-                  <th className="px-6 py-3 text-right font-medium text-zinc-500 dark:text-zinc-400 w-28">작업</th>
+                  <th className="px-6 py-3 text-left font-medium text-zinc-500 dark:text-zinc-400 w-12">{t("colId")}</th>
+                  <th className="px-6 py-3 text-left font-medium text-zinc-500 dark:text-zinc-400">{t("colTitle")}</th>
+                  <th className="px-6 py-3 text-left font-medium text-zinc-500 dark:text-zinc-400">{t("category")}</th>
+                  <th className="px-6 py-3 text-left font-medium text-zinc-500 dark:text-zinc-400">{t("colAuthor")}</th>
+                  <th className="px-6 py-3 text-center font-medium text-zinc-500 dark:text-zinc-400">{t("colDateShort")}</th>
+                  <th className="px-6 py-3 text-right font-medium text-zinc-500 dark:text-zinc-400">{t("colViewsShort")}</th>
+                  <th className="px-6 py-3 text-right font-medium text-zinc-500 dark:text-zinc-400 w-28">{t("colActions")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -349,10 +351,10 @@ export default function BoardPostsClient() {
                     <td className="px-6 py-4 text-zinc-400">{post.id}</td>
                     <td className="px-6 py-4">
                       <button onClick={() => openEdit(post.id)} className="font-medium text-left hover:underline">
-                        {post.title || "(제목 없음)"}
+                        {post.title || t("noTitle")}
                       </button>
                       {post.photos && <span className="ml-1 text-xs text-zinc-400">📷</span>}
-                      {post.notice === "1" && <span className="ml-1 inline-block rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900 dark:text-red-300">공지</span>}
+                      {post.notice === "1" && <span className="ml-1 inline-block rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900 dark:text-red-300">{t("notice")}</span>}
                     </td>
                     <td className="px-6 py-4 text-zinc-500 dark:text-zinc-400">{post.categoryName || "-"}</td>
                     <td className="px-6 py-4 text-zinc-500 dark:text-zinc-400">{post.username}</td>
@@ -362,11 +364,11 @@ export default function BoardPostsClient() {
                       <span className="flex gap-1 justify-end">
                         <button onClick={() => openEdit(post.id)}
                           className="rounded border border-zinc-300 px-2.5 py-1 text-xs text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800">
-                          수정
+                          {t("edit")}
                         </button>
                         <button onClick={() => handleDelete(post.id, post.title)}
                           className="rounded border border-red-200 px-2.5 py-1 text-xs text-red-500 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-950">
-                          삭제
+                          {t("delete")}
                         </button>
                       </span>
                     </td>
@@ -381,7 +383,7 @@ export default function BoardPostsClient() {
         {totalPages > 1 && (
           <div className="mt-4 flex items-center justify-center gap-1">
             {page > 1 && (
-              <button onClick={() => setPage(page - 1)} className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800">이전</button>
+              <button onClick={() => setPage(page - 1)} className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800">{t("prev")}</button>
             )}
             {Array.from({ length: totalPages }, (_, i) => i + 1)
               .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
@@ -408,14 +410,14 @@ export default function BoardPostsClient() {
                 )
               )}
             {page < totalPages && (
-              <button onClick={() => setPage(page + 1)} className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800">다음</button>
+              <button onClick={() => setPage(page + 1)} className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800">{t("next")}</button>
             )}
           </div>
         )}
 
         <div className="mt-6">
           <Link href="/dashboard" className="text-sm text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100">
-            &larr; 대시보드로 돌아가기
+            &larr; {t("backToDashboard")}
           </Link>
         </div>
     </div>

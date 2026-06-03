@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { pageTemplates } from "@/lib/page-templates";
 
 const THUMB_COLORS: Record<string, string> = {
@@ -20,6 +21,7 @@ const THUMB_ICONS: Record<string, string> = {
 
 export default function TemplateGallery({ userId }: { userId: string }) {
   const router = useRouter();
+  const t = useTranslations("siteCore");
   const [loading, setLoading] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
@@ -40,7 +42,7 @@ export default function TemplateGallery({ userId }: { userId: string }) {
       const siteRes = await fetch("/api/sites", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: "내 홈페이지" }),
+        body: JSON.stringify({ name: t("defaultSiteName") }),
       });
 
       if (siteRes.ok) {
@@ -54,7 +56,7 @@ export default function TemplateGallery({ userId }: { userId: string }) {
       }
 
       if (!siteId) {
-        alert("사이트를 생성할 수 없습니다.");
+        alert(t("cannotCreateSite"));
         setLoading(null);
         return;
       }
@@ -66,7 +68,7 @@ export default function TemplateGallery({ userId }: { userId: string }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: "홈",
+          title: t("homePageTitle"),
           slug: "home",
           isHome: true,
           content: template?.html || "",
@@ -83,7 +85,7 @@ export default function TemplateGallery({ userId }: { userId: string }) {
 
       router.refresh();
     } catch {
-      alert("오류가 발생했습니다.");
+      alert(t("errorOccurred"));
       setLoading(null);
     }
   }
@@ -92,16 +94,19 @@ export default function TemplateGallery({ userId }: { userId: string }) {
     <>
       <div className="tpl-toolbar">
         <div className="tpl-count">
-          총 <strong>{templates.length}</strong>개
+          {t.rich("templateCount", {
+            count: templates.length,
+            strong: (c) => <strong>{c}</strong>,
+          })}
         </div>
         <div className="tpl-search">
           <input
             type="text"
-            placeholder="키워드"
+            placeholder={t("searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <button type="button">검색</button>
+          <button type="button">{t("searchBtn")}</button>
         </div>
       </div>
 
@@ -119,7 +124,7 @@ export default function TemplateGallery({ userId }: { userId: string }) {
             </div>
             <div className="tpl-card-body">
               <span className="tpl-card-name">{tpl.name}</span>
-              <span className="tpl-card-price">무료</span>
+              <span className="tpl-card-price">{t("free")}</span>
             </div>
             <div className="tpl-card-footer">
               <span style={{ fontSize: 12, color: "#868e96" }}>{tpl.description}</span>
@@ -133,7 +138,7 @@ export default function TemplateGallery({ userId }: { userId: string }) {
                 ) : (
                   <>
                     <i className="fa-solid fa-wand-magic-sparkles" aria-hidden="true" />
-                    <span>디자인선택</span>
+                    <span>{t("selectDesign")}</span>
                   </>
                 )}
               </button>

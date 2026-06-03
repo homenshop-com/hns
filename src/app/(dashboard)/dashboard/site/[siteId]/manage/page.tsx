@@ -113,9 +113,10 @@ export default async function SiteManagePage({
   const session = await auth();
   if (!session) redirect("/login");
 
-  const [td, tm] = await Promise.all([
+  const [td, tm, t] = await Promise.all([
     getTranslations("dashboard"),
     getTranslations("manage"),
+    getTranslations("siteManage"),
   ]);
 
   const { siteId } = await params;
@@ -197,7 +198,7 @@ export default async function SiteManagePage({
   // at all (cheaper than always firing and discarding).
   const analyticsSummary = site.googleAnalyticsPropertyId
     ? await getAnalyticsSummary(site.googleAnalyticsPropertyId)
-    : { configured: false as const, reason: "측정 ID 또는 Property ID 미설정" };
+    : { configured: false as const, reason: t("analyticsNoIds") };
 
   const productCount = site.products.length;
   const ps = site.productSettings as (Record<string, number> & { buttonMode?: "sales" | "inquiry" | "none"; searchEnabled?: boolean; boardSearchEnabled?: boolean }) | null;
@@ -228,7 +229,7 @@ export default async function SiteManagePage({
   const publicUrlLabel = activeDomain ? activeDomain.domain : `${sTemp}/${site.shopId}`;
   const defaultUrl = `${sTemp}/${site.shopId}`;
 
-  const displayName = currentUser?.name || currentUser?.email?.split("@")[0] || "게스트";
+  const displayName = currentUser?.name || currentUser?.email?.split("@")[0] || t("guest");
   const credits = currentUser?.credits ?? 0;
   const [thumbFrom, thumbTo, thumbColor, thumbLabel] = pickThumb(site.shopId);
 
@@ -247,12 +248,12 @@ export default async function SiteManagePage({
     .reduce((s, g) => s + (g._sum.totalAmount ?? 0), 0);
 
   const ORDER_STATUS_LABELS: Record<string, string> = {
-    PENDING: "결제대기",
-    PAID: "결제완료",
-    SHIPPING: "배송중",
-    DELIVERED: "배송완료",
-    CANCELLED: "취소",
-    REFUNDED: "환불",
+    PENDING: t("orderStatusPending"),
+    PAID: t("orderStatusPaid"),
+    SHIPPING: t("orderStatusShipping"),
+    DELIVERED: t("orderStatusDelivered"),
+    CANCELLED: t("orderStatusCancelled"),
+    REFUNDED: t("orderStatusRefunded"),
   };
   const ORDER_STATUS_COLORS: Record<string, { bg: string; fg: string }> = {
     PENDING: { bg: "#fef3c7", fg: "#92400e" },
@@ -263,7 +264,7 @@ export default async function SiteManagePage({
     REFUNDED: { bg: "#f1f5f9", fg: "#475569" },
   };
   const CHANNEL_LABELS: Record<string, string> = {
-    STOREFRONT: "내 사이트",
+    STOREFRONT: t("channelStorefront"),
     SHOPIFY: "Shopify",
     COUPANG: "쿠팡",
     AMAZON: "Amazon",
@@ -274,12 +275,12 @@ export default async function SiteManagePage({
   function relTime(d: Date): string {
     const diff = Date.now() - new Date(d).getTime();
     const m = Math.floor(diff / 60000);
-    if (m < 1) return "방금";
-    if (m < 60) return `${m}분 전`;
+    if (m < 1) return t("relJustNow");
+    if (m < 60) return t("relMinutesAgo", { count: m });
     const h = Math.floor(m / 60);
-    if (h < 24) return `${h}시간 전`;
+    if (h < 24) return t("relHoursAgo", { count: h });
     const day = Math.floor(h / 24);
-    if (day < 7) return `${day}일 전`;
+    if (day < 7) return t("relDaysAgo", { count: day });
     const dt = new Date(d);
     return `${dt.getFullYear()}.${String(dt.getMonth() + 1).padStart(2, "0")}.${String(dt.getDate()).padStart(2, "0")}`;
   }
@@ -314,7 +315,7 @@ export default async function SiteManagePage({
                       {activeDomain.sslEnabled && <span className="ssl">SSL</span>}
                     </a>
                   )}
-                  {site.published && <span className="publish-chip">게시중</span>}
+                  {site.published && <span className="publish-chip">{t("published")}</span>}
                 </div>
               </div>
               <div className="mv2-url-actions">
@@ -344,13 +345,13 @@ export default async function SiteManagePage({
                 </div>
                 <div className="v">
                   {productCount}
-                  {productCount > 0 && <span className="unit">개</span>}
+                  {productCount > 0 && <span className="unit">{t("unitItems")}</span>}
                 </div>
                 {productCount === 0 ? (
                   <>
-                    <div className="sub">아직 등록된 상품이 없어요</div>
+                    <div className="sub">{t("noProductsYet")}</div>
                     <Link href={`/dashboard/products?siteId=${site.id}`} className="kpi-action">
-                      상품 등록하기 →
+                      {t("registerProduct")}
                     </Link>
                   </>
                 ) : (
@@ -359,7 +360,7 @@ export default async function SiteManagePage({
                       href={`/dashboard/products?siteId=${site.id}`}
                       style={{ color: "var(--brand)", fontWeight: 600, textDecoration: "none" }}
                     >
-                      상품 관리 →
+                      {t("manageProducts")}
                     </Link>
                   </div>
                 )}
@@ -373,10 +374,10 @@ export default async function SiteManagePage({
                 </div>
                 <div className="v">
                   {boardPostCount}
-                  {boardPostCount > 0 && <span className="unit">건</span>}
+                  {boardPostCount > 0 && <span className="unit">{t("unitPosts")}</span>}
                 </div>
                 <div className="sub">
-                  {boardCategories.filter((b) => b.cnt > 0).length}개 카테고리 사용 중
+                  {t("categoriesInUse", { count: boardCategories.filter((b) => b.cnt > 0).length })}
                 </div>
               </div>
               <div className="mv2-kpi empty">
@@ -387,9 +388,9 @@ export default async function SiteManagePage({
                   </div>
                 </div>
                 <div className="v">0</div>
-                <div className="sub">회원제 미사용</div>
+                <div className="sub">{t("membershipUnused")}</div>
                 <span className="kpi-action" style={{ color: "var(--ink-4)", cursor: "default" }}>
-                  SOON
+                  {t("soon")}
                 </span>
               </div>
               {/* 신규 주문 KPI */}
@@ -399,32 +400,32 @@ export default async function SiteManagePage({
                 style={{ textDecoration: "none", color: "inherit", position: "relative" }}
               >
                 <div className="kpi-top">
-                  신규 주문
+                  {t("newOrders")}
                   <div className="ic" style={{ background: "#e8f3ff", color: "#3182f6" }}>
                     <i className="fa-solid fa-bag-shopping" style={{ fontSize: 13 }} />
                   </div>
                 </div>
                 <div className="v">
                   {newOrders24h}
-                  {newOrders24h > 0 && <span className="unit">건</span>}
+                  {newOrders24h > 0 && <span className="unit">{t("unitPosts")}</span>}
                 </div>
                 {pendingOrders > 0 ? (
                   <div className="sub" style={{ color: "#92400e", fontWeight: 600 }}>
                     <i className="fa-solid fa-circle-exclamation" style={{ fontSize: 10, marginRight: 4 }} />
-                    결제대기 {pendingOrders}건
+                    {t("pendingOrdersCount", { count: pendingOrders })}
                   </div>
                 ) : newOrders24h > 0 ? (
                   <div className="sub">
-                    오늘 신규 · 최근 7일 <b>{newOrders7d}</b>건
+                    {t.rich("todayNewLast7d", { count: newOrders7d, b: (c) => <b>{c}</b> })}
                   </div>
                 ) : newOrders7d > 0 ? (
                   <div className="sub">
-                    오늘은 신규 없음 · 최근 7일 <b>{newOrders7d}</b>건
+                    {t.rich("noNewTodayLast7d", { count: newOrders7d, b: (c) => <b>{c}</b> })}
                   </div>
                 ) : (
                   <>
-                    <div className="sub">최근 7일간 신규 주문 없음</div>
-                    <span className="kpi-action">주문 페이지 →</span>
+                    <div className="sub">{t("noNewOrders7d")}</div>
+                    <span className="kpi-action">{t("ordersPageLink")}</span>
                   </>
                 )}
               </Link>
@@ -436,28 +437,28 @@ export default async function SiteManagePage({
                 style={{ textDecoration: "none", color: "inherit", position: "relative" }}
               >
                 <div className="kpi-top">
-                  문의·예약
+                  {t("inquiriesReservations")}
                   <div className="ic" style={{ background: "#fdf4ff", color: "#9333ea" }}>
                     <i className="fa-regular fa-envelope" style={{ fontSize: 13 }} />
                   </div>
                 </div>
                 <div className="v">
                   {inquiryUnread}
-                  {inquiryUnread > 0 && <span className="unit">건</span>}
+                  {inquiryUnread > 0 && <span className="unit">{t("unitPosts")}</span>}
                 </div>
                 {inquiryUnread > 0 ? (
                   <div className="sub" style={{ color: "#7e22ce", fontWeight: 600 }}>
                     <i className="fa-solid fa-circle-dot" style={{ fontSize: 10, marginRight: 4 }} />
-                    미읽음 {inquiryUnread}건
+                    {t("unreadCount", { count: inquiryUnread })}
                   </div>
                 ) : inquiry24h > 0 ? (
-                  <div className="sub">오늘 신규 <b>{inquiry24h}</b>건</div>
+                  <div className="sub">{t.rich("todayNewCount", { count: inquiry24h, b: (c) => <b>{c}</b> })}</div>
                 ) : inquiryTotal > 0 ? (
-                  <div className="sub">총 {inquiryTotal}건 · 미읽음 없음</div>
+                  <div className="sub">{t("totalNoUnread", { count: inquiryTotal })}</div>
                 ) : (
                   <>
-                    <div className="sub">아직 문의가 없어요</div>
-                    <span className="kpi-action">문의 페이지 →</span>
+                    <div className="sub">{t("noInquiriesYet")}</div>
+                    <span className="kpi-action">{t("inquiriesPageLink")}</span>
                   </>
                 )}
               </Link>
@@ -476,7 +477,7 @@ export default async function SiteManagePage({
                       {storageLabel}
                     </div>
                     <div className="sub">
-                      업로드 파일 · 레거시 포함
+                      {t("storageUploadFiles")}
                     </div>
                   </>
                 ) : (
@@ -499,7 +500,7 @@ export default async function SiteManagePage({
                 propertyId={site.googleAnalyticsPropertyId ?? undefined}
                 refreshUrl={`/api/dashboard/sites/${site.id}/analytics`}
                 notConnectedHelpHref={`/dashboard/site/${site.id}/manage/config/analytics`}
-                notConnectedHelpLabel="설정하기"
+                notConnectedHelpLabel={t("configure")}
               />
             </div>
 
@@ -510,23 +511,23 @@ export default async function SiteManagePage({
                 <div className="mv2-hd-ribbon hd-orange">
                   <div className="ic"><Icon id="i-menu" size={15} /></div>
                   <h3>{tm("menuManage")}</h3>
-                  <div className="meta">{site.pages.length}개 페이지</div>
+                  <div className="meta">{t("pagesCount", { count: site.pages.length })}</div>
                 </div>
                 <div className="mv2-list">
                   <Link href={`/dashboard/site/${siteId}/manage/menus`} className="mv2-list-item">
                     <div className="li-title"><span className="n">{tm("menuManageLink")}</span></div>
                     <div className="li-right">
-                      <span>구성 바로가기</span>
+                      <span>{t("goToConfig")}</span>
                       <span className="chev"><Icon id="i-chev-right" size={12} /></span>
                     </div>
                   </Link>
                 </div>
                 <div className="mv2-empty-col">
                   <div className="ic"><Icon id="i-menu" size={18} /></div>
-                  <div className="t">메뉴 구조 시각화</div>
-                  <div className="s">드래그로 순서를 바꾸고<br />하위 메뉴를 구성하세요</div>
+                  <div className="t">{t("menuStructureViz")}</div>
+                  <div className="s">{t.rich("menuStructureVizDesc", { br: () => <br /> })}</div>
                   <Link href={`/dashboard/site/${siteId}/manage/menus`} className="tool-btn-primary">
-                    <Icon id="i-plus" size={12} /> 메뉴 편집
+                    <Icon id="i-plus" size={12} /> {t("editMenu")}
                   </Link>
                 </div>
               </div>
@@ -553,7 +554,7 @@ export default async function SiteManagePage({
                 <div className="mv2-hd-ribbon hd-blue">
                   <div className="ic"><Icon id="i-package" size={15} /></div>
                   <h3>{tm("productManage")}</h3>
-                  <div className="meta">{productCount}개</div>
+                  <div className="meta">{t("itemsCount", { count: productCount })}</div>
                 </div>
                 <div className="mv2-list">
                   <Link href={`/dashboard/products?siteId=${site.id}`} className="mv2-list-item">
@@ -605,34 +606,33 @@ export default async function SiteManagePage({
                 <div className="mv2-hd-ribbon hd-slate">
                   <div className="ic"><Icon id="i-users" size={15} /></div>
                   <h3>{tm("memberManage")}</h3>
-                  <div className="meta">0명</div>
+                  <div className="meta">{t("membersCount", { count: 0 })}</div>
                 </div>
                 <div className="mv2-list">
                   <div className="mv2-list-item" style={{ cursor: "default" }}>
                     <div className="li-title"><span className="n">{tm("memberList")}</span></div>
                     <div className="li-right">
                       <span className="count">0</span>
-                      <span>명</span>
+                      <span>{t("unitPeople")}</span>
                     </div>
                   </div>
                 </div>
                 <div className="mv2-empty-col">
                   <div className="ic"><Icon id="i-users" size={18} /></div>
-                  <div className="t">회원 기능 꺼짐</div>
+                  <div className="t">{t("memberFeatureOff")}</div>
                   <div className="s">
-                    회원가입 · 마이페이지 · 회원전용<br />
-                    게시판을 사용하려면 활성화하세요
+                    {t.rich("memberFeatureOffDesc", { br: () => <br /> })}
                   </div>
-                  <button type="button" className="tool-btn-primary" disabled title="준비 중인 기능">
-                    <Icon id="i-plus" size={12} /> 회원 기능 활성화
+                  <button type="button" className="tool-btn-primary" disabled title={t("comingSoon")}>
+                    <Icon id="i-plus" size={12} /> {t("enableMemberFeature")}
                   </button>
                 </div>
                 <div className="mv2-activity-summary">
-                  <h4>최근 활동 요약</h4>
+                  <h4>{t("recentActivitySummary")}</h4>
                   <div className="lines">
-                    • 신규 가입 · <b>0</b><br />
-                    • 최근 로그인 · <b>—</b><br />
-                    • 탈퇴 요청 · <b>0</b>
+                    {t.rich("activityNewSignups", { b: (c) => <b>{c}</b> })}<br />
+                    {t.rich("activityRecentLogin", { b: (c) => <b>{c}</b> })}<br />
+                    {t.rich("activityWithdrawalRequests", { b: (c) => <b>{c}</b> })}
                   </div>
                 </div>
               </div>
@@ -651,21 +651,21 @@ export default async function SiteManagePage({
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <h2 style={{ marginBottom: 4 }}>
                     <i className="fa-solid fa-bag-shopping" style={{ fontSize: 12, marginRight: 6, color: "#3182f6" }} />
-                    주문 관리
-                    <span className="count">{totalOrders}건</span>
+                    {t("orderManagement")}
+                    <span className="count">{t("ordersCount", { count: totalOrders })}</span>
                   </h2>
                   {/* 누적 매출 inline (이전 5번째 컬럼에 있었던 정보 통합) */}
                   <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 2 }}>
-                    누적 매출{" "}
+                    {t("cumulativeRevenue")}{" "}
                     <span style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontWeight: 700, color: "var(--ink-0)", fontSize: 13 }}>
                       ₩{revenue.toLocaleString()}
                     </span>
-                    <span style={{ marginLeft: 4 }}>(취소·환불 제외)</span>
+                    <span style={{ marginLeft: 4 }}>{t("excludingCancelledRefunded")}</span>
                   </div>
                 </div>
                 <div className="tools">
                   <Link href={`/dashboard/orders?siteId=${site.id}`} className="dv2-tool-btn">
-                    <i className="fa-solid fa-arrow-right-long" style={{ fontSize: 11 }} /> 전체 보기
+                    <i className="fa-solid fa-arrow-right-long" style={{ fontSize: 11 }} /> {t("viewAll")}
                   </Link>
                 </div>
               </div>
@@ -676,7 +676,7 @@ export default async function SiteManagePage({
                 background: "var(--panel-2)",
                 display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center",
               }}>
-                <span style={{ fontSize: 11.5, color: "var(--ink-3)", fontWeight: 600 }}>상태별 바로가기 ·</span>
+                <span style={{ fontSize: 11.5, color: "var(--ink-3)", fontWeight: 600 }}>{t("statusShortcuts")}</span>
                 <Link
                   href={`/dashboard/orders?siteId=${site.id}&status=PENDING`}
                   style={{
@@ -689,7 +689,7 @@ export default async function SiteManagePage({
                   }}
                 >
                   {pendingOrders > 0 && <i className="fa-solid fa-circle-exclamation" style={{ fontSize: 10 }} />}
-                  결제대기 <b style={{ fontVariantNumeric: "tabular-nums" }}>{pendingOrders}</b>
+                  {t("orderStatusPending")} <b style={{ fontVariantNumeric: "tabular-nums" }}>{pendingOrders}</b>
                 </Link>
                 <Link
                   href={`/dashboard/orders?siteId=${site.id}&status=SHIPPING`}
@@ -700,7 +700,7 @@ export default async function SiteManagePage({
                     border: "1px solid var(--line)", textDecoration: "none",
                   }}
                 >
-                  결제완료·배송중 <b style={{ fontVariantNumeric: "tabular-nums" }}>{shippingOrders}</b>
+                  {t("paidShipping")} <b style={{ fontVariantNumeric: "tabular-nums" }}>{shippingOrders}</b>
                 </Link>
                 <Link
                   href={`/dashboard/orders?siteId=${site.id}&status=DELIVERED`}
@@ -711,7 +711,7 @@ export default async function SiteManagePage({
                     border: "1px solid var(--line)", textDecoration: "none",
                   }}
                 >
-                  배송완료 <b style={{ fontVariantNumeric: "tabular-nums" }}>{deliveredOrders}</b>
+                  {t("orderStatusDelivered")} <b style={{ fontVariantNumeric: "tabular-nums" }}>{deliveredOrders}</b>
                 </Link>
               </div>
 
@@ -725,10 +725,10 @@ export default async function SiteManagePage({
                     <i className="fa-solid fa-bag-shopping" style={{ fontSize: 20 }} />
                   </div>
                   <div style={{ fontSize: 14, fontWeight: 600, color: "var(--ink-1)", marginBottom: 4 }}>
-                    아직 주문이 없습니다
+                    {t("noOrdersYet")}
                   </div>
                   <div style={{ fontSize: 13, color: "var(--ink-3)" }}>
-                    상품이 등록되면 고객 주문이 여기에 자동으로 누적됩니다.
+                    {t("noOrdersYetDesc")}
                   </div>
                 </div>
               ) : (
@@ -736,12 +736,12 @@ export default async function SiteManagePage({
                   <table style={{ width: "100%", fontSize: 13.5, borderCollapse: "collapse" }}>
                     <thead>
                       <tr style={{ background: "var(--panel-2)", borderBottom: "1px solid var(--line-2)" }}>
-                        <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: 11.5, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".06em" }}>주문번호</th>
-                        <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: 600, fontSize: 11.5, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".06em" }}>채널</th>
-                        <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: 600, fontSize: 11.5, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".06em" }}>상품</th>
-                        <th style={{ padding: "10px 12px", textAlign: "right", fontWeight: 600, fontSize: 11.5, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".06em" }}>금액</th>
-                        <th style={{ padding: "10px 12px", textAlign: "center", fontWeight: 600, fontSize: 11.5, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".06em" }}>상태</th>
-                        <th style={{ padding: "10px 16px", textAlign: "right", fontWeight: 600, fontSize: 11.5, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".06em" }}>주문일</th>
+                        <th style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, fontSize: 11.5, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".06em" }}>{t("colOrderNumber")}</th>
+                        <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: 600, fontSize: 11.5, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".06em" }}>{t("colChannel")}</th>
+                        <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: 600, fontSize: 11.5, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".06em" }}>{t("colProduct")}</th>
+                        <th style={{ padding: "10px 12px", textAlign: "right", fontWeight: 600, fontSize: 11.5, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".06em" }}>{t("colAmount")}</th>
+                        <th style={{ padding: "10px 12px", textAlign: "center", fontWeight: 600, fontSize: 11.5, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".06em" }}>{t("colStatus")}</th>
+                        <th style={{ padding: "10px 16px", textAlign: "right", fontWeight: 600, fontSize: 11.5, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".06em" }}>{t("colOrderDate")}</th>
                       </tr>
                     </thead>
                     <tbody>

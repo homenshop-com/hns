@@ -1,9 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
-export default function CopyButton({ value, title = "복사" }: { value: string; title?: string }) {
+export default function CopyButton({ value, title }: { value: string; title?: string }) {
+  const t = useTranslations("siteSettings");
   const [copied, setCopied] = useState(false);
+  const baseTitle = title ?? t("copy");
 
   const handleCopy = async () => {
     try {
@@ -28,8 +31,8 @@ export default function CopyButton({ value, title = "복사" }: { value: string;
     <button
       type="button"
       onClick={handleCopy}
-      title={copied ? "복사됨" : title}
-      aria-label={copied ? "복사됨" : title}
+      title={copied ? t("copied") : baseTitle}
+      aria-label={copied ? t("copied") : baseTitle}
       className={`copy${copied ? " ok" : ""}`}
     >
       <svg width={14} height={14}>

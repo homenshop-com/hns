@@ -1,14 +1,16 @@
+import { getTranslations } from "next-intl/server";
 import DashboardShell from "../../../../../dashboard-shell";
 import EditPostClient from "./edit-post-client";
 
-export default function EditPostPage() {
+export default async function EditPostPage() {
+  const t = await getTranslations("boardsDash");
   return (
     <DashboardShell
       active="boards"
       breadcrumbs={[
-        { label: "홈", href: "/dashboard" },
-        { label: "게시판", href: "/dashboard/boards" },
-        { label: "게시글 수정" },
+        { label: t("breadcrumbHome"), href: "/dashboard" },
+        { label: t("breadcrumbBoards"), href: "/dashboard/boards" },
+        { label: t("breadcrumbEditPost") },
       ]}
     >
       <EditPostClient />

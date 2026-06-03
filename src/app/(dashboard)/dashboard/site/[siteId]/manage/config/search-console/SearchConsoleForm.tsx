@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 export default function SearchConsoleForm({
   siteId,
@@ -9,6 +10,7 @@ export default function SearchConsoleForm({
   siteId: string;
   currentValue: string;
 }) {
+  const t = useTranslations("siteManage");
   const [value, setValue] = useState(currentValue);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -34,12 +36,12 @@ export default function SearchConsoleForm({
       });
       if (!res.ok) {
         const data = await res.json();
-        setMessage(data.error || "저장에 실패했습니다.");
+        setMessage(data.error || t("saveFailed"));
       } else {
-        setMessage("저장되었습니다.");
+        setMessage(t("savedMsg"));
       }
     } catch {
-      setMessage("네트워크 오류가 발생했습니다.");
+      setMessage(t("networkError"));
     } finally {
       setSaving(false);
     }
@@ -54,14 +56,14 @@ export default function SearchConsoleForm({
   return (
     <div>
       <label style={{ display: "block", fontSize: 12, color: "#868e96", marginBottom: 4 }}>
-        Google Verification Content 값
+        {t("scContentLabel")}
       </label>
       <div style={{ display: "flex", gap: 8 }}>
         <input
           type="text"
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          placeholder="예: abc123def456... 또는 메타 태그 전체 붙여넣기"
+          placeholder={t("scContentPlaceholder")}
           style={inputStyle}
         />
         <button
@@ -73,19 +75,19 @@ export default function SearchConsoleForm({
             border: "none", borderRadius: 6, cursor: saving ? "default" : "pointer",
           }}
         >
-          {saving ? "저장 중..." : "저장"}
+          {saving ? t("saving") : t("save")}
         </button>
       </div>
       {value && (
         <div style={{ marginTop: 10, padding: "8px 12px", background: "#f8f9fa", borderRadius: 6, border: "1px solid #e2e8f0" }}>
-          <div style={{ fontSize: 11, color: "#868e96", marginBottom: 2 }}>삽입될 메타 태그:</div>
+          <div style={{ fontSize: 11, color: "#868e96", marginBottom: 2 }}>{t("scMetaTagPreview")}</div>
           <code style={{ fontSize: 12, color: "#495057" }}>
             {`<meta name="google-site-verification" content="${extractContent(value)}" />`}
           </code>
         </div>
       )}
       {message && (
-        <div style={{ marginTop: 8, fontSize: 13, color: message === "저장되었습니다." ? "#2f9e44" : "#e03131" }}>
+        <div style={{ marginTop: 8, fontSize: 13, color: message === t("savedMsg") ? "#2f9e44" : "#e03131" }}>
           {message}
         </div>
       )}

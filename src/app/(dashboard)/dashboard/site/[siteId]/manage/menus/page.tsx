@@ -69,11 +69,16 @@ export default async function MenuManagerPage({
 
   if (!site || !(await canManageSite(siteId))) redirect("/dashboard");
 
+  const [tDash, t] = await Promise.all([
+    getTranslations("dashboard"),
+    getTranslations("siteManage"),
+  ]);
+
   const siteLanguages = site.languages || ["ko"];
   const activeDomain = site.domains[0];
   const publicUrlLabel = activeDomain ? activeDomain.domain : `${getTempDomain(site)}/${site.shopId}`;
   const siteName = site.name || site.shopId;
-  const displayName = currentUser?.name || currentUser?.email?.split("@")[0] || "게스트";
+  const displayName = currentUser?.name || currentUser?.email?.split("@")[0] || t("guest");
   const credits = currentUser?.credits ?? 0;
   const [thumbFrom, thumbTo, thumbColor, thumbLabel] = pickThumb(site.shopId);
 
@@ -87,8 +92,6 @@ export default async function MenuManagerPage({
     site.pages.find((p) => p.isHome && p.lang === site.defaultLanguage) ||
     site.pages.find((p) => p.isHome) ||
     site.pages[0];
-
-  const tDash = await getTranslations("dashboard");
 
   return (
     <DashboardShell
@@ -115,11 +118,9 @@ export default async function MenuManagerPage({
               <div className="mnv2-info-card">
                 <div className="ic"><Icon id="i-info" size={17} /></div>
                 <div style={{ flex: 1 }}>
-                  <div className="tt">메뉴 순서를 바꾸는 법</div>
+                  <div className="tt">{t("howToReorderMenu")}</div>
                   <div className="sub">
-                    항목을 드래그하거나 ▲▼ 버튼으로 이동할 수 있어요.
-                    홈은 고정이며, 숨김 상태 항목은 사이트 메뉴에 노출되지 않지만
-                    URL로는 접근 가능합니다.
+                    {t("howToReorderMenuDesc")}
                   </div>
                 </div>
               </div>
@@ -127,10 +128,9 @@ export default async function MenuManagerPage({
                 <Link href={`/dashboard/site/${siteId}/manage/menus`} className="mnv2-info-card ai">
                   <div className="ic"><Icon id="i-sparkle" size={16} /></div>
                   <div style={{ flex: 1 }}>
-                    <div className="tt">숨김 페이지 {hiddenPages}개</div>
+                    <div className="tt">{t("hiddenPagesCount", { count: hiddenPages })}</div>
                     <div className="sub">
-                      전체 {totalMenuPages}개 중 <b>{hiddenPages}개</b>가 메뉴에서 숨겨져 있습니다.
-                      사용하지 않는 페이지는 정리하면 SEO에 도움이 돼요.
+                      {t.rich("hiddenPagesDesc", { total: totalMenuPages, hidden: hiddenPages, b: (c) => <b>{c}</b> })}
                     </div>
                   </div>
                   <div className="go"><Icon id="i-chev-right" size={16} /></div>
@@ -139,10 +139,9 @@ export default async function MenuManagerPage({
                 <div className="mnv2-info-card ai">
                   <div className="ic"><Icon id="i-sparkle" size={16} /></div>
                   <div style={{ flex: 1 }}>
-                    <div className="tt">메뉴가 깔끔해요</div>
+                    <div className="tt">{t("menuIsClean")}</div>
                     <div className="sub">
-                      전체 {totalMenuPages}개 페이지가 메뉴에 모두 노출 중입니다.
-                      <b>AI 메뉴 정리</b>로 더 나은 순서 추천을 받아보세요.
+                      {t.rich("menuIsCleanDesc", { total: totalMenuPages, b: (c) => <b>{c}</b> })}
                     </div>
                   </div>
                 </div>

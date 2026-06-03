@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams, useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 
 /**
@@ -11,6 +12,7 @@ import Link from "next/link";
  * We call /api/payments/confirm to finalise the charge and extend the site.
  */
 export default function TossExtendSuccessPage() {
+  const tx = useTranslations("siteExtend");
   const searchParams = useSearchParams();
   const params = useParams();
   const siteId = params.siteId as string;
@@ -27,7 +29,7 @@ export default function TossExtendSuccessPage() {
 
       if (!paymentKey || !orderId || !amount) {
         setStatus("error");
-        setError("결제 정보가 올바르지 않습니다.");
+        setError(tx("invalidPaymentInfo"));
         return;
       }
 
@@ -48,11 +50,11 @@ export default function TossExtendSuccessPage() {
           setStatus("success");
         } else {
           setStatus("error");
-          setError(data.error ?? "결제 승인에 실패했습니다.");
+          setError(data.error ?? tx("paymentApprovalFailed"));
         }
       } catch {
         setStatus("error");
-        setError("결제 처리 중 오류가 발생했습니다.");
+        setError(tx("paymentProcessError"));
       }
     }
     confirm();
@@ -64,8 +66,8 @@ export default function TossExtendSuccessPage() {
     return (
       <div style={{ maxWidth: 480, margin: "80px auto", padding: 24, textAlign: "center" }}>
         <div style={{ fontSize: 32, marginBottom: 16 }}>⏳</div>
-        <div style={{ fontSize: 16, fontWeight: 600, color: "#1a1a2e" }}>결제를 확인하고 있습니다…</div>
-        <div style={{ fontSize: 13, color: "#868e96", marginTop: 8 }}>잠시만 기다려 주세요.</div>
+        <div style={{ fontSize: 16, fontWeight: 600, color: "#1a1a2e" }}>{tx("confirmingToss")}</div>
+        <div style={{ fontSize: 13, color: "#868e96", marginTop: 8 }}>{tx("pleaseWait")}</div>
       </div>
     );
   }
@@ -74,7 +76,7 @@ export default function TossExtendSuccessPage() {
     return (
       <div style={{ maxWidth: 480, margin: "80px auto", padding: 24, textAlign: "center" }}>
         <div style={{ fontSize: 32, marginBottom: 16 }}>⚠️</div>
-        <div style={{ fontSize: 16, fontWeight: 600, color: "#b91c1c", marginBottom: 8 }}>결제 실패</div>
+        <div style={{ fontSize: 16, fontWeight: 600, color: "#b91c1c", marginBottom: 8 }}>{tx("paymentFailed")}</div>
         <div style={{ fontSize: 13, color: "#868e96", marginBottom: 24 }}>{error}</div>
         <Link
           href={backHref}
@@ -89,7 +91,7 @@ export default function TossExtendSuccessPage() {
             textDecoration: "none",
           }}
         >
-          다시 시도
+          {tx("retry")}
         </Link>
       </div>
     );
@@ -99,11 +101,11 @@ export default function TossExtendSuccessPage() {
     <div style={{ maxWidth: 480, margin: "80px auto", padding: 24, textAlign: "center" }}>
       <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
       <div style={{ fontSize: 18, fontWeight: 700, color: "#065f46", marginBottom: 8 }}>
-        호스팅이 연장되었습니다!
+        {tx("hostingExtended")}
       </div>
       {months && (
         <div style={{ fontSize: 14, color: "#047857", marginBottom: 24, lineHeight: 1.7 }}>
-          <b>{months}개월</b> 이용권이 정상 적용되었습니다.
+          {tx.rich("planApplied", { months, b: (c) => <b>{c}</b> })}
         </div>
       )}
       <div style={{ display: "flex", justifyContent: "center", gap: 12 }}>
@@ -120,7 +122,7 @@ export default function TossExtendSuccessPage() {
             textDecoration: "none",
           }}
         >
-          대시보드로
+          {tx("toDashboard")}
         </Link>
         <Link
           href={backHref}
@@ -136,7 +138,7 @@ export default function TossExtendSuccessPage() {
             border: "1.5px solid #dee2e6",
           }}
         >
-          결제 내역 보기
+          {tx("viewPaymentHistory")}
         </Link>
       </div>
     </div>
