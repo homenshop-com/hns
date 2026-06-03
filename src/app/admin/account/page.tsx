@@ -147,8 +147,11 @@ export default function MyResellerSettingsPage() {
         </div>
       )}
 
-      <div className="rounded-xl border border-slate-200 bg-white p-6">
-        <div className="space-y-4 max-w-2xl">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        {/* ── 기본 정보 ── */}
+        <div className="rounded-xl border border-slate-200 bg-white p-6 space-y-4">
+          <h2 className="text-sm font-semibold text-slate-800">기본 정보</h2>
+
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
               사이트명 *
@@ -186,7 +189,11 @@ export default function MyResellerSettingsPage() {
               />
             </Suspense>
           </div>
+        </div>
 
+        {/* ── 도메인 연결 ── */}
+        <div className="rounded-xl border border-slate-200 bg-white p-6 space-y-4">
+          <h2 className="text-sm font-semibold text-slate-800">도메인</h2>
           {/* Domain — read only. Resellers cannot rename their own domain. */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
@@ -204,54 +211,60 @@ export default function MyResellerSettingsPage() {
           </div>
 
           <ResellerDomainGuide domain={reseller.domain} />
+        </div>
 
-          <div className="border-t border-slate-100 pt-4">
+        {/* ── 메타 정보 (SEO) ── */}
+        <div className="rounded-xl border border-slate-200 bg-white p-6 space-y-4">
+          <div>
             <h2 className="text-sm font-semibold text-slate-800 mb-1">
               메타 정보 (SEO)
             </h2>
-            <p className="text-xs text-slate-400 mb-3">
+            <p className="text-xs text-slate-400">
               이 도메인으로 접속했을 때 페이지 제목·검색 설명·키워드에 사용됩니다.
               비워두면 기본 homeNshop 값이 적용됩니다.
             </p>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  메타 타이틀 (페이지 제목)
-                </label>
-                <input
-                  type="text"
-                  value={metaTitle}
-                  onChange={(e) => setMetaTitle(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
-                  placeholder={siteName || "예: 홈앤샵 - 나만의 홈페이지 빌더"}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  메타 설명 (description)
-                </label>
-                <textarea
-                  value={metaDescription}
-                  onChange={(e) => setMetaDescription(e.target.value)}
-                  rows={3}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
-                  placeholder="검색 결과에 표시되는 사이트 설명..."
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  메타 키워드 (쉼표로 구분)
-                </label>
-                <input
-                  type="text"
-                  value={metaKeywords}
-                  onChange={(e) => setMetaKeywords(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
-                  placeholder="홈페이지 제작, 홈페이지 빌더, 다국어 홈페이지"
-                />
-              </div>
-            </div>
           </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              메타 타이틀 (페이지 제목)
+            </label>
+            <input
+              type="text"
+              value={metaTitle}
+              onChange={(e) => setMetaTitle(e.target.value)}
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+              placeholder={siteName || "예: 홈앤샵 - 나만의 홈페이지 빌더"}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              메타 설명 (description)
+            </label>
+            <textarea
+              value={metaDescription}
+              onChange={(e) => setMetaDescription(e.target.value)}
+              rows={3}
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+              placeholder="검색 결과에 표시되는 사이트 설명..."
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              메타 키워드 (쉼표로 구분)
+            </label>
+            <input
+              type="text"
+              value={metaKeywords}
+              onChange={(e) => setMetaKeywords(e.target.value)}
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+              placeholder="홈페이지 제작, 홈페이지 빌더, 다국어 홈페이지"
+            />
+          </div>
+        </div>
+
+        {/* ── 수익 분배 · 부가 설정 ── */}
+        <div className="rounded-xl border border-slate-200 bg-white p-6 space-y-4">
+          <h2 className="text-sm font-semibold text-slate-800">수익 분배 · 부가 설정</h2>
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
@@ -268,9 +281,6 @@ export default function MyResellerSettingsPage() {
 
           {/* Revenue share — informational only, set by the platform admin. */}
           <div className="border-t border-slate-100 pt-4">
-            <h2 className="text-sm font-semibold text-slate-800 mb-1">
-              수익 분배
-            </h2>
             <p className="text-xs text-slate-400 mb-2">
               내 도메인으로 가입한 고객의 호스팅 구독 결제 중 내 몫 비율입니다.
               분배율은 플랫폼 관리자가 설정합니다.
@@ -282,17 +292,18 @@ export default function MyResellerSettingsPage() {
               <span className="text-xs text-slate-500">현재 분배율</span>
             </div>
           </div>
-
-          <div className="pt-4">
-            <button
-              onClick={handleSave}
-              disabled={saving || !siteName.trim()}
-              className="rounded-lg bg-[#3182f6] px-6 py-2 text-sm font-medium text-white hover:bg-[#1b64da] disabled:opacity-50 transition-colors"
-            >
-              {saving ? "저장 중..." : "변경사항 저장"}
-            </button>
-          </div>
         </div>
+      </div>
+
+      {/* ── 저장 ── */}
+      <div className="mt-6">
+        <button
+          onClick={handleSave}
+          disabled={saving || !siteName.trim()}
+          className="rounded-lg bg-[#3182f6] px-6 py-2 text-sm font-medium text-white hover:bg-[#1b64da] disabled:opacity-50 transition-colors"
+        >
+          {saving ? "저장 중..." : "변경사항 저장"}
+        </button>
       </div>
     </div>
   );
