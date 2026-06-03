@@ -60,6 +60,45 @@ async function updateSite(formData: FormData) {
   redirect(`/admin/sites/${id}`);
 }
 
+// Re-map which reseller a customer account is attributed to. Attribution
+// lives on the OWNER (User.resellerId) — that's the signal the reseller-scoped
+// admin console filters by — so changing it lets the chosen reseller see and
+// manage this account. FULL ADMIN ONLY: a reseller operator must never be able
+// to reassign attribution (would let them pull accounts to themselves).
+// NOTE: because attribution is per-owner, this applies to ALL sites owned by
+// this user, not just the current site.
+async function reassignReseller(formData: FormData) {
+  "use server";
+  const id = formData.get("id") as string;
+  const access = await getAdminAccess();
+  if (!access || access.kind !== "admin") throw new Error("Forbidden");
+
+  const site = await prisma.site.findUnique({
+    where: { id },
+    select: { userId: true },
+  });
+  if (!site) redirect("/admin/sites");
+
+  const raw = ((formData.get("resellerId") as string) || "").trim();
+  let resellerId: string | null = null;
+  if (raw) {
+    const reseller = await prisma.reseller.findUnique({
+      where: { id: raw },
+      select: { id: true },
+    });
+    if (!reseller) {
+      redirect(`/admin/sites/${id}?mapError=${encodeURIComponent("선택한 리셀러를 찾을 수 없습니다.")}`);
+    }
+    resellerId = reseller!.id;
+  }
+
+  await prisma.user.update({
+    where: { id: site!.userId },
+    data: { resellerId },
+  });
+  redirect(`/admin/sites/${id}?mapNotice=${encodeURIComponent("가입경로(리셀러 귀속)가 변경되었습니다.")}`);
+}
+
 async function extendSite(formData: FormData) {
   "use server";
   const id = formData.get("id") as string;
@@ -179,7 +218,12 @@ export default async function AdminSiteDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ domainError?: string; domainNotice?: string }>;
+  searchParams: Promise<{
+    domainError?: string;
+    domainNotice?: string;
+    mapError?: string;
+    mapNotice?: string;
+  }>;
 }) {
   const { id } = await params;
   const access = await getAdminAccess();
@@ -187,11 +231,21 @@ export default async function AdminSiteDetailPage({
   const sp = await searchParams;
   const domainError = sp.domainError || "";
   const domainNotice = sp.domainNotice || "";
+  const mapError = sp.mapError || "";
+  const mapNotice = sp.mapNotice || "";
 
   const site = await prisma.site.findUnique({
     where: { id },
     include: {
-      user: { select: { id: true, email: true, name: true, resellerId: true } },
+      user: {
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          resellerId: true,
+          reseller: { select: { siteName: true, domain: true } },
+        },
+      },
       domains: true,
       pages: {
         select: {
@@ -213,6 +267,15 @@ export default async function AdminSiteDetailPage({
   if (access.kind === "reseller" && site.user.resellerId !== access.resellerId) {
     notFound();
   }
+
+  // Reseller re-mapping is FULL-ADMIN-only; only fetch the picker list for them.
+  const resellers =
+    access.kind === "admin"
+      ? await prisma.reseller.findMany({
+          orderBy: { siteName: "asc" },
+          select: { id: true, siteName: true, domain: true },
+        })
+      : [];
 
   // Filter pages to the site's default language so the panel doesn't
   // show duplicate "Home (ko)" + "Home (en)" entries for multilingual
@@ -429,6 +492,59 @@ export default async function AdminSiteDetailPage({
               </p>
             </form>
           </div>
+
+          {/* Reseller attribution (가입경로) — FULL ADMIN ONLY */}
+          {access.kind === "admin" && (
+            <div className="bg-white rounded-xl border border-violet-200 p-6">
+              <h2 className="text-base font-semibold text-slate-800 mb-1">가입경로 (리셀러 귀속)</h2>
+              <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+                이 계정을 관리할 리셀러를 지정합니다. 변경 시 해당 리셀러가 자신의 관리자
+                콘솔에서 이 계정을 조회·관리할 수 있습니다. <span className="text-violet-700 font-medium">소유자
+                ({site.user.email}) 기준</span>이므로 이 소유자의 모든 사이트에 함께 적용됩니다.
+              </p>
+
+              {mapError && (
+                <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{mapError}</div>
+              )}
+              {mapNotice && (
+                <div className="mb-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">{mapNotice}</div>
+              )}
+
+              <div className="mb-4 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                현재 귀속:{" "}
+                {site.user.reseller ? (
+                  <span className="font-medium text-violet-700">
+                    {site.user.reseller.siteName}
+                    {site.user.reseller.domain ? ` (${site.user.reseller.domain})` : ""}
+                  </span>
+                ) : (
+                  <span className="font-medium text-slate-700">직접 가입 (homenshop.net)</span>
+                )}
+              </div>
+
+              <form action={reassignReseller} className="flex items-end gap-2">
+                <input type="hidden" name="id" value={site.id} />
+                <div className="flex-1">
+                  <label className="block text-xs text-slate-500 mb-1">리셀러 선택</label>
+                  <select
+                    name="resellerId"
+                    defaultValue={site.user.resellerId ?? ""}
+                    className="w-full border border-slate-300 rounded-lg bg-white px-3 py-2 text-sm text-slate-800"
+                  >
+                    <option value="">직접 가입 (homenshop.net)</option>
+                    {resellers.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.siteName}{r.domain ? ` — ${r.domain}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <button type="submit" className="rounded-lg bg-violet-600 px-5 py-2 text-sm font-medium text-white hover:bg-violet-700">
+                  매핑 저장
+                </button>
+              </form>
+            </div>
+          )}
 
           {/* Pages */}
           <div className="bg-white rounded-xl border border-slate-200 p-6">
