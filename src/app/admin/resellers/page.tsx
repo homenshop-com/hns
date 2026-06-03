@@ -8,14 +8,17 @@ const PAGE_SIZE = 20;
 export default async function AdminResellersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; search?: string }>;
+  searchParams: Promise<{ page?: string; search?: string; status?: string }>;
 }) {
   await requireFullAdmin();
   const params = await searchParams;
   const page = parsePageParam(params.page);
   const search = params.search || "";
+  // 활성/비활성 필터: "" = 전체, "active", "inactive"
+  const status = params.status === "active" || params.status === "inactive" ? params.status : "";
 
-  const where = search
+  // Shared search predicate; the status tab adds an isActive constraint on top.
+  const searchWhere = search
     ? {
         OR: [
           { domain: { contains: search, mode: "insensitive" as const } },
@@ -23,8 +26,16 @@ export default async function AdminResellersPage({
         ],
       }
     : {};
+  const where = {
+    ...searchWhere,
+    ...(status === "active"
+      ? { isActive: true }
+      : status === "inactive"
+        ? { isActive: false }
+        : {}),
+  };
 
-  const [resellers, totalCount] = await Promise.all([
+  const [resellers, totalCount, countAll, countActive] = await Promise.all([
     prisma.reseller.findMany({
       where,
       orderBy: { domain: "asc" },
@@ -32,7 +43,29 @@ export default async function AdminResellersPage({
       take: PAGE_SIZE,
     }),
     prisma.reseller.count({ where }),
+    // Tab counts respect the active search so the numbers match the results.
+    prisma.reseller.count({ where: searchWhere }),
+    prisma.reseller.count({ where: { ...searchWhere, isActive: true } }),
   ]);
+
+  const counts = { all: countAll, active: countActive, inactive: countAll - countActive };
+  const statusTabs = [
+    { key: "", label: "전체", count: counts.all },
+    { key: "active", label: "활성", count: counts.active },
+    { key: "inactive", label: "비활성", count: counts.inactive },
+  ];
+
+  // Preserve search + status across tab clicks and pagination.
+  const buildQuery = (overrides: { status?: string; page?: number }) => {
+    const sp = new URLSearchParams();
+    const nextStatus = overrides.status !== undefined ? overrides.status : status;
+    const nextPage = overrides.page ?? page;
+    if (nextPage > 1) sp.set("page", String(nextPage));
+    if (search) sp.set("search", search);
+    if (nextStatus) sp.set("status", nextStatus);
+    const qs = sp.toString();
+    return qs ? `/admin/resellers?${qs}` : "/admin/resellers";
+  };
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
@@ -53,8 +86,26 @@ export default async function AdminResellersPage({
         </div>
       </div>
 
+      {/* Status tabs */}
+      <div className="flex gap-2 mb-6 flex-wrap">
+        {statusTabs.map((t) => (
+          <Link
+            key={t.key || "all"}
+            href={buildQuery({ status: t.key, page: 1 })}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              status === t.key
+                ? "bg-[#3182f6] text-white"
+                : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            {t.label} ({t.count.toLocaleString()})
+          </Link>
+        ))}
+      </div>
+
       {/* Search */}
       <form className="mb-6">
+        <input type="hidden" name="status" value={status} />
         <div className="flex gap-2">
           <input
             type="text"
@@ -69,7 +120,7 @@ export default async function AdminResellersPage({
           >
             검색
           </button>
-          {search && (
+          {(search || status) && (
             <Link
               href="/admin/resellers"
               className="rounded-lg border border-slate-300 px-4 py-2 text-sm hover:bg-slate-100 transition-colors"
@@ -151,7 +202,7 @@ export default async function AdminResellersPage({
         <div className="mt-6 flex items-center justify-center gap-2">
           {page > 1 && (
             <Link
-              href={`/admin/resellers?page=${page - 1}${search ? `&search=${encodeURIComponent(search)}` : ""}`}
+              href={buildQuery({ page: page - 1 })}
               className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100"
             >
               이전
@@ -164,7 +215,7 @@ export default async function AdminResellersPage({
 
           {page < totalPages && (
             <Link
-              href={`/admin/resellers?page=${page + 1}${search ? `&search=${encodeURIComponent(search)}` : ""}`}
+              href={buildQuery({ page: page + 1 })}
               className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100"
             >
               다음
