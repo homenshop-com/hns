@@ -47,7 +47,7 @@ export default function PublicPageLayout({ t, children }: PublicPageLayoutProps)
         </div>
         <div className="lp-footer-inner">
           <p className="footer-copy">
-            &copy; {new Date().getFullYear()} homenshop.com. All rights
+            &copy; {new Date().getFullYear()} homenshop.net. All rights
             reserved.
           </p>
           <div className="footer-info">

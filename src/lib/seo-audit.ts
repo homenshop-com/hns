@@ -203,7 +203,7 @@ async function fetchRenderedHtml(url: string): Promise<{ html: string; truncated
       headers: {
         // Identify as a real crawler so server-side branching (if any)
         // gives us the same HTML real bots get.
-        "User-Agent": "homeNshop-SEO-Audit/1.0 (+https://homenshop.com)",
+        "User-Agent": "homeNshop-SEO-Audit/1.0 (+https://homenshop.net)",
         Accept: "text/html,application/xhtml+xml",
       },
     });

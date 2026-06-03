@@ -59,7 +59,7 @@ export async function POST(req: Request) {
     },
   });
 
-  const baseUrl = process.env.AUTH_URL || process.env.NEXTAUTH_URL || "https://homenshop.com";
+  const baseUrl = process.env.AUTH_URL || process.env.NEXTAUTH_URL || "https://homenshop.net";
   const verifyLink = `${baseUrl}/verify-email?token=${token}`;
   await sendVerificationEmail(user.email, verifyLink, user.name || undefined);
 

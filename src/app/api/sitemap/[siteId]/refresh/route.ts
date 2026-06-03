@@ -32,7 +32,7 @@ async function pingIndexNow(host: string, key: string, urls: string[]) {
   const results: Array<{ target: string; ok: boolean; status: number; error?: string }> = [];
   if (!key || urls.length === 0) return results;
   // keyLocation points at a fixed /indexnow-key.txt route served by
-  // Next.js (or homenshop.com's public fallback) — search engines fetch
+  // Next.js (or homenshop.net's public fallback) — search engines fetch
   // it to verify the key before accepting our URL submission.
   const body = JSON.stringify({
     host,
@@ -171,7 +171,7 @@ export async function POST(
     lastModified,
     sitemapUrl: activeDomain
       ? `https://${activeDomain}/sitemap.xml`
-      : `https://homenshop.com/api/sitemap/${site.id}`,
+      : `https://homenshop.net/api/sitemap/${site.id}`,
     activeDomain,
     indexNowConfigured: Boolean(indexNowKey),
     submissions,

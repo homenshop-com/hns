@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
     "",
     `- Sitemap: ${base}/sitemap.xml`,
     `- Canonical domain: ${host}`,
-    `- Published via: homeNshop (https://homenshop.com)`,
+    `- Published via: homeNshop (https://homenshop.net)`,
     "",
   ].join("\n");
 

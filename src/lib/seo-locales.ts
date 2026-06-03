@@ -13,7 +13,7 @@ import { locales, defaultLocale, type Locale } from "@/i18n/routing";
  * Shared by page generateMetadata() and the sitemap so the cluster never drifts.
  */
 
-export const BASE_URL = "https://homenshop.com";
+export const BASE_URL = "https://homenshop.net";
 
 /** Locales that get a URL prefix (everything except the default). */
 export const PREFIXED_LOCALES = locales.filter(

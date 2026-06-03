@@ -77,7 +77,7 @@ export default function ExpirationReminderEmail({
 
           <Section style={footer}>
             <Text style={footerText}>
-              이 메일은 homenshop.com 홈페이지 만료 안내 자동 발송 메일입니다.
+              이 메일은 homenshop.net 홈페이지 만료 안내 자동 발송 메일입니다.
               <br />
               문의: help@homenshop.com · &copy; {new Date().getFullYear()} homeNshop
             </Text>

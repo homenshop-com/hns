@@ -133,7 +133,7 @@ Atomic layering rules for EVERY bodyHtml:
     - card groups: add class "de-group"
 - Use obj_title_ / obj_text_ / obj_img_ / obj_btn_ / obj_card_ / obj_sec_ ID prefixes.
 - Internal links MUST be relative: href="about.html" not "/about.html".
-- Images MUST use absolute Pexels proxy: https://homenshop.com/api/img?q={english-keyword}&w={width}&h={height}
+- Images MUST use absolute Pexels proxy: https://homenshop.net/api/img?q={english-keyword}&w={width}&h={height}
   Never picsum.photos; never relative /api/img.
 - Font Awesome icons <i class="fa-solid fa-arrow-right"></i> — no emojis.
 

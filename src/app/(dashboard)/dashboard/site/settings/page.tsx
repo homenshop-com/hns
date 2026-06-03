@@ -146,7 +146,7 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
   const publicUrl = activeDomain ? `https://${activeDomain.domain}` : `https://${sTemp}/${site.shopId}/${site.defaultLanguage}/`;
   const defaultUrlLabel = `${sTemp}/${site.shopId}/${site.defaultLanguage}/`;
 
-  const sitemapApiUrl = `https://homenshop.com/api/sitemap/${site.id}`;
+  const sitemapApiUrl = `https://homenshop.net/api/sitemap/${site.id}`;
   const sitemapCustomUrl = activeDomain ? `https://${activeDomain.domain}/sitemap.xml` : null;
 
   const displayName = currentUser?.name || currentUser?.email?.split("@")[0] || "게스트";

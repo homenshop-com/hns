@@ -86,7 +86,7 @@ Exact patterns (use these verbatim — the scene parser keys on these classes):
 
   IMAGE (exactly one <img>, no other structural content):
     <div class="dragable" id="obj_img_{n}">
-      <img src="https://homenshop.com/api/img?q=…&w=…&h=…" alt="설명" />
+      <img src="https://homenshop.net/api/img?q=…&w=…&h=…" alt="설명" />
     </div>
 
   BUTTON / CTA:
@@ -147,7 +147,7 @@ ABSOLUTELY positioned over the background, creating a layered design.
   <!-- Decorative img dragable pinned to fill the section (editor can swap it) -->
   <div class="dragable" id="obj_img_herobg"
        style="position:absolute; left:0; top:0; width:100%; height:100%; z-index:0;">
-    <img src="https://homenshop.com/api/img?q=cafe+interior+warm&w=1920&h=800"
+    <img src="https://homenshop.net/api/img?q=cafe+interior+warm&w=1920&h=800"
          alt="매장 분위기"
          style="width:100%; height:100%; object-fit:cover;" />
   </div>
@@ -211,7 +211,7 @@ Always pair them as two grouped children of a grid-based section.**
 
 <div class="dragable why-us" id="obj_sec_why">
   <div class="dragable" id="obj_img_why">
-    <img src="https://homenshop.com/api/img?q=mechanic+portrait&w=900&h=600"
+    <img src="https://homenshop.net/api/img?q=mechanic+portrait&w=900&h=600"
          alt="수석 정비사"
          style="width:100%; height:100%; object-fit:cover; border-radius:16px;" />
   </div>
@@ -310,7 +310,7 @@ REQUIRED ornaments (omitting any of these makes the hero feel unfinished):
     </div>
   </div>
   <div class="dragable hero-frame" id="obj_img_hero">
-    <img src="https://homenshop.com/api/img?q=korean+esthetician+portrait&w=900&h=1200"
+    <img src="https://homenshop.net/api/img?q=korean+esthetician+portrait&w=900&h=1200"
          alt="셀로에스테틱 시술 장면" />
     <div class="dragable overlay-badge" id="obj_badge_hero">
       <strong>CELO</strong><em>Aesthetic</em>
@@ -480,7 +480,7 @@ Typical home page skeleton (content-heavy business — cafe / hotel / magazine):
     youtube, tiktok, x-twitter, kakao (fa-comment as fallback).
     NEVER include emoji characters (🎨📱🌐 etc.) in ANY text, attribute, or
     CSS content — the site looks inconsistent when emojis mix with FA icons.
-- **Imagery**: https://homenshop.com/api/img?q={english-keywords}&w={w}&h={h} — semantic image search (Pexels-backed). ALWAYS use the absolute https://homenshop.com prefix (relative /api/img breaks on custom domains).
+- **Imagery**: https://homenshop.net/api/img?q={english-keywords}&w={w}&h={h} — semantic image search (Pexels-backed). ALWAYS use the absolute https://homenshop.net prefix (relative /api/img breaks on custom domains).
     q MUST be English keywords describing the image content. Translate Korean/other languages first.
     Examples: cafe interior → q=cafe+interior · ocean sunset → q=ocean+sunset · team meeting → q=team+meeting · happy family → q=happy+family
     Use 1-3 specific words, lowercase, joined with "+". NEVER use picsum.photos or other random placeholders.

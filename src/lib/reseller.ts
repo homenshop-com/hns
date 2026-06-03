@@ -15,7 +15,7 @@ export type ResellerBranding = {
   metaDescription: string | null;
   metaKeywords: string | null;
   /**
-   * True for the homenshop.com row itself. It is editable through the same
+   * True for the homenshop.net row itself. It is editable through the same
    * admin UI as white-label resellers, but it is NOT white-label: keep its own
    * company footer block and locale-aware default title/description.
    */
@@ -23,7 +23,7 @@ export type ResellerBranding = {
 };
 
 /** The canonical (non-white-label) host that owns the default homeNshop brand. */
-export const CANONICAL_HOST = "homenshop.com";
+export const CANONICAL_HOST = "homenshop.net";
 
 function normalizeHost(host: string | null): string | null {
   if (!host) return null;
@@ -36,7 +36,7 @@ function normalizeHost(host: string | null): string | null {
  *
  * Mirrors the legacy lib/global.php behaviour (`select * from reseller where
  * domain = ...`): a non-default host that matches an ACTIVE reseller row gets
- * that reseller's site name / logo / copyright. homenshop.com (the canonical
+ * that reseller's site name / logo / copyright. homenshop.net (the canonical
  * default) and any unmatched host fall back to stock homeNshop branding.
  *
  * Legacy logos live under /upld/uploaded/<filename> (nginx aliases /upld/ to
@@ -89,7 +89,7 @@ export type ActiveResellerRef = {
  *
  * Used for revenue-share attribution: a customer who signs up on a white-label
  * reseller domain is permanently attributed to that reseller. The canonical
- * homenshop.com row is returned with isCanonical=true so callers can skip
+ * homenshop.net row is returned with isCanonical=true so callers can skip
  * attribution for direct signups.
  */
 export async function findActiveResellerByHost(

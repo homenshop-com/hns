@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
       shopId: site.shopId,
       daysRemaining: milestone,
       expiresAt: site.expiresAt.toISOString(),
-      extendUrl: `https://homenshop.com/dashboard/site/${site.id}/extend`,
+      extendUrl: `https://homenshop.net/dashboard/site/${site.id}/extend`,
     });
 
     if (ok) {

@@ -280,7 +280,7 @@ export default async function CreditsPage() {
               <span className="sub">대용량 패키지일수록 할인률이 커집니다.</span>
               <div className="spacer" />
               <a
-                href="https://homenshop.com/pricing"
+                href="https://homenshop.net/pricing"
                 className="help"
                 target="_blank"
                 rel="noopener noreferrer"

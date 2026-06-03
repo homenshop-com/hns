@@ -35,8 +35,8 @@ function renderExpiredPage(shopId: string, name: string): string {
   <div class="icon">⏳</div>
   <h1>체험 기간이 종료되었습니다</h1>
   <p>이 홈페이지의 무료 체험 기간이 만료되어 더 이상 공개되지 않습니다.<br>사이트 소유자님은 로그인 후 플랜을 업그레이드하여 계속 사용하실 수 있습니다.</p>
-  <a href="https://homenshop.com/pricing" class="btn">요금제 보기</a>
-  <a href="https://homenshop.com/login" class="btn secondary">로그인</a>
+  <a href="https://homenshop.net/pricing" class="btn">요금제 보기</a>
+  <a href="https://homenshop.net/login" class="btn secondary">로그인</a>
   <div class="shop">shopId: ${shopId}</div>
 </div></body></html>`;
 }
@@ -74,7 +74,7 @@ ${refresh ? '<meta http-equiv="refresh" content="6">' : ""}
   <div class="spinner"></div>
   <h1>사이트가 준비 중입니다</h1>
   <p>${safeName}을(를) 게시 중이에요. 잠시 후 자동으로 새로고침됩니다.<br>오랫동안 이 화면이 보인다면 사이트 소유자에게 문의하세요.</p>
-  <a href="https://homenshop.com/dashboard" class="btn">대시보드로</a>
+  <a href="https://homenshop.net/dashboard" class="btn">대시보드로</a>
   <div class="shop">shopId: ${shopId}</div>
 </div></body></html>`;
 }
@@ -1041,7 +1041,7 @@ export async function GET(
     (_: string, prop: string, val: string, end: string) =>
       val.trim().includes('!important') ? `${prop}${val}${end}` : `${prop}${val.trim()} !important${end}`
   );
-  // Force /api/img URLs in pageCss to absolute (only exists on homenshop.com)
+  // Force /api/img URLs in pageCss to absolute (only exists on homenshop.net)
   pageCss = rewriteApiImgUrls(pageCss);
 
   // Rewrite CSS url() for bare filenames

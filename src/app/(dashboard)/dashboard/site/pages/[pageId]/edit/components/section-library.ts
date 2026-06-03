@@ -32,7 +32,7 @@ export interface SectionPreset {
 }
 
 const IMG = (q: string, w: number, h: number) =>
-  `https://homenshop.com/api/img?q=${encodeURIComponent(q)}&w=${w}&h=${h}`;
+  `https://homenshop.net/api/img?q=${encodeURIComponent(q)}&w=${w}&h=${h}`;
 
 export const SECTION_PRESETS: SectionPreset[] = [
   /* ═══════════════════════════ HERO OVERLAY ═══════════════════════════ */

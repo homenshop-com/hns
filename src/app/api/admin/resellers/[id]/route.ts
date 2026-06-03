@@ -115,7 +115,7 @@ export async function PUT(
     ownerEmail,
   } = body;
 
-  // The canonical homenshop.com row is editable, but its domain must stay put
+  // The canonical homenshop.net row is editable, but its domain must stay put
   // — renaming it would orphan the default brand resolution.
   const current = await prisma.reseller.findUnique({
     where: { id },
@@ -127,7 +127,7 @@ export async function PUT(
     domain !== CANONICAL_HOST
   ) {
     return NextResponse.json(
-      { error: "기본 도메인(homenshop.com)은 변경할 수 없습니다." },
+      { error: "기본 도메인(homenshop.net)은 변경할 수 없습니다." },
       { status: 400 }
     );
   }
@@ -234,7 +234,7 @@ export async function DELETE(
   });
   if (target?.domain === CANONICAL_HOST) {
     return NextResponse.json(
-      { error: "기본 도메인(homenshop.com)은 삭제할 수 없습니다." },
+      { error: "기본 도메인(homenshop.net)은 삭제할 수 없습니다." },
       { status: 400 }
     );
   }

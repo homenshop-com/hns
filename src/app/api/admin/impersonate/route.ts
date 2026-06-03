@@ -9,7 +9,7 @@ function getBaseUrl(request: NextRequest): string {
   if (forwardedHost) {
     return `${forwardedProto}://${forwardedHost}`;
   }
-  return "https://homenshop.com";
+  return "https://homenshop.net";
 }
 
 // POST — impersonate a user (admin → customer)

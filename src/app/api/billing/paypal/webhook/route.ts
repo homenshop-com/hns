@@ -129,7 +129,7 @@ async function onSubscriptionActivated(resource: Record<string, unknown>) {
       where: { id: sub.siteId },
       select: { name: true },
     });
-    const origin = process.env.NEXTAUTH_URL ?? "https://homenshop.com";
+    const origin = process.env.NEXTAUTH_URL ?? "https://homenshop.net";
     await sendSubscriptionActivatedEmail(owner.email, {
       siteName: site?.name ?? sub.siteId,
       plan: planLabel(sub.paypalPlanId),
@@ -309,7 +309,7 @@ async function onPaymentSaleDenied(
 
   // Alert the site owner (use template)
   if (sub.user.email) {
-    const origin = process.env.NEXTAUTH_URL ?? "https://homenshop.com";
+    const origin = process.env.NEXTAUTH_URL ?? "https://homenshop.net";
     await sendSubscriptionPaymentFailedEmail(sub.user.email, {
       siteName: sub.site.name,
       retryUrl: `${origin}/dashboard/site/${sub.siteId}/extend`,
@@ -345,7 +345,7 @@ async function onSubscriptionCancelled(resource: Record<string, unknown>) {
     select: { name: true },
   });
   if (cancelOwner?.email) {
-    const origin = process.env.NEXTAUTH_URL ?? "https://homenshop.com";
+    const origin = process.env.NEXTAUTH_URL ?? "https://homenshop.net";
     await sendSubscriptionCancelledEmail(cancelOwner.email, {
       siteName: cancelSite?.name ?? sub.siteId,
       accessUntil: formatDate(sub.currentPeriodEnd),

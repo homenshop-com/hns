@@ -155,7 +155,7 @@ export async function POST(req: NextRequest) {
     // Revenue-share attribution: a customer signing up on a white-label
     // reseller domain is permanently attributed to that reseller (product
     // decision: signup-time domain, fixed for life). Direct signups on the
-    // canonical homenshop.com host carry no reseller. Best-effort — a lookup
+    // canonical homenshop.net host carry no reseller. Best-effort — a lookup
     // failure must never block account creation.
     let attributedResellerId: string | null = null;
     try {
@@ -250,7 +250,7 @@ export async function POST(req: NextRequest) {
         expires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
       },
     });
-    const baseUrl = process.env.AUTH_URL || process.env.NEXTAUTH_URL || "https://homenshop.com";
+    const baseUrl = process.env.AUTH_URL || process.env.NEXTAUTH_URL || "https://homenshop.net";
     const verifyLink = `${baseUrl}/verify-email?token=${token}`;
     sendVerificationEmail(email, verifyLink, name);
 

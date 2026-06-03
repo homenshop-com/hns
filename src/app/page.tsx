@@ -14,7 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
   // White-label SEO: when reached via a reseller domain, its admin-managed
   // meta overrides win; anything left blank falls back to the stock values.
-  // The canonical homenshop.com row is editable too, but it is NOT white-label
+  // The canonical homenshop.net row is editable too, but it is NOT white-label
   // — leave its title/description on the locale-aware defaults (never siteName).
   const isWhiteLabel = !!reseller && !reseller.isCanonical;
   const title =
@@ -34,7 +34,7 @@ export async function generateMetadata(): Promise<Metadata> {
       siteName,
       title,
       description,
-      url: reseller ? `https://${reseller.domain}` : "https://homenshop.com",
+      url: reseller ? `https://${reseller.domain}` : "https://homenshop.net",
       ...(reseller?.logoUrl ? { images: [reseller.logoUrl] } : {}),
     },
     other: {
@@ -56,9 +56,9 @@ export default async function Home() {
     redirect("/dashboard");
   }
 
-  // White-label branding: when reached via a reseller domain (e.g. homenshop.net)
+  // White-label branding: when reached via a reseller domain (e.g. homenshop.com)
   // the nav/footer brand and footer copyright reflect that reseller's settings.
-  // The canonical homenshop.com row is editable through the same admin UI but
+  // The canonical homenshop.net row is editable through the same admin UI but
   // is NOT white-label — it keeps its own company footer block.
   const reseller = await getResellerForHost();
   const isWhiteLabel = !!reseller && !reseller.isCanonical;
@@ -70,7 +70,7 @@ export default async function Home() {
     applicationCategory: "WebApplication",
     applicationSubCategory: "Website Builder",
     operatingSystem: "Web",
-    url: "https://homenshop.com",
+    url: "https://homenshop.net",
     description: "Multilingual website builder for Korean SMEs preparing for global export. Create product catalogs and company pages in English, Chinese, Japanese, Spanish — no coding required.",
     featureList: [
       "Multilingual website (Korean, English, Chinese, Japanese, Spanish)",
@@ -97,8 +97,8 @@ export default async function Home() {
     provider: {
       "@type": "Organization",
       name: "homeNshop",
-      url: "https://homenshop.com",
-      logo: "https://homenshop.com/favicon.ico",
+      url: "https://homenshop.net",
+      logo: "https://homenshop.net/favicon.ico",
       contactPoint: {
         "@type": "ContactPoint",
         email: "help@homenshop.com",
@@ -113,8 +113,8 @@ export default async function Home() {
     "@type": "Organization",
     name: "homeNshop",
     legalName: "(주)홈앤샵",
-    url: "https://homenshop.com",
-    logo: "https://homenshop.com/favicon.ico",
+    url: "https://homenshop.net",
+    logo: "https://homenshop.net/favicon.ico",
     description: "Multilingual website builder for Korean export SMEs. Create product catalogs in buyer languages without coding.",
     address: {
       "@type": "PostalAddress",
@@ -543,7 +543,7 @@ export default async function Home() {
             />
           ) : (
             <p className="footer-copy">
-              &copy; {new Date().getFullYear()} homenshop.com. All rights
+              &copy; {new Date().getFullYear()} homenshop.net. All rights
               reserved.
             </p>
           )}

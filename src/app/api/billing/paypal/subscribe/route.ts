@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Build return / cancel URLs
-  const origin = process.env.NEXTAUTH_URL ?? "https://homenshop.com";
+  const origin = process.env.NEXTAUTH_URL ?? "https://homenshop.net";
   const extendBase = `${origin}/dashboard/site/${siteId}/extend`;
   const returnUrl = `${extendBase}?success=1&channel=paypal`;
   const cancelUrl = `${extendBase}?cancelled=1`;

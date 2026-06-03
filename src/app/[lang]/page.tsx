@@ -31,7 +31,7 @@ export async function generateMetadata({
       siteName: "homeNshop",
       title: t("pageTitle"),
       description: t("metaDescription"),
-      url: `https://homenshop.com/${lang}`,
+      url: `https://homenshop.net/${lang}`,
     },
   };
 }

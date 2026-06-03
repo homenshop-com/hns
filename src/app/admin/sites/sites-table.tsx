@@ -223,7 +223,7 @@ export default function SitesTable({
                     </button>
                     <button
                       onClick={() => {
-                        const url = `https://homenshop.com/login?email=${encodeURIComponent(site.email)}`;
+                        const url = `https://homenshop.net/login?email=${encodeURIComponent(site.email)}`;
                         navigator.clipboard.writeText(url);
                         const el = document.getElementById(`copy-ok-${site.id}`);
                         if (el) { el.style.opacity = "1"; setTimeout(() => { el.style.opacity = "0"; }, 1500); }
