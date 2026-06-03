@@ -134,7 +134,13 @@ export default async function DashboardPage() {
     orderBy: { updatedAt: "desc" },
   });
 
-  const siteIds = sites.map((s) => s.id);
+  /* 활동 피드(최근 주문/예약/문의)는 리셀러가 직접 소유한 사이트로만 제한한다.
+     manageableSiteWhere 로 가져온 sites 에는 리셀러가 대신 관리하는 고객
+     사이트도 포함되므로, 고객 엔드유저의 거래 데이터가 리셀러 개인 대시보드에
+     섞이지 않도록 본인 소유(s.userId === session.user.id) 사이트만 필터링한다. */
+  const ownSiteIds = sites
+    .filter((s) => s.userId === session.user.id)
+    .map((s) => s.id);
 
   /* ── KPIs: compute from real tables where possible ── */
   const monthStart = new Date();
@@ -178,9 +184,9 @@ export default async function DashboardPage() {
     /* 최근 문의 — Inquiry 모델(contact/submit 폼 제출) 기준.
        이전: BoardPost(legacyId=13)을 사용했으나 실제 문의가 Inquiry 모델에
        저장되므로 패널에 아무것도 표시되지 않는 버그가 있었음. */
-    siteIds.length
+    ownSiteIds.length
       ? prisma.inquiry.findMany({
-          where: { siteId: { in: siteIds } },
+          where: { siteId: { in: ownSiteIds } },
           orderBy: { createdAt: "desc" },
           take: 5,
           select: {
@@ -192,10 +198,10 @@ export default async function DashboardPage() {
         })
       : Promise.resolve([]),
     /* 최근 예약 — 카테고리명에 "예약" / "booking" / "reservation" 포함 게시글 */
-    siteIds.length
+    ownSiteIds.length
       ? prisma.boardPost.findMany({
           where: {
-            siteId: { in: siteIds },
+            siteId: { in: ownSiteIds },
             parentId: null,
             OR: [
               { category: { name: { contains: "예약" } } },
@@ -213,9 +219,9 @@ export default async function DashboardPage() {
       : Promise.resolve([]),
     /* 미확인(신규) 문의 수 — Inquiry 모델 status=NEW 기준.
        사이드바 배지, 통계 카드, 알림 벨 dot에 모두 사용. */
-    siteIds.length
+    ownSiteIds.length
       ? prisma.inquiry.count({
-          where: { siteId: { in: siteIds }, status: "NEW" },
+          where: { siteId: { in: ownSiteIds }, status: "NEW" },
         })
       : Promise.resolve(0),
   ]);
