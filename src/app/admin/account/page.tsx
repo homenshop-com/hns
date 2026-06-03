@@ -3,6 +3,7 @@
 import { useEffect, useState, lazy, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import ResellerLogoField from "@/components/admin/ResellerLogoField";
+import ResellerDomainGuide from "@/components/admin/ResellerDomainGuide";
 
 const TiptapEditor = lazy(() => import("@/components/tiptap-editor"));
 
@@ -148,22 +149,6 @@ export default function MyResellerSettingsPage() {
 
       <div className="rounded-xl border border-slate-200 bg-white p-6">
         <div className="space-y-4 max-w-2xl">
-          {/* Domain — read only. Resellers cannot rename their own domain. */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              도메인
-            </label>
-            <input
-              type="text"
-              value={reseller.domain}
-              disabled
-              className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500 cursor-not-allowed"
-            />
-            <p className="text-xs text-slate-400 mt-1">
-              도메인 변경은 플랫폼 관리자에게 문의하세요.
-            </p>
-          </div>
-
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
               사이트명 *
@@ -201,6 +186,24 @@ export default function MyResellerSettingsPage() {
               />
             </Suspense>
           </div>
+
+          {/* Domain — read only. Resellers cannot rename their own domain. */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              도메인
+            </label>
+            <input
+              type="text"
+              value={reseller.domain}
+              disabled
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500 cursor-not-allowed"
+            />
+            <p className="text-xs text-slate-400 mt-1">
+              도메인 변경은 플랫폼 관리자에게 문의하세요.
+            </p>
+          </div>
+
+          <ResellerDomainGuide domain={reseller.domain} />
 
           <div className="border-t border-slate-100 pt-4">
             <h2 className="text-sm font-semibold text-slate-800 mb-1">
