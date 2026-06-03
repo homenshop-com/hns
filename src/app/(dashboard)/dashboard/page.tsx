@@ -497,11 +497,9 @@ export default async function DashboardPage() {
               <span className="sep">/</span>
               <span className="cur">{t("navAdminMain")}</span>
             </div>
-            <Link href="/dashboard/search" className="dv2-search" style={{ textDecoration: "none" }}>
-              <Icon id="i-search" size={16} />
-              <input placeholder={t("topbarSearch")} readOnly />
-              <span className="kbd">⌘K</span>
-            </Link>
+            {/* 검색 비활성화 (2026-06-03 사용자 요청: 리셀러/엔드유저 대시보드
+                상단 검색 기능 제거). 재활성화 시 dashboard-shell 의 showSearch
+                패턴과 동일하게 복원. */}
             <div className="dv2-spacer" />
             <div className="dv2-topbar-actions">
               <Link className="dv2-coin-pill" href="/dashboard/credits" title="AI 제작 코인">
