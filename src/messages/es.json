@@ -347,6 +347,7 @@
     "sitesPageSubtitle": "Estás gestionando {count} cuentas homeNshop. Cada cuenta tiene su propio diseño, datos de productos y configuración de dominio.",
     "sitesEmptyTitle": "Aún no tienes sitios/tiendas",
     "sitesEmptyDesc": "Crea uno en 5 minutos con IA, o elige entre 120+ plantillas.",
+    "sitesFilterEmpty": "No hay páginas que coincidan con este filtro.",
     "sitesBrowseTemplates": "Explorar plantillas",
     "sitesCreateBtn": "Crear sitio / tienda",
     "sitesAddNew": "Agregar nuevo sitio/tienda",

@@ -347,6 +347,7 @@
     "sitesPageSubtitle": "現在 {count}個のhomeNshopアカウントを管理中です。各アカウントごとにデザイン、商品データ、ドメインを独立して設定できます。",
     "sitesEmptyTitle": "まだホームページ/ショップがありません",
     "sitesEmptyDesc": "AIで5分で作成するか、120以上のテンプレートから選択してください。",
+    "sitesFilterEmpty": "この条件に一致するホームページはありません。",
     "sitesBrowseTemplates": "テンプレートを見る",
     "sitesCreateBtn": "ホームページ/ショップを作成",
     "sitesAddNew": "新しいホームページ/ショップを追加",

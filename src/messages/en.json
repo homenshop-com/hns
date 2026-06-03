@@ -347,6 +347,7 @@
     "sitesPageSubtitle": "You are managing {count} homeNshop accounts. Each account has its own design, product data, and domain settings.",
     "sitesEmptyTitle": "No sites/shops yet",
     "sitesEmptyDesc": "Build one in 5 minutes with AI, or pick from 120+ templates.",
+    "sitesFilterEmpty": "No homepages match this filter.",
     "sitesBrowseTemplates": "Browse Templates",
     "sitesCreateBtn": "Create Homepage / Shop",
     "sitesAddNew": "Add a new site/shop",

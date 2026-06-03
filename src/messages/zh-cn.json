@@ -347,6 +347,7 @@
     "sitesPageSubtitle": "您正在管理 {count} 个homeNshop账户。每个账户均可独立设置设计、商品数据和域名。",
     "sitesEmptyTitle": "还没有网站/商城",
     "sitesEmptyDesc": "用AI在5分钟内创建，或从120多个模板中选择。",
+    "sitesFilterEmpty": "没有符合此筛选条件的网站。",
     "sitesBrowseTemplates": "浏览模板",
     "sitesCreateBtn": "创建网站/商城",
     "sitesAddNew": "添加新网站/商城",

@@ -87,9 +87,21 @@ function formatKRW(cents: number): string {
  * Page
  * ──────────────────────────────────────────────────────────────── */
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ plan?: string }>;
+}) {
   const session = await auth();
   if (!session) redirect("/login");
+
+  // 홈페이지 계정 리스트 필터: all | free | paid | expired (URL ?plan=)
+  const { plan: planParamRaw } = await searchParams;
+  const planFilter = (["all", "free", "paid", "expired"] as const).includes(
+    planParamRaw as "all" | "free" | "paid" | "expired",
+  )
+    ? (planParamRaw as "all" | "free" | "paid" | "expired")
+    : "all";
 
   const [currentUser, emailVerificationEnabled, t] = await Promise.all([
     prisma.user.findUnique({
@@ -237,6 +249,16 @@ export default async function DashboardPage() {
     pro: sites.filter((s) => s.accountType === "1").length,
     expired: sites.filter((s) => isSiteExpired(s)).length,
   };
+
+  // 칩 필터에 따라 리스트에 표시할 사이트만 추림 (KPI/배너 등은 전체 sites 유지).
+  const filteredSites =
+    planFilter === "free"
+      ? sites.filter((s) => s.accountType === "0")
+      : planFilter === "paid"
+        ? sites.filter((s) => s.accountType === "1")
+        : planFilter === "expired"
+          ? sites.filter((s) => isSiteExpired(s))
+          : sites;
 
   // Expired/warning partitioning. We split by plan type because the
   // copy for a trial ending ("1개월 체험이 끝났어요, 유료 전환하세요")
@@ -540,10 +562,10 @@ export default async function DashboardPage() {
                 </div>
               </div>
               <div className="dv2-chip-group">
-                <button className="dv2-chip on">{t("filterAll")} <span className="n">{byPlan.all}</span></button>
-                <button className="dv2-chip">{t("filterFree")} <span className="n">{byPlan.free}</span></button>
-                <button className="dv2-chip">{t("filterPaid")} <span className="n">{byPlan.pro}</span></button>
-                <button className="dv2-chip">{t("filterExpired")} <span className="n">{byPlan.expired}</span></button>
+                <Link href="/dashboard" className={`dv2-chip${planFilter === "all" ? " on" : ""}`}>{t("filterAll")} <span className="n">{byPlan.all}</span></Link>
+                <Link href="/dashboard?plan=paid" className={`dv2-chip${planFilter === "paid" ? " on" : ""}`}>{t("filterPaid")} <span className="n">{byPlan.pro}</span></Link>
+                <Link href="/dashboard?plan=free" className={`dv2-chip${planFilter === "free" ? " on" : ""}`}>{t("filterFree")} <span className="n">{byPlan.free}</span></Link>
+                <Link href="/dashboard?plan=expired" className={`dv2-chip${planFilter === "expired" ? " on" : ""}`}>{t("filterExpired")} <span className="n">{byPlan.expired}</span></Link>
               </div>
             </div>
 
@@ -817,7 +839,7 @@ export default async function DashboardPage() {
               <div className="dv2-panel-head">
                 <h2>
                   {t("panelHomepageAccounts")}
-                  <span className="count">{t("panelHomepageAccountsCount", { count: sites.length, total: Math.max(sites.length, 5) })}</span>
+                  <span className="count">{t("panelHomepageAccountsCount", { count: filteredSites.length, total: sites.length })}</span>
                 </h2>
                 <div className="tools">
                   <Link href="/dashboard/domains" className="dv2-tool-btn">
@@ -845,8 +867,13 @@ export default async function DashboardPage() {
                     <div />
                   </div>
 
+                  {filteredSites.length === 0 ? (
+                    <div className="dv2-empty">
+                      <div className="d">{t("sitesFilterEmpty")}</div>
+                    </div>
+                  ) : null}
                   <div className="dv2-site-list">
-                    {sites.map((s, index) => {
+                    {filteredSites.map((s, index) => {
                       const plan = PLAN_TAG[s.accountType] || PLAN_TAG["0"];
                       const isExpired = isSiteExpired(s);
                       const remainingDays = daysUntilExpiry(s);
