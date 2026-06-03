@@ -243,6 +243,9 @@ model Site {
   marketplaceIntegrations MarketplaceIntegration[]
   inquiries               Inquiry[]
   subscriptions           Subscription[]
+  /// Back-relation: a Site may be the white-label landing page for one
+  /// reseller domain (Reseller.landingSiteId). Optional; SetNull on delete.
+  landingForReseller      Reseller?                @relation("ResellerLandingSite")
 
   @@index([userId])
   @@index([isTemplateStorage])
@@ -876,10 +879,19 @@ model Reseller {
   /// dashboard. Null for resellers without an owner login yet.
   ownerUserId String? @unique
 
+  /// Optional user-built Site that serves as this reseller domain's landing
+  /// page. When set, the domain's nginx vhost is rewritten to a hybrid that
+  /// serves the published site at page paths while keeping platform paths
+  /// (/login, /dashboard, /admin, /api) on the white-label app. When null,
+  /// the domain falls back to the default platform landing. Owned by the
+  /// reseller's owner account; SetNull if that Site is deleted.
+  landingSiteId String? @unique
+
   owner       User?                @relation("ResellerOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
   /// Customers who signed up through this reseller's white-label domain.
   signups     User[]               @relation("ResellerSignups")
   settlements ResellerSettlement[]
+  landingSite Site?                @relation("ResellerLandingSite", fields: [landingSiteId], references: [id], onDelete: SetNull)
 
   @@index([domain])
 }

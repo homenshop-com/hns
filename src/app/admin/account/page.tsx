@@ -4,6 +4,7 @@ import { useEffect, useState, lazy, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import ResellerLogoField from "@/components/admin/ResellerLogoField";
 import ResellerDomainGuide from "@/components/admin/ResellerDomainGuide";
+import ResellerLandingField from "@/components/admin/ResellerLandingField";
 
 const TiptapEditor = lazy(() => import("@/components/tiptap-editor"));
 
@@ -212,6 +213,9 @@ export default function MyResellerSettingsPage() {
 
           <ResellerDomainGuide domain={reseller.domain} />
         </div>
+
+        {/* ── 랜딩페이지 ── */}
+        <ResellerLandingField endpoint="/api/admin/my-reseller/landing" />
 
         {/* ── 메타 정보 (SEO) ── */}
         <div className="rounded-xl border border-slate-200 bg-white p-6 space-y-4">

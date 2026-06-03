@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import ResellerLogoField from "@/components/admin/ResellerLogoField";
 import ResellerDomainGuide from "@/components/admin/ResellerDomainGuide";
+import ResellerLandingField from "@/components/admin/ResellerLandingField";
 import { normalizeDomain, normalizeDomainInput } from "@/lib/normalize-domain";
 
 const TiptapEditor = lazy(() => import("@/components/tiptap-editor"));
@@ -353,6 +354,9 @@ export default function AdminResellerDetailPage() {
 
           <ResellerDomainGuide domain={domain} />
         </div>
+
+        {/* ── 랜딩페이지 ── */}
+        <ResellerLandingField endpoint={`/api/admin/resellers/${id}/landing`} />
 
         {/* ── 메타 정보 (SEO) ── */}
         <div className="rounded-xl border border-slate-200 bg-white p-6 space-y-4">
