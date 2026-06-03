@@ -58,7 +58,14 @@ export default async function AdminSitesPage({
     prisma.site.findMany({
       where: where as any,
       include: {
-        user: { select: { id: true, email: true, name: true } },
+        user: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            reseller: { select: { siteName: true, domain: true } },
+          },
+        },
         domains: { select: { domain: true } },
         pages: { select: { id: true } },
       },
@@ -109,6 +116,9 @@ export default async function AdminSitesPage({
     createdAt: s.createdAt.toISOString(),
     pageCount: s.pages.length,
     userId: s.user.id,
+    reseller: s.user.reseller
+      ? { siteName: s.user.reseller.siteName, domain: s.user.reseller.domain }
+      : null,
   }));
 
   return (
@@ -170,6 +180,7 @@ export default async function AdminSitesPage({
         totalPages={totalPages}
         perPage={perPage}
         buildUrlBase={buildUrlBase}
+        showReseller={!rid}
       />
     </div>
   );

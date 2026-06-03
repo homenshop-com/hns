@@ -17,6 +17,7 @@ interface SiteRow {
   createdAt: string;
   pageCount: number;
   userId: string;
+  reseller: { siteName: string; domain: string } | null;
 }
 
 const ACCOUNT_TYPES: Record<string, { label: string; color: string }> = {
@@ -33,6 +34,7 @@ export default function SitesTable({
   totalPages,
   perPage,
   buildUrlBase,
+  showReseller,
 }: {
   sites: SiteRow[];
   totalCount: number;
@@ -40,6 +42,7 @@ export default function SitesTable({
   totalPages: number;
   perPage: number;
   buildUrlBase: string;
+  showReseller: boolean;
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
@@ -127,6 +130,9 @@ export default function SitesTable({
               <th className="px-4 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">NO</th>
               <th className="px-4 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">TYPE</th>
               <th className="px-4 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">EMAIL</th>
+              {showReseller && (
+                <th className="px-4 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">가입경로</th>
+              )}
               <th className="px-4 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">DOMAIN</th>
               <th className="px-4 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">SITE ID</th>
               <th className="px-4 py-3 font-medium text-slate-500 text-center">
@@ -162,6 +168,20 @@ export default function SitesTable({
                     </span>
                   </td>
                   <td className="px-4 py-3 text-slate-600">{site.email}</td>
+                  {showReseller && (
+                    <td className="px-4 py-3">
+                      {site.reseller ? (
+                        <span
+                          title={site.reseller.domain}
+                          className="inline-block rounded-md bg-violet-50 px-2 py-1 text-xs font-medium text-violet-700 ring-1 ring-inset ring-purple-600/20"
+                        >
+                          {site.reseller.siteName}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-400">직접 가입</span>
+                      )}
+                    </td>
+                  )}
                   <td className="px-4 py-3">
                     {site.domain ? (
                       <a href={`https://${site.domain}`} target="_blank" rel="noopener" className="text-[#3182f6] hover:text-[#3182f6] hover:underline">
@@ -240,7 +260,7 @@ export default function SitesTable({
             })}
             {sites.length === 0 && (
               <tr>
-                <td colSpan={10} className="px-4 py-8 text-center text-slate-600">
+                <td colSpan={showReseller ? 11 : 10} className="px-4 py-8 text-center text-slate-600">
                   결과가 없습니다.
                 </td>
               </tr>
