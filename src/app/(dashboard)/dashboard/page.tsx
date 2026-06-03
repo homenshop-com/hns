@@ -11,6 +11,7 @@ import { getSettingBool } from "@/lib/settings";
 import { canAccessIntegrations } from "@/lib/feature-flags";
 import "./dashboard-v2.css";
 import { DashboardIconSprite, Icon } from "./dashboard-icons";
+import DashboardBrand from "./dashboard-brand";
 import SupportUnreadIndicator from "./support-unread-indicator";
 import {
   daysUntilExpiry,
@@ -427,7 +428,7 @@ export default async function DashboardPage({
       <div className="dv2-app">
         {/* ───── SIDEBAR ───── */}
         <aside className="dv2-side">
-          <Link href="/dashboard" className="dv2-brand" title="대시보드로"><div className="dv2-brand-mark">h</div><div className="dv2-brand-name">home<span className="ns">Nshop</span></div></Link>
+          <DashboardBrand />
 
           <nav className="dv2-nav">
             <Link className="active" href="/dashboard">

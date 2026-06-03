@@ -120,6 +120,8 @@
 }
 .dv2-brand-name { font-weight: 800; font-size: 16px; letter-spacing: -.02em; }
 .dv2-brand-name .ns { color: var(--brand); }
+/* 화이트라벨 리셀러 로고 — 사이드바 브랜드 영역에 맞춰 높이 제한 */
+.dv2-brand-logo { max-height: 32px; max-width: 160px; width: auto; object-fit: contain; }
 
 .dv2-side-section { margin-top: 10px; }
 .dv2-side-label {

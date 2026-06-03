@@ -10,6 +10,7 @@ import SignOutButton from "./sign-out-button";
 import MobileBottomNav from "./mobile-bottom-nav";
 import SupportUnreadIndicator from "./support-unread-indicator";
 import { DashboardIconSprite, Icon } from "./dashboard-icons";
+import DashboardBrand from "./dashboard-brand";
 import "./dashboard-v2.css";
 
 export type DashboardNavKey =
@@ -85,12 +86,7 @@ export default async function DashboardShell({
       <div className="dv2-app">
         {/* ───── SIDEBAR ───── */}
         <aside className="dv2-side">
-          <Link href="/dashboard" className="dv2-brand" title="대시보드로">
-            <div className="dv2-brand-mark">h</div>
-            <div className="dv2-brand-name">
-              home<span className="ns">Nshop</span>
-            </div>
-          </Link>
+          <DashboardBrand />
 
           <nav className="dv2-nav">
             <Link className={cls("home")} href="/dashboard">
