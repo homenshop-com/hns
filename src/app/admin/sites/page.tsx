@@ -27,11 +27,19 @@ export default async function AdminSitesPage({
   const dateTo = params.dateTo || "";
   const page = parsePageParam(params.page);
   const perPage = 20;
+  // Reseller operators are hard-scoped to their own attribution; only full
+  // admins get to pick a signup source. "none" = direct homenshop.net signups.
+  const resellerFilter = rid ? "" : params.reseller || "";
 
-  // Reseller operators only see sites whose owner is attributed to them.
-  // Re-applied to every count query below as well.
+  // Owner-level scope: reseller operators see only their attributed accounts;
+  // a full admin's reseller-filter selection narrows the same way. Folded into
+  // scopeBase so the account-type tab counts reflect the active source filter.
   const scopeBase: Record<string, unknown> = { isTemplateStorage: false };
-  if (rid) scopeBase.user = { resellerId: rid };
+  const scopeUser: Record<string, unknown> = {};
+  if (rid) scopeUser.resellerId = rid;
+  else if (resellerFilter === "none") scopeUser.resellerId = null;
+  else if (resellerFilter) scopeUser.resellerId = resellerFilter;
+  if (Object.keys(scopeUser).length > 0) scopeBase.user = scopeUser;
 
   // Build where clause — hide template-storage clones from admin lists
   const where: Record<string, unknown> = { ...scopeBase };
@@ -41,7 +49,7 @@ export default async function AdminSitesPage({
   }
   if (search) {
     if (filterBy === "email") {
-      where.user = { ...(rid ? { resellerId: rid } : {}), email: { contains: search, mode: "insensitive" } };
+      where.user = { ...scopeUser, email: { contains: search, mode: "insensitive" } };
     } else if (filterBy === "domain") {
       where.domains = { some: { domain: { contains: search, mode: "insensitive" } } };
     } else {
@@ -54,7 +62,7 @@ export default async function AdminSitesPage({
     if (dateTo) (where.createdAt as Record<string, unknown>).lte = new Date(dateTo + "T23:59:59");
   }
 
-  const [sites, totalCount, countByType] = await Promise.all([
+  const [sites, totalCount, countByType, resellers] = await Promise.all([
     prisma.site.findMany({
       where: where as any,
       include: {
@@ -81,6 +89,13 @@ export default async function AdminSitesPage({
       prisma.site.count({ where: { ...scopeBase, accountType: "9" } as any }),
       prisma.site.count({ where: { ...scopeBase, accountType: "2" } as any }),
     ]),
+    // Reseller picker — full admins only; reseller operators are scoped.
+    rid
+      ? Promise.resolve([])
+      : prisma.reseller.findMany({
+          orderBy: { siteName: "asc" },
+          select: { id: true, siteName: true, domain: true },
+        }),
   ]);
 
   const totalPages = Math.ceil(totalCount / perPage);
@@ -89,7 +104,7 @@ export default async function AdminSitesPage({
 
   function buildUrl(overrides: Record<string, string>) {
     const p = new URLSearchParams();
-    const merged = { tab, search, filterBy, dateFrom, dateTo, page: String(page), ...overrides };
+    const merged = { tab, search, filterBy, dateFrom, dateTo, reseller: resellerFilter, page: String(page), ...overrides };
     Object.entries(merged).forEach(([k, v]) => { if (v) p.set(k, v); });
     return `/admin/sites?${p.toString()}`;
   }
@@ -101,6 +116,7 @@ export default async function AdminSitesPage({
   if (filterBy) paginationParts.set("filterBy", filterBy);
   if (dateFrom) paginationParts.set("dateFrom", dateFrom);
   if (dateTo) paginationParts.set("dateTo", dateTo);
+  if (resellerFilter) paginationParts.set("reseller", resellerFilter);
   const buildUrlBase = `/admin/sites?${paginationParts.toString()}`;
 
   // Serialize for client component
@@ -166,9 +182,31 @@ export default async function AdminSitesPage({
               <input type="text" name="search" defaultValue={search} placeholder="Search keyword" className="border border-slate-300 rounded-lg bg-white px-3 py-2 text-sm text-slate-800 w-48" />
             </div>
           </div>
+          {!rid && (
+            <div>
+              <label className="block text-xs text-slate-500 mb-1">가입경로</label>
+              <select name="reseller" defaultValue={resellerFilter} className="border border-slate-300 rounded-lg bg-white px-3 py-2 text-sm text-slate-800">
+                <option value="">전체 가입경로</option>
+                <option value="none">직접 가입 (homenshop.net)</option>
+                {resellers.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.siteName} ({r.domain})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <button type="submit" className="bg-[#3182f6] text-white px-6 py-2 rounded text-sm font-medium hover:bg-[#1b64da]">
             Search
           </button>
+          {(search || dateFrom || dateTo || resellerFilter) && (
+            <Link
+              href={buildUrl({ search: "", dateFrom: "", dateTo: "", reseller: "", page: "1" })}
+              className="border border-slate-300 text-slate-600 px-4 py-2 rounded text-sm font-medium hover:bg-slate-50"
+            >
+              초기화
+            </Link>
+          )}
         </form>
       </div>
 
