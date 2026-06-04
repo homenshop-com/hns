@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import DashboardShell from "../dashboard-shell";
 import { Icon } from "../dashboard-icons";
 import AICreateButton from "../ai-create-button";
+import CloneSiteControl from "./clone-site-control";
 import { getSettingBool } from "@/lib/settings";
 import { canAccessIntegrations } from "@/lib/feature-flags";
 import {
@@ -380,6 +381,16 @@ export default async function SitesPage() {
                       <Link href={`/dashboard/site/settings?id=${s.id}`} className="dv2-row-btn">
                         <Icon id="i-info" size={13} /> {t("btnInfo")}
                       </Link>
+                      {/* 2026-06-04 사용자 요청: 리셀러는 대시보드에서도 계정
+                          100% 복제 가능. 일반 회원에는 미노출(과금 이슈) —
+                          API도 manageScope.resellerId 로 게이트. */}
+                      {manageScope.resellerId && (
+                        <CloneSiteControl
+                          siteId={s.id}
+                          shopId={s.shopId}
+                          name={s.name || s.shopId}
+                        />
+                      )}
                     </div>
                     <Link href={`/dashboard/site/settings?id=${s.id}`} className="dv2-kebab">
                       <Icon id="i-more" size={16} />

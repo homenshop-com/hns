@@ -12,32 +12,12 @@
  */
 
 import { NextResponse } from "next/server";
-import { promises as fs } from "fs";
-import { join } from "path";
 import { prisma } from "@/lib/db";
 import { getAdminAccess, scopeResellerId } from "@/lib/admin-access";
 import { cloneSite } from "@/lib/site-clone";
+import { copySiteAssets } from "@/lib/site-clone-assets";
 
 export const maxDuration = 120;
-
-const UPLOAD_DIR = process.env.UPLOAD_DIR || "/var/www/uploads";
-const LEGACY_DATA_DIR = process.env.LEGACY_DATA_DIR || "/var/www/legacy-data/userdata";
-
-/** Recursively copy src→dest when src exists. Never throws. */
-async function copyIfExists(src: string, dest: string): Promise<boolean> {
-  try {
-    await fs.access(src);
-  } catch {
-    return false; // source absent (e.g. local dev) — skip silently
-  }
-  try {
-    await fs.cp(src, dest, { recursive: true, force: false, errorOnExist: false });
-    return true;
-  } catch (e) {
-    console.error("[clone] asset copy failed", src, "→", dest, e);
-    return false;
-  }
-}
 
 export async function POST(
   request: Request,
@@ -98,16 +78,7 @@ export async function POST(
 
   // Best-effort: copy upload folders so the clone is self-contained. Failure
   // here never undoes the DB clone — images can be re-copied later.
-  const assets = {
-    legacy: await copyIfExists(
-      join(LEGACY_DATA_DIR, source.shopId),
-      join(LEGACY_DATA_DIR, newShopId),
-    ),
-    siteUploads: await copyIfExists(
-      join(UPLOAD_DIR, "site-uploads", source.shopId),
-      join(UPLOAD_DIR, "site-uploads", newShopId),
-    ),
-  };
+  const assets = await copySiteAssets(source.shopId, newShopId);
 
   return NextResponse.json({
     site: result.site,
