@@ -10,6 +10,9 @@ import { prisma } from "@/lib/db";
  *
  *   POST /api/admin/support/[userId]  → append an ADMIN message
  *     Creates the thread if the user has never posted.
+ *
+ *   DELETE /api/admin/support/[userId]  → delete the whole thread
+ *     Messages cascade-delete with the thread (onDelete: Cascade).
  */
 
 async function requireAdmin() {
@@ -128,4 +131,24 @@ export async function POST(
       createdAt: message.createdAt,
     },
   });
+}
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ userId: string }> },
+) {
+  const a = await requireAdmin();
+  if (a.error) return a.error;
+  const { userId } = await params;
+
+  const thread = await prisma.supportThread.findUnique({
+    where: { userId },
+    select: { id: true },
+  });
+  if (!thread) {
+    return NextResponse.json({ error: "삭제할 상담 내역이 없습니다." }, { status: 404 });
+  }
+
+  await prisma.supportThread.delete({ where: { id: thread.id } });
+  return NextResponse.json({ ok: true });
 }

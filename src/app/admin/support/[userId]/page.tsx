@@ -3,6 +3,7 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import AdminChat from "./admin-chat";
+import DeleteThreadButton from "./delete-thread-button";
 // Both required:
 //   · dashboard-v2.css defines the CSS custom properties (--brand, --line,
 //     --panel, etc.) inside `.dv2-app { ... }`.
@@ -68,6 +69,7 @@ export default async function AdminSupportUserPage({
           <span className="px-2 py-1 rounded bg-slate-100 font-mono">
             {user.id.slice(-10)}
           </span>
+          <DeleteThreadButton userId={user.id} userName={userName} />
         </div>
       </div>
 
