@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import ImportFromDesignModal from "./import-from-design-modal";
+import ImportFromUrlModal from "./import-from-url-modal";
 
 interface TemplateRow {
   id: string;
@@ -35,6 +36,7 @@ export default function TemplatesTable({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [syncedAt, setSyncedAt] = useState<Record<string, number>>({});
   const [importOpen, setImportOpen] = useState(false);
+  const [importUrlOpen, setImportUrlOpen] = useState(false);
 
   async function openDesignEditor(id: string, reset = false) {
     if (busyId) return;
@@ -136,20 +138,37 @@ export default function TemplatesTable({
     <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
       <div className="px-4 py-3 border-b border-slate-100 text-sm text-slate-500 flex justify-between items-center">
         <span>총 <b className="text-slate-800">{totalCount.toLocaleString()}</b>개</span>
-        <button
-          type="button"
-          onClick={() => setImportOpen(true)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#3182f6] text-white text-xs font-medium rounded-md hover:bg-[#3182f6]/90 transition-colors"
-          title="claude.ai/design 에서 Copy command 로 복사한 명령어를 붙여넣어 새 템플릿으로 가져옵니다"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <path d="M12 5v14M5 12h14" />
-          </svg>
-          템플릿 추가 (Claude Design)
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setImportUrlOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white text-slate-700 border border-slate-300 text-xs font-medium rounded-md hover:bg-slate-50 transition-colors"
+            title="퍼블리싱된 사이트 URL 을 입력해 그 디자인을 그대로 템플릿으로 캡처합니다"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+            </svg>
+            URL 에서 가져오기
+          </button>
+          <button
+            type="button"
+            onClick={() => setImportOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#3182f6] text-white text-xs font-medium rounded-md hover:bg-[#3182f6]/90 transition-colors"
+            title="claude.ai/design 에서 Copy command 로 복사한 명령어를 붙여넣어 새 템플릿으로 가져옵니다"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            템플릿 추가 (Claude Design)
+          </button>
+        </div>
       </div>
       {importOpen && (
         <ImportFromDesignModal onClose={() => setImportOpen(false)} />
+      )}
+      {importUrlOpen && (
+        <ImportFromUrlModal onClose={() => setImportUrlOpen(false)} />
       )}
       <table className="w-full text-sm">
         <thead className="bg-slate-50 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">

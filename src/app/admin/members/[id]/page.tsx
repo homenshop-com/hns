@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import CreateSiteFromTemplate from "./create-site-from-template";
 
 interface SiteInfo {
   id: string;
@@ -68,6 +69,7 @@ export default function AdminMemberDetailPage() {
   // Credits
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
   const [creditHistory, setCreditHistory] = useState<CreditTxn[]>([]);
+  const [createSiteOpen, setCreateSiteOpen] = useState(false);
   const [adjustAmount, setAdjustAmount] = useState("");
   const [adjustDesc, setAdjustDesc] = useState("");
   const [adjustSaving, setAdjustSaving] = useState(false);
@@ -547,7 +549,19 @@ export default function AdminMemberDetailPage() {
 
         {/* Sites */}
         <div className="rounded-xl border border-slate-200 bg-white p-6 lg:col-span-2">
-          <h2 className="text-base font-semibold text-slate-800 mb-4">사이트 정보 ({member.sites.length})</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-semibold text-slate-800">사이트 정보 ({member.sites.length})</h2>
+            <button
+              type="button"
+              onClick={() => setCreateSiteOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[#3182f6] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#1b64da] transition-colors"
+            >
+              <svg width={14} height={14} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.8}>
+                <path d="M10 4v12M4 10h12" strokeLinecap="round" />
+              </svg>
+              템플릿으로 사이트 만들기
+            </button>
+          </div>
           {member.sites.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -586,6 +600,10 @@ export default function AdminMemberDetailPage() {
           )}
         </div>
       </div>
+
+      {createSiteOpen && (
+        <CreateSiteFromTemplate userId={member.id} onClose={() => setCreateSiteOpen(false)} />
+      )}
     </div>
   );
 }
