@@ -4,6 +4,11 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import ExpiryEditor from "./expiry-editor";
+import CloneSiteModal from "./clone-site-modal";
+
+// Login(임퍼소네이트/마스터비번) + 로그인정보 복제(링크 복사) 버튼은 현재
+// 제대로 작동하지 않아 숨김. 추후 개선 후 true 로 되돌리면 그대로 복구됨.
+const SHOW_LOGIN_TOOLS = false;
 
 interface SiteRow {
   id: string;
@@ -53,6 +58,7 @@ export default function SitesTable({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
   const [loggingIn, setLoggingIn] = useState<string | null>(null);
+  const [cloneFor, setCloneFor] = useState<SiteRow | null>(null);
   const router = useRouter();
 
   async function impersonate(site: SiteRow) {
@@ -256,7 +262,15 @@ export default function SitesTable({
                     >
                       View
                     </Link>
-                    {useImpersonateApi ? (
+                    <button
+                      onClick={() => setCloneFor(site)}
+                      title={`${site.shopId} 계정 100% 복제`}
+                      className="bg-violet-600 text-white px-3 py-1 rounded text-xs font-medium hover:bg-violet-700 ml-1"
+                    >
+                      복제
+                    </button>
+                    {/* Login / 로그인정보 복제 — 현재 미작동, 숨김 (추후 개선) */}
+                    {SHOW_LOGIN_TOOLS && (useImpersonateApi ? (
                       <button
                         onClick={() => impersonate(site)}
                         disabled={loggingIn === site.id}
@@ -286,7 +300,8 @@ export default function SitesTable({
                       >
                         Login
                       </button>
-                    )}
+                    ))}
+                    {SHOW_LOGIN_TOOLS && (
                     <button
                       onClick={() => {
                         const url = `https://homenshop.net/login?email=${encodeURIComponent(site.email)}`;
@@ -300,6 +315,7 @@ export default function SitesTable({
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                       <span id={`copy-ok-${site.id}`} className="absolute -top-6 left-1/2 -translate-x-1/2 bg-slate-100 text-emerald-700 text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap opacity-0 transition-opacity pointer-events-none">Copied!</span>
                     </button>
+                    )}
                   </td>
                 </tr>
               );
@@ -343,6 +359,15 @@ export default function SitesTable({
             </Link>
           )}
         </div>
+      )}
+
+      {cloneFor && (
+        <CloneSiteModal
+          sourceSiteId={cloneFor.id}
+          sourceShopId={cloneFor.shopId}
+          sourceName={cloneFor.shopId}
+          onClose={() => setCloneFor(null)}
+        />
       )}
     </div>
   );
