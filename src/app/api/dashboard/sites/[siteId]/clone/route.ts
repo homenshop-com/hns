@@ -25,7 +25,7 @@ export const maxDuration = 120;
 
 export async function POST(
   request: Request,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ siteId: string }> },
 ) {
   const scope = await getManageScope();
   if (!scope) {
@@ -36,7 +36,7 @@ export async function POST(
     return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 });
   }
 
-  const { id } = await params;
+  const { siteId } = await params;
 
   const body = (await request.json().catch(() => null)) as {
     newShopId?: string;
@@ -48,7 +48,7 @@ export async function POST(
 
   // Confirm the source exists AND is within this operator's manage scope.
   const source = await prisma.site.findFirst({
-    where: { id, ...manageableSiteWhere(scope) },
+    where: { id: siteId, ...manageableSiteWhere(scope) },
     select: { id: true, shopId: true },
   });
   if (!source) {
@@ -59,7 +59,7 @@ export async function POST(
   }
 
   const result = await cloneSite({
-    sourceSiteId: id,
+    sourceSiteId: siteId,
     newShopId,
     newName,
     // Owner defaults to the source site's owner inside cloneSite — keeps a
