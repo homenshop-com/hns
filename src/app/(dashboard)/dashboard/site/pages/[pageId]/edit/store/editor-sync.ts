@@ -183,7 +183,7 @@ function applyFrameToEl(
   // boxes the parser enlarges to their art's size (e.g. a 749px menu bar
   // pinned in a 410px box). Mobile has no separate importance set, so the
   // mobile frame is always written plain.
-  const important = new Set(mobile ? [] : (layer.frameImportant ?? []));
+  const important = new Set<string>(mobile ? [] : (layer.frameImportant ?? []));
   const setFrameProp = (prop: string, key: string, value: string) => {
     if (important.has(key)) el.style.setProperty(prop, value, "important");
     else el.style.setProperty(prop, value);
