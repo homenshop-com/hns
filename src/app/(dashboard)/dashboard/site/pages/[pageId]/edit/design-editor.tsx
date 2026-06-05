@@ -2785,6 +2785,28 @@ export default function DesignEditor({
     (cssText?.includes("calc(-50vw + 50%)") ?? false) ||
     (templateCss?.includes("/* HNS-MODERN-TEMPLATE */") ?? false);
 
+  // Some legacy sites are authored for a canvas wider than the default 1000px
+  // design viewport — e.g. a 1130px layout whose right-most menu items / header
+  // icons sit past the 1000px mark. The published page honors that authored
+  // width via `#v_home_dft { width: NNNNpx }` / `.c_v_home_dft { width: NNNNpx }`,
+  // but the editor's `#de-canvas-inner` is hard-capped at 1000px (editor-styles.css,
+  // ID specificity beats the `.c_v_home_dft` class rule and `#v_home_dft` doesn't
+  // exist in the editor DOM), so that content gets clipped and the editor no longer
+  // matches the published layout. Detect the authored width and size the artboard
+  // to match. Only ever widen (never below 1000) so the common case is untouched.
+  const designCanvasWidth = (() => {
+    if (isModernCanvas) return null;
+    const sources = [currentPageCss, cssText, templateCss].filter(Boolean).join("\n");
+    const re = /(?:#v_home_dft|\.c_v_home_dft)\s*\{[^}]*?(?<![a-z-])width\s*:\s*(\d+)px/gi;
+    let max = 0;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(sources)) !== null) {
+      const w = parseInt(m[1], 10);
+      if (w > max) max = w;
+    }
+    return max > 1000 ? max : null;
+  })();
+
   const selectedProps = getSelectedElProps();
 
   /* ─── Header/Footer settings helpers ─── */
@@ -3683,7 +3705,7 @@ export default function DesignEditor({
               ? "375 × auto"
               : isModernCanvas
                 ? "100% × auto"
-                : "1000 × auto"}
+                : `${designCanvasWidth ?? 1000} × auto`}
           </span>
         </div>
 
@@ -3693,11 +3715,13 @@ export default function DesignEditor({
           style={{
             transform: zoom !== 100 ? `scale(${zoom / 100})` : undefined,
             transformOrigin: "top center",
+            ...(designCanvasWidth ? { width: designCanvasWidth } : {}),
           }}
         >
           <div
             className={`de-canvas-content c_v_home_dft${isModernCanvas ? " is-modern" : ""}`}
             id="de-canvas-inner"
+            style={designCanvasWidth ? { width: designCanvasWidth } : undefined}
           >
             {/* HEADER — ref-only, set via useEffect to preserve drag edits */}
             <div id="hns_header" ref={headerRef} />
@@ -4090,7 +4114,7 @@ export default function DesignEditor({
           {t("statusBar.zoom")} <span className="mono">{zoom}%</span>
         </span>
         <span className="item">
-          {t("statusBar.viewport")} <span className="mono">{viewportMode === "mobile" ? "375" : "1000"}</span>
+          {t("statusBar.viewport")} <span className="mono">{viewportMode === "mobile" ? "375" : (designCanvasWidth ?? 1000)}</span>
         </span>
       </div>
     </div>
