@@ -538,9 +538,14 @@
   display: block;
   pointer-events: none;
 }
-/* Header background images (menubg etc.) intentionally overflow their container — do NOT constrain them */
-#de-canvas-inner #hns_body .dragable img,
-#de-canvas-inner #hns_footer .dragable img {
+/* Designer-authored images carry an explicit inline `width:NNNpx` and are meant
+   to overflow their (smaller) .dragable container — e.g. a 749px menu-bar bg image
+   inside a 410px box, mirroring how the published page renders them. Capping those
+   to max-width:100% shrinks them to the container and breaks fidelity. Only cap
+   images WITHOUT an inline width (board/product/content images) so they don't blow
+   past the canvas. Header bg images (menubg etc.) are already exempt by selector. */
+#de-canvas-inner #hns_body .dragable img:not([style*="width"]),
+#de-canvas-inner #hns_footer .dragable img:not([style*="width"]) {
   max-width: 100%;
 }
 
