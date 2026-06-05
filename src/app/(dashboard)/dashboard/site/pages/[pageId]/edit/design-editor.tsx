@@ -13,6 +13,7 @@ import "./editor-figma-theme.css";
 import { useEditorStore } from "./store/editor-store";
 import {
   applySelection as syncApplySelection,
+  normalizeAnchorImageBoxes,
   syncStoreToDom,
 } from "./store/editor-sync";
 import { snapRect, type Rect as SnapRect } from "./store/snap";
@@ -820,6 +821,10 @@ export default function DesignEditor({
     if (headerRef.current && !headerInitedRef.current) {
       headerRef.current.innerHTML = headerHtml;
       headerInitedRef.current = true;
+      // Header is raw-injected (not scene-managed), so apply the same
+      // image-anchor box normalization the scene parser does for the body —
+      // fixes logos pinned in a tiny box (e.g. 406px logo in a 200px box).
+      normalizeAnchorImageBoxes(headerRef.current);
       // Detect logo URL
       const logoImg = headerRef.current.querySelector("#hns_h_logo img, .logo img, [id*=logo] img, a img") as HTMLImageElement | null;
       if (logoImg?.src) setLogoUrl(logoImg.src);

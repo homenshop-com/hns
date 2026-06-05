@@ -574,6 +574,41 @@ function applyImageDataToEl(el: HTMLElement, layer: Layer) {
 }
 
 /**
+ * DOM counterpart of the parser's image-anchor frame normalization
+ * (`buildImageLayer` in `@/lib/scene`). Used for raw-injected regions that do
+ * NOT go through the scene graph — chiefly the header (`#hns_header`), whose
+ * logo is a large image pinned inside a tiny positioning box (e.g. a 406px
+ * logo in a 200px-wide `.dragable`). Without this the box (and any selection
+ * handles drawn on it) reports the tiny anchor size while the visible art is
+ * much larger.
+ *
+ * Same guard as the parser: only when the image is at least 1.5× the box's
+ * explicit width — an unmistakable positioning anchor, not a deliberately
+ * sized element. Idempotent: after the box is widened the ratio no longer
+ * trips, so re-running is a no-op. Visual output is unchanged (the image
+ * already overflowed the box visibly).
+ */
+export function normalizeAnchorImageBoxes(root: HTMLElement) {
+  const RATIO = 1.5;
+  root.querySelectorAll<HTMLElement>(".dragable").forEach((box) => {
+    const img = box.querySelector("img");
+    if (!img) return;
+    const bw = parseFloat(box.style.width);
+    if (!(bw > 0)) return; // box width must be explicitly set
+    const iw =
+      parseFloat((img as HTMLElement).style.width) ||
+      parseFloat(img.getAttribute("width") || "");
+    if (!(iw > 0) || iw < bw * RATIO) return;
+    box.style.width = `${iw}px`;
+    const bh = parseFloat(box.style.height);
+    const ih =
+      parseFloat((img as HTMLElement).style.height) ||
+      parseFloat(img.getAttribute("height") || "");
+    if (bh > 0 && ih > bh) box.style.height = `${ih}px`;
+  });
+}
+
+/**
  * Back-compat alias for the flat-only order sync used pre-Tier-2.
  * New code should prefer `applyStructure`.
  */

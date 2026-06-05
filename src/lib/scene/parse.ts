@@ -328,6 +328,40 @@ function buildImageLayer(el: Element, id: string, name: string): ImageLayer {
   const img = el.querySelector("img");
   const a = el.querySelector("a");
 
+  // Legacy designer image layers sometimes pin a SMALLER positioning box than
+  // the image they wrap — e.g. a 749×112 menu-bar bg or a 406×179 logo inside
+  // a 410×100 / 200px-wide `.dragable` — relying on overflow:visible to let the
+  // art paint past the box. In the editor that mismatch makes the selection
+  // handles + inspector report the tiny box while the visible image is larger,
+  // so resize/align feels broken. Normalize the layer frame UP to the image's
+  // authored pixel size so the object box matches what the user sees.
+  //
+  // Trigger only when the image DRAMATICALLY overflows its box horizontally —
+  // the image is at least 1.5× the explicitly-sized box width (menu bars,
+  // logos: e.g. 749px in a 410px box, 406px in a 200px box). At that ratio the
+  // box is unmistakably a tiny positioning anchor, not a meaningfully-sized
+  // element, so snapping it up to the image size is safe and fixes the editor
+  // (selection handles + inspector now wrap the visible art). When triggered we
+  // also lift the height to match.
+  //
+  // Minor overflow (a few px, or a box that's only slightly smaller) is left
+  // alone: such a box may be deliberately sized (background/border) and
+  // rewriting it would mutate appearance and churn content on every save. A box
+  // dimension with no authored value stays auto (absolute shrink-to-fit already
+  // wraps the image). Published output is unchanged: the image starts at the
+  // box's top-left and overflowed visibly, so a box of the image's size at the
+  // same left/top paints identically.
+  const ANCHOR_OVERFLOW_RATIO = 1.5;
+  if (img) {
+    const imgStyle = parseStyle(img.getAttribute("style"));
+    const iw = pxNum(imgStyle["width"]) ?? pxNum(img.getAttribute("width") ?? undefined);
+    const ih = pxNum(imgStyle["height"]) ?? pxNum(img.getAttribute("height") ?? undefined);
+    if (iw != null && frameKeys.includes("width") && frame.w > 0 && iw >= frame.w * ANCHOR_OVERFLOW_RATIO) {
+      frame.w = iw;
+      if (ih != null && frameKeys.includes("height") && ih > frame.h) frame.h = ih;
+    }
+  }
+
   const layer: ImageLayer = {
     id,
     name,

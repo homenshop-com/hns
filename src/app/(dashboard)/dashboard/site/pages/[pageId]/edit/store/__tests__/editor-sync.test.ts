@@ -10,6 +10,7 @@ import {
   applyVisibilityAndLock,
   applyOrder,
   applySelection,
+  normalizeAnchorImageBoxes,
   pruneOrphans,
   syncStoreToDom,
 } from "../editor-sync";
@@ -104,13 +105,43 @@ describe("editor-sync: legacy image width preservation", () => {
   // img to fill its wrapper, or the editor diverges from the published page.
   const MENU_BAR = `<div id="bar" class="dragable" style="position:absolute;left:383px;top:34px;width:410px;height:100px"><img alt="" src="https://home.homenshop.com/konnichiwa/uploaded/files/bar-10.png" style="width: 749px; height: 112px;"></div>`;
 
+  it("normalizes the layer frame up to the image's authored size", () => {
+    const scene = legacyHtmlToScene(MENU_BAR);
+    const bar = scene.root.children.find((l) => l.id === "bar")!;
+    expect(bar.frame.w).toBe(749);
+    expect(bar.frame.h).toBe(112);
+  });
+
   it("preserves authored px width on initial sync (no src swap)", () => {
     const el = container(MENU_BAR);
     const scene = legacyHtmlToScene(MENU_BAR);
     syncStoreToDom(scene, el);
+    const box = el.querySelector<HTMLElement>("#bar")!;
     const img = el.querySelector<HTMLImageElement>("#bar img")!;
+    // Object box widened to match the image; image keeps its authored px so it
+    // fills the normalized box exactly (matches the published render).
+    expect(box.style.width).toBe("749px");
     expect(img.style.width).toBe("749px");
     expect(img.style.width).not.toBe("100%");
+  });
+
+  it("normalizeAnchorImageBoxes widens a logo box pinned around a larger image", () => {
+    // Raw header pattern: 406px logo inside a 200px positioning box.
+    const el = container(
+      `<div id="hns_h_logo" class="dragable" style="width:200px;left:-6px;top:17px"><a href="#"><img src="logo.png" style="width:406px;height:179px"></a></div>`,
+    );
+    normalizeAnchorImageBoxes(el);
+    const box = el.querySelector<HTMLElement>("#hns_h_logo")!;
+    expect(box.style.width).toBe("406px");
+  });
+
+  it("normalizeAnchorImageBoxes leaves a box that already fits its image", () => {
+    const el = container(
+      `<div id="ok" class="dragable" style="width:700px;height:33px"><img src="bar.gif" style="width:620px;height:38px"></div>`,
+    );
+    normalizeAnchorImageBoxes(el);
+    const box = el.querySelector<HTMLElement>("#ok")!;
+    expect(box.style.width).toBe("700px");
   });
 
   it("force-fills the wrapper on a genuine src swap", () => {
