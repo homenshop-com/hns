@@ -7,6 +7,7 @@ import { isEditorV2Enabled } from "@/lib/editor-flags";
 import DesignEditor from "./design-editor";
 import { getTempDomain } from "@/lib/temp-domains";
 import { getManageScope, canManage } from "@/lib/site-access";
+import { getResellerForHost } from "@/lib/reseller";
 
 interface EditPageProps {
   params: Promise<{ pageId: string }>;
@@ -121,6 +122,15 @@ export default async function EditPagePage({ params }: EditPageProps) {
   // render time (route.ts:605-607); without it, images in the editor
   // iframe 404 and the page looks empty. Migrated legacy templates in
   // particular have tons of these relative paths in Page.content.
+  // Topbar brand — mirror DashboardBrand's white-label vs canonical logic so
+  // the editor's .de-logo shows the reseller's brand on white-label hosts
+  // instead of leaking the stock "homeNshop" mark.
+  const reseller = await getResellerForHost();
+  const isWhiteLabel = !!reseller && !reseller.isCanonical;
+  const brand = isWhiteLabel
+    ? { brandName: reseller.siteName, logoUrl: reseller.logoUrl, whiteLabel: true }
+    : { brandName: "homeNshop", logoUrl: null, whiteLabel: false };
+
   let headerHtmlFinal = headerHtml;
   let footerHtmlFinal = footerHtml;
   let menuHtmlFinal = menuHtml;
@@ -156,6 +166,7 @@ export default async function EditPagePage({ params }: EditPageProps) {
       langPageMap={langPageMap}
       editorV2Enabled={isEditorV2Enabled(session.user?.email)}
       isResponsiveTemplate={isResponsiveTemplate}
+      brand={brand}
     />
   );
 }

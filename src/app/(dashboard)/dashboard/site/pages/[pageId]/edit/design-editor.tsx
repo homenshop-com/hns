@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, useEffect, lazy, Suspense } from "react"
 import { useStore } from "zustand";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import BrandMark from "@/components/BrandMark";
 import "./editor-styles.css";
 // Sprint 9i (2026-04-22) — Figma-inspired dark theme overlay, recreating
 // "Editor Canvas.html" from Claude Design. Must import AFTER editor-styles.css
@@ -256,6 +257,10 @@ interface DesignEditorProps {
    *  in the toolbar — the layout flows automatically and there's no
    *  separate "mobile" coordinate system to edit. */
   isResponsiveTemplate?: boolean;
+  /** Topbar brand for the .de-logo mark. White-label reseller hosts get the
+   *  reseller's siteName/logo; the canonical host falls back to "homeNshop".
+   *  Computed in the server parent via getResellerForHost(). */
+  brand?: { brandName: string; logoUrl: string | null; whiteLabel: boolean };
 }
 
 /* ─── Component ─── */
@@ -283,6 +288,7 @@ export default function DesignEditor({
   langPageMap = {},
   editorV2Enabled = false,
   isResponsiveTemplate = false,
+  brand = { brandName: "homeNshop", logoUrl: null, whiteLabel: false },
 }: DesignEditorProps) {
   const router = useRouter();
   const t = useTranslations("editor");
@@ -3073,7 +3079,30 @@ export default function DesignEditor({
           moved to the left rail and the right Inspector panel. */}
       <header className="de-header">
         <div className="de-header-left">
-          <a href="/dashboard" className="de-logo">homeNshop</a>
+          <a
+            href="/dashboard"
+            className={`de-logo${brand.whiteLabel ? " de-logo--wl" : ""}`}
+          >
+            {brand.whiteLabel ? (
+              brand.logoUrl ? (
+                <BrandMark
+                  logoUrl={brand.logoUrl}
+                  label={brand.brandName}
+                  imgClassName="de-logo-img"
+                  textClassName="de-logo-text"
+                />
+              ) : (
+                <>
+                  <span className="de-logo-mark">
+                    {brand.brandName.slice(0, 1).toUpperCase()}
+                  </span>
+                  <span className="de-logo-text">{brand.brandName}</span>
+                </>
+              )
+            ) : (
+              "homeNshop"
+            )}
+          </a>
           {/* Language switcher (only when the site has more than one language). */}
           {siteLanguages.length > 1 && (
             <div className="de-lang-switch" role="group" aria-label={t("topbar.langGroupLabel")}>
