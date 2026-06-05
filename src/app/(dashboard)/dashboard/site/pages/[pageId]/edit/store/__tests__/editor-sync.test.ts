@@ -97,3 +97,31 @@ describe("editor-sync", () => {
     expect((el.querySelector<HTMLElement>("#c")!).style.opacity).toBe("0.3");
   });
 });
+
+describe("editor-sync: legacy image width preservation", () => {
+  // A legacy designer menu-bar: a 749px-wide background image deliberately
+  // overflowing a 410px .dragable container. Initial sync must NOT shrink the
+  // img to fill its wrapper, or the editor diverges from the published page.
+  const MENU_BAR = `<div id="bar" class="dragable" style="position:absolute;left:383px;top:34px;width:410px;height:100px"><img alt="" src="https://home.homenshop.com/konnichiwa/uploaded/files/bar-10.png" style="width: 749px; height: 112px;"></div>`;
+
+  it("preserves authored px width on initial sync (no src swap)", () => {
+    const el = container(MENU_BAR);
+    const scene = legacyHtmlToScene(MENU_BAR);
+    syncStoreToDom(scene, el);
+    const img = el.querySelector<HTMLImageElement>("#bar img")!;
+    expect(img.style.width).toBe("749px");
+    expect(img.style.width).not.toBe("100%");
+  });
+
+  it("force-fills the wrapper on a genuine src swap", () => {
+    const el = container(MENU_BAR);
+    const scene = legacyHtmlToScene(MENU_BAR);
+    const imgLayer = scene.root.children.find((l) => l.id === "bar")! as typeof scene.root.children[number] & { src?: string };
+    imgLayer.src = "https://home.homenshop.com/konnichiwa/uploaded/files/new-bar.png";
+    syncStoreToDom(scene, el);
+    const img = el.querySelector<HTMLImageElement>("#bar img")!;
+    expect(img.getAttribute("src")).toContain("new-bar.png");
+    expect(img.style.width).toBe("100%");
+    expect(img.style.objectFit).toBe("cover");
+  });
+});

@@ -537,20 +537,31 @@ function applyImageDataToEl(el: HTMLElement, layer: Layer) {
 
   const imgEl = el.querySelector("img");
   if (imgEl) {
-    if (attrs.src != null) {
-      if (imgEl.getAttribute("src") !== attrs.src) imgEl.setAttribute("src", attrs.src);
-    }
+    const srcChanged = attrs.src != null && imgEl.getAttribute("src") !== attrs.src;
+    if (srcChanged) imgEl.setAttribute("src", attrs.src as string);
     if (attrs.alt) imgEl.setAttribute("alt", attrs.alt);
     else imgEl.removeAttribute("alt");
-    // Force fill — matches rewriteImageInnerHtml so editor canvas and
-    // published page render identically after a swap.
-    (imgEl as HTMLImageElement).style.setProperty("width", "100%");
-    (imgEl as HTMLImageElement).style.setProperty("height", "100%");
-    const fit = attrs.objectFit ?? "cover";
-    if (fit === "none") {
-      (imgEl as HTMLImageElement).style.removeProperty("object-fit");
-    } else {
-      (imgEl as HTMLImageElement).style.setProperty("object-fit", fit);
+    // Normalize the img to fill its wrapper ONLY on a genuine swap (new
+    // src) or when it carries no authored pixel width. A freshly swapped
+    // photo tuned to the OLD image's natural size would clip/overflow, so
+    // swaps force width/height:100% + object-fit (matches
+    // rewriteImageInnerHtml). But legacy designer images deliberately
+    // overflow a SMALLER .dragable container (e.g. a 749px menu-bar bg
+    // inside a 410px box); on initial load we must preserve their authored
+    // inline px dimensions or the editor shrinks them to the wrapper and
+    // diverges from the published page. The editor-styles.css
+    // `img:not([style*="width"])` cap is the companion rule that lets the
+    // preserved px widths overflow instead of being clamped to max-width.
+    const hasAuthoredPxWidth = /width\s*:\s*[\d.]+px/i.test(imgEl.getAttribute("style") || "");
+    if (srcChanged || !hasAuthoredPxWidth) {
+      (imgEl as HTMLImageElement).style.setProperty("width", "100%");
+      (imgEl as HTMLImageElement).style.setProperty("height", "100%");
+      const fit = attrs.objectFit ?? "cover";
+      if (fit === "none") {
+        (imgEl as HTMLImageElement).style.removeProperty("object-fit");
+      } else {
+        (imgEl as HTMLImageElement).style.setProperty("object-fit", fit);
+      }
     }
   }
   const a = el.querySelector("a");
