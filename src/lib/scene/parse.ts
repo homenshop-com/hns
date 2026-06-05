@@ -358,7 +358,16 @@ function buildImageLayer(el: Element, id: string, name: string): ImageLayer {
     const ih = pxNum(imgStyle["height"]) ?? pxNum(img.getAttribute("height") ?? undefined);
     if (iw != null && frameKeys.includes("width") && frame.w > 0 && iw >= frame.w * ANCHOR_OVERFLOW_RATIO) {
       frame.w = iw;
-      if (ih != null && frameKeys.includes("height") && ih > frame.h) frame.h = ih;
+      // Mark the enlarged dimensions `!important` so the object box wins
+      // over the page CSS that pins the original tiny anchor size (the
+      // published route boosts `#id { width: 410px }` to `!important`, which
+      // would otherwise clamp the rendered box back down and leave the
+      // object covering only the left slice of the visible art).
+      if (!frameImportant.includes("width")) frameImportant.push("width");
+      if (ih != null && frameKeys.includes("height") && ih > frame.h) {
+        frame.h = ih;
+        if (!frameImportant.includes("height")) frameImportant.push("height");
+      }
     }
   }
 

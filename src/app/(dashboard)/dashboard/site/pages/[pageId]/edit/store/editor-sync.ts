@@ -177,25 +177,37 @@ function applyFrameToEl(
   );
   const frame = mobile ? (layer.mobileFrame ?? layer.frame) : layer.frame;
 
+  // Keys whose source carried (or the parser injected) a `!important` flag.
+  // Re-emit those inline as important so they beat the page CSS that the
+  // editor/publisher boosts to `!important` — chiefly the image-anchor
+  // boxes the parser enlarges to their art's size (e.g. a 749px menu bar
+  // pinned in a 410px box). Mobile has no separate importance set, so the
+  // mobile frame is always written plain.
+  const important = new Set(mobile ? [] : (layer.frameImportant ?? []));
+  const setFrameProp = (prop: string, key: string, value: string) => {
+    if (important.has(key)) el.style.setProperty(prop, value, "important");
+    else el.style.setProperty(prop, value);
+  };
+
   // Sections are flow regions — never emit position/left/top (would
   // rip them out of document flow), but width/height are allowed
   // (users may want to resize a hero section's height).
   if (layer.type === "section") {
-    if (keys.has("width")) el.style.width = `${frame.w}px`;
+    if (keys.has("width")) setFrameProp("width", "width", `${frame.w}px`);
     else el.style.removeProperty("width");
-    if (keys.has("height")) el.style.height = `${frame.h}px`;
+    if (keys.has("height")) setFrameProp("height", "height", `${frame.h}px`);
     else el.style.removeProperty("height");
     return;
   }
-  if (keys.has("position")) el.style.position = "absolute";
+  if (keys.has("position")) setFrameProp("position", "position", "absolute");
   else el.style.removeProperty("position");
-  if (keys.has("left")) el.style.left = `${frame.x}px`;
+  if (keys.has("left")) setFrameProp("left", "left", `${frame.x}px`);
   else el.style.removeProperty("left");
-  if (keys.has("top")) el.style.top = `${frame.y}px`;
+  if (keys.has("top")) setFrameProp("top", "top", `${frame.y}px`);
   else el.style.removeProperty("top");
-  if (keys.has("width")) el.style.width = `${frame.w}px`;
+  if (keys.has("width")) setFrameProp("width", "width", `${frame.w}px`);
   else el.style.removeProperty("width");
-  if (keys.has("height")) el.style.height = `${frame.h}px`;
+  if (keys.has("height")) setFrameProp("height", "height", `${frame.h}px`);
   else el.style.removeProperty("height");
 }
 

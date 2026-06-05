@@ -110,6 +110,10 @@ describe("editor-sync: legacy image width preservation", () => {
     const bar = scene.root.children.find((l) => l.id === "bar")!;
     expect(bar.frame.w).toBe(749);
     expect(bar.frame.h).toBe(112);
+    // The enlarged dims are flagged important so they beat the page CSS that
+    // pins the original 410px anchor (which the publisher boosts to !important).
+    expect(bar.frameImportant).toContain("width");
+    expect(bar.frameImportant).toContain("height");
   });
 
   it("preserves authored px width on initial sync (no src swap)", () => {
@@ -123,6 +127,10 @@ describe("editor-sync: legacy image width preservation", () => {
     expect(box.style.width).toBe("749px");
     expect(img.style.width).toBe("749px");
     expect(img.style.width).not.toBe("100%");
+    // Box dims written !important so a boosted page-CSS `width:410px !important`
+    // can't clamp the object back to the tiny anchor size.
+    expect(box.style.getPropertyPriority("width")).toBe("important");
+    expect(box.style.getPropertyPriority("height")).toBe("important");
   });
 
   it("normalizeAnchorImageBoxes widens a logo box pinned around a larger image", () => {
