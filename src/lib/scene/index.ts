@@ -13,3 +13,9 @@ export {
   applyDeviceOverridesFromScene,
   DEVICE_MEDIA_COMMENT_MARK,
 } from "./device-css";
+export {
+  SCENE_GEOMETRY_PROPS,
+  stripPinnedGeometryCss,
+  collectInlineGeometryOwners,
+  collectSceneGeometryOwners,
+} from "./geometry-strip";

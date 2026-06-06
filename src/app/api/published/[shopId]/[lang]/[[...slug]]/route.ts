@@ -14,7 +14,11 @@ import {
 } from "@/lib/seo-jsonld";
 import { isSiteExpired } from "@/lib/site-expiration";
 import { getTempDomain, isManagedTempHost } from "@/lib/temp-domains";
-import { DEVICE_MEDIA_COMMENT_MARK } from "@/lib/scene";
+import {
+  DEVICE_MEDIA_COMMENT_MARK,
+  stripPinnedGeometryCss,
+  collectInlineGeometryOwners,
+} from "@/lib/scene";
 
 function renderExpiredPage(shopId: string, name: string): string {
   const safeName = name.replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -1037,7 +1041,16 @@ export async function GET(
   // Get page-specific CSS — boost position/size properties with !important
   // so they override site-upgrade.css !important rules (pageCss is page-specific)
   const rawPageCss = (page as any).css || "";
-  let pageCss = rawPageCss.replace(
+  // Strip base-level geometry that the rendered body owns inline (drag/resize
+  // wrote it as plain inline). Without this the boosted page-CSS rule
+  // `#id{left:..!important}` beats the element's plain inline value, so a
+  // dragged body object snaps back to its old CSS position. Device `@media`
+  // blocks are preserved. Mirrors the editor canvas (collectSceneGeometryOwners).
+  const strippedPageCss = stripPinnedGeometryCss(
+    rawPageCss,
+    collectInlineGeometryOwners(bodyHtml),
+  );
+  let pageCss = strippedPageCss.replace(
     /(\b(?:top|left|width|height|display|position|z-index)\s*:\s*)([^;!}]+)(;|})/gi,
     (_: string, prop: string, val: string, end: string) =>
       val.trim().includes('!important') ? `${prop}${val}${end}` : `${prop}${val.trim()} !important${end}`

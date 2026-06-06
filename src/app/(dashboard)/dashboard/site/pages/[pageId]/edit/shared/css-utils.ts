@@ -25,6 +25,17 @@ export function boostImportant(css: string): string {
   );
 }
 
+// Scene-owned geometry stripping lives in the shared single source
+// (`src/lib/scene/geometry-strip.ts`) so the editor canvas and the published
+// route stay byte-for-byte in sync (WYSIWYG). Re-exported here for the
+// editor's existing import path.
+export {
+  SCENE_GEOMETRY_PROPS,
+  stripPinnedGeometryCss,
+  collectInlineGeometryOwners,
+  collectSceneGeometryOwners,
+} from "@/lib/scene";
+
 /** Escape a string for safe interpolation into HTML text/attribute. */
 export function escapeHtml(s: string): string {
   return s

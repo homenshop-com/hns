@@ -38,7 +38,12 @@ import {
   inferThemePresetId,
   parseThemeTokens,
 } from "./shared/theme-css";
-import { boostImportant, escapeHtml } from "./shared/css-utils";
+import {
+  boostImportant,
+  escapeHtml,
+  stripPinnedGeometryCss,
+  collectSceneGeometryOwners,
+} from "./shared/css-utils";
 // HMF (header/menu/footer) per-device positioning. HMF is raw-injected (not
 // scene-managed), so per-device geometry is persisted as a <style
 // data-hns-device> @media block embedded in the container's own HTML, and the
@@ -2814,7 +2819,22 @@ export default function DesignEditor({
   const canvasCss = [
     templateCss ? scopeAndRewrite(templateCss, true) : "",
     cssText ? scopeAndRewrite(cssText) : "",
-    currentPageCss ? scopeAndRewrite(boostImportant(currentPageCss)) : "",
+    currentPageCss
+      ? scopeAndRewrite(
+          boostImportant(
+            // Strip base-level geometry the scene owns (drag/resize writes
+            // it as plain inline). Without this, the boosted page-CSS rule
+            // `#id{left:..!important}` beats the scene's plain inline value
+            // so dragging a body object is visually ignored. Device `@media`
+            // blocks are preserved (the scene's own device @media wins by
+            // source order). Mirrors the published route.
+            stripPinnedGeometryCss(
+              currentPageCss,
+              collectSceneGeometryOwners(useEditorStore.getState().scene.root),
+            ),
+          ),
+        )
+      : "",
   ].filter(Boolean).join("\n");
 
   // Detect modern full-width templates so the canvas can stretch beyond
