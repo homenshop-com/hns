@@ -39,6 +39,20 @@ import {
   parseThemeTokens,
 } from "./shared/theme-css";
 import { boostImportant, escapeHtml } from "./shared/css-utils";
+// HMF (header/menu/footer) per-device positioning. HMF is raw-injected (not
+// scene-managed), so per-device geometry is persisted as a <style
+// data-hns-device> @media block embedded in the container's own HTML, and the
+// editor paints the active device via inline styles on device switch.
+import {
+  type HmfDeviceMap,
+  type HmfBaseMap,
+  type HmfViewport,
+  parseHmfDeviceStyle,
+  recordHmfDeviceFrame,
+  writeHmfDeviceStyle,
+  snapshotHmfBase,
+  applyHmfDevicePreview,
+} from "./shared/hmf-device";
 
 const TiptapModal = lazy(() => import("./tiptap-modal"));
 // LayerPanel is rendered by InspectorPanel's "레이어" tab; no direct
@@ -494,6 +508,32 @@ export default function DesignEditor({
   const menuInitedRef = useRef(false);
   const footerInitedRef = useRef(false);
 
+  /* ─── HMF per-device geometry (Wix-style 3-mode independence) ───
+   * HMF blocks are raw-injected, not part of the scene graph, so their
+   * per-device overrides can't live on scene layers. Instead we keep them in
+   * these refs (id → device → box) plus an authored desktop-base snapshot for
+   * "restore to PC". They are persisted into each container's HTML as a
+   * <style data-hns-device> @media block on save (writeHmfDeviceStyle), and
+   * painted in the editor via inline styles on device switch. */
+  const hmfDeviceFramesRef = useRef<HmfDeviceMap>({});
+  const hmfBaseFramesRef = useRef<HmfBaseMap>({});
+
+  /* Hydrate saved per-device overrides from a freshly-injected HMF container
+   * and snapshot each overridden element's AUTHORED inline geometry as its PC
+   * base. Capturing the base now (from the authored HTML, before any device
+   * preview runs) is essential: the editor's wide viewport ignores the
+   * embedded @media block, so el.style.* still holds the PC values here — and
+   * "restore to PC" needs that target before we ever paint a device. */
+  const hydrateHmfDevice = useCallback((container: HTMLElement | null) => {
+    if (!container) return;
+    const parsed = parseHmfDeviceStyle(container);
+    Object.assign(hmfDeviceFramesRef.current, parsed);
+    for (const id of Object.keys(parsed)) {
+      const el = container.querySelector<HTMLElement>(`#${CSS.escape(id)}`);
+      if (el) snapshotHmfBase(el, hmfBaseFramesRef.current, id);
+    }
+  }, []);
+
   useEffect(() => {
     if (bodyRef.current) {
       bodyRef.current.innerHTML = bodyHtml;
@@ -699,6 +739,8 @@ export default function DesignEditor({
       // image-anchor box normalization the scene parser does for the body —
       // fixes logos pinned in a tiny box (e.g. 406px logo in a 200px box).
       normalizeAnchorImageBoxes(headerRef.current);
+      // Hydrate any saved per-device overrides embedded in the header HTML.
+      hydrateHmfDevice(headerRef.current);
       // Detect logo URL
       const logoImg = headerRef.current.querySelector("#hns_h_logo img, .logo img, [id*=logo] img, a img") as HTMLImageElement | null;
       if (logoImg?.src) setLogoUrl(logoImg.src);
@@ -742,6 +784,7 @@ export default function DesignEditor({
         menuRef.current.innerHTML = buildMenuHtml();
       }
       menuInitedRef.current = true;
+      hydrateHmfDevice(menuRef.current);
     }
   }, []);
 
@@ -749,8 +792,26 @@ export default function DesignEditor({
     if (footerRef.current && !footerInitedRef.current) {
       footerRef.current.innerHTML = footerHtml;
       footerInitedRef.current = true;
+      hydrateHmfDevice(footerRef.current);
     }
   }, [footerHtml]);
+
+  /* ─── HMF per-device preview paint ───
+   * The editor canvas is a wide viewport with a narrow artboard, so the
+   * embedded `<style data-hns-device>` @media block never fires here (it keys
+   * on viewport width, not element width). On every device switch we paint the
+   * active device onto the overridden HMF elements via inline styles — desktop
+   * restores the PC base, tablet/mobile apply the cascaded geometry. This
+   * mirrors the published @media cascade exactly (WYSIWYG). */
+  useEffect(() => {
+    if (!editorV2Enabled) return;
+    const map = hmfDeviceFramesRef.current;
+    const base = hmfBaseFramesRef.current;
+    const dv = viewportMode as HmfViewport;
+    for (const container of [headerRef.current, menuRef.current, footerRef.current]) {
+      if (container) applyHmfDevicePreview(container, map, base, dv);
+    }
+  }, [editorV2Enabled, viewportMode]);
 
   /* ─── Load AI credit balance + cost ─── */
   const reloadBalance = useCallback(async () => {
@@ -878,17 +939,40 @@ export default function DesignEditor({
       const mEl = menuRef.current;
       const fEl = footerRef.current;
       if (hEl || mEl || fEl) {
+        // HMF serialization must capture the PC layout as the inline base —
+        // per-device geometry lives ONLY in the embedded `<style
+        // data-hns-device>` @media block. If we're previewing a device, the
+        // painted inline styles are the device geometry; restore the PC base
+        // inline BEFORE reading innerHTML, then re-apply the active device so
+        // editing continues uninterrupted.
+        const dv = editorV2Enabled
+          ? (useEditorStore.getState().viewportMode as HmfViewport)
+          : "desktop";
+        const map = hmfDeviceFramesRef.current;
+        const base = hmfBaseFramesRef.current;
+        if (dv !== "desktop") {
+          for (const c of [hEl, mEl, fEl]) {
+            if (c) applyHmfDevicePreview(c, map, base, "desktop");
+          }
+        }
         // Auto menu mode: save empty menuHtml so published route generates dynamically
         // Custom menu mode: save current DOM menuHtml
         const menuHtmlToSave = menuMode === "auto" ? "" : (mEl ? mEl.innerHTML : undefined);
+        const headerHtmlToSave = hEl ? hEl.innerHTML : undefined;
+        const footerHtmlToSave = fEl ? fEl.innerHTML : undefined;
+        if (dv !== "desktop") {
+          for (const c of [hEl, mEl, fEl]) {
+            if (c) applyHmfDevicePreview(c, map, base, dv);
+          }
+        }
         await fetch(`/api/sites/${siteId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             hmfLang: currentLang,
-            ...(hEl && { headerHtml: hEl.innerHTML }),
+            ...(headerHtmlToSave !== undefined && { headerHtml: headerHtmlToSave }),
             ...(menuHtmlToSave !== undefined && { menuHtml: menuHtmlToSave }),
-            ...(fEl && { footerHtml: fEl.innerHTML }),
+            ...(footerHtmlToSave !== undefined && { footerHtml: footerHtmlToSave }),
           }),
         });
       }
@@ -1390,22 +1474,13 @@ export default function DesignEditor({
       setSelectedElId(dragable.id);
     }
 
-    // DEVICE 3-MODE GUARD — In tablet/mobile mode only scene (`#hns_body`)
-    // layers can be repositioned independently, because per-device frames
-    // (tabletFrame / mobileFrame) are stored on scene layers. Header / menu /
-    // footer elements (incl. the logo) are raw-injected, NOT part of the
-    // scene graph, so a drag there would mutate a single shared inline
-    // style and leak the move to every device. Allow selection (done above)
-    // but abort the drag for non-body elements when previewing a device.
-    // Read the device from the store so this stays correct even though the
-    // mousedown listener closure is created once.
-    {
-      const dvMode = useEditorStore.getState().viewportMode;
-      const isBodyLayer = bodyRef.current?.contains(dragable) ?? false;
-      if (dvMode !== "desktop" && !isBodyLayer) {
-        return;
-      }
-    }
+    // DEVICE 3-MODE — In tablet/mobile mode, BODY layers commit their
+    // per-device geometry to scene frames (tabletFrame / mobileFrame) via
+    // store.setFrame. Header / menu / footer elements (incl. the logo) are
+    // raw-injected and NOT part of the scene graph, so they instead persist
+    // per-device geometry into the container's own `<style data-hns-device>`
+    // @media block (see onEnd → hmf-device helpers). Both are allowed to drag
+    // independently per device; the routing happens on mouseup.
 
     // Build drag data with all multi-selected elements' positions
     const computedStyle = window.getComputedStyle(dragable);
@@ -1464,7 +1539,9 @@ export default function DesignEditor({
     // V2: cache sibling rects (in container-local coords) for snap.
     let snapSiblings: SnapRect[] | null = null;
     let snapContainer: HTMLElement | null = null;
-    if (editorV2Enabled) {
+    // Only snap body scene layers to their siblings — HMF elements live in a
+    // separate raw-injected container and shouldn't snap to body geometry.
+    if (editorV2Enabled && (bodyRef.current?.contains(dragable) ?? false)) {
       const host = bodyRef.current;
       if (host) {
         const hostRect = host.getBoundingClientRect();
@@ -1690,24 +1767,63 @@ export default function DesignEditor({
       // which would otherwise collapse the element to 0,0).
       if (editorV2Enabled) {
         const store = useEditorStore.getState();
-        if (dragRef.current && (dragRef.current as any).moved) {
-          const els: HTMLElement[] = [dragRef.current.el, ...dragRef.current.others.map((o: any) => o.el)];
-          for (const el of els) {
-            if (!el.id) continue;
-            const x = parseInt(el.style.left) || 0;
-            const y = parseInt(el.style.top) || 0;
+        const dv = store.viewportMode as HmfViewport;
+        // Which raw-injected HMF container (if any) owns this element? Body
+        // scene layers return null and take the store.setFrame path.
+        const hmfContainerOf = (el: HTMLElement): HTMLElement | null => {
+          if (headerRef.current?.contains(el)) return headerRef.current;
+          if (menuRef.current?.contains(el)) return menuRef.current;
+          if (footerRef.current?.contains(el)) return footerRef.current;
+          return null;
+        };
+        // Commit one element's final DOM geometry to the right place:
+        //   • HMF + device  → per-device @media block (hmf-device helpers)
+        //   • HMF + desktop → refresh PC base snapshot (inline persists via
+        //                     innerHTML on save)
+        //   • body layer    → scene frame (store.setFrame, device-aware)
+        const commit = (el: HTMLElement, withSize: boolean) => {
+          const container = hmfContainerOf(el);
+          if (container) {
+            if (dv === "desktop") {
+              // Editing the PC base. Keep the base snapshot in sync so future
+              // tablet/mobile cascades resolve against the new PC geometry.
+              if (el.id && hmfDeviceFramesRef.current[el.id]) {
+                hmfBaseFramesRef.current[el.id] = {
+                  left: el.style.left || undefined,
+                  top: el.style.top || undefined,
+                  width: el.style.width || undefined,
+                  height: el.style.height || undefined,
+                };
+              }
+              return;
+            }
+            const box = {
+              left: el.style.left || undefined,
+              top: el.style.top || undefined,
+              ...(withSize && {
+                width: el.style.width || undefined,
+                height: el.style.height || undefined,
+              }),
+            };
+            recordHmfDeviceFrame(el, hmfDeviceFramesRef.current, dv, box);
+            writeHmfDeviceStyle(container, hmfDeviceFramesRef.current);
+            return;
+          }
+          if (!el.id) return;
+          const x = parseInt(el.style.left) || 0;
+          const y = parseInt(el.style.top) || 0;
+          if (withSize) {
+            store.setFrame(el.id, { x, y, w: el.offsetWidth, h: el.offsetHeight });
+          } else {
             store.setFrame(el.id, { x, y });
           }
+        };
+        if (dragRef.current && (dragRef.current as any).moved) {
+          const els: HTMLElement[] = [dragRef.current.el, ...dragRef.current.others.map((o: any) => o.el)];
+          for (const el of els) commit(el, false);
         }
         if (resizeRef.current && (resizeRef.current as any).moved) {
-          const el = resizeRef.current.el;
-          if (el.id) {
-            const x = parseInt(el.style.left) || 0;
-            const y = parseInt(el.style.top) || 0;
-            const w = el.offsetWidth;
-            const h = el.offsetHeight;
-            store.setFrame(el.id, { x, y, w, h });
-          }
+          commit(resizeRef.current.el, true);
         }
       }
       dragRef.current = null;
