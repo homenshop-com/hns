@@ -492,6 +492,7 @@ export default function DesignEditor({
     origTop: number;
     origWidth: number;
     origHeight: number;
+    importantPin?: boolean;
   } | null>(null);
 
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -1595,6 +1596,13 @@ export default function DesignEditor({
       others,
       snapSiblings,
       snapContainer,
+      // Raw-injected HMF elements need their inline geometry written as
+      // !important to beat boostImportant'd page CSS (see setGeom in handleMove).
+      importantPin: !!(
+        headerRef.current?.contains(dragable) ||
+        menuRef.current?.contains(dragable) ||
+        footerRef.current?.contains(dragable)
+      ),
     } as any;
   }
 
@@ -1707,9 +1715,20 @@ export default function DesignEditor({
       // Block drag/resize while any modal is open
       if (document.querySelector(".de-modal-overlay, [data-tiptap-modal]")) return;
       const scale = getCanvasScale();
+      // Write a geometry prop as `!important` when the element is raw-injected
+      // HMF. WHY: the editor boosts page CSS position/size props to !important
+      // (boostImportant), so a plain inline `left` written by drag/resize loses
+      // to a boosted `#id{left:..!important}` rule and the element won't move.
+      // Body scene layers avoid this via frameImportant; HMF elements have no
+      // such path, so we pin their drag/resize output as important directly.
+      const setGeom = (el: HTMLElement, prop: string, value: string, important: boolean) => {
+        if (important) el.style.setProperty(prop, value, "important");
+        else el.style.setProperty(prop, value);
+      };
       if (dragRef.current) {
         const { el, startX, startY, origLeft, origTop, others } = dragRef.current;
         const dragAny = dragRef.current as any;
+        const imp = !!dragAny.importantPin;
         let dx = (clientX - startX) / scale;
         let dy = (clientY - startY) / scale;
         // Flag "actually moved" so click-without-drag doesn't commit
@@ -1732,29 +1751,30 @@ export default function DesignEditor({
           dx += snapped.x - liveX;
           dy += snapped.y - liveY;
         }
-        el.style.left = (origLeft + dx) + "px";
-        el.style.top = (origTop + dy) + "px";
+        setGeom(el, "left", (origLeft + dx) + "px", imp);
+        setGeom(el, "top", (origTop + dy) + "px", imp);
         // Move all other multi-selected elements by the same delta
         others.forEach((o) => {
-          o.el.style.left = (o.origLeft + dx) + "px";
-          o.el.style.top = (o.origTop + dy) + "px";
+          setGeom(o.el, "left", (o.origLeft + dx) + "px", imp);
+          setGeom(o.el, "top", (o.origTop + dy) + "px", imp);
         });
       }
       if (resizeRef.current) {
         const r = resizeRef.current;
+        const rimp = !!(r as any).importantPin;
         const dx = (clientX - r.startX) / scale;
         const dy = (clientY - r.startY) / scale;
         if (Math.abs(dx) > 2 || Math.abs(dy) > 2) (r as any).moved = true;
         if (!(r as any).moved) return;
-        if (r.handle.includes("e")) r.el.style.width = Math.max(30, r.origWidth + dx) + "px";
+        if (r.handle.includes("e")) setGeom(r.el, "width", Math.max(30, r.origWidth + dx) + "px", rimp);
         if (r.handle.includes("w")) {
-          r.el.style.width = Math.max(30, r.origWidth - dx) + "px";
-          r.el.style.left = (r.origLeft + dx) + "px";
+          setGeom(r.el, "width", Math.max(30, r.origWidth - dx) + "px", rimp);
+          setGeom(r.el, "left", (r.origLeft + dx) + "px", rimp);
         }
-        if (r.handle.includes("s")) r.el.style.height = Math.max(20, r.origHeight + dy) + "px";
+        if (r.handle.includes("s")) setGeom(r.el, "height", Math.max(20, r.origHeight + dy) + "px", rimp);
         if (r.handle.includes("n")) {
-          r.el.style.height = Math.max(20, r.origHeight - dy) + "px";
-          r.el.style.top = (r.origTop + dy) + "px";
+          setGeom(r.el, "height", Math.max(20, r.origHeight - dy) + "px", rimp);
+          setGeom(r.el, "top", (r.origTop + dy) + "px", rimp);
         }
       }
     }
@@ -1901,6 +1921,13 @@ export default function DesignEditor({
           origTop: parseInt(computedStyle.top) || parseInt(el.style.top) || 0,
           origWidth: el.offsetWidth,
           origHeight: el.offsetHeight,
+          // Raw-injected HMF elements: write geometry as !important to beat
+          // boostImportant'd page CSS (mirrors drag path in handleMove).
+          importantPin: !!(
+            headerRef.current?.contains(el) ||
+            menuRef.current?.contains(el) ||
+            footerRef.current?.contains(el)
+          ),
         };
       }
 

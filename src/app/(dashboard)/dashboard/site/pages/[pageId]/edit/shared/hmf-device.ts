@@ -252,7 +252,10 @@ export function applyHmfDevicePreview(
     const box = resolveBox(map, base, id, device);
     for (const p of BOX_PROPS) {
       const v = box[p];
-      if (v != null && v !== "") el.style.setProperty(PROP_CSS[p], v);
+      // Use `important` so the device preview (and the desktop-restore base)
+      // beats boostImportant'd page CSS — same reason drag/resize pin HMF
+      // geometry as important (see setGeom in design-editor handleMove).
+      if (v != null && v !== "") el.style.setProperty(PROP_CSS[p], v, "important");
       else el.style.removeProperty(PROP_CSS[p]);
     }
   }
