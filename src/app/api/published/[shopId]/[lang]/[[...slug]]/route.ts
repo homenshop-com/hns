@@ -14,6 +14,7 @@ import {
 } from "@/lib/seo-jsonld";
 import { isSiteExpired } from "@/lib/site-expiration";
 import { getTempDomain, isManagedTempHost } from "@/lib/temp-domains";
+import { DEVICE_MEDIA_COMMENT_MARK } from "@/lib/scene";
 
 function renderExpiredPage(shopId: string, name: string): string {
   const safeName = name.replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -1381,8 +1382,50 @@ export async function GET(
     .c_v_home_dft { overflow-x: hidden; overflow-y: visible; width: 1000px !important; margin: 0 auto !important; }
     `;
 
+  // Device-override pages (Wix-style 3-mode absolute editor) carry their own
+  // per-breakpoint `@media` re-pins, stamped with DEVICE_MEDIA_COMMENT_MARK in
+  // pageCss. For those, the legacy single `vw/1000` scale would double-transform
+  // (artboard scaled AND layers re-pinned), breaking WYSIWYG. Instead we scale
+  // each breakpoint band by its OWN artboard width (Mobile 375 / Tablet 768 /
+  // PC 1000) so the published page mirrors the editor's fixed-width artboards.
+  const hasDeviceOverrides = pageCss.includes(DEVICE_MEDIA_COMMENT_MARK);
+
   // Scale-to-fit script only for legacy templates
-  const scaleScript = isModernTemplate ? '' : `<script>(function(){
+  const scaleScript = isModernTemplate
+    ? ''
+    : hasDeviceOverrides
+      ? `<script>(function(){
+  window.__dbg=location.search.indexOf('debug')>-1; var el = document.getElementById('v_home_dft');
+  if (!el) return;
+  document.documentElement.style.cssText += 'margin:0;padding:0;overflow-x:hidden;';
+  document.body.style.cssText += 'margin:0;padding:0;overflow-x:hidden;';
+  el.style.cssText += 'width:1000px;margin:0 auto;overflow-x:hidden;overflow-y:visible;position:relative;';
+  function artboard(vw){ return vw <= 767 ? 375 : vw <= 1024 ? 768 : 1000; }
+  function sf() {
+    var vw = document.documentElement.clientWidth;
+    var aw = artboard(vw);
+    // Pin the artboard to its breakpoint width so the device @media re-pins
+    // (which are authored against 375/768/1000) land where the editor showed
+    // them, then scale the whole band to fill the viewport.
+    el.style.width = aw + 'px';
+    if (vw >= 1025) {
+      // Desktop band: 1000px artboard, centered, never scaled up.
+      el.style.margin = '0 auto';
+      el.style.transform = '';
+      el.style.transformOrigin = '';
+      el.style.marginBottom = '';
+      return;
+    }
+    var sc = vw / aw;
+    el.style.margin = '0';
+    el.style.transformOrigin = 'top left';
+    el.style.transform = 'scale(' + sc + ')'; if(window.__dbg){document.title='vw='+vw+' aw='+aw+' sc='+sc.toFixed(3);}
+    el.style.marginBottom = '-' + ((1 - sc) * el.scrollHeight) + 'px';
+  }
+  sf();
+  window.addEventListener('resize', sf);
+})();</script>`
+      : `<script>(function(){
   window.__dbg=location.search.indexOf('debug')>-1; var el = document.getElementById('v_home_dft');
   if (!el) return;
   document.documentElement.style.cssText += 'margin:0;padding:0;overflow-x:hidden;';

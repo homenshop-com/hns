@@ -20,9 +20,11 @@ import { useTranslations } from "next-intl";
 import {
   useEditorStore,
   selectRoot,
+  selectViewportMode,
   readImgFromInnerHtml,
+  type OverrideDevice,
 } from "../store/editor-store";
-import type { BoxLayer, ImageLayer, Layer, LayerId, LayerInteraction, LayerStyle } from "@/lib/scene";
+import type { BoxLayer, ImageLayer, Layer, LayerId, LayerInteraction, LayerStyle, ResponsiveOverride } from "@/lib/scene";
 import { FONT_CATALOG, FONT_CATEGORIES, type FontDef } from "./font-catalog";
 
 const LayerPanel = lazy(() => import("./LayerPanel"));
@@ -288,6 +290,10 @@ function DesignTab({ layer, path, siteId, live }: DesignTabProps) {
         layerId={layer.id}
         disabled={layer.type === "section" || layer.type === "inline"}
       />
+
+      {/* Per-device overrides — only visible while editing tablet/mobile.
+          Renders null at desktop (the authoring base). */}
+      <DeviceSection layer={layer} />
 
       {/* Image-edit section: appears for image layers (typed src/alt) AND
           for box layers whose innerHtml contains an <img> (e.g., the
@@ -760,6 +766,146 @@ function PositionSizeSection({ frame, rotate, layerId, disabled }: PosProps) {
         />
         <EditableProp label="◱" value={0} unit="°" onCommit={() => {}} disabled />
       </div>
+    </Section>
+  );
+}
+
+/* ─── Per-device override section (mutable-baking-falcon Phase 3/4) ── */
+
+/**
+ * DeviceSection — surfaces the per-breakpoint overrides for the currently
+ * selected layer, but ONLY while the editor is in tablet/mobile viewport
+ * (desktop is the authoring base and renders nothing). Two override families
+ * are exposed, both keyed off the active `viewportMode`:
+ *
+ *   • Visibility — `hidden[device]` → `display:none !important` in the device
+ *     `@media` block (applies to both paradigms).
+ *   • Cascade nudges — `responsive[device]` ResponsiveOverride
+ *     (display / fontScale / align / padding / flexDirection) for FLOW layers.
+ *
+ * Absolute device-frame re-pins (tabletFrame/mobileFrame) are written by
+ * drag/resize on the canvas, not here, so this panel stays declarative.
+ */
+function DeviceSection({ layer }: { layer: Layer }) {
+  const t = useTranslations("editor");
+  const viewportMode = useEditorStore(selectViewportMode);
+  const setHidden = useEditorStore((s) => s.setHidden);
+  const setResponsive = useEditorStore((s) => s.setResponsive);
+
+  if (viewportMode === "desktop") return null;
+  const device = viewportMode as OverrideDevice;
+  const deviceLabel =
+    device === "tablet" ? t("viewport.tablet") : t("viewport.mobile");
+
+  const isHidden = !!layer.hidden?.[device];
+  const ov: ResponsiveOverride = layer.responsive?.[device] ?? {};
+
+  return (
+    <Section title={`${deviceLabel} ${t("inspector.device.section")}`}>
+      <p className="ins-device-hint">{t("inspector.device.hint")}</p>
+
+      {/* Visibility toggle — applies to any layer. */}
+      <label className="ins-device-toggle">
+        <input
+          type="checkbox"
+          checked={isHidden}
+          onChange={(e) => setHidden(layer.id, device, e.target.checked)}
+        />
+        <span>{t("inspector.device.hide")}</span>
+      </label>
+
+      {!isHidden && (
+        <>
+          {/* Cascade nudges (flow layers). Empty fields inherit the larger
+              breakpoint, so leaving a control at its default = no override. */}
+          <div className="ins-prop-row">
+            <div className="ins-prop wide">
+              <label>{t("inspector.device.display")}</label>
+              <select
+                value={ov.display ?? ""}
+                onChange={(e) =>
+                  setResponsive(layer.id, device, {
+                    display: (e.target.value || undefined) as ResponsiveOverride["display"],
+                  })
+                }
+              >
+                <option value="">{t("inspector.device.inherit")}</option>
+                <option value="block">block</option>
+                <option value="flex">flex</option>
+                <option value="inline-block">inline-block</option>
+                <option value="none">none</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="ins-prop-row">
+            <TextField
+              label={t("inspector.device.fontScale")}
+              value={ov.fontScale != null ? String(ov.fontScale) : ""}
+              placeholder="1.0"
+              onCommit={(v) => {
+                const n = parseFloat(v);
+                setResponsive(layer.id, device, {
+                  fontScale: Number.isFinite(n) && n > 0 ? n : undefined,
+                });
+              }}
+            />
+            <TextField
+              label={t("inspector.device.padding")}
+              value={ov.padding ?? ""}
+              placeholder="8px 16px"
+              onCommit={(v) =>
+                setResponsive(layer.id, device, { padding: v.trim() || undefined })
+              }
+            />
+          </div>
+
+          <div className="ins-prop-row">
+            <div className="ins-prop wide">
+              <label>{t("inspector.device.align")}</label>
+              <select
+                value={ov.align ?? ""}
+                onChange={(e) =>
+                  setResponsive(layer.id, device, {
+                    align: (e.target.value || undefined) as ResponsiveOverride["align"],
+                  })
+                }
+              >
+                <option value="">{t("inspector.device.inherit")}</option>
+                <option value="left">left</option>
+                <option value="center">center</option>
+                <option value="right">right</option>
+              </select>
+            </div>
+            <div className="ins-prop wide">
+              <label>{t("inspector.device.stack")}</label>
+              <select
+                value={ov.flexDirection ?? ""}
+                onChange={(e) =>
+                  setResponsive(layer.id, device, {
+                    flexDirection: (e.target.value || undefined) as ResponsiveOverride["flexDirection"],
+                  })
+                }
+              >
+                <option value="">{t("inspector.device.inherit")}</option>
+                <option value="row">row</option>
+                <option value="column">column</option>
+              </select>
+            </div>
+          </div>
+
+          {(ov.display || ov.fontScale != null || ov.padding || ov.align || ov.flexDirection) && (
+            <button
+              type="button"
+              className="ins-device-clear"
+              onClick={() => setResponsive(layer.id, device, null)}
+            >
+              <i className="fa-solid fa-rotate-left" aria-hidden />{" "}
+              {t("inspector.device.clear")}
+            </button>
+          )}
+        </>
+      )}
     </Section>
   );
 }

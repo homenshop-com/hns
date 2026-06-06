@@ -945,8 +945,9 @@
       "pageTabsLabel": "頁面標籤",
       "addPage": "新增頁面",
       "viewportLabel": "切換視窗",
-      "desktopTitle": "桌面編輯（≥ 768px）",
-      "mobileTitle": "行動裝置編輯（< 768px）— 獨立儲存位置/尺寸",
+      "desktopTitle": "桌面編輯（≥ 1025px）",
+      "tabletTitle": "平板編輯（768–1024px）— 獨立儲存位置/尺寸",
+      "mobileTitle": "行動裝置編輯（≤ 767px）— 獨立儲存位置/尺寸",
       "historyLabel": "復原 / 重做",
       "undo": "復原",
       "undoTitle": "復原（{shortcut}）",
@@ -1025,6 +1026,7 @@
     },
     "viewport": {
       "mobile": "📱 行動裝置",
+      "tablet": "📲 平板",
       "desktop": "🖥 桌面"
     },
     "zoom": {
@@ -1162,6 +1164,18 @@
         "center": "置中",
         "right": "靠右",
         "justify": "兩端對齊"
+      },
+      "device": {
+        "section": "裝置專屬設定",
+        "hint": "與桌面端分開，僅在此裝置生效。在畫布上直接拖曳/調整大小會將位置與尺寸僅儲存到此裝置。",
+        "hide": "在此裝置隱藏",
+        "display": "顯示方式",
+        "inherit": "繼承",
+        "fontScale": "字型縮放",
+        "padding": "內距",
+        "align": "對齊",
+        "stack": "堆疊方向",
+        "clear": "重設覆寫"
       }
     },
     "layers": {

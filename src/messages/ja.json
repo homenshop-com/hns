@@ -945,8 +945,9 @@
       "pageTabsLabel": "ページタブ",
       "addPage": "ページを追加",
       "viewportLabel": "ビューポート切り替え",
-      "desktopTitle": "デスクトップ編集（≥ 768px）",
-      "mobileTitle": "モバイル編集（< 768px）— デスクトップとは別の位置・サイズを保存",
+      "desktopTitle": "デスクトップ編集（≥ 1025px）",
+      "tabletTitle": "タブレット編集（768–1024px）— デスクトップとは別の位置・サイズを保存",
+      "mobileTitle": "モバイル編集（≤ 767px）— デスクトップとは別の位置・サイズを保存",
       "historyLabel": "元に戻す / やり直し",
       "undo": "元に戻す",
       "undoTitle": "元に戻す（{shortcut}）",
@@ -1025,6 +1026,7 @@
     },
     "viewport": {
       "mobile": "📱 モバイル",
+      "tablet": "📲 タブレット",
       "desktop": "🖥 デスクトップ"
     },
     "zoom": {
@@ -1162,6 +1164,18 @@
         "center": "中央揃え",
         "right": "右揃え",
         "justify": "両端"
+      },
+      "device": {
+        "section": "デバイス別設定",
+        "hint": "デスクトップとは別に、このデバイスにのみ適用されます。キャンバスで直接ドラッグ/リサイズすると位置・サイズがこのデバイス専用に保存されます。",
+        "hide": "このデバイスで非表示",
+        "display": "表示方法",
+        "inherit": "継承",
+        "fontScale": "フォント倍率",
+        "padding": "余白",
+        "align": "整列",
+        "stack": "スタック方向",
+        "clear": "オーバーライドをリセット"
       }
     },
     "layers": {

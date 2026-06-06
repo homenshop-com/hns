@@ -24,7 +24,7 @@
 import { create } from "zustand";
 import { temporal } from "zundo";
 import { produce } from "immer";
-import { applyMobileCssToScene, hasTypedChildren, isSection, legacyHtmlToScene, sceneToLegacyHtml } from "@/lib/scene";
+import { applyDeviceOverridesFromScene, applyMobileCssToScene, hasTypedChildren, isSection, legacyHtmlToScene, sceneToLegacyHtml } from "@/lib/scene";
 import type {
   BoxLayer,
   GroupLayer,
@@ -34,6 +34,7 @@ import type {
   LayerInteraction,
   LayerStyle,
   LayerTransform,
+  ResponsiveOverride,
   SceneGraph,
   SectionLayer,
 } from "@/lib/scene";
@@ -46,8 +47,19 @@ type Container = GroupLayer | SectionLayer;
 
 /** Which breakpoint bucket the editor is currently editing. All drag/
  *  resize/transform mutations are routed to the active viewport's fields,
- *  so users can position/size each layer independently per breakpoint. */
-export type ViewportMode = "desktop" | "mobile";
+ *  so users can position/size each layer independently per breakpoint.
+ *
+ *  mutable-baking-falcon Phase 3/4 — extended from desktop/mobile to a
+ *  3-device model (Wix-style for absolute, Webflow-cascade for flow):
+ *    "desktop" = PC base (authored frame / frameKeys / transform)
+ *    "tablet"  = ≤1024px override (tabletFrame / tabletFrameKeys / …)
+ *    "mobile"  = ≤767px override (mobileFrame / mobileFrameKeys / …)
+ *  "desktop" is retained (rather than renamed to "pc") to keep already
+ *  shipped UI/state byte-compatible. */
+export type ViewportMode = "desktop" | "tablet" | "mobile";
+
+/** Non-base devices that carry per-device overrides. */
+export type OverrideDevice = "tablet" | "mobile";
 
 export interface EditorState {
   scene: SceneGraph;
@@ -67,8 +79,14 @@ export interface EditorActions {
   /** Import HTML into the scene in one shot. */
   /** Import legacy body HTML. If `pageCss` is provided, any
    *  `@media (max-width: 768px)` override block inside it is merged into
-   *  each layer's mobileFrame/mobileTransform for round-trip editing. */
-  importHtml(html: string, pageCss?: string): void;
+   *  each layer's mobileFrame/mobileTransform for round-trip editing.
+   *
+   *  `savedScene` (mutable-baking-falcon Phase 3/4) — when supplied (the
+   *  initial load's `content.layers`), per-device overrides (tablet/mobile
+   *  frames, hidden, cascade) are losslessly overlaid by layer id, so a
+   *  reopened editor restores exactly what was saved rather than only the
+   *  desktop base + lossy CSS reading. */
+  importHtml(html: string, pageCss?: string, savedScene?: SceneGraph | null): void;
   /** Export the current scene as legacy body HTML. */
   exportHtml(): string;
 
@@ -158,6 +176,27 @@ export interface EditorActions {
    *  the canvas by itself — callers should propagate to the canvas width
    *  and to applyFrameToEl/applyTransformToEl on every layer. */
   setViewportMode(mode: ViewportMode): void;
+
+  /**
+   * Per-device visibility (mutable-baking-falcon Phase 3/4). Hides/shows a
+   * layer at tablet or mobile; serialized as `display:none !important`
+   * inside the device `@media` block. PC visibility stays on `visible`.
+   * Passing `false` clears the flag (so the layer re-inherits PC).
+   */
+  setHidden(id: LayerId, device: OverrideDevice, hidden: boolean): void;
+
+  /**
+   * Merge a Webflow-style cascade override for a FLOW layer at tablet or
+   * mobile (display / fontScale / padding / align / flexDirection). Pass
+   * `null` to clear the whole device override; pass a partial to merge.
+   * Individual keys set to `undefined` are removed. Emitted by the
+   * serializer into the device `@media` block.
+   */
+  setResponsive(
+    id: LayerId,
+    device: OverrideDevice,
+    patch: Partial<ResponsiveOverride> | null,
+  ): void;
 }
 
 export type EditorStore = EditorState & EditorActions;
@@ -322,12 +361,17 @@ export const useEditorStore = create<EditorStore>()(
       setScene: (scene) =>
         set(() => ({ scene, dirty: true, selectedId: null, multiSelectedIds: new Set() })),
 
-      importHtml: (html, pageCss) => {
+      importHtml: (html, pageCss, savedScene) => {
         const scene = legacyHtmlToScene(html);
-        // Sprint 9g — overlay mobile viewport overrides from pageCss so
-        // the editor sees the same per-viewport values that published
-        // visitors see. Idempotent; no-op if no @media block exists.
-        if (pageCss) applyMobileCssToScene(scene, pageCss);
+        if (savedScene) {
+          // Lossless: overlay every per-device override from the saved
+          // scene JSON by id (tablet/mobile frames, hidden, cascade).
+          applyDeviceOverridesFromScene(scene, savedScene);
+        } else if (pageCss) {
+          // Sprint 9g fallback — for pages saved before V2 layers existed,
+          // read mobile overrides back out of the `@media` pageCss block.
+          applyMobileCssToScene(scene, pageCss);
+        }
         // Importing existing content shouldn't mark the doc dirty.
         set(() => ({ scene, dirty: false, selectedId: null, multiSelectedIds: new Set() }));
       },
@@ -576,24 +620,29 @@ export const useEditorStore = create<EditorStore>()(
           scene: produce(s.scene, (draft) => {
             const l = findLayer(draft.root, id);
             if (!l) return;
-            const mobileMode = s.viewportMode === "mobile";
+            const device = s.viewportMode; // "desktop" | "tablet" | "mobile"
             if (patch === null) {
-              if (mobileMode) l.mobileTransform = undefined;
+              if (device === "mobile") l.mobileTransform = undefined;
+              else if (device === "tablet") l.tabletTransform = undefined;
               else l.transform = undefined;
               return;
             }
-            // Seed mobile override from desktop when first editing in
-            // mobile mode, so the user picks up where desktop left off.
-            const base = mobileMode
-              ? (l.mobileTransform ?? l.transform ?? {})
-              : (l.transform ?? {});
+            // Seed the per-device override from desktop when first editing
+            // in that device, so the user picks up where desktop left off.
+            const base =
+              device === "mobile"
+                ? (l.mobileTransform ?? l.transform ?? {})
+                : device === "tablet"
+                  ? (l.tabletTransform ?? l.transform ?? {})
+                  : (l.transform ?? {});
             const next: LayerTransform = { ...base, ...patch };
             // Normalize: drop identity so serialize stays clean.
             if (next.rotate === 0) delete next.rotate;
             if (next.scaleX === 1) delete next.scaleX;
             if (next.scaleY === 1) delete next.scaleY;
             const hasAny = Object.keys(next).length > 0;
-            if (mobileMode) l.mobileTransform = hasAny ? next : undefined;
+            if (device === "mobile") l.mobileTransform = hasAny ? next : undefined;
+            else if (device === "tablet") l.tabletTransform = hasAny ? next : undefined;
             else l.transform = hasAny ? next : undefined;
           }),
           dirty: true,
@@ -669,25 +718,53 @@ export const useEditorStore = create<EditorStore>()(
             const l = findLayer(draft.root, id);
             if (!l || l.id === draft.root.id) return;
 
-            const mobileMode = s.viewportMode === "mobile";
+            const device = s.viewportMode; // "desktop" | "tablet" | "mobile"
 
-            // Sections: same flow-guard rules regardless of viewport —
-            // page regions must never gain position/left/top. We allow
-            // width/height resize, per-viewport.
-            if (isSection(l)) {
-              if (mobileMode) {
-                // Seed mobileFrame from desktop frame on first mobile edit.
-                const base = l.mobileFrame ?? { ...l.frame };
+            // ── Per-device override (tablet ≤1024 / mobile ≤767) ──
+            // mutable-baking-falcon Phase 3/4 — drag/resize in a non-base
+            // device writes to that device's {tablet,mobile}Frame/Keys so
+            // the desktop base is preserved. On first touch the frame is
+            // seeded from the desktop frame so the element doesn't jump.
+            if (device === "tablet" || device === "mobile") {
+              const frameField = device === "tablet" ? "tabletFrame" : "mobileFrame";
+              const keysField = device === "tablet" ? "tabletFrameKeys" : "mobileFrameKeys";
+              const base = l[frameField] ?? { ...l.frame };
+
+              // Sections keep the flow-guard — width/height only, never
+              // position/left/top, regardless of device.
+              if (isSection(l)) {
                 if (typeof patch.w === "number") base.w = Math.max(1, Math.round(patch.w));
                 if (typeof patch.h === "number") base.h = Math.max(1, Math.round(patch.h));
-                l.mobileFrame = base;
-                const keys = new Set(l.mobileFrameKeys ?? []);
+                l[frameField] = base;
+                const keys = new Set<string>(l[keysField] ?? []);
                 if (patch.w !== undefined) keys.add("width");
                 if (patch.h !== undefined) keys.add("height");
                 keys.delete("position"); keys.delete("left"); keys.delete("top");
-                l.mobileFrameKeys = Array.from(keys) as NonNullable<Layer["mobileFrameKeys"]>;
+                l[keysField] = Array.from(keys) as NonNullable<Layer["mobileFrameKeys"]>;
                 return;
               }
+
+              if (typeof patch.x === "number") base.x = Math.round(patch.x);
+              if (typeof patch.y === "number") base.y = Math.round(patch.y);
+              if (typeof patch.w === "number") base.w = Math.max(1, Math.round(patch.w));
+              if (typeof patch.h === "number") base.h = Math.max(1, Math.round(patch.h));
+              l[frameField] = base;
+              // Seed device keys from desktop frameKeys on first edit so
+              // width/height inherited from desktop stay declared.
+              const keys = new Set<string>(l[keysField] ?? l.frameKeys ?? []);
+              if (patch.x !== undefined || patch.y !== undefined) keys.add("position");
+              if (patch.x !== undefined) keys.add("left");
+              if (patch.y !== undefined) keys.add("top");
+              if (patch.w !== undefined) keys.add("width");
+              if (patch.h !== undefined) keys.add("height");
+              l[keysField] = Array.from(keys) as NonNullable<Layer["mobileFrameKeys"]>;
+              return;
+            }
+
+            // ── Desktop base ──
+            // Sections: flow-guard — page regions must never gain
+            // position/left/top. We allow width/height resize.
+            if (isSection(l)) {
               if (typeof patch.w === "number") l.frame.w = Math.max(1, Math.round(patch.w));
               if (typeof patch.h === "number") l.frame.h = Math.max(1, Math.round(patch.h));
               const keys = new Set(l.frameKeys ?? []);
@@ -699,29 +776,6 @@ export const useEditorStore = create<EditorStore>()(
             }
             // Non-section layer: atomic child, box, image, text, group.
             // Sprint 9f — auto-promote to absolute on any x/y patch.
-            // Sprint 9g — when in mobile viewport mode, route the write
-            // to mobileFrame/mobileFrameKeys so desktop positioning is
-            // preserved. On first mobile-mode touch, mobileFrame is
-            // seeded from the desktop frame so the element doesn't jump.
-            if (mobileMode) {
-              const base = l.mobileFrame ?? { ...l.frame };
-              if (typeof patch.x === "number") base.x = Math.round(patch.x);
-              if (typeof patch.y === "number") base.y = Math.round(patch.y);
-              if (typeof patch.w === "number") base.w = Math.max(1, Math.round(patch.w));
-              if (typeof patch.h === "number") base.h = Math.max(1, Math.round(patch.h));
-              l.mobileFrame = base;
-              // Seed mobileFrameKeys from desktop frameKeys on first edit
-              // so width/height inherited from desktop stay declared.
-              const keys = new Set(l.mobileFrameKeys ?? l.frameKeys ?? []);
-              if (patch.x !== undefined || patch.y !== undefined) keys.add("position");
-              if (patch.x !== undefined) keys.add("left");
-              if (patch.y !== undefined) keys.add("top");
-              if (patch.w !== undefined) keys.add("width");
-              if (patch.h !== undefined) keys.add("height");
-              l.mobileFrameKeys = Array.from(keys) as NonNullable<Layer["mobileFrameKeys"]>;
-              return;
-            }
-
             if (typeof patch.x === "number") l.frame.x = Math.round(patch.x);
             if (typeof patch.y === "number") l.frame.y = Math.round(patch.y);
             if (typeof patch.w === "number") l.frame.w = Math.max(1, Math.round(patch.w));
@@ -740,6 +794,41 @@ export const useEditorStore = create<EditorStore>()(
             if (patch.w !== undefined) keys.add("width");
             if (patch.h !== undefined) keys.add("height");
             l.frameKeys = Array.from(keys) as NonNullable<Layer["frameKeys"]>;
+          }),
+          dirty: true,
+        })),
+
+      setHidden: (id, device, hidden) =>
+        set((s) => ({
+          scene: produce(s.scene, (draft) => {
+            const l = findLayer(draft.root, id);
+            if (!l) return;
+            const next = { ...(l.hidden ?? {}) };
+            if (hidden) next[device] = true;
+            else delete next[device];
+            l.hidden = Object.keys(next).length > 0 ? next : undefined;
+          }),
+          dirty: true,
+        })),
+
+      setResponsive: (id, device, patch) =>
+        set((s) => ({
+          scene: produce(s.scene, (draft) => {
+            const l = findLayer(draft.root, id);
+            if (!l) return;
+            const next = { ...(l.responsive ?? {}) };
+            if (patch === null) {
+              delete next[device];
+            } else {
+              const merged: ResponsiveOverride = { ...(next[device] ?? {}), ...patch };
+              // Keys explicitly set to undefined are cleared.
+              for (const k of Object.keys(merged) as (keyof ResponsiveOverride)[]) {
+                if (merged[k] === undefined) delete merged[k];
+              }
+              if (Object.keys(merged).length > 0) next[device] = merged;
+              else delete next[device];
+            }
+            l.responsive = Object.keys(next).length > 0 ? next : undefined;
           }),
           dirty: true,
         })),

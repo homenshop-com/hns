@@ -945,8 +945,9 @@
       "pageTabsLabel": "Pestañas de página",
       "addPage": "Añadir página",
       "viewportLabel": "Cambiar vista",
-      "desktopTitle": "Edición escritorio (≥ 768px)",
-      "mobileTitle": "Edición móvil (< 768px) — posición/tamaño independiente del escritorio",
+      "desktopTitle": "Edición escritorio (≥ 1025px)",
+      "tabletTitle": "Edición en tableta (768–1024px) — posición/tamaño independiente del escritorio",
+      "mobileTitle": "Edición móvil (≤ 767px) — posición/tamaño independiente del escritorio",
       "historyLabel": "Deshacer / Rehacer",
       "undo": "Deshacer",
       "undoTitle": "Deshacer ({shortcut})",
@@ -1025,6 +1026,7 @@
     },
     "viewport": {
       "mobile": "📱 Móvil",
+      "tablet": "📲 Tableta",
       "desktop": "🖥 Escritorio"
     },
     "zoom": {
@@ -1162,6 +1164,18 @@
         "center": "Centro",
         "right": "Derecha",
         "justify": "Justificar"
+      },
+      "device": {
+        "section": "Ajustes por dispositivo",
+        "hint": "Se aplica solo en este dispositivo, aparte del escritorio. Arrastrar/redimensionar en el lienzo guarda la posición y el tamaño solo para este dispositivo.",
+        "hide": "Ocultar en este dispositivo",
+        "display": "Visualización",
+        "inherit": "Heredar",
+        "fontScale": "Escala de fuente",
+        "padding": "Relleno",
+        "align": "Alineación",
+        "stack": "Dirección de pila",
+        "clear": "Restablecer anulaciones"
       }
     },
     "layers": {

@@ -959,8 +959,9 @@
       "pageTabsLabel": "Page tabs",
       "addPage": "Add page",
       "viewportLabel": "Switch viewport",
-      "desktopTitle": "Desktop editing (≥ 768px)",
-      "mobileTitle": "Mobile editing (< 768px) — separate position/size from desktop",
+      "desktopTitle": "Desktop editing (≥ 1025px)",
+      "tabletTitle": "Tablet editing (768–1024px) — separate position/size from desktop",
+      "mobileTitle": "Mobile editing (≤ 767px) — separate position/size from desktop",
       "historyLabel": "Undo / Redo",
       "undo": "Undo",
       "undoTitle": "Undo ({shortcut})",
@@ -1039,6 +1040,7 @@
     },
     "viewport": {
       "mobile": "📱 Mobile",
+      "tablet": "📲 Tablet",
       "desktop": "🖥 Desktop"
     },
     "zoom": {
@@ -1176,6 +1178,18 @@
         "center": "Center",
         "right": "Right",
         "justify": "Justify"
+      },
+      "device": {
+        "section": "Device settings",
+        "hint": "Applies only on this device, separately from desktop. Dragging/resizing on the canvas saves position & size for this device only.",
+        "hide": "Hide on this device",
+        "display": "Display",
+        "inherit": "Inherit",
+        "fontScale": "Font scale",
+        "padding": "Padding",
+        "align": "Align",
+        "stack": "Stack direction",
+        "clear": "Reset overrides"
       }
     },
     "layers": {

@@ -959,8 +959,9 @@
       "pageTabsLabel": "페이지 탭",
       "addPage": "페이지 추가",
       "viewportLabel": "뷰포트 전환",
-      "desktopTitle": "데스크탑 편집 (≥ 768px)",
-      "mobileTitle": "모바일 편집 (< 768px) — 데스크탑과 별도의 위치/크기 저장",
+      "desktopTitle": "데스크탑 편집 (≥ 1025px)",
+      "tabletTitle": "태블릿 편집 (768–1024px) — 데스크탑과 별도의 위치/크기 저장",
+      "mobileTitle": "모바일 편집 (≤ 767px) — 데스크탑과 별도의 위치/크기 저장",
       "historyLabel": "실행 취소 / 다시 실행",
       "undo": "실행 취소",
       "undoTitle": "실행 취소 ({shortcut})",
@@ -1039,6 +1040,7 @@
     },
     "viewport": {
       "mobile": "📱 모바일",
+      "tablet": "📲 태블릿",
       "desktop": "🖥 데스크탑"
     },
     "zoom": {
@@ -1176,6 +1178,18 @@
         "center": "가운데",
         "right": "오른쪽",
         "justify": "양쪽"
+      },
+      "device": {
+        "section": "기기별 설정",
+        "hint": "데스크탑과 별도로 이 기기에서만 적용됩니다. 캔버스에서 직접 드래그/리사이즈하면 위치·크기가 이 기기 전용으로 저장됩니다.",
+        "hide": "이 기기에서 숨기기",
+        "display": "표시 방식",
+        "inherit": "상속",
+        "fontScale": "폰트 배율",
+        "padding": "여백",
+        "align": "정렬",
+        "stack": "스택 방향",
+        "clear": "오버라이드 초기화"
       }
     },
     "layers": {

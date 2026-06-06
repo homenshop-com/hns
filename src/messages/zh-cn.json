@@ -945,8 +945,9 @@
       "pageTabsLabel": "页面标签",
       "addPage": "添加页面",
       "viewportLabel": "切换视口",
-      "desktopTitle": "桌面端编辑（≥ 768px）",
-      "mobileTitle": "移动端编辑（< 768px）— 独立保存位置/尺寸",
+      "desktopTitle": "桌面端编辑（≥ 1025px）",
+      "tabletTitle": "平板端编辑（768–1024px）— 独立保存位置/尺寸",
+      "mobileTitle": "移动端编辑（≤ 767px）— 独立保存位置/尺寸",
       "historyLabel": "撤销 / 重做",
       "undo": "撤销",
       "undoTitle": "撤销（{shortcut}）",
@@ -1025,6 +1026,7 @@
     },
     "viewport": {
       "mobile": "📱 移动",
+      "tablet": "📲 平板",
       "desktop": "🖥 桌面"
     },
     "zoom": {
@@ -1162,6 +1164,18 @@
         "center": "居中",
         "right": "右对齐",
         "justify": "两端对齐"
+      },
+      "device": {
+        "section": "设备专属设置",
+        "hint": "与桌面端分开，仅在此设备生效。在画布上直接拖动/调整大小会将位置和尺寸仅保存到此设备。",
+        "hide": "在此设备隐藏",
+        "display": "显示方式",
+        "inherit": "继承",
+        "fontScale": "字体缩放",
+        "padding": "内边距",
+        "align": "对齐",
+        "stack": "堆叠方向",
+        "clear": "重置覆盖"
       }
     },
     "layers": {

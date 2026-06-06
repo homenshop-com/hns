@@ -183,6 +183,50 @@ export function buildDeviceMediaCss(scene: SceneGraph): string {
 }
 
 /**
+ * Lossless round-trip overlay: copy every per-device override field from a
+ * previously saved scene (`content.layers`) onto a freshly HTML-parsed
+ * scene, matched by layer id. Unlike reading the device `@media` CSS back
+ * (which is lossy for `responsive` fontScale/hidden), the saved scene JSON
+ * is the exact source of truth, so on editor reload the user sees their
+ * tablet/mobile layouts, visibility, and cascade overrides intact.
+ *
+ * Only the device-override fields are copied — base geometry, style, and
+ * structure come from the fresh HTML parse (the published contract).
+ */
+export function applyDeviceOverridesFromScene(
+  target: SceneGraph,
+  saved: SceneGraph,
+): void {
+  if (!saved?.root) return;
+  const savedById = new Map<string, Layer>();
+  const index = (node: GroupLayer): void => {
+    for (const child of node.children) {
+      savedById.set(child.id, child);
+      if (hasTypedChildren(child)) index(child as GroupLayer);
+    }
+  };
+  index(saved.root as GroupLayer);
+
+  const overlay = (node: GroupLayer): void => {
+    for (const child of node.children) {
+      const src = savedById.get(child.id);
+      if (src) {
+        if (src.tabletFrame) child.tabletFrame = src.tabletFrame;
+        if (src.tabletFrameKeys) child.tabletFrameKeys = src.tabletFrameKeys;
+        if (src.tabletTransform) child.tabletTransform = src.tabletTransform;
+        if (src.mobileFrame) child.mobileFrame = src.mobileFrame;
+        if (src.mobileFrameKeys) child.mobileFrameKeys = src.mobileFrameKeys;
+        if (src.mobileTransform) child.mobileTransform = src.mobileTransform;
+        if (src.hidden) child.hidden = src.hidden;
+        if (src.responsive) child.responsive = src.responsive;
+      }
+      if (hasTypedChildren(child)) overlay(child as GroupLayer);
+    }
+  };
+  overlay(target.root as GroupLayer);
+}
+
+/**
  * Strip a previously emitted device-overrides block (everything from the
  * marker through its trailing blocks) so a fresh one can replace it.
  * Conservatively keys on the exact marker we write on every save and

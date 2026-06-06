@@ -36,6 +36,42 @@ import {
 } from "@/lib/scene";
 import { printTransform, printTransformOrigin } from "@/lib/scene/parse-transform";
 
+/** Active editing device for the canvas preview. mutable-baking-falcon
+ *  Phase 3/4 — extended from desktop/mobile to a 3-device model. Mirrors
+ *  the store's `ViewportMode`. */
+export type DeviceMode = "desktop" | "tablet" | "mobile";
+
+/** A single cascade layer: a frame plus the set of props that are
+ *  "active" (declared) at that level. */
+type FrameLevel = { frame: import("@/lib/scene").LayerFrame; keys: Set<string> };
+
+/** Build the device cascade (least→most specific) for a layer's geometry.
+ *  Per-property resolution walks this most-specific-first so each prop
+ *  takes its value from the narrowest device that declares it — exactly
+ *  the cascade the published `@media` blocks produce. */
+function frameCascade(layer: Layer, device: DeviceMode): FrameLevel[] {
+  const levels: FrameLevel[] = [
+    { frame: layer.frame, keys: new Set(layer.frameKeys ?? []) },
+  ];
+  if (device === "tablet" || device === "mobile") {
+    if (layer.tabletFrame || layer.tabletFrameKeys) {
+      levels.push({
+        frame: layer.tabletFrame ?? layer.frame,
+        keys: new Set(layer.tabletFrameKeys ?? []),
+      });
+    }
+  }
+  if (device === "mobile") {
+    if (layer.mobileFrame || layer.mobileFrameKeys) {
+      levels.push({
+        frame: layer.mobileFrame ?? layer.frame,
+        keys: new Set(layer.mobileFrameKeys ?? []),
+      });
+    }
+  }
+  return levels;
+}
+
 const HIDDEN_ATTR = "data-de-hidden";
 const LOCKED_ATTR = "data-de-locked";
 const HIDDEN_STYLE_OPACITY = "0.3";
@@ -162,28 +198,34 @@ function ensureGroupWrapper(
 function applyFrameToEl(
   el: HTMLElement,
   layer: Layer,
-  viewportMode: "desktop" | "mobile" = "desktop",
+  viewportMode: DeviceMode = "desktop",
 ) {
   if (layer.type === "group" && (layer as GroupLayer).virtual) return;
   // Inline text layers (span/a) — width/height via inline style would
   // override responsive CSS and fight text flow. Skip entirely.
   if (layer.type === "inline") return;
 
-  const mobile = viewportMode === "mobile";
-  // Prefer mobile override; fall back to desktop if the user hasn't
-  // customized mobile yet.
-  const keys = new Set(
-    (mobile ? (layer.mobileFrameKeys ?? layer.frameKeys) : layer.frameKeys) ?? [],
-  );
-  const frame = mobile ? (layer.mobileFrame ?? layer.frame) : layer.frame;
+  // Per-property cascade: walk the device levels most-specific-first so
+  // each prop takes its value (and frame) from the narrowest device that
+  // declares it. This mirrors what the published `@media` blocks render,
+  // so the canvas preview at each device is WYSIWYG-faithful.
+  const levels = frameCascade(layer, viewportMode);
+  const resolve = (prop: string): { frame: FrameLevel["frame"] } | null => {
+    for (let i = levels.length - 1; i >= 0; i--) {
+      if (levels[i]!.keys.has(prop)) return { frame: levels[i]!.frame };
+    }
+    return null;
+  };
 
   // Keys whose source carried (or the parser injected) a `!important` flag.
   // Re-emit those inline as important so they beat the page CSS that the
   // editor/publisher boosts to `!important` — chiefly the image-anchor
   // boxes the parser enlarges to their art's size (e.g. a 749px menu bar
-  // pinned in a 410px box). Mobile has no separate importance set, so the
-  // mobile frame is always written plain.
-  const important = new Set<string>(mobile ? [] : (layer.frameImportant ?? []));
+  // pinned in a 410px box). Only the desktop base carries an importance
+  // set; device overrides are written plain.
+  const important = new Set<string>(
+    viewportMode === "desktop" ? (layer.frameImportant ?? []) : [],
+  );
   const setFrameProp = (prop: string, key: string, value: string) => {
     if (important.has(key)) el.style.setProperty(prop, value, "important");
     else el.style.setProperty(prop, value);
@@ -193,21 +235,28 @@ function applyFrameToEl(
   // rip them out of document flow), but width/height are allowed
   // (users may want to resize a hero section's height).
   if (layer.type === "section") {
-    if (keys.has("width")) setFrameProp("width", "width", `${frame.w}px`);
+    const w = resolve("width");
+    if (w) setFrameProp("width", "width", `${w.frame.w}px`);
     else el.style.removeProperty("width");
-    if (keys.has("height")) setFrameProp("height", "height", `${frame.h}px`);
+    const h = resolve("height");
+    if (h) setFrameProp("height", "height", `${h.frame.h}px`);
     else el.style.removeProperty("height");
     return;
   }
-  if (keys.has("position")) setFrameProp("position", "position", "absolute");
+  const pos = resolve("position");
+  if (pos) setFrameProp("position", "position", "absolute");
   else el.style.removeProperty("position");
-  if (keys.has("left")) setFrameProp("left", "left", `${frame.x}px`);
+  const left = resolve("left");
+  if (left) setFrameProp("left", "left", `${left.frame.x}px`);
   else el.style.removeProperty("left");
-  if (keys.has("top")) setFrameProp("top", "top", `${frame.y}px`);
+  const top = resolve("top");
+  if (top) setFrameProp("top", "top", `${top.frame.y}px`);
   else el.style.removeProperty("top");
-  if (keys.has("width")) setFrameProp("width", "width", `${frame.w}px`);
+  const width = resolve("width");
+  if (width) setFrameProp("width", "width", `${width.frame.w}px`);
   else el.style.removeProperty("width");
-  if (keys.has("height")) setFrameProp("height", "height", `${frame.h}px`);
+  const height = resolve("height");
+  if (height) setFrameProp("height", "height", `${height.frame.h}px`);
   else el.style.removeProperty("height");
 }
 
@@ -363,11 +412,16 @@ function applyStyleToEl(el: HTMLElement, layer: Layer) {
 function applyTransformToEl(
   el: HTMLElement,
   layer: Layer,
-  viewportMode: "desktop" | "mobile" = "desktop",
+  viewportMode: DeviceMode = "desktop",
 ) {
-  const source = viewportMode === "mobile"
-    ? (layer.mobileTransform ?? layer.transform)
-    : layer.transform;
+  // Transform cascade: mobile → tablet → desktop (first defined wins),
+  // tablet → desktop, desktop → desktop.
+  const source =
+    viewportMode === "mobile"
+      ? (layer.mobileTransform ?? layer.tabletTransform ?? layer.transform)
+      : viewportMode === "tablet"
+        ? (layer.tabletTransform ?? layer.transform)
+        : layer.transform;
   const tfm = printTransform(source);
   if (tfm) el.style.transform = tfm;
   else el.style.removeProperty("transform");
@@ -390,7 +444,7 @@ function applyTransformToEl(
 export function applyStructure(
   scene: SceneGraph,
   container: HTMLElement,
-  viewportMode: "desktop" | "mobile" = "desktop",
+  viewportMode: DeviceMode = "desktop",
 ) {
   const reconcile = (node: GroupLayer | import("@/lib/scene").SectionLayer, domParent: HTMLElement) => {
     // Sprint 9h — when reconciling a SECTION's children, respect the
@@ -685,7 +739,7 @@ export function applySelection(
 export function syncStoreToDom(
   scene: SceneGraph,
   container: HTMLElement,
-  viewportMode: "desktop" | "mobile" = "desktop",
+  viewportMode: DeviceMode = "desktop",
 ) {
   applyStructure(scene, container, viewportMode);
   pruneOrphans(scene, container);

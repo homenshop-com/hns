@@ -10,7 +10,7 @@ import "./editor-styles.css";
 // "Editor Canvas.html" from Claude Design. Must import AFTER editor-styles.css
 // so its higher specificity rules win.
 import "./editor-figma-theme.css";
-import { useEditorStore } from "./store/editor-store";
+import { useEditorStore, type ViewportMode } from "./store/editor-store";
 import {
   applySelection as syncApplySelection,
   normalizeAnchorImageBoxes,
@@ -18,8 +18,11 @@ import {
 } from "./store/editor-sync";
 import { snapRect, type Rect as SnapRect } from "./store/snap";
 import {
-  sceneToMobileCss,
   stripMobileCssBlock,
+  buildDeviceMediaCss,
+  stripDeviceMediaCss,
+  applyDeviceOverridesFromScene,
+  type SceneGraph,
 } from "@/lib/scene";
 // Sprint 9k — section preset library for LeftPalette "섹션 블록" list.
 import { SECTION_PRESETS } from "./components/section-library";
@@ -95,6 +98,11 @@ interface DesignEditorProps {
   pageSlug: string;
   pages: PageInfo[];
   bodyHtml: string;
+  /** Saved scene graph (`content.layers`) from the last V2 save, if any.
+   *  Used to losslessly re-hydrate per-device overrides (tablet/mobile
+   *  frames, hidden, cascade) on editor load — the freshly HTML-parsed
+   *  scene only carries the desktop base. */
+  bodyLayers?: SceneGraph | null;
   published: boolean;
   currentLang: string;
   siteLanguages: string[];
@@ -131,6 +139,7 @@ export default function DesignEditor({
   pageSlug,
   pages: initialPages,
   bodyHtml,
+  bodyLayers = null,
   published: initialPublished,
   currentLang,
   siteLanguages,
@@ -148,8 +157,10 @@ export default function DesignEditor({
   // edits, undo, page switches, etc. Skip entirely when the flag is off.
   useEffect(() => {
     if (!editorV2Enabled) return;
-    useEditorStore.getState().importHtml(bodyHtml || "", pageCss);
-  }, [editorV2Enabled, bodyHtml, pageId, pageCss]);
+    // Pass the saved scene JSON so per-device overrides re-hydrate
+    // losslessly on load (desktop base comes from the HTML parse).
+    useEditorStore.getState().importHtml(bodyHtml || "", pageCss, bodyLayers);
+  }, [editorV2Enabled, bodyHtml, pageId, pageCss, bodyLayers]);
 
   // State
   const [currentBodyHtml, setCurrentBodyHtml] = useState(bodyHtml);
@@ -273,7 +284,7 @@ export default function DesignEditor({
   );
 
   // Subscribe to viewport mode (for toolbar button highlighting + canvas width).
-  const [viewportMode, setLocalViewportMode] = useState<"desktop" | "mobile">("desktop");
+  const [viewportMode, setLocalViewportMode] = useState<ViewportMode>("desktop");
   useEffect(() => {
     if (!editorV2Enabled) return;
     setLocalViewportMode(useEditorStore.getState().viewportMode);
@@ -818,16 +829,19 @@ export default function DesignEditor({
         ? useEditorStore.getState().scene
         : null;
 
-      // Mobile viewport overrides → @media block inside pageCss.
-      // Strip any previous block before emitting a fresh one; if there
-      // are no overrides at all, the pageCss just gets trimmed.
+      // Device viewport overrides (tablet ≤1024 + mobile ≤767 + hidden +
+      // cascade) → single `@media` block inside pageCss via the shared
+      // emitter that the published route also calls (WYSIWYG guarantee).
+      // Strip BOTH the new device block and any legacy mobile-only block
+      // (SCENE-MOBILE-OVERRIDES) left by older saves before re-emitting.
       let finalPageCss = currentPageCss;
       if (v2Scene) {
-        const withoutOld = stripMobileCssBlock(finalPageCss);
-        const mobileBlock = sceneToMobileCss(v2Scene);
-        finalPageCss = mobileBlock
-          ? (withoutOld ? `${withoutOld}\n\n${mobileBlock}` : mobileBlock)
-          : withoutOld;
+        let base = stripDeviceMediaCss(finalPageCss);
+        base = stripMobileCssBlock(base);
+        const deviceBlock = buildDeviceMediaCss(v2Scene);
+        finalPageCss = deviceBlock
+          ? (base ? `${base}\n\n${deviceBlock}` : deviceBlock)
+          : base;
       }
       const cssChanged = finalPageCss !== pageCss;
 
@@ -3014,6 +3028,19 @@ export default function DesignEditor({
               </button>
               <button
                 type="button"
+                className={`de-viewport-btn${viewportMode === "tablet" ? " active" : ""}`}
+                onClick={() => useEditorStore.getState().setViewportMode("tablet")}
+                title={t("topbar.tabletTitle")}
+                aria-pressed={viewportMode === "tablet"}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ display: "block" }}>
+                  <rect x="4" y="3" width="16" height="18" rx="2"></rect>
+                  <line x1="10" y1="18" x2="14" y2="18"></line>
+                </svg>
+                <span>Tablet</span>
+              </button>
+              <button
+                type="button"
                 className={`de-viewport-btn${viewportMode === "mobile" ? " active" : ""}`}
                 onClick={() => useEditorStore.getState().setViewportMode("mobile")}
                 title={t("topbar.mobileTitle")}
@@ -3536,7 +3563,7 @@ export default function DesignEditor({
       {/* CANVAS */}
       <div
         ref={canvasWrapperRef}
-        className={`de-canvas-wrapper${viewportMode === "mobile" ? " mobile-preview" : ""}`}
+        className={`de-canvas-wrapper${viewportMode === "mobile" ? " mobile-preview" : viewportMode === "tablet" ? " tablet-preview" : ""}`}
         onMouseMove={(e) => {
           const host = bodyRef.current;
           if (!host) return;
@@ -3551,7 +3578,7 @@ export default function DesignEditor({
         <div
           className="de-artboard-label"
           style={{
-            top: viewportMode === "mobile" ? 10 : 20,
+            top: viewportMode === "desktop" ? 20 : 10,
             left: "50%",
             transform: "translateX(-50%)",
             position: "absolute",
@@ -3559,14 +3586,20 @@ export default function DesignEditor({
           }}
         >
           <span className="chip">
-            {viewportMode === "mobile" ? t("viewport.mobile") : t("viewport.desktop")}
+            {viewportMode === "mobile"
+              ? t("viewport.mobile")
+              : viewportMode === "tablet"
+                ? t("viewport.tablet")
+                : t("viewport.desktop")}
           </span>
           <span className="dev">
             {viewportMode === "mobile"
               ? "375 × auto"
-              : isModernCanvas
-                ? "100% × auto"
-                : `${designCanvasWidth ?? 1000} × auto`}
+              : viewportMode === "tablet"
+                ? "768 × auto"
+                : isModernCanvas
+                  ? "100% × auto"
+                  : `${designCanvasWidth ?? 1000} × auto`}
           </span>
         </div>
 
@@ -3975,7 +4008,7 @@ export default function DesignEditor({
           {t("statusBar.zoom")} <span className="mono">{zoom}%</span>
         </span>
         <span className="item">
-          {t("statusBar.viewport")} <span className="mono">{viewportMode === "mobile" ? "375" : (designCanvasWidth ?? 1000)}</span>
+          {t("statusBar.viewport")} <span className="mono">{viewportMode === "mobile" ? "375" : viewportMode === "tablet" ? "768" : (designCanvasWidth ?? 1000)}</span>
         </span>
       </div>
     </div>

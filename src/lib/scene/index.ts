@@ -10,5 +10,6 @@ export {
 export {
   buildDeviceMediaCss,
   stripDeviceMediaCss,
+  applyDeviceOverridesFromScene,
   DEVICE_MEDIA_COMMENT_MARK,
 } from "./device-css";

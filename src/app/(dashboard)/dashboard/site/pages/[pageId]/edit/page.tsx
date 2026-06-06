@@ -171,6 +171,7 @@ export default async function EditPagePage({ params }: EditPageProps) {
       pageSlug={currentPage.slug}
       pages={pages}
       bodyHtml={bodyHtml}
+      bodyLayers={(pageContent?.layers as unknown as import("@/lib/scene").SceneGraph | undefined) ?? null}
       published={site.published}
       currentLang={currentLang}
       siteLanguages={siteLanguages}
