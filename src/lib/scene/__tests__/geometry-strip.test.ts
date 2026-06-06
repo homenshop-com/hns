@@ -122,6 +122,26 @@ describe("collectInlineGeometryOwners", () => {
     expect(collectInlineGeometryOwners("").size).toBe(0);
   });
 
+  it("excludes dynamic plugin elements (boardPlugin) — placeholder inline size", () => {
+    // Regression: konnichiwa hero v_home_dft_new_component_1740 is a
+    // boardPlugin with inline 200×50 placeholder; real size is in CSS.
+    const html =
+      `<div id="hero" class="dragable boardPlugin" style="width:200px;height:50px;left:0px;top:130px"></div>`;
+    expect(collectInlineGeometryOwners(html).size).toBe(0);
+  });
+
+  it("excludes productPlugin / exhibitionPlugin / menuPlugin too", () => {
+    for (const cls of ["productPlugin", "exhibitionPlugin", "menuPlugin", "loginPlugin", "mailPlugin"]) {
+      const html = `<div id="x" class="dragable ${cls}" style="width:200px;left:0px"></div>`;
+      expect(collectInlineGeometryOwners(html).size).toBe(0);
+    }
+  });
+
+  it("still owns regular (non-plugin) elements", () => {
+    const html = `<div id="t" class="dragable sol-replacible-text" style="left:10px;top:20px"></div>`;
+    expect(collectInlineGeometryOwners(html).get("t")).toEqual(new Set(["left", "top"]));
+  });
+
   it("z-index inline does not register as a geometry owner", () => {
     const html = `<div id="a" style="z-index:5"></div>`;
     expect(collectInlineGeometryOwners(html).size).toBe(0);
@@ -158,6 +178,21 @@ describe("collectSceneGeometryOwners", () => {
       children: [{ id: "a", frameKeys: ["left", "opacity" as never] }],
     };
     expect(collectSceneGeometryOwners(root).get("a")).toEqual(new Set(["left"]));
+  });
+
+  it("excludes plugin-type layers (board/product/exhibition/menu/login/mail)", () => {
+    const root = {
+      id: "root",
+      children: [
+        { id: "hero", type: "board", frameKeys: ["left", "top", "width", "height"] },
+        { id: "grid", type: "product", frameKeys: ["width", "height"] },
+        { id: "txt", type: "text", frameKeys: ["left", "top"] },
+      ],
+    };
+    const map = collectSceneGeometryOwners(root);
+    expect(map.has("hero")).toBe(false);
+    expect(map.has("grid")).toBe(false);
+    expect(map.get("txt")).toEqual(new Set(["left", "top"]));
   });
 });
 

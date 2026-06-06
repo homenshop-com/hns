@@ -25,6 +25,28 @@
  *  scene's plain inline value (stylesheet `!important` > plain inline). */
 export const SCENE_GEOMETRY_PROPS = ["position", "left", "top", "width", "height"] as const;
 
+/** Scene layer types whose rendered geometry is CSS/JS-driven, NOT inline.
+ *  Dynamic plugins (board slideshow hero, product grid, exhibition, …) carry
+ *  a tiny placeholder inline `width/height` (e.g. 200×50) while the REAL size
+ *  lives in the per-page CSS rule. Stripping that CSS would collapse the
+ *  element to the placeholder, so these are NEVER treated as geometry owners.
+ *  Mirrors the `*Plugin` class check on the route side (PLUGIN_CLASS_TYPE). */
+const PLUGIN_LAYER_TYPES = new Set([
+  "board",
+  "product",
+  "exhibition",
+  "menu",
+  "login",
+  "mail",
+]);
+
+/** True when an element's class list marks it a dynamic plugin (`boardPlugin`,
+ *  `productPlugin`, `exhibitionPlugin`, `menuPlugin`, `loginPlugin`,
+ *  `mailPlugin`). Such elements are CSS/JS-sized — exclude from geometry strip. */
+function isPluginClass(className: string): boolean {
+  return /\b[A-Za-z]+Plugin\b/.test(className);
+}
+
 /**
  * Strip scene-owned base-level geometry declarations from page CSS.
  *
@@ -113,6 +135,10 @@ export function collectInlineGeometryOwners(html: string): Map<string, Set<strin
     const tag = tm[0];
     const idM = /\bid=["']([^"']+)["']/.exec(tag);
     if (!idM) continue;
+    // Skip dynamic plugins — their inline geometry is a placeholder; the
+    // real size lives in CSS (stripping it would collapse the element).
+    const clsM = /\bclass=["']([^"']*)["']/.exec(tag);
+    if (clsM && isPluginClass(clsM[1]!)) continue;
     const stM = /\bstyle=["']([^"']*)["']/.exec(tag);
     if (!stM) continue;
     const style = stM[1]!;
@@ -129,21 +155,25 @@ export function collectInlineGeometryOwners(html: string): Map<string, Set<strin
  *  Used by the editor (the live scene is available there). An element
  *  "owns" a prop when its `frameKeys` lists it — the scene emits an inline
  *  value for that prop. Editor-side mirror of collectInlineGeometryOwners. */
-export function collectSceneGeometryOwners(
-  root: { id: string; frameKeys?: readonly string[]; children?: unknown[] },
-): Map<string, Set<string>> {
+type GeoNode = {
+  id: string;
+  type?: string;
+  frameKeys?: readonly string[];
+  children?: unknown[];
+};
+
+export function collectSceneGeometryOwners(root: GeoNode): Map<string, Set<string>> {
   const map = new Map<string, Set<string>>();
   const geom = new Set<string>(SCENE_GEOMETRY_PROPS);
-  const walk = (l: { id: string; frameKeys?: readonly string[]; children?: unknown[] }) => {
-    if (l.frameKeys && l.frameKeys.length) {
+  const walk = (l: GeoNode) => {
+    // Skip dynamic plugins — their frame is a placeholder; real size is CSS.
+    if (!(l.type && PLUGIN_LAYER_TYPES.has(l.type)) && l.frameKeys && l.frameKeys.length) {
       const props = new Set<string>();
       for (const k of l.frameKeys) if (geom.has(k)) props.add(k);
       if (props.size) map.set(l.id, props);
     }
     if (Array.isArray(l.children)) {
-      for (const c of l.children) {
-        walk(c as { id: string; frameKeys?: readonly string[]; children?: unknown[] });
-      }
+      for (const c of l.children) walk(c as GeoNode);
     }
   };
   walk(root);
