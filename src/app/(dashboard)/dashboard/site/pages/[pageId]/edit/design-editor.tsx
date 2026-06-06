@@ -1906,9 +1906,18 @@ export default function DesignEditor({
     // them via inline width/height would fight the template's responsive
     // CSS and look broken. Selection still works so the LayerPanel can
     // display/rename/visibility-toggle the section.
+    // EXCEPTION: plugin elements (boardPlugin hero/grid/…) and raw-injected
+    // HMF objects are explicit, freely-sized objects the user expects to
+    // resize even if the template positions them in flow — they carry an
+    // importantPin so their inline width/height beats the page CSS cleanly.
     {
       const pos = window.getComputedStyle(el).position;
-      if (pos !== "absolute" && pos !== "fixed") return;
+      const isPinEligible =
+        /\b[A-Za-z]+Plugin\b/.test(el.className) ||
+        !!headerRef.current?.contains(el) ||
+        !!menuRef.current?.contains(el) ||
+        !!footerRef.current?.contains(el);
+      if (pos !== "absolute" && pos !== "fixed" && !isPinEligible) return;
     }
 
     // Add resize handles only to primary selection (not multi-selected others)
