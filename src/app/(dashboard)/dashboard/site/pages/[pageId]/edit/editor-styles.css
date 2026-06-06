@@ -420,46 +420,61 @@
   width: 1000px;
   min-height: 800px;
 }
-/* Mobile viewport preview — constrain the canvas to a phone-sized frame
- *  so CSS `@media (max-width: 768px)` rules kick in and the user sees
- *  exactly what phone visitors will see. The 375 matches iPhone 13/14
- *  logical width. Desktop canvas (1000px) is taken care of above. */
-.de-canvas-wrapper.mobile-preview {
-  padding: 32px 20px 60px;
-  background: #1f2937;
-}
-.de-canvas-wrapper.mobile-preview .de-canvas,
-.de-canvas-wrapper.mobile-preview .de-canvas-content,
-.de-canvas-wrapper.mobile-preview #de-canvas-inner {
-  width: 375px !important;
-}
-.de-canvas-wrapper.mobile-preview .de-canvas {
-  border: 8px solid #111827;
-  border-radius: 28px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
-  overflow: hidden;
-  background: #fff;
-}
-
-/* Tablet viewport preview — constrain to 768px so the published
- *  `@media (max-width: 1024px)` tablet overrides apply while the mobile
- *  `@media (max-width: 767px)` block stays inactive (768 > 767). 768
- *  matches iPad portrait logical width. */
+/* Device viewport preview (LEGACY ABSOLUTE paradigm only).
+ *
+ *  IMPORTANT: For the absolute paradigm the per-device layout comes from
+ *  the scene store cascade (tabletFrame / mobileFrame applied by
+ *  syncStoreToDom) — NOT from CSS `@media`. Element width does not trigger
+ *  viewport media queries anyway, so we must NOT force the inner content
+ *  to a narrow width and we must NOT clip it: doing so makes any layer
+ *  authored beyond the device width (e.g. left: 900 on a phone) invisible
+ *  and impossible to drag into place.
+ *
+ *  Instead we keep the canvas at its natural authored width (so absolute
+ *  coordinates stay correct and every layer is reachable) and overlay a
+ *  device-width GUIDE (rendered in JSX as `.de-device-guide`) that shades
+ *  the region outside the 375 / 768 device viewport. The dark wrapper
+ *  background frames the artboard. */
+.de-canvas-wrapper.mobile-preview,
 .de-canvas-wrapper.tablet-preview {
   padding: 32px 20px 60px;
   background: #1f2937;
 }
-.de-canvas-wrapper.tablet-preview .de-canvas,
-.de-canvas-wrapper.tablet-preview .de-canvas-content,
-.de-canvas-wrapper.tablet-preview #de-canvas-inner {
-  width: 768px !important;
-}
+.de-canvas-wrapper.mobile-preview .de-canvas,
 .de-canvas-wrapper.tablet-preview .de-canvas {
-  border: 10px solid #111827;
-  border-radius: 22px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
-  overflow: hidden;
   background: #fff;
+  overflow: visible;
+}
+
+/* Device boundary guide — a dashed line at the device viewport edge with a
+ *  hatched/shaded overlay for the off-device region. Positioned in the
+ *  inner content's coordinate space so left:0 == the device's left edge. */
+.de-device-guide {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+  border-left: 2px dashed rgba(42, 121, 255, 0.7);
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(31, 41, 55, 0.06),
+    rgba(31, 41, 55, 0.06) 6px,
+    rgba(31, 41, 55, 0.12) 6px,
+    rgba(31, 41, 55, 0.12) 12px
+  );
+}
+.de-device-guide .de-device-guide-label {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  font: 600 11px/1 ui-monospace, monospace;
+  color: #2a79ff;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 3px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
 }
 
 /* ── Template canvas overrides ── */

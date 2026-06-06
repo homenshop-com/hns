@@ -1375,6 +1375,23 @@ export default function DesignEditor({
       setSelectedElId(dragable.id);
     }
 
+    // DEVICE 3-MODE GUARD — In tablet/mobile mode only scene (`#hns_body`)
+    // layers can be repositioned independently, because per-device frames
+    // (tabletFrame / mobileFrame) are stored on scene layers. Header / menu /
+    // footer elements (incl. the logo) are raw-injected, NOT part of the
+    // scene graph, so a drag there would mutate a single shared inline
+    // style and leak the move to every device. Allow selection (done above)
+    // but abort the drag for non-body elements when previewing a device.
+    // Read the device from the store so this stays correct even though the
+    // mousedown listener closure is created once.
+    {
+      const dvMode = useEditorStore.getState().viewportMode;
+      const isBodyLayer = bodyRef.current?.contains(dragable) ?? false;
+      if (dvMode !== "desktop" && !isBodyLayer) {
+        return;
+      }
+    }
+
     // Build drag data with all multi-selected elements' positions
     const computedStyle = window.getComputedStyle(dragable);
 
@@ -3628,6 +3645,29 @@ export default function DesignEditor({
 
             {/* FOOTER — ref-only */}
             <div id="hns_footer" ref={footerRef} />
+
+            {/* Device viewport boundary guide (LEGACY ABSOLUTE 3-mode only).
+             *  Shades the off-device region and marks the 375 / 768 edge so
+             *  the user can drag layers into the device viewport. Reachable
+             *  because the canvas keeps its natural authored width. */}
+            {viewportMode !== "desktop" && (
+              <div
+                className="de-device-guide"
+                aria-hidden
+                style={{
+                  left: viewportMode === "mobile" ? 375 : 768,
+                  width: Math.max(
+                    0,
+                    (designCanvasWidth ?? 1000) -
+                      (viewportMode === "mobile" ? 375 : 768),
+                  ),
+                }}
+              >
+                <span className="de-device-guide-label">
+                  {viewportMode === "mobile" ? "375px" : "768px"}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
