@@ -12,13 +12,15 @@
  * Idempotent: only fills rows where editorMode IS NULL. Re-running never
  * clobbers a manual override. Pass `--force` to recompute ALL rows.
  *
- * Run on the server (Prisma client must be generated):
- *   NODE_PATH=node_modules node scripts/backfill-editor-mode.mjs
- *   NODE_PATH=node_modules node scripts/backfill-editor-mode.mjs --force
+ * Run on server (Prisma 7 generates a TypeScript-only client, so use tsx):
+ *   npx tsx scripts/backfill-editor-mode.ts
+ *   npx tsx scripts/backfill-editor-mode.ts --force
  */
-import { PrismaClient } from "../src/generated/prisma/index.js";
+import { PrismaClient } from "../src/generated/prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 
-const prisma = new PrismaClient();
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
+const prisma = new PrismaClient({ adapter });
 const force = process.argv.includes("--force");
 const MODERN_MARKER = "/* HNS-MODERN-TEMPLATE */";
 
@@ -28,10 +30,10 @@ async function main() {
   });
 
   // Cache template.isResponsive lookups.
-  const tplResponsive = new Map();
-  async function isResponsiveTemplate(templateId) {
+  const tplResponsive = new Map<string, boolean>();
+  async function isResponsiveTemplate(templateId: string | null): Promise<boolean> {
     if (!templateId) return false;
-    if (tplResponsive.has(templateId)) return tplResponsive.get(templateId);
+    if (tplResponsive.has(templateId)) return tplResponsive.get(templateId)!;
     const tpl = await prisma.template.findUnique({
       where: { id: templateId },
       select: { isResponsive: true },
@@ -43,7 +45,7 @@ async function main() {
 
   let updated = 0;
   let skipped = 0;
-  const tally = { flow: 0, absolute: 0 };
+  const tally: Record<string, number> = { flow: 0, absolute: 0 };
 
   for (const site of sites) {
     if (!force && (site.editorMode === "flow" || site.editorMode === "absolute")) {
