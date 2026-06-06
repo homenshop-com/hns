@@ -235,29 +235,49 @@ const INHERITABLE_PROPS: Array<[keyof import("@/lib/scene").LayerStyle, string]>
   ["textAlign",      "text-align"],
 ];
 
+const TEXT_DESCENDANT_SELECTOR =
+  "h1, h2, h3, h4, h5, h6, p, span, a, li, td, th, label, blockquote, small, strong, em";
+
 function scrubDescendantTypography(el: HTMLElement, layer: Layer) {
   const s = layer.style ?? {};
 
-  // Bucket each inheritable prop as either "user-set" (push !important
-  // onto descendants) or "user-cleared" (strip from descendants so the
-  // template / parent cascade re-takes over).
-  const setProps: Array<[keyof LayerStyle, string]> = [];
-  const clearProps: Array<[keyof LayerStyle, string]> = [];
+  // Only props the user actually SET on this layer get propagated. Props
+  // that are absent must NOT touch descendants — doing so would erase a
+  // designer's authored inner styling (e.g. `<p style="color:#555">`)
+  // even though the user never edited that token on the wrapper.
+  const setProps: Array<[keyof LayerStyle, string, string]> = [];
   for (const [key, css] of INHERITABLE_PROPS) {
     const v = s[key];
-    if (v != null && v !== "") setProps.push([key, css]);
-    else clearProps.push([key, css]);
+    if (v != null && v !== "") setProps.push([key, css, String(v)]);
+  }
+  const setCss = new Set(setProps.map(([, css]) => css));
+
+  const textTags = el.querySelectorAll<HTMLElement>(TEXT_DESCENDANT_SELECTOR);
+
+  // 1) For props the user has since CLEARED, remove ONLY the `!important`
+  //    declarations we previously pushed (priority "important"). Authored
+  //    inline values carry no priority, so they are left intact — this is
+  //    what lets a designer's inner `color:#555` survive when the wrapper
+  //    has no color token of its own.
+  for (const t of textTags) {
+    for (const [, css] of INHERITABLE_PROPS) {
+      if (setCss.has(css)) continue; // still set → handled in step 2/3
+      if (t.style.getPropertyPriority(css) === "important") {
+        t.style.removeProperty(css);
+      }
+    }
   }
 
-  // 1) Strip stale inline declarations on descendants for ALL inheritable
-  //    props. Either the user just set a new value (we'll push it below)
-  //    or cleared it (descendant inline must go so cascade re-takes).
+  if (setProps.length === 0) return;
+
+  // 2) For props the user SET: strip the matching authored inline decl on
+  //    every styled descendant so there's no competing inline value.
   const styled = el.querySelectorAll<HTMLElement>("[style]");
   for (const d of styled) {
     let style = d.getAttribute("style");
     if (!style) continue;
     let changed = false;
-    for (const [, css] of INHERITABLE_PROPS) {
+    for (const [, css] of setProps) {
       const next = stripInlineDecl(style, css);
       if (next !== style) { style = next; changed = true; }
     }
@@ -267,27 +287,14 @@ function scrubDescendantTypography(el: HTMLElement, layer: Layer) {
     }
   }
 
-  // 2) Push the user's typography onto every text-bearing descendant
-  //    as `!important` inline. Without this, AI-generated cssText
-  //    (e.g., `.hero h1 { color: #fff }`) keeps winning the cascade
-  //    even though the user just set "글자색 #BB7777" in the Inspector.
-  //    Inline `!important` beats any class-selector rule short of
-  //    another `!important` (which AI rarely emits).
-  if (setProps.length === 0 && clearProps.length === 0) return;
-  const textTags = el.querySelectorAll<HTMLElement>(
-    "h1, h2, h3, h4, h5, h6, p, span, a, li, td, th, label, blockquote, small, strong, em",
-  );
+  // 3) Push the wrapper's typography onto every text-bearing descendant as
+  //    `!important`. Without this, AI-generated cssText
+  //    (e.g. `.hero h1 { color: #fff }`) keeps winning the cascade even
+  //    though the user just set "글자색 #BB7777" in the Inspector. Inline
+  //    `!important` beats any class-selector rule short of another
+  //    `!important` (which AI rarely emits).
   for (const t of textTags) {
-    // Clear props the user reset (in case they were !important inline).
-    for (const [, css] of clearProps) {
-      t.style.removeProperty(css);
-    }
-    // Push the user's set values with !important.
-    for (const [key, css] of setProps) {
-      const v = s[key];
-      if (v == null || v === "") continue;
-      t.style.setProperty(css, String(v), "important");
-    }
+    for (const [, css, v] of setProps) t.style.setProperty(css, v, "important");
   }
 }
 

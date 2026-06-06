@@ -45,7 +45,11 @@ describe("applyStructure — LayerStyle → DOM", () => {
     expect(outer.style.fontSize).toBe("20px");
   });
 
-  it("scrubs conflicting typography declarations from descendants so outer wrapper wins", () => {
+  it("makes the outer wrapper's typography win over a conflicting descendant declaration", () => {
+    // Spec note: the wrapper's value is propagated onto text descendants as
+    // `!important` (not merely scrubbed). This is stronger than scrubbing —
+    // it beats AI-generated class rules like `.hero h1 { color:#fff }` that a
+    // bare wrapper color could never override via inheritance.
     const host = hostOf(
       '<div class="dragable sol-replacible-text" id="p1"><p style="color:#555;margin:0">Body copy</p></div>',
     );
@@ -57,13 +61,13 @@ describe("applyStructure — LayerStyle → DOM", () => {
     );
     syncStoreToDom(scene, freshHost);
 
-    // Inner <p> must no longer carry `color:` — so the outer wrapper's
-    // color value cascades cleanly to the text.
     const innerP = freshHost.querySelector("#p1 p") as HTMLElement;
-    const innerStyle = innerP.getAttribute("style") ?? "";
-    expect(innerStyle).not.toMatch(/color\s*:/i);
+    // The descendant's stale #555 is gone; the wrapper's color is pushed
+    // down as an !important declaration so it wins the cascade.
+    expect(innerP.style.getPropertyValue("color")).toBe("rgb(191, 29, 29)");
+    expect(innerP.style.getPropertyPriority("color")).toBe("important");
     // Non-typography declarations (margin) must be preserved.
-    expect(innerStyle).toMatch(/margin/i);
+    expect(innerP.getAttribute("style") ?? "").toMatch(/margin/i);
   });
 
   it("leaves descendants alone when the layer has no typography tokens set", () => {

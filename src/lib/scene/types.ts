@@ -176,7 +176,78 @@ export interface BaseLayer {
   mobileFrame?: LayerFrame;
   mobileFrameKeys?: Array<"position" | "left" | "top" | "width" | "height">;
   mobileTransform?: LayerTransform;
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════
+   * Tablet viewport override (768–1024px). Counterpart to mobileFrame.
+   * ═══════════════════════════════════════════════════════════════════
+   *
+   * Part of the PC/Tablet/Mobile 3-device redesign. The
+   * LegacyAbsoluteEditor lets the user hand-position each device because
+   * absolute layouts do not reflow; tabletFrame holds the tablet pass.
+   * Absent → tablet inherits PC (the desktop inline frame). Emitted by
+   * the serializer as a `@media (max-width: 1024px)` block.
+   */
+  tabletFrame?: LayerFrame;
+  tabletFrameKeys?: Array<"position" | "left" | "top" | "width" | "height">;
+  tabletTransform?: LayerTransform;
+
+  /**
+   * Per-device visibility for the absolute editor. A `true` value hides
+   * the layer at that device (emitted as `display:none !important` in the
+   * device `@media` block). PC visibility is governed by `visible`.
+   */
+  hidden?: { tablet?: boolean; mobile?: boolean };
+
+  /**
+   * Cascade responsive overrides for FLOW layers (ResponsiveFlowEditor).
+   * Unlike the absolute device frames above (full per-device re-layout),
+   * these tweak a limited, Webflow-style set of responsive props that
+   * cascade PC→tablet→mobile. Flow handles reflow automatically; the user
+   * only nudges what needs nudging per breakpoint.
+   */
+  responsive?: { tablet?: ResponsiveOverride; mobile?: ResponsiveOverride };
 }
+
+/**
+ * ResponsiveOverride — the limited set of per-breakpoint tweaks the
+ * ResponsiveFlowEditor exposes for flow layers. Emitted by the serializer
+ * into the device `@media` blocks. Each field is optional; an absent field
+ * means "inherit from the next-larger breakpoint".
+ */
+export interface ResponsiveOverride {
+  /** Show/hide at this breakpoint. `none` removes the layer from flow. */
+  display?: "none" | "block" | "flex" | "inline-block";
+  /** Multiplier applied to the layer's font-size at this breakpoint
+   *  (e.g. 0.85 shrinks headings on mobile). */
+  fontScale?: number;
+  /** CSS padding shorthand override (e.g. "12px" or "8px 16px"). */
+  padding?: string;
+  /** Text / flex alignment override. */
+  align?: "left" | "center" | "right";
+  /** Flex main-axis direction — set "column" to stack on mobile. */
+  flexDirection?: "row" | "column";
+}
+
+/**
+ * Device viewport for the 3-mode responsive editors. PC is the authoring
+ * base; tablet/mobile carry overrides (absolute device frames for the
+ * legacy editor, cascade ResponsiveOverrides for the flow editor).
+ */
+export type EditorDevice = "pc" | "tablet" | "mobile";
+
+/**
+ * Upper bound (`max-width`, px) for each non-PC device. Single source of
+ * truth shared by the editor viewport toggle, the serializer's `@media`
+ * blocks, and the published route. PC is everything wider than `tablet`.
+ *   Mobile ≤ 767px, Tablet ≤ 1024px.
+ * Note: the legacy single-mobile path still uses `MOBILE_BREAKPOINT` (768)
+ * for back-compat of already-published `@media (max-width:768px)` blocks.
+ */
+export const DEVICE_MAX_WIDTH: Record<Exclude<EditorDevice, "pc">, number> = {
+  tablet: 1024,
+  mobile: 767,
+};
 
 /**
  * LayerInteraction — click-time behavior attached to any layer. Emitted
@@ -344,6 +415,22 @@ export type Layer =
   | BoxLayer
   | ShapeLayer
   | PluginLayer;
+
+/**
+ * AbsoluteLayer — the layer kinds the LegacyAbsoluteEditor operates on.
+ * Flow regions (`section`) and flow-inline elements (`inline`) never occur
+ * in an absolute scene, so excluding them lets that editor's store assume
+ * every layer is freely positionable without section-promotion guards.
+ */
+export type AbsoluteLayer = Exclude<Layer, SectionLayer | InlineLayer>;
+
+/**
+ * FlowLayer — the layer kinds the ResponsiveFlowEditor operates on. It is
+ * the full union (flow sections/inline plus the leaf kinds that live inside
+ * them). The distinction from AbsoluteLayer exists so each editor only ever
+ * pattern-matches its own paradigm's layer set.
+ */
+export type FlowLayer = Layer;
 
 export interface SceneGraph {
   /** Schema version. Bump when serialization format changes. */

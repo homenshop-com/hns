@@ -158,6 +158,16 @@ model Site {
   menuHtml           String?   @db.Text
   footerHtml         String?   @db.Text
   cssText            String?   @db.Text
+  /// Which design editor paradigm this site uses:
+  ///   · "absolute" — legacy Figma/PowerPoint fixed-coordinate editor
+  ///     (.dragable px left/top/width/height, PC/Tablet/Mobile hand-laid)
+  ///   · "flow"     — modern responsive block-flow editor (sections +
+  ///     @media, Webflow-style cascade overrides per breakpoint)
+  /// Null falls back at runtime to the legacy three-signal heuristic
+  /// (Template.isResponsive || cssText marker || calc breakout). An
+  /// explicit value removes that fragility and lets admins override a
+  /// misclassified site. Set by a one-time backfill from the heuristic.
+  editorMode         String?
   published          Boolean   @default(false)
   accountType        String    @default("free")
   expiresAt          DateTime?

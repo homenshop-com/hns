@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { renderBoardPluginContent, renderProductPluginContent } from "@/lib/plugin-renderer";
 import { readTemplateCss, rewriteAssetUrls } from "@/lib/template-parser";
 import { isEditorV2Enabled } from "@/lib/editor-flags";
-import DesignEditor from "./design-editor";
+import EditorRouter, { type EditorMode } from "./EditorRouter";
 import { getTempDomain } from "@/lib/temp-domains";
 import { getManageScope, canManage } from "@/lib/site-access";
 import { getResellerForHost } from "@/lib/reseller";
@@ -57,6 +57,16 @@ export default async function EditPagePage({ params }: EditPageProps) {
   const cssTextStr = site.cssText ?? "";
   const cssMarkerResponsive = cssTextStr.includes("/* HNS-MODERN-TEMPLATE */");
   const isResponsiveTemplate = !!sourceTemplate?.isResponsive || cssMarkerResponsive;
+  // Resolve the editing paradigm. Prefer the explicit Site.editorMode
+  // column (set by the backfill / admin override); fall back to the
+  // legacy heuristic so sites not yet backfilled still route correctly.
+  const siteEditorMode = (site as typeof site & { editorMode?: string | null }).editorMode;
+  const editorMode: EditorMode =
+    siteEditorMode === "absolute" || siteEditorMode === "flow"
+      ? siteEditorMode
+      : isResponsiveTemplate
+        ? "flow"
+        : "absolute";
   const siteLanguages = (site as typeof site & { languages?: string[] }).languages || ["ko"];
   // Use the page's language if it's in configured languages, otherwise fall back to default
   const currentLang = siteLanguages.includes(currentPage.lang)
@@ -142,7 +152,8 @@ export default async function EditPagePage({ params }: EditPageProps) {
   }
 
   return (
-    <DesignEditor
+    <EditorRouter
+      editorMode={editorMode}
       siteId={site.id}
       shopId={site.shopId}
       siteName={site.name}
@@ -170,3 +181,4 @@ export default async function EditPagePage({ params }: EditPageProps) {
     />
   );
 }
+
