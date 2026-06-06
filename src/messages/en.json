@@ -980,7 +980,11 @@
       "atomizeNoChange": "All objects are already separated.",
       "atomizeDone": "Objects have been split into editable layers.",
       "atomizeError": "Failed to split objects.",
-      "atomizeUnsavedConfirm": "There are unsaved changes. Save and then split objects?"
+      "atomizeUnsavedConfirm": "There are unsaved changes. Save and then split objects?",
+      "modeAbsolute": "Absolute",
+      "modeFlow": "Responsive",
+      "modeAbsoluteHint": "Absolute (fixed-position) editing — supports independent PC/Tablet/Mobile layouts per device.",
+      "modeFlowHint": "Responsive (block-flow) editing — layout reflows automatically, so there is no device tab."
     },
     "pageContextMenu": {
       "open": "Open",

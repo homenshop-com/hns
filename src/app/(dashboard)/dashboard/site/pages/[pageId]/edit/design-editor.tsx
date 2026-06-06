@@ -114,6 +114,12 @@ interface DesignEditorProps {
    *  in the toolbar — the layout flows automatically and there's no
    *  separate "mobile" coordinate system to edit. */
   isResponsiveTemplate?: boolean;
+  /** Resolved editing paradigm from the server (`Site.editorMode` column if
+   *  set, else the `isResponsiveTemplate` heuristic). This is the source of
+   *  truth for which editor behaviors apply — the device viewport toggle and
+   *  the mode badge key on this, NOT the raw heuristic, so an admin override
+   *  via `Site.editorMode` is honored. */
+  editorMode?: "absolute" | "flow";
   /** Topbar brand for the .de-logo mark. White-label reseller hosts get the
    *  reseller's siteName/logo; the canonical host falls back to "homeNshop".
    *  Computed in the server parent via getResellerForHost(). */
@@ -146,10 +152,19 @@ export default function DesignEditor({
   langPageMap = {},
   editorV2Enabled = false,
   isResponsiveTemplate = false,
+  editorMode,
   brand = { brandName: "homeNshop", logoUrl: null, whiteLabel: false },
 }: DesignEditorProps) {
   const router = useRouter();
   const t = useTranslations("editor");
+
+  // Resolved paradigm. Prefer the explicit prop (which already folds in the
+  // Site.editorMode admin override); fall back to the heuristic for any caller
+  // that doesn't pass it. "absolute" = legacy fixed-coordinate (3-mode device
+  // editing); "flow" = responsive block-flow (auto-reflow, no device toggle).
+  const resolvedEditorMode: "absolute" | "flow" =
+    editorMode ?? (isResponsiveTemplate ? "flow" : "absolute");
+  const isAbsoluteMode = resolvedEditorMode === "absolute";
 
   // V2: keep the scene graph store in sync with the body HTML that the
   // DOM-first editor is rendering. Importing a fresh scene on every
@@ -3027,7 +3042,15 @@ export default function DesignEditor({
           </nav>
         </div>
         <div className="de-header-right">
-          {editorV2Enabled && !isResponsiveTemplate && (
+          {editorV2Enabled && (
+            <span
+              className={`de-mode-badge${isAbsoluteMode ? " is-absolute" : " is-flow"}`}
+              title={isAbsoluteMode ? t("topbar.modeAbsoluteHint") : t("topbar.modeFlowHint")}
+            >
+              {isAbsoluteMode ? t("topbar.modeAbsolute") : t("topbar.modeFlow")}
+            </span>
+          )}
+          {editorV2Enabled && isAbsoluteMode && (
             <div className="de-viewport-toggle" role="group" aria-label={t("topbar.viewportLabel")}>
               <button
                 type="button"

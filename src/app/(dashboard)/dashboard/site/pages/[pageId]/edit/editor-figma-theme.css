@@ -210,6 +210,32 @@
   color: var(--fig-text-0);
 }
 
+/* ── Editing-paradigm badge (shows which editor the site uses) ──── */
+.de-root .de-mode-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 9px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  border-radius: 999px;
+  border: 1px solid var(--fig-line-2);
+  white-space: nowrap;
+  cursor: default;
+  user-select: none;
+}
+.de-root .de-mode-badge.is-absolute {
+  color: #2a79ff;
+  background: rgba(42, 121, 255, 0.12);
+  border-color: rgba(42, 121, 255, 0.35);
+}
+.de-root .de-mode-badge.is-flow {
+  color: #1bbf83;
+  background: rgba(27, 191, 131, 0.12);
+  border-color: rgba(27, 191, 131, 0.35);
+}
+
 /* ── Undo / Redo icon buttons (sit between URL and Save) ─────────── */
 .de-root .de-history-group {
   display: inline-flex;

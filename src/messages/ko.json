@@ -980,7 +980,11 @@
       "atomizeNoChange": "이미 모든 객체가 분리되어 있습니다.",
       "atomizeDone": "객체 분리가 완료되었습니다.",
       "atomizeError": "객체 분리에 실패했습니다.",
-      "atomizeUnsavedConfirm": "저장되지 않은 변경 사항이 있습니다. 저장 후 객체를 분리할까요?"
+      "atomizeUnsavedConfirm": "저장되지 않은 변경 사항이 있습니다. 저장 후 객체를 분리할까요?",
+      "modeAbsolute": "절대좌표",
+      "modeFlow": "반응형",
+      "modeAbsoluteHint": "절대좌표(고정 위치) 편집 모드 — PC/Tablet/Mobile 디바이스별 독립 배치를 지원합니다.",
+      "modeFlowHint": "반응형(블록 흐름) 편집 모드 — 레이아웃이 자동으로 재배치되어 디바이스 탭이 없습니다."
     },
     "pageContextMenu": {
       "open": "열기",

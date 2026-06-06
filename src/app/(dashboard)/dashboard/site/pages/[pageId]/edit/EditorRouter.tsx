@@ -32,10 +32,13 @@ type EditorRouterProps = ComponentProps<typeof DesignEditor> & {
 export default function EditorRouter({ editorMode, ...props }: EditorRouterProps) {
   // Phase 2: both paradigms render the legacy unified editor. The seam is
   // in place; Phases 3/4 replace each branch with its dedicated editor.
+  // `editorMode` is forwarded so the editor's device toggle + mode badge key
+  // on the resolved paradigm (honoring any Site.editorMode admin override)
+  // rather than the raw isResponsiveTemplate heuristic.
   if (editorMode === "flow") {
     // TODO(Phase 3): return <ResponsiveFlowEditor {...props} />;
-    return <DesignEditor {...props} />;
+    return <DesignEditor {...props} editorMode={editorMode} />;
   }
   // TODO(Phase 4): return <LegacyAbsoluteEditor {...props} />;
-  return <DesignEditor {...props} />;
+  return <DesignEditor {...props} editorMode={editorMode} />;
 }

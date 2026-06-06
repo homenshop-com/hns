@@ -966,7 +966,11 @@
       "atomizeNoChange": "所有对象已经分离。",
       "atomizeDone": "对象已拆分为可编辑层。",
       "atomizeError": "拆分对象失败。",
-      "atomizeUnsavedConfirm": "存在未保存的更改。先保存再拆分对象吗?"
+      "atomizeUnsavedConfirm": "存在未保存的更改。先保存再拆分对象吗?",
+      "modeAbsolute": "绝对坐标",
+      "modeFlow": "响应式",
+      "modeAbsoluteHint": "绝对坐标（固定定位）编辑模式 — 支持 PC/平板/手机 各设备的独立布局。",
+      "modeFlowHint": "响应式（块流）编辑模式 — 布局自动重排，因此没有设备标签页。"
     },
     "pageContextMenu": {
       "open": "打开",

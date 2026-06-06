@@ -966,7 +966,11 @@
       "atomizeNoChange": "所有物件已經分離。",
       "atomizeDone": "物件已拆分為可編輯圖層。",
       "atomizeError": "拆分物件失敗。",
-      "atomizeUnsavedConfirm": "存在尚未儲存的變更。先儲存再拆分物件嗎?"
+      "atomizeUnsavedConfirm": "存在尚未儲存的變更。先儲存再拆分物件嗎?",
+      "modeAbsolute": "絕對座標",
+      "modeFlow": "響應式",
+      "modeAbsoluteHint": "絕對座標（固定定位）編輯模式 — 支援 PC/平板/手機 各裝置的獨立版面。",
+      "modeFlowHint": "響應式（區塊流）編輯模式 — 版面自動重排，因此沒有裝置分頁。"
     },
     "pageContextMenu": {
       "open": "開啟",

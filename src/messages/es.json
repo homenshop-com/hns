@@ -966,7 +966,11 @@
       "atomizeNoChange": "Todos los objetos ya están separados.",
       "atomizeDone": "Los objetos se han dividido en capas editables.",
       "atomizeError": "No se pudieron dividir los objetos.",
-      "atomizeUnsavedConfirm": "Hay cambios sin guardar. ¿Guardar y luego dividir los objetos?"
+      "atomizeUnsavedConfirm": "Hay cambios sin guardar. ¿Guardar y luego dividir los objetos?",
+      "modeAbsolute": "Absoluto",
+      "modeFlow": "Adaptable",
+      "modeAbsoluteHint": "Edición absoluta (posición fija) — admite diseños independientes por dispositivo PC/Tablet/Móvil.",
+      "modeFlowHint": "Edición adaptable (flujo de bloques) — el diseño se reorganiza automáticamente, sin pestaña de dispositivo."
     },
     "pageContextMenu": {
       "open": "Abrir",
