@@ -50,7 +50,7 @@ import {
   parseHmfDeviceStyle,
   recordHmfDeviceFrame,
   writeHmfDeviceStyle,
-  snapshotHmfBase,
+  snapshotHmfContainerBase,
   applyHmfDevicePreview,
 } from "./shared/hmf-device";
 
@@ -528,10 +528,12 @@ export default function DesignEditor({
     if (!container) return;
     const parsed = parseHmfDeviceStyle(container);
     Object.assign(hmfDeviceFramesRef.current, parsed);
-    for (const id of Object.keys(parsed)) {
-      const el = container.querySelector<HTMLElement>(`#${CSS.escape(id)}`);
-      if (el) snapshotHmfBase(el, hmfBaseFramesRef.current, id);
-    }
+    // Capture the desktop base for EVERY draggable now — while the container
+    // still shows its authored PC inline geometry and before any device
+    // preview runs. Elements with a prior @media override are included by
+    // virtue of being .dragable; fresh elements (no override yet) get their
+    // PC base captured here so the first tablet/mobile edit can't corrupt it.
+    snapshotHmfContainerBase(container, hmfBaseFramesRef.current);
   }, []);
 
   useEffect(() => {

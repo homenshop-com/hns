@@ -212,6 +212,29 @@ export function snapshotHmfBase(
   };
 }
 
+/** Eagerly capture the desktop base for EVERY draggable element in an HMF
+ *  container, assigning a stable id where missing. This MUST run while the
+ *  container still shows its authored desktop inline geometry (i.e. at
+ *  hydrate time, before any device preview mutates inline styles).
+ *
+ *  WHY: an element that has never been edited in a device mode has no entry
+ *  in the device map, so it would never get a base snapshot. The first time
+ *  it is dragged in tablet/mobile, the override is recorded but the PC base
+ *  is lost — switching back to desktop then strips its inline left/top and
+ *  corrupts the PC layout. Capturing the base up-front for all draggables
+ *  guarantees "restore to desktop" always has the correct target, so each
+ *  device truly edits independently. */
+export function snapshotHmfContainerBase(
+  container: HTMLElement,
+  base: HmfBaseMap,
+): void {
+  const els = container.querySelectorAll<HTMLElement>(".dragable");
+  els.forEach((el) => {
+    const id = ensureHmfId(el);
+    snapshotHmfBase(el, base, id);
+  });
+}
+
 /** Paint the active device onto the overridden HMF elements via inline
  *  styles (the editor's wide viewport can't rely on the embedded @media).
  *  Desktop restores the base; Tablet/Mobile apply the cascaded geometry. */
