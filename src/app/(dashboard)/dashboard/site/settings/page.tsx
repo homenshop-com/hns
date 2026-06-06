@@ -435,6 +435,43 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                 </div>
               </section>
 
+              {/* 4b — 헤더/풋터 편집 (purple) */}
+              <section className="sv2-card" style={{ borderTop: "3px solid #7c3aed" }}>
+                <div className="sv2-card-head">
+                  <div className="accent" style={{ background: "#7c3aed" }}></div>
+                  <h3>
+                    <i className="fa-solid fa-layer-group" aria-hidden="true" style={{ fontSize: 14, color: "#7c3aed" }} />
+                    &nbsp;헤더 / 풋터 편집
+                  </h3>
+                </div>
+                <div className="sv2-card-body" style={{ gap: 12 }}>
+                  <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "var(--ink-2)" }}>
+                    헤더·메뉴·풋터 영역의 요소를 드래그로 이동하고 크기를 조정합니다.<br />
+                    <strong style={{ color: "var(--ink-1)" }}>저장하면 모든 페이지에 즉시 적용</strong>됩니다.
+                  </p>
+                  <Link
+                    href={`/dashboard/site/${site.id}/hmf`}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 7,
+                      height: 40,
+                      padding: "0 18px",
+                      background: "#7c3aed",
+                      color: "#fff",
+                      fontSize: 14,
+                      fontWeight: 600,
+                      borderRadius: 8,
+                      textDecoration: "none",
+                      boxShadow: "0 1px 2px rgba(124,58,237,0.25), 0 2px 6px rgba(124,58,237,0.18)",
+                    }}
+                  >
+                    <i className="fa-solid fa-layer-group" aria-hidden="true" style={{ fontSize: 12 }} />
+                    헤더/풋터 편집하기
+                  </Link>
+                </div>
+              </section>
+
               {/* 5 — Google 설정 · SEO (ai, col-2) */}
               <section className="sv2-card ai col-2">
                 <div className="sv2-card-head">
