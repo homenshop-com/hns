@@ -1603,10 +1603,14 @@ export default function DesignEditor({
       snapContainer,
       // Raw-injected HMF elements need their inline geometry written as
       // !important to beat boostImportant'd page CSS (see setGeom in handleMove).
+      // Plugin elements (boardPlugin/productPlugin/…) keep their CSS-driven size
+      // (excluded from geometry strip), so their inline drag/resize must also be
+      // !important to overcome that retained CSS !important.
       importantPin: !!(
         headerRef.current?.contains(dragable) ||
         menuRef.current?.contains(dragable) ||
-        footerRef.current?.contains(dragable)
+        footerRef.current?.contains(dragable) ||
+        /\b[A-Za-z]+Plugin\b/.test(dragable.className)
       ),
     } as any;
   }
@@ -1928,10 +1932,13 @@ export default function DesignEditor({
           origHeight: el.offsetHeight,
           // Raw-injected HMF elements: write geometry as !important to beat
           // boostImportant'd page CSS (mirrors drag path in handleMove).
+          // Plugin elements keep their CSS size (excluded from geometry strip),
+          // so their inline resize must also be !important to overcome it.
           importantPin: !!(
             headerRef.current?.contains(el) ||
             menuRef.current?.contains(el) ||
-            footerRef.current?.contains(el)
+            footerRef.current?.contains(el) ||
+            /\b[A-Za-z]+Plugin\b/.test(el.className)
           ),
         };
       }
