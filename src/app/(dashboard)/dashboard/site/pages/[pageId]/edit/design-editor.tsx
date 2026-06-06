@@ -43,6 +43,7 @@ import {
   escapeHtml,
   stripPinnedGeometryCss,
   collectSceneGeometryOwners,
+  collectInlineGeometryOwners,
 } from "./shared/css-utils";
 // HMF (header/menu/footer) per-device positioning. HMF is raw-injected (not
 // scene-managed), so per-device geometry is persisted as a <style
@@ -2871,15 +2872,26 @@ export default function DesignEditor({
     currentPageCss
       ? scopeAndRewrite(
           boostImportant(
-            // Strip base-level geometry the scene owns (drag/resize writes
-            // it as plain inline). Without this, the boosted page-CSS rule
-            // `#id{left:..!important}` beats the scene's plain inline value
-            // so dragging a body object is visually ignored. Device `@media`
-            // blocks are preserved (the scene's own device @media wins by
-            // source order). Mirrors the published route.
+            // Strip base-level geometry from page CSS for two groups:
+            // 1. BODY scene layers — the scene owns their geometry; drag/resize
+            //    writes it as plain inline, which would lose to CSS !important.
+            // 2. HMF (header/menu/footer) elements — their positions are stored
+            //    in SiteHmf (shared across all pages). Per-page CSS may contain
+            //    legacy rules targeting the same element IDs with slightly
+            //    different coordinates, making the header look different on every
+            //    page. Stripping those rules lets the SiteHmf's plain inline
+            //    styles govern, so the header is visually identical on all pages.
+            // Device `@media` blocks are preserved (wins by source order).
+            // Mirrors the published route.
             stripPinnedGeometryCss(
               currentPageCss,
-              collectSceneGeometryOwners(useEditorStore.getState().scene.root),
+              (() => {
+                const bodyOwned = collectSceneGeometryOwners(useEditorStore.getState().scene.root);
+                const hmfOwned = collectInlineGeometryOwners(
+                  (headerHtml ?? "") + (menuHtml ?? "") + (footerHtml ?? "")
+                );
+                return new Map([...bodyOwned, ...hmfOwned]);
+              })(),
             ),
           ),
         )
