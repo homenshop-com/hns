@@ -70,7 +70,13 @@ export function stripPinnedGeometryCss(
     // Plain rule: declarations run until the first '}' (no nesting).
     let closeIdx = css.indexOf("}", braceIdx);
     if (closeIdx === -1) closeIdx = n - 1;
-    const m = /^#([A-Za-z0-9_-]+)$/.exec(selTrim);
+    // A CSS comment can sit between the previous rule and this selector
+    // (e.g. `/* layout fix */\n#main_text_1 {…}`), which would otherwise
+    // defeat the `^#id$` match and leak the duplicate through. Strip
+    // comments only for the match test — the original `selector` (comment
+    // included) is preserved verbatim in the output.
+    const selForMatch = selTrim.replace(/\/\*[\s\S]*?\*\//g, "").trim();
+    const m = /^#([A-Za-z0-9_-]+)$/.exec(selForMatch);
     const props = m ? owned.get(m[1]) : undefined;
     if (props) {
       const block = css.slice(braceIdx + 1, closeIdx);

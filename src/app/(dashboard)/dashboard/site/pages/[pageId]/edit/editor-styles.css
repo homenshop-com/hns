@@ -536,6 +536,22 @@
   cursor: move;
   user-select: none;
 }
+/* Embedded third-party content (Facebook page plugin, YouTube, maps, etc.)
+   renders inside an <iframe>/<embed>/<object> that swallows pointer events —
+   clicking it navigates away (e.g. into Facebook) instead of selecting the
+   wrapping .dragable. In the editor the embed is layout, not something to
+   interact with, so make it click-through: pointer events fall to the
+   .dragable so it can be selected / dragged / resized like any other object.
+   The published page keeps the live, interactive embed (this rule is
+   editor-only, scoped to #de-canvas-inner). */
+#de-canvas-inner .dragable iframe,
+#de-canvas-inner .dragable embed,
+#de-canvas-inner .dragable object,
+#de-canvas-inner iframe.fb_iframe_widget,
+#de-canvas-inner .fb-page,
+#de-canvas-inner .fb_iframe_widget {
+  pointer-events: none !important;
+}
 #de-canvas-inner .dragable:hover {
   outline: 1px dashed rgba(74, 144, 217, 0.5);
 }

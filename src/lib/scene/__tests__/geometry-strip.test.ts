@@ -80,6 +80,25 @@ describe("stripPinnedGeometryCss", () => {
     const owned = new Map([["a", new Set(["left", "top"])]]);
     expect(stripPinnedGeometryCss(css, owned)).toBe("");
   });
+
+  it("strips even when a CSS comment precedes the selector", () => {
+    // Regression: route emits `/* layout fix */\n#id {…}` — the comment must
+    // not defeat the `^#id$` match (konnichiwa main_text_1 bug).
+    const css =
+      "/* layout (style-index.html.css) */\n#main_text_1 {width: 614px !important; left: 480px !important; color: red}";
+    const owned = new Map([["main_text_1", new Set(["width", "left"])]]);
+    // geometry stripped, non-geometry (color) kept, comment preserved
+    expect(stripPinnedGeometryCss(css, owned)).toBe(
+      "/* layout (style-index.html.css) */\n#main_text_1 { color: red}",
+    );
+  });
+
+  it("drops a comment-preceded rule that is fully emptied", () => {
+    // The emptied rule's whole selector slice (comment included) is dropped.
+    const css = "/* fix */ #a {left:1px;top:2px}#b{color:blue}";
+    const owned = new Map([["a", new Set(["left", "top"])]]);
+    expect(stripPinnedGeometryCss(css, owned)).toBe("#b{color:blue}");
+  });
 });
 
 describe("collectInlineGeometryOwners", () => {
