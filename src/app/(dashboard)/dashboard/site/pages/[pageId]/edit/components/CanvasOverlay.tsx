@@ -127,7 +127,13 @@ export default function CanvasOverlay({ containerRef, siteId }: Props) {
       return;
     }
     const el = container.ownerDocument.getElementById(single);
-    if (!el) {
+    // Only manage elements that live INSIDE the body canvas. Raw-injected
+    // HMF (header/menu/footer) elements are found by document-wide
+    // getElementById but are NOT in the scene graph, so store-based gizmos
+    // (resize via setFrame, rotation via setTransform) are no-ops for them.
+    // They're handled by the legacy DOM resize-handle path instead, so
+    // suppress these overlay gizmos to avoid a duplicate, dead selection.
+    if (!el || !container.contains(el)) {
       setSingleRect(null);
       setSingleIsSection(false);
       setSingleIsInline(false);
@@ -165,7 +171,8 @@ export default function CanvasOverlay({ containerRef, siteId }: Props) {
     let found = 0;
     for (const id of selectedIds) {
       const el = container.ownerDocument.getElementById(id);
-      if (!el) continue;
+      // Skip raw-injected HMF elements — not scene-managed (see single-rect note).
+      if (!el || !container.contains(el)) continue;
       const r = el.getBoundingClientRect();
       if (r.left < minX) minX = r.left;
       if (r.top < minY) minY = r.top;
