@@ -587,7 +587,11 @@
 
 /* Ensure images within dragables are visible */
 #de-canvas-inner .dragable img {
-  display: block;
+  /* inline-block lets multiple images sit side-by-side within a text layer
+     (matching the published page where images are display:inline by default).
+     display:block would force each image onto its own row, breaking multi-image
+     grid layouts. pointer-events:none already handles click-through for drag. */
+  display: inline-block;
   pointer-events: none;
 }
 /* Designer-authored images carry an explicit inline `width:NNNpx` and are meant
