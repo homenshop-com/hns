@@ -226,8 +226,16 @@ function applyFrameToEl(
   const important = new Set<string>(
     viewportMode === "desktop" ? (layer.frameImportant ?? []) : [],
   );
+  // Plugin elements (boardPlugin hero/grid/…) keep their real geometry in the
+  // page CSS — both a placeholder rule and the real-size rule are boosted to
+  // `!important` (and excluded from the geometry strip so the real size
+  // survives). A plain inline frame written back here would LOSE to that CSS,
+  // snapping a freshly dragged/resized plugin back to its CSS position. So
+  // re-emit a plugin's frame as `!important` in every device mode — mirrors
+  // the live drag/resize importantPin and the published @media output.
+  const isPlugin = /\b[A-Za-z]+Plugin\b/.test(el.className);
   const setFrameProp = (prop: string, key: string, value: string) => {
-    if (important.has(key)) el.style.setProperty(prop, value, "important");
+    if (isPlugin || important.has(key)) el.style.setProperty(prop, value, "important");
     else el.style.setProperty(prop, value);
   };
 
