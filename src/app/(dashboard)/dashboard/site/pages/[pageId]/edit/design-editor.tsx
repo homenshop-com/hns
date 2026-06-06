@@ -1660,6 +1660,7 @@ export default function DesignEditor({
     if (!canvasEl) return;
 
     const headerEl = canvasEl.querySelector("#hns_header");
+    const menuEl = canvasEl.querySelector("#hns_menu");
     const footerEl = canvasEl.querySelector("#hns_footer");
 
     function handleStructDown(e: Event) {
@@ -1684,11 +1685,15 @@ export default function DesignEditor({
 
     headerEl?.addEventListener("mousedown", handleStructDown);
     headerEl?.addEventListener("touchstart", handleStructDown, { passive: false });
+    menuEl?.addEventListener("mousedown", handleStructDown);
+    menuEl?.addEventListener("touchstart", handleStructDown, { passive: false });
     footerEl?.addEventListener("mousedown", handleStructDown);
     footerEl?.addEventListener("touchstart", handleStructDown, { passive: false });
     return () => {
       headerEl?.removeEventListener("mousedown", handleStructDown);
       headerEl?.removeEventListener("touchstart", handleStructDown);
+      menuEl?.removeEventListener("mousedown", handleStructDown);
+      menuEl?.removeEventListener("touchstart", handleStructDown);
       footerEl?.removeEventListener("mousedown", handleStructDown);
       footerEl?.removeEventListener("touchstart", handleStructDown);
     };
@@ -2815,6 +2820,26 @@ export default function DesignEditor({
     return max > 1000 ? max : null;
   })();
 
+  /* ─── Device artboard width (LEGACY ABSOLUTE 3-mode) ───
+   * In tablet/mobile the white artboard SHRINKS to the real device width and
+   * is centered by the wrapper's flex, so the device viewport reads as a
+   * centered phone/tablet column (matching user expectation). The artboard
+   * keeps `overflow: visible`, so any layer authored beyond the device width
+   * (e.g. a PC hero at left:600 on a 375 phone) SPILLS into the dark margin
+   * — still visible and draggable — and the user drags it into the column.
+   * Coordinates stay anchored at the column's left edge (left:0 == device
+   * left), so the editor stays WYSIWYG-faithful with the published page,
+   * which also renders absolute coords at the real device width.
+   * Flow (modern) sites never enter device mode via the toggle, so this only
+   * affects the absolute paradigm. */
+  const deviceArtboardWidth =
+    !isModernCanvas && viewportMode === "mobile"
+      ? 375
+      : !isModernCanvas && viewportMode === "tablet"
+        ? 768
+        : null;
+  const artboardWidth = deviceArtboardWidth ?? designCanvasWidth ?? null;
+
   const selectedProps = getSelectedElProps();
 
   /* ─── Header/Footer settings helpers ─── */
@@ -3765,13 +3790,13 @@ export default function DesignEditor({
           style={{
             transform: zoom !== 100 ? `scale(${zoom / 100})` : undefined,
             transformOrigin: "top center",
-            ...(designCanvasWidth ? { width: designCanvasWidth } : {}),
+            ...(artboardWidth ? { width: artboardWidth } : {}),
           }}
         >
           <div
             className={`de-canvas-content c_v_home_dft${isModernCanvas ? " is-modern" : ""}`}
             id="de-canvas-inner"
-            style={designCanvasWidth ? { width: designCanvasWidth } : undefined}
+            style={artboardWidth ? { width: artboardWidth } : undefined}
           >
             {/* HEADER — ref-only, set via useEffect to preserve drag edits */}
             <div id="hns_header" ref={headerRef} />
@@ -3785,24 +3810,14 @@ export default function DesignEditor({
             {/* FOOTER — ref-only */}
             <div id="hns_footer" ref={footerRef} />
 
-            {/* Device viewport boundary guide (LEGACY ABSOLUTE 3-mode only).
-             *  Shades the off-device region and marks the 375 / 768 edge so
-             *  the user can drag layers into the device viewport. Reachable
-             *  because the canvas keeps its natural authored width. */}
-            {viewportMode !== "desktop" && (
-              <div
-                className="de-device-guide"
-                aria-hidden
-                style={{
-                  left: viewportMode === "mobile" ? 375 : 768,
-                  width: Math.max(
-                    0,
-                    (designCanvasWidth ?? 1000) -
-                      (viewportMode === "mobile" ? 375 : 768),
-                  ),
-                }}
-              >
-                <span className="de-device-guide-label">
+            {/* Device viewport edge marker (LEGACY ABSOLUTE 3-mode only).
+             *  The white artboard IS the device viewport now (its width ==
+             *  375 / 768, centered). This thin label rides the artboard's
+             *  right edge so the user knows the device width; any layer that
+             *  spills past it into the dark margin can be dragged back in. */}
+            {viewportMode !== "desktop" && !isModernCanvas && (
+              <div className="de-device-edge" aria-hidden>
+                <span className="de-device-edge-label">
                   {viewportMode === "mobile" ? "375px" : "768px"}
                 </span>
               </div>

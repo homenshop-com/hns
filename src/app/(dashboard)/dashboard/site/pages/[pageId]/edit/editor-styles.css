@@ -425,16 +425,16 @@
  *  IMPORTANT: For the absolute paradigm the per-device layout comes from
  *  the scene store cascade (tabletFrame / mobileFrame applied by
  *  syncStoreToDom) — NOT from CSS `@media`. Element width does not trigger
- *  viewport media queries anyway, so we must NOT force the inner content
- *  to a narrow width and we must NOT clip it: doing so makes any layer
- *  authored beyond the device width (e.g. left: 900 on a phone) invisible
- *  and impossible to drag into place.
+ *  viewport media queries.
  *
- *  Instead we keep the canvas at its natural authored width (so absolute
- *  coordinates stay correct and every layer is reachable) and overlay a
- *  device-width GUIDE (rendered in JSX as `.de-device-guide`) that shades
- *  the region outside the 375 / 768 device viewport. The dark wrapper
- *  background frames the artboard. */
+ *  The white artboard SHRINKS to the real device width (375 / 768, set
+ *  inline in JSX) and is centered by the wrapper's flex, so the device
+ *  viewport reads as a centered phone/tablet column. We keep
+ *  `overflow: visible` (NOT clipped): a layer authored beyond the device
+ *  width spills into the dark margin — still visible and draggable — and
+ *  the user drags it into the column. Coordinates stay anchored at the
+ *  column's left edge (left:0 == device left), matching the published
+ *  page which also renders absolute coords at the real device width. */
 .de-canvas-wrapper.mobile-preview,
 .de-canvas-wrapper.tablet-preview {
   padding: 32px 20px 60px;
@@ -446,29 +446,29 @@
   background: #fff;
   overflow: visible;
 }
+/* Off-device spill must remain visible & reachable, never clipped. */
+.de-canvas-wrapper.mobile-preview #de-canvas-inner,
+.de-canvas-wrapper.tablet-preview #de-canvas-inner {
+  overflow: visible;
+}
 
-/* Device boundary guide — a dashed line at the device viewport edge with a
- *  hatched/shaded overlay for the off-device region. Positioned in the
- *  inner content's coordinate space so left:0 == the device's left edge. */
-.de-device-guide {
+/* Device viewport right-edge marker — a thin dashed line + width chip at the
+ *  artboard's right edge so the user can see where the 375 / 768 device
+ *  boundary is and which layers have spilled past it into the dark margin. */
+.de-device-edge {
   position: absolute;
   top: 0;
+  right: 0;
   height: 100%;
+  width: 0;
   pointer-events: none;
   z-index: 1;
-  border-left: 2px dashed rgba(42, 121, 255, 0.7);
-  background: repeating-linear-gradient(
-    -45deg,
-    rgba(31, 41, 55, 0.06),
-    rgba(31, 41, 55, 0.06) 6px,
-    rgba(31, 41, 55, 0.12) 6px,
-    rgba(31, 41, 55, 0.12) 12px
-  );
+  border-right: 2px dashed rgba(42, 121, 255, 0.7);
 }
-.de-device-guide .de-device-guide-label {
+.de-device-edge .de-device-edge-label {
   position: absolute;
   top: 6px;
-  left: 6px;
+  right: 6px;
   font: 600 11px/1 ui-monospace, monospace;
   color: #2a79ff;
   background: rgba(255, 255, 255, 0.9);
