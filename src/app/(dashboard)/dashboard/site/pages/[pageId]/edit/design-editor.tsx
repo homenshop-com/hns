@@ -536,6 +536,39 @@ export default function DesignEditor({
     snapshotHmfContainerBase(container, hmfBaseFramesRef.current);
   }, []);
 
+  /* Auto-size an HMF container to enclose ALL of its absolutely-positioned
+   * children. WHY: header/menu/footer children are `position:absolute`, so
+   * they contribute ZERO height to their container. Without this, the
+   * container collapses and any element positioned lower than the collapsed
+   * box (e.g. a nav bar at top:91 below a 75px logo wrapper) falls UNDER
+   * `#hns_body` (which follows in normal flow) and becomes unclickable —
+   * which is exactly why "only the logo moves". We mirror the body's
+   * min-height recalc: measure every .dragable descendant's bottom relative
+   * to the container (in layout px, dividing out the canvas scale) and set
+   * the container's min-height so every element is inside its hit area.
+   * Re-run on device switch since per-device geometry changes the extents. */
+  const recalcHmfHeight = useCallback((container: HTMLElement | null) => {
+    if (!container) return;
+    const scale = getCanvasScale();
+    const cTop = container.getBoundingClientRect().top;
+    let maxBottom = 0;
+    container.querySelectorAll<HTMLElement>(".dragable").forEach((el) => {
+      // Skip wrappers that themselves contain dragables — their own box is
+      // already covered by measuring the leaf children, and a collapsed
+      // wrapper would under-report. Leaves drive the true extent.
+      const r = el.getBoundingClientRect();
+      const bottom = (r.bottom - cTop) / (scale || 1);
+      if (bottom > maxBottom) maxBottom = bottom;
+    });
+    container.style.minHeight = maxBottom > 0 ? `${Math.ceil(maxBottom + 12)}px` : "";
+  }, []);
+
+  const recalcAllHmfHeights = useCallback(() => {
+    recalcHmfHeight(headerRef.current);
+    recalcHmfHeight(menuRef.current);
+    recalcHmfHeight(footerRef.current);
+  }, [recalcHmfHeight]);
+
   useEffect(() => {
     if (bodyRef.current) {
       bodyRef.current.innerHTML = bodyHtml;
@@ -746,8 +779,16 @@ export default function DesignEditor({
       // Detect logo URL
       const logoImg = headerRef.current.querySelector("#hns_h_logo img, .logo img, [id*=logo] img, a img") as HTMLImageElement | null;
       if (logoImg?.src) setLogoUrl(logoImg.src);
+      // Enclose all header children so lower-positioned elements (nav etc.)
+      // don't fall under #hns_body and become unclickable. Re-run as the
+      // logo / nav images finish loading, since they change the extent.
+      const hdr = headerRef.current;
+      requestAnimationFrame(() => recalcHmfHeight(hdr));
+      hdr.querySelectorAll("img").forEach((img) => {
+        if (!img.complete) img.addEventListener("load", () => recalcHmfHeight(hdr), { once: true });
+      });
     }
-  }, [headerHtml]);
+  }, [headerHtml, recalcHmfHeight]);
 
   useEffect(() => {
     if (menuRef.current && !menuInitedRef.current) {
@@ -787,16 +828,23 @@ export default function DesignEditor({
       }
       menuInitedRef.current = true;
       hydrateHmfDevice(menuRef.current);
+      const mn = menuRef.current;
+      requestAnimationFrame(() => recalcHmfHeight(mn));
     }
-  }, []);
+  }, [recalcHmfHeight]);
 
   useEffect(() => {
     if (footerRef.current && !footerInitedRef.current) {
       footerRef.current.innerHTML = footerHtml;
       footerInitedRef.current = true;
       hydrateHmfDevice(footerRef.current);
+      const ft = footerRef.current;
+      requestAnimationFrame(() => recalcHmfHeight(ft));
+      ft.querySelectorAll("img").forEach((img) => {
+        if (!img.complete) img.addEventListener("load", () => recalcHmfHeight(ft), { once: true });
+      });
     }
-  }, [footerHtml]);
+  }, [footerHtml, recalcHmfHeight]);
 
   /* ─── HMF per-device preview paint ───
    * The editor canvas is a wide viewport with a narrow artboard, so the
@@ -813,7 +861,10 @@ export default function DesignEditor({
     for (const container of [headerRef.current, menuRef.current, footerRef.current]) {
       if (container) applyHmfDevicePreview(container, map, base, dv);
     }
-  }, [editorV2Enabled, viewportMode]);
+    // Geometry just changed for this device — re-enclose each container so
+    // every element stays inside its clickable box. rAF lets layout settle.
+    requestAnimationFrame(() => recalcAllHmfHeights());
+  }, [editorV2Enabled, viewportMode, recalcAllHmfHeights]);
 
   /* ─── Load AI credit balance + cost ─── */
   const reloadBalance = useCallback(async () => {
@@ -1832,6 +1883,9 @@ export default function DesignEditor({
         if (resizeRef.current && (resizeRef.current as any).moved) {
           commit(resizeRef.current.el, true);
         }
+        // Moving/resizing an HMF element changes the container extent — keep
+        // its min-height in sync so nothing falls under #hns_body.
+        recalcAllHmfHeights();
       }
       dragRef.current = null;
       resizeRef.current = null;
