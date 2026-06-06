@@ -1217,18 +1217,38 @@ export default function DesignEditor({
         elIds.forEach((id) => {
           const target = document.getElementById(id);
           if (!target) return;
-          const top = parseInt(target.style.top) || 0;
-          const left = parseInt(target.style.left) || 0;
-          if (e.key === "ArrowUp") target.style.top = (top - step) + "px";
-          if (e.key === "ArrowDown") target.style.top = (top + step) + "px";
-          if (e.key === "ArrowLeft") target.style.left = (left - step) + "px";
-          if (e.key === "ArrowRight") target.style.left = (left + step) + "px";
+          // V2 + body elements: the V2 keydown handler (useEditorStore) already
+          // called s.setFrame which routes through applyFrameToEl with !important.
+          // Writing plain inline here would overwrite the !important and snap the
+          // element back to its CSS-declared position.
+          if (editorV2Enabled && bodyRef.current?.contains(target)) return;
+          // Use computed style for accurate current position — inline style may be
+          // empty or stale if CSS (boostImportant) positions the element.
+          const cs = window.getComputedStyle(target);
+          const top = parseInt(cs.top) || 0;
+          const left = parseInt(cs.left) || 0;
+          // HMF (raw-injected) and plugin elements need !important to beat the
+          // boostImportant'd page CSS, same as drag/resize paths.
+          const needsImportant = !!(
+            headerRef.current?.contains(target) ||
+            menuRef.current?.contains(target) ||
+            footerRef.current?.contains(target) ||
+            /\b[A-Za-z]+Plugin\b/.test(target.className)
+          );
+          const setPos = (prop: "top" | "left", val: number) => {
+            if (needsImportant) target.style.setProperty(prop, val + "px", "important");
+            else target.style[prop] = val + "px";
+          };
+          if (e.key === "ArrowUp")    setPos("top",  top  - step);
+          if (e.key === "ArrowDown")  setPos("top",  top  + step);
+          if (e.key === "ArrowLeft")  setPos("left", left - step);
+          if (e.key === "ArrowRight") setPos("left", left + step);
         });
       }
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedElId, editingTextId, saveContent]);
+  }, [selectedElId, editingTextId, saveContent, editorV2Enabled]);
 
   /* ─── Clipboard image paste — replaces selected image dragable ──────
    * When the user has an image dragable (or a box layer that contains
@@ -1901,6 +1921,19 @@ export default function DesignEditor({
 
     el.classList.add("de-selected");
 
+    // When V2 is enabled, CanvasOverlay renders resize handles as fixed-position
+    // gizmos that track the element via getBoundingClientRect() — scale-aware
+    // and always positioned outside the scaled canvas transform. Adding the
+    // legacy .de-resize-handle divs (position:absolute inside the element)
+    // on top of those creates two overlapping handle sets.
+    // Exception: HMF elements (header/menu/footer) are NOT inside bodyRef, so
+    // CanvasOverlay skips them (line 136 guard) → they still need legacy handles.
+    const inBody = !!bodyRef.current?.contains(el);
+    if (editorV2Enabled && inBody) {
+      // .de-selected outline stays; CanvasOverlay provides the resize handles.
+      return;
+    }
+
     // Sprint 9a — FLOW-ELEMENT GUARD (resize side).
     // Don't render resize handles on flow-positioned sections; resizing
     // them via inline width/height would fight the template's responsive
@@ -1969,7 +2002,7 @@ export default function DesignEditor({
     return () => {
       el?.querySelectorAll(".de-resize-handle").forEach((h) => h.remove());
     };
-  }, [selectedElId, multiSelectCount]);
+  }, [selectedElId, multiSelectCount, editorV2Enabled]);
 
   /* ─── Double-click / Double-tap text editing ─── */
   const lastTapRef = useRef<{ time: number; id: string }>({ time: 0, id: "" });
