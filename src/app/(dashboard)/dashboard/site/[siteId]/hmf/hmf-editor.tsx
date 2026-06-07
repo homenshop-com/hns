@@ -105,36 +105,45 @@ export default function HmfEditor({
     setSelectedElId(null);
     setIsDirty(false);
 
-    // Fix legacy footer height: all children are position:absolute so the
-    // container collapses to 0 height after we convert it to position:relative.
-    // Measure children and set minHeight accordingly.
+    // Fix legacy container heights:
+    // #hns_header, #hns_menu, #hns_footer_content all collapse to 0 because
+    // every child is position:absolute. We measure the visual bottom of all
+    // .dragable descendants (via getBoundingClientRect) and set minHeight so
+    // the placeholder starts BELOW the header/menu visual area, not on top of it.
     if (!isModernCanvas) {
       requestAnimationFrame(() => {
-        const footerEl = footerRef.current;
-        if (!footerEl) return;
-
-        const footerContent = footerEl.querySelector(
-          "#hns_footer_content"
-        ) as HTMLElement | null;
-
-        if (!footerContent) {
-          footerEl.style.minHeight = "200px";
-          return;
-        }
-
-        // Measure the bottom edge of every direct .dragable child.
-        // CSS !important already sets position:relative + top:auto on footerContent,
-        // so offsetTop of each child is relative to footerContent.
-        let maxBottom = 0;
-        footerContent
-          .querySelectorAll<HTMLElement>(":scope > .dragable")
-          .forEach((el) => {
-            const bottom = el.offsetTop + el.offsetHeight;
+        /**
+         * Measure the max bottom of all .dragable descendants relative to `root`,
+         * then set root's minHeight (plus some padding).
+         */
+        function fixContainerHeight(
+          root: HTMLElement | null,
+          minFallback = 0
+        ) {
+          if (!root) return;
+          const rootRect = root.getBoundingClientRect();
+          let maxBottom = 0;
+          root.querySelectorAll<HTMLElement>(".dragable").forEach((el) => {
+            if (!root.contains(el)) return;
+            const rect = el.getBoundingClientRect();
+            const bottom = rect.bottom - rootRect.top;
             if (bottom > maxBottom) maxBottom = bottom;
           });
+          const h = Math.max(maxBottom + 20, minFallback);
+          if (h > 0) root.style.minHeight = h + "px";
+        }
 
-        // At least 150px tall, plus 30px breathing room
-        footerContent.style.minHeight = Math.max(maxBottom + 30, 150) + "px";
+        fixContainerHeight(headerRef.current, 0);
+        fixContainerHeight(menuRef.current, 0);
+
+        // Footer: fix the inner content div, not the outer wrapper
+        const footerEl = footerRef.current;
+        if (footerEl) {
+          const footerContent = footerEl.querySelector(
+            "#hns_footer_content"
+          ) as HTMLElement | null;
+          fixContainerHeight(footerContent ?? footerEl, 150);
+        }
       });
     }
   }, [activeLang]); // eslint-disable-line react-hooks/exhaustive-deps

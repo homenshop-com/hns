@@ -313,7 +313,7 @@
   align-items: center;
   justify-content: center;
   position: relative;
-  z-index: 500; /* High enough to cover overflowing menu items */
+  z-index: 10; /* Above normal flow; header/menu height is fixed via JS so no overlap */
   pointer-events: none;
   user-select: none;
 }
