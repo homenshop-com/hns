@@ -54,9 +54,24 @@ export default async function HmfEditorPage({ params }: Props) {
     cssText.includes("calc(-50vw + 50%)");
 
   // 캔버스 기준폭 (legacy 사이트 중 1000px 초과 레이아웃 대응)
+  // 페이지별 CSS에도 width 오버라이드가 있을 수 있으므로 첫 번째 페이지 CSS도 검색
+  const firstPageCss = await (async () => {
+    if (isModernCanvas) return "";
+    try {
+      const firstPage = await prisma.page.findFirst({
+        where: { siteId, lang: site.defaultLanguage },
+        select: { css: true },
+        orderBy: { sortOrder: "asc" },
+      });
+      return firstPage?.css ?? "";
+    } catch {
+      return "";
+    }
+  })();
+
   const designCanvasWidth = (() => {
     if (isModernCanvas) return null;
-    const sources = [cssText, rawTemplateCss].filter(Boolean).join("\n");
+    const sources = [cssText, rawTemplateCss, firstPageCss].filter(Boolean).join("\n");
     const re =
       /(?:#v_home_dft|\.c_v_home_dft)\s*\{[^}]*?(?<![a-z-])width\s*:\s*(\d+)px/gi;
     let max = 0;
