@@ -532,7 +532,7 @@ export default function HmfEditor({
       {/* ── Toolbar ── */}
       <header className="hmf-toolbar">
         <div className="hmf-toolbar-left">
-          <Link href={`/dashboard/site/settings?id=${siteId}`} className="hmf-back-btn" title="설정으로 돌아가기">
+          <Link href={`/dashboard/site/settings?id=${siteId}`} className="hmf-back-btn" title="사이트 설정으로 이동">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M19 12H5M12 5l-7 7 7 7" />
             </svg>
