@@ -104,6 +104,39 @@ export default function HmfEditor({
     if (footerRef.current) footerRef.current.innerHTML = hmf.footerHtml;
     setSelectedElId(null);
     setIsDirty(false);
+
+    // Fix legacy footer height: all children are position:absolute so the
+    // container collapses to 0 height after we convert it to position:relative.
+    // Measure children and set minHeight accordingly.
+    if (!isModernCanvas) {
+      requestAnimationFrame(() => {
+        const footerEl = footerRef.current;
+        if (!footerEl) return;
+
+        const footerContent = footerEl.querySelector(
+          "#hns_footer_content"
+        ) as HTMLElement | null;
+
+        if (!footerContent) {
+          footerEl.style.minHeight = "200px";
+          return;
+        }
+
+        // Measure the bottom edge of every direct .dragable child.
+        // CSS !important already sets position:relative + top:auto on footerContent,
+        // so offsetTop of each child is relative to footerContent.
+        let maxBottom = 0;
+        footerContent
+          .querySelectorAll<HTMLElement>(":scope > .dragable")
+          .forEach((el) => {
+            const bottom = el.offsetTop + el.offsetHeight;
+            if (bottom > maxBottom) maxBottom = bottom;
+          });
+
+        // At least 150px tall, plus 30px breathing room
+        footerContent.style.minHeight = Math.max(maxBottom + 30, 150) + "px";
+      });
+    }
   }, [activeLang]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ─── Build canvas CSS (scoped, like design-editor's scopeAndRewrite) ─── */
@@ -638,6 +671,12 @@ export default function HmfEditor({
             id="hmf-canvas-inner"
             style={artboardWidth ? { width: artboardWidth } : undefined}
           >
+            {/* ── 헤더/메뉴 섹션 레이블 ── */}
+            <div className="hmf-area-label hmf-area-header" aria-hidden="true">
+              <i className="fa-solid fa-chevron-up" style={{ fontSize: 9 }} />
+              &nbsp;헤더 / 메뉴 영역
+            </div>
+
             {/* HEADER — ref로만 관리, DOM 직접 업데이트 */}
             <div id="hns_header" ref={headerRef} />
 
@@ -655,6 +694,12 @@ export default function HmfEditor({
                 <span>페이지 본문 영역</span>
                 <small>페이지 에디터에서 편집하세요</small>
               </div>
+            </div>
+
+            {/* ── 풋터 섹션 레이블 ── */}
+            <div className="hmf-area-label hmf-area-footer" aria-hidden="true">
+              <i className="fa-solid fa-chevron-down" style={{ fontSize: 9 }} />
+              &nbsp;풋터 영역
             </div>
 
             {/* FOOTER — ref로만 관리 */}

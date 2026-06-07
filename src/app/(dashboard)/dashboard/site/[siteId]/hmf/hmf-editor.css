@@ -260,6 +260,42 @@
   width: 100%;
 }
 
+/* ─── Section area labels ─── */
+/* Use !important to beat any template CSS rules scoped to #hmf-canvas-inner */
+#hmf-canvas-inner > .hmf-area-label {
+  position: relative !important;
+  z-index: 1000 !important;
+  display: block !important;
+  float: none !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  background: rgba(26, 26, 46, 0.93) !important;
+  color: #93c5fd !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  font-family: system-ui, -apple-system, sans-serif !important;
+  line-height: 1.4 !important;
+  padding: 5px 14px !important;
+  letter-spacing: 0.6px !important;
+  pointer-events: none !important;
+  user-select: none !important;
+  text-transform: uppercase !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  overflow: visible !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+}
+#hmf-canvas-inner > .hmf-area-header {
+  border-bottom: 2px solid rgba(74, 144, 217, 0.5) !important;
+  border-top: none !important;
+}
+#hmf-canvas-inner > .hmf-area-footer {
+  border-top: 2px solid rgba(74, 144, 217, 0.5) !important;
+  border-bottom: none !important;
+}
+
 /* ─── Body placeholder ─── */
 .hmf-body-placeholder {
   background: repeating-linear-gradient(
@@ -277,7 +313,7 @@
   align-items: center;
   justify-content: center;
   position: relative;
-  z-index: 1;
+  z-index: 500; /* High enough to cover overflowing menu items */
   pointer-events: none;
   user-select: none;
 }
