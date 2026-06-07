@@ -168,8 +168,11 @@ export default function HmfEditor({
 
   /* ─── Inject HMF HTML when lang or device switches ─── */
   useEffect(() => {
+    // page.tsx 에서 menuHtml 을 headerHtml 안에 통합해 전달하므로
+    // headerRef 하나에만 주입하면 됨 (published route 와 동일 구조).
+    // menuRef 는 항상 비워 #hns_menu:empty CSS 로 자동 숨김.
     if (headerRef.current) headerRef.current.innerHTML = hmf.headerHtml;
-    if (menuRef.current)   menuRef.current.innerHTML   = hmf.menuHtml;
+    if (menuRef.current)   menuRef.current.innerHTML   = hmf.menuHtml; // "" (빈 문자열)
     if (footerRef.current) footerRef.current.innerHTML = hmf.footerHtml;
     setSelectedElId(null);
     setIsDirty(false);
@@ -630,12 +633,18 @@ export default function HmfEditor({
             id="hmf-canvas-inner"
             style={artboardWidth ? { width: artboardWidth } : undefined}
           >
-            {/* ── 헤더/메뉴 섹션 레이블 ── */}
+            {/* ── 헤더 섹션 레이블 ── */}
             <div className="hmf-area-label hmf-area-header" aria-hidden="true">
               <i className="fa-solid fa-chevron-up" style={{ fontSize: 9 }} />
-              &nbsp;헤더 / 메뉴 영역
+              &nbsp;헤더 영역 (로고·메뉴 포함)
             </div>
 
+            {/*
+              published route 구조: <div id="hns_header">{headerHtml}{menuHtml}</div>
+              page.tsx 에서 menuHtml 을 headerHtml 안으로 통합해 전달하므로
+              여기선 headerRef 하나에 전체 헤더+메뉴가 렌더링됨.
+              menuRef(#hns_menu)는 항상 비어 있어 CSS #hns_menu:empty 로 자동 숨김.
+            */}
             <div id="hns_header" ref={headerRef} />
             <div id="hns_menu" ref={menuRef} />
 

@@ -14,6 +14,9 @@ interface Props {
  *  header/menu/footer 만 드래그·리사이즈 편집 가능.
  *  저장 시 SiteHmf에 기록 → 모든 페이지에 즉시 적용.
  *  절대좌표 모드 사이트는 PC/Tablet/Mobile 디바이스별 독립 편집 지원.
+ *
+ *  menuHtml은 published route와 동일하게 #hns_header 안에 주입하여 렌더링함
+ *  (WYSIWYG 일치). 에디터에서 headerRef = headerHtml + menuHtml 합산.
  */
 export default async function HmfEditorPage({ params }: Props) {
   const session = await auth();
@@ -87,7 +90,66 @@ export default async function HmfEditorPage({ params }: Props) {
   const rw = (html: string) =>
     templatePath ? rewriteAssetUrls(html, templatePath) : html;
 
+  // ────────────────────────────────────────────────
+  // 메뉴 아이템 생성 (published route와 동일 로직)
+  // 에디터에서 nav widget 안의 mainmenu 를 채워 WYSIWYG 표시
+  // ────────────────────────────────────────────────
+  const SKIP_SLUGS = new Set(["user", "users", "agreement", "empty"]);
+
+  // 전체 언어 페이지 한 번에 로드
+  const allPages = await prisma.page.findMany({
+    where: { siteId },
+    select: {
+      id: true, title: true, menuTitle: true, slug: true,
+      isHome: true, parentId: true, sortOrder: true,
+      showInMenu: true, lang: true,
+    },
+    orderBy: { sortOrder: "asc" },
+  });
+
+  /** 해당 언어의 showInMenu 페이지 → ul.mainmenu 용 <li> 문자열 */
+  function buildMenuItems(lang: string): string {
+    const langPages = allPages.filter(
+      (p) => p.lang === lang || p.lang === site!.defaultLanguage
+    );
+    const visible = langPages.filter(
+      (p) => p.showInMenu !== false && !SKIP_SLUGS.has(p.slug)
+    );
+    const topLevel = visible.filter((p) => !p.parentId);
+    return topLevel
+      .map((p) => {
+        const label = (p.menuTitle || p.title).replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+        return `<li><a href="#" title="${label}">${label}</a></li>`;
+      })
+      .join("");
+  }
+
+  /**
+   * headerHtml + menuHtml 를 합쳐 헤더 하나로 통합.
+   * published route 는 menuHtml 을 #hns_header 안에 렌더링하므로
+   * 에디터도 같은 구조로 맞춘다.
+   *
+   * menuHtml 을 headerHtml 뒤에 이어 붙인 결과를 반환하고,
+   * 합산된 HTML 안의 ul.mainmenu 를 실제 메뉴 아이템으로 채워준다.
+   */
+  function combineAndEnrich(
+    header: string,
+    menu: string,
+    menuItemsHtml: string
+  ): string {
+    // header + menu 통합 (published route: ${headerHtml}${menuHtml} inside #hns_header)
+    const combined = header + menu;
+    if (!menuItemsHtml) return combined;
+    // ul.mainmenu 가 있으면 내용을 현재 페이지 목록으로 교체
+    return combined.replace(
+      /(<ul[^>]*class="mainmenu"[^>]*>)([\s\S]*?)(<\/ul>)/i,
+      (_m, open, _old, close) => `${open}${menuItemsHtml}${close}`
+    );
+  }
+
+  // ────────────────────────────────────────────────
   // 언어별 × 디바이스별 HMF 맵 구성
+  // ────────────────────────────────────────────────
   const langHmfMap: Record<
     string,
     {
@@ -103,26 +165,32 @@ export default async function HmfEditorPage({ params }: Props) {
       site.hmfTranslations?.find((h) => h.lang === site.defaultLanguage);
 
     const siteAny = site as unknown as Record<string, string | null | undefined>;
+    const menuItems = buildMenuItems(lang);
 
     // PC base
-    const pcHeader = rw(hmf?.headerHtml ?? siteAny.headerHtml ?? "");
-    const pcMenu   = rw(hmf?.menuHtml   ?? siteAny.menuHtml   ?? "");
-    const pcFooter = rw(hmf?.footerHtml ?? siteAny.footerHtml ?? "");
+    const pcHeaderRaw = rw(hmf?.headerHtml ?? siteAny.headerHtml ?? "");
+    const pcMenuRaw   = rw(hmf?.menuHtml   ?? siteAny.menuHtml   ?? "");
+    const pcFooter    = rw(hmf?.footerHtml ?? siteAny.footerHtml ?? "");
+    // published route 와 동일하게 menu 를 header 안으로 통합
+    const pcHeader    = combineAndEnrich(pcHeaderRaw, pcMenuRaw, menuItems);
 
     // Tablet — 없으면 PC 복사 (첫 편집 시 PC를 출발점으로)
-    const tabHeader = rw(hmf?.tabletHeaderHtml ?? pcHeader);
-    const tabMenu   = rw(hmf?.tabletMenuHtml   ?? pcMenu);
-    const tabFooter = rw(hmf?.tabletFooterHtml ?? pcFooter);
+    const tabHeaderRaw = rw(hmf?.tabletHeaderHtml ?? pcHeaderRaw);
+    const tabMenuRaw   = rw(hmf?.tabletMenuHtml   ?? pcMenuRaw);
+    const tabHeader    = combineAndEnrich(tabHeaderRaw, tabMenuRaw, menuItems);
+    const tabFooter    = rw(hmf?.tabletFooterHtml ?? pcFooter);
 
     // Mobile — 없으면 PC 복사
-    const mobHeader = rw(hmf?.mobileHeaderHtml ?? pcHeader);
-    const mobMenu   = rw(hmf?.mobileMenuHtml   ?? pcMenu);
-    const mobFooter = rw(hmf?.mobileFooterHtml ?? pcFooter);
+    const mobHeaderRaw = rw(hmf?.mobileHeaderHtml ?? pcHeaderRaw);
+    const mobMenuRaw   = rw(hmf?.mobileMenuHtml   ?? pcMenuRaw);
+    const mobHeader    = combineAndEnrich(mobHeaderRaw, mobMenuRaw, menuItems);
+    const mobFooter    = rw(hmf?.mobileFooterHtml ?? pcFooter);
 
     langHmfMap[lang] = {
-      pc:     { headerHtml: pcHeader,  menuHtml: pcMenu,   footerHtml: pcFooter },
-      tablet: { headerHtml: tabHeader, menuHtml: tabMenu,  footerHtml: tabFooter },
-      mobile: { headerHtml: mobHeader, menuHtml: mobMenu,  footerHtml: mobFooter },
+      // menuHtml 은 header 안으로 통합했으므로 빈 문자열 전달
+      pc:     { headerHtml: pcHeader,  menuHtml: "", footerHtml: pcFooter },
+      tablet: { headerHtml: tabHeader, menuHtml: "", footerHtml: tabFooter },
+      mobile: { headerHtml: mobHeader, menuHtml: "", footerHtml: mobFooter },
     };
   }
 

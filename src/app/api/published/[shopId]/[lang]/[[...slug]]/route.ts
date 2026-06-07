@@ -1267,7 +1267,23 @@ export async function GET(
     // hash-anchor links); still suppress the legacy second menu bar.
     menuHtml = "";
   } else if (!rawMenuHtml) {
-    menuHtml = wrappedMenu;
+    // Check if the header already embeds the legacy nav widget.
+    // This happens after the HMF editor saves — it merges menuHtml into
+    // headerHtml for WYSIWYG editing (matching published-route structure),
+    // then saves the combined result as headerHtml with empty menuHtml.
+    // In that case we refresh the mainmenu links in-place and skip
+    // generating a second nav widget (which would cause duplicates).
+    const headerHasLegacyNavWidget =
+      /id=["']v-wdg-nav["']|class=["'][^"']*v-home-ap-hd-nav/.test(headerHtml);
+    if (headerHasLegacyNavWidget) {
+      headerHtml = headerHtml.replace(
+        /(<ul[^>]*class="mainmenu"[^>]*>)([\s\S]*?)(<\/ul>)/i,
+        (_m, open, _old, close) => `${open}${menuItems}${close}`
+      );
+      menuHtml = "";
+    } else {
+      menuHtml = wrappedMenu;
+    }
   } else {
     // Try to inject menu into v-wdg-jmenu-opts div first
     const jmenuReplaced = rawMenuHtml.replace(
