@@ -523,7 +523,6 @@ export default function LeftPalette({
           onAddSectionClick={() => setTab("insert")}
           onOpenHeaderEdit={onOpenHeaderEdit}
           onOpenFooterEdit={onOpenFooterEdit}
-          siteId={siteId}
         />
       )}
 
@@ -935,12 +934,10 @@ function SectionsTab({
   onAddSectionClick,
   onOpenHeaderEdit,
   onOpenFooterEdit,
-  siteId,
 }: {
   onAddSectionClick: () => void;
   onOpenHeaderEdit?: () => void;
   onOpenFooterEdit?: () => void;
-  siteId?: string;
 }) {
   const t = useTranslations("editor");
   // Subscribe to the scene root so the list reflects every reorder /
@@ -1010,31 +1007,12 @@ function SectionsTab({
    * 진입점은 항상 보임. */
   return (
     <div className="lp-section-tab">
-      {/* ── 상단 고정: 헤더/풋터 편집 ─────────────────────────────── */}
-      <div className="lp-pinned-frame top">
-        {siteId ? (
-          <a
-            href={`/dashboard/site/${siteId}/hmf`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="lp-frame-btn header"
-            style={{ ...frameRowBtn, textDecoration: "none" }}
-          >
-            <span style={{ ...frameRowIcon, background: "#7c3aed" }}>
-              <i className="fa-solid fa-layer-group" />
-            </span>
-            <span style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600 }}>헤더 / 풋터 편집</div>
-              <div style={{ fontSize: 10, color: "#888", marginTop: 2 }}>
-                모든 페이지에 공통 적용
-              </div>
-            </span>
-            <i className="fa-solid fa-arrow-up-right-from-square" style={{ color: "#666", fontSize: 10 }} />
-          </a>
-        ) : onOpenHeaderEdit ? (
+      {/* ── 상단 고정: 헤더 편집 ─────────────────────────────────── */}
+      {onOpenHeaderEdit && (
+        <div className="lp-pinned-frame top">
           <button type="button" onClick={onOpenHeaderEdit} className="lp-frame-btn header" style={frameRowBtn}>
-            <span style={{ ...frameRowIcon, background: "#7c3aed" }}>
-              <i className="fa-solid fa-layer-group" />
+            <span style={{ ...frameRowIcon, background: "#2a79ff" }}>
+              <i className="fa-solid fa-window-maximize" />
             </span>
             <span style={{ flex: 1 }}>
               <div style={{ fontWeight: 600 }}>{t("sectionsTab.headerEdit")}</div>
@@ -1044,8 +1022,8 @@ function SectionsTab({
             </span>
             <i className="fa-solid fa-chevron-right" style={{ color: "#666", fontSize: 11 }} />
           </button>
-        ) : null}
-      </div>
+        </div>
+      )}
 
       {/* ── 가운데 스크롤: 본문 섹션 리스트 ─────────────────────── */}
       <div className="lp-section-scroll">
@@ -1119,7 +1097,23 @@ function SectionsTab({
         )}
       </div>
 
-      {/* 풋터 편집은 상단의 "헤더 / 풋터 편집" 링크(/hmf)로 통합됨 */}
+      {/* ── 하단 고정: 풋터 편집 ─────────────────────────────────── */}
+      {onOpenFooterEdit && (
+        <div className="lp-pinned-frame bottom">
+          <button type="button" onClick={onOpenFooterEdit} className="lp-frame-btn footer" style={frameRowBtn}>
+            <span style={{ ...frameRowIcon, background: "#7a5af8", transform: "rotate(180deg)" }}>
+              <i className="fa-solid fa-window-maximize" />
+            </span>
+            <span style={{ flex: 1 }}>
+              <div style={{ fontWeight: 600 }}>{t("sectionsTab.footerEdit")}</div>
+              <div style={{ fontSize: 10, color: "#888", marginTop: 2 }}>
+                {t("sectionsTab.footerEditSub")}
+              </div>
+            </span>
+            <i className="fa-solid fa-chevron-right" style={{ color: "#666", fontSize: 11 }} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

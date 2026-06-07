@@ -238,9 +238,6 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                 <Link href={`/dashboard/site/${site.id}/manage/menus`} className="mv2-btn-secondary">
                   <Icon id="i-menu" size={14} /> {t("menuManage")}
                 </Link>
-                <Link href={`/dashboard/site/${site.id}/hmf`} className="mv2-btn-secondary">
-                  <i className="fa-solid fa-layer-group" aria-hidden="true" style={{ fontSize: 12 }} /> 헤더/풋터 편집
-                </Link>
                 <a className="mv2-btn-secondary" href={publicUrl} target="_blank" rel="noopener noreferrer">
                   <Icon id="i-external" size={14} /> {ts("openSite")}
                 </a>
