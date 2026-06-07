@@ -10,22 +10,29 @@ import {
 import Link from "next/link";
 import "./hmf-editor.css";
 
-/* ─── Props ─── */
+/* ─── Types ─── */
+type Device = "pc" | "tablet" | "mobile";
+
+interface DeviceHmf {
+  headerHtml: string;
+  menuHtml: string;
+  footerHtml: string;
+}
+
 interface HmfEditorProps {
   siteId: string;
   shopId: string;
   siteName: string;
   defaultLanguage: string;
   siteLanguages: string[];
-  langHmfMap: Record<
-    string,
-    { headerHtml: string; menuHtml: string; footerHtml: string }
-  >;
+  /** lang → device → HMF HTML */
+  langHmfMap: Record<string, { pc: DeviceHmf; tablet: DeviceHmf; mobile: DeviceHmf }>;
   templateCss: string;
   cssText: string;
   templatePath: string;
   isModernCanvas: boolean;
   designCanvasWidth: number | null;
+  editorMode: string | null; // "absolute" | "flow" | null
 }
 
 /* ─── Drag / Resize state ─── */
@@ -40,7 +47,7 @@ interface DragState {
 
 interface ResizeState {
   el: HTMLElement;
-  handle: string; // n/ne/e/se/s/sw/w/nw
+  handle: string;
   startX: number;
   startY: number;
   origLeft: number;
@@ -59,6 +66,24 @@ const LANG_LABEL: Record<string, string> = {
   es: "Español",
 };
 
+const DEVICE_LABEL: Record<Device, string> = {
+  pc: "PC",
+  tablet: "Tablet",
+  mobile: "Mobile",
+};
+
+const DEVICE_WIDTH: Record<Device, number> = {
+  pc: 0,     // 0 = use designCanvasWidth ?? 1000
+  tablet: 768,
+  mobile: 375,
+};
+
+const DEVICE_ICON: Record<Device, string> = {
+  pc: "fa-desktop",
+  tablet: "fa-tablet-screen-button",
+  mobile: "fa-mobile-screen-button",
+};
+
 export default function HmfEditor({
   siteId,
   shopId,
@@ -71,9 +96,11 @@ export default function HmfEditor({
   templatePath,
   isModernCanvas,
   designCanvasWidth,
+  editorMode,
 }: HmfEditorProps) {
   /* ─── State ─── */
   const [activeLang, setActiveLang] = useState(defaultLanguage || siteLanguages[0]);
+  const [device, setDevice] = useState<Device>("pc");
   const [zoom, setZoom] = useState(100);
   const [selectedElId, setSelectedElId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -90,65 +117,66 @@ export default function HmfEditor({
   const resizeRef = useRef<ResizeState | null>(null);
   const canvasWrapperRef = useRef<HTMLDivElement>(null);
 
-  /* ─── HMF data for active language ─── */
-  const hmf = langHmfMap[activeLang] ?? langHmfMap[defaultLanguage] ?? {
+  /* ─── HMF data for active lang + device ─── */
+  const langData = langHmfMap[activeLang] ?? langHmfMap[defaultLanguage];
+  const hmf: DeviceHmf = langData?.[device] ?? langData?.pc ?? {
     headerHtml: "",
     menuHtml: "",
     footerHtml: "",
   };
 
-  /* ─── Inject HMF HTML when language switches ─── */
+  /* ─── Artboard width ─── */
+  const isAbsolute = editorMode === "absolute" || (!editorMode && !isModernCanvas);
+  const artboardWidth = isModernCanvas
+    ? undefined
+    : device === "pc"
+    ? (designCanvasWidth ?? 1000)
+    : DEVICE_WIDTH[device];
+
+  /* ─── Fix legacy container heights ─── */
+  const fixContainerHeights = useCallback(() => {
+    if (isModernCanvas) return;
+
+    requestAnimationFrame(() => {
+      function measureAndFix(root: HTMLElement | null, minFallback = 0) {
+        if (!root) return;
+        const rootRect = root.getBoundingClientRect();
+        let maxBottom = 0;
+        root.querySelectorAll<HTMLElement>(".dragable").forEach((el) => {
+          if (!root.contains(el)) return;
+          const rect = el.getBoundingClientRect();
+          const bottom = rect.bottom - rootRect.top;
+          if (bottom > maxBottom) maxBottom = bottom;
+        });
+        const h = Math.max(maxBottom + 20, minFallback);
+        if (h > 0) root.style.minHeight = h + "px";
+        else root.style.minHeight = "";
+      }
+
+      measureAndFix(headerRef.current, 0);
+      measureAndFix(menuRef.current, 0);
+
+      const footerEl = footerRef.current;
+      if (footerEl) {
+        const footerContent = footerEl.querySelector(
+          "#hns_footer_content"
+        ) as HTMLElement | null;
+        measureAndFix(footerContent ?? footerEl, 150);
+      }
+    });
+  }, [isModernCanvas]);
+
+  /* ─── Inject HMF HTML when lang or device switches ─── */
   useEffect(() => {
     if (headerRef.current) headerRef.current.innerHTML = hmf.headerHtml;
-    if (menuRef.current) menuRef.current.innerHTML = hmf.menuHtml;
+    if (menuRef.current)   menuRef.current.innerHTML   = hmf.menuHtml;
     if (footerRef.current) footerRef.current.innerHTML = hmf.footerHtml;
     setSelectedElId(null);
     setIsDirty(false);
+    fixContainerHeights();
+  }, [activeLang, device]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Fix legacy container heights:
-    // #hns_header, #hns_menu, #hns_footer_content all collapse to 0 because
-    // every child is position:absolute. We measure the visual bottom of all
-    // .dragable descendants (via getBoundingClientRect) and set minHeight so
-    // the placeholder starts BELOW the header/menu visual area, not on top of it.
-    if (!isModernCanvas) {
-      requestAnimationFrame(() => {
-        /**
-         * Measure the max bottom of all .dragable descendants relative to `root`,
-         * then set root's minHeight (plus some padding).
-         */
-        function fixContainerHeight(
-          root: HTMLElement | null,
-          minFallback = 0
-        ) {
-          if (!root) return;
-          const rootRect = root.getBoundingClientRect();
-          let maxBottom = 0;
-          root.querySelectorAll<HTMLElement>(".dragable").forEach((el) => {
-            if (!root.contains(el)) return;
-            const rect = el.getBoundingClientRect();
-            const bottom = rect.bottom - rootRect.top;
-            if (bottom > maxBottom) maxBottom = bottom;
-          });
-          const h = Math.max(maxBottom + 20, minFallback);
-          if (h > 0) root.style.minHeight = h + "px";
-        }
-
-        fixContainerHeight(headerRef.current, 0);
-        fixContainerHeight(menuRef.current, 0);
-
-        // Footer: fix the inner content div, not the outer wrapper
-        const footerEl = footerRef.current;
-        if (footerEl) {
-          const footerContent = footerEl.querySelector(
-            "#hns_footer_content"
-          ) as HTMLElement | null;
-          fixContainerHeight(footerContent ?? footerEl, 150);
-        }
-      });
-    }
-  }, [activeLang]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  /* ─── Build canvas CSS (scoped, like design-editor's scopeAndRewrite) ─── */
+  /* ─── Build canvas CSS (scoped) ─── */
   const canvasCss = useMemo(() => {
     const tplFilesBase = templatePath ? `/tpl/${templatePath}/files` : "";
 
@@ -183,7 +211,6 @@ export default function HmfEditor({
       return result;
     };
 
-    // HMF-specific layout fixes (mirrors published route's publishedCss)
     const hmfFixes = isModernCanvas
       ? `
         #hns_menu:empty { min-height: 0; display: none; }
@@ -203,11 +230,10 @@ export default function HmfEditor({
         .c_v_home_dft {
           overflow-x: hidden;
           overflow-y: visible;
-          ${isModernCanvas ? "" : `width: ${designCanvasWidth ?? 1000}px !important; margin: 0 auto !important;`}
+          ${isModernCanvas ? "" : `width: ${artboardWidth ?? 1000}px !important; margin: 0 auto !important;`}
         }
       `;
 
-    // Selection highlight
     const selectionCss = `
       .hmf-de-selected {
         outline: 2px solid #4a90d9 !important;
@@ -224,15 +250,12 @@ export default function HmfEditor({
     ]
       .filter(Boolean)
       .join("\n");
-  }, [templateCss, cssText, templatePath, isModernCanvas, designCanvasWidth]);
+  }, [templateCss, cssText, templatePath, isModernCanvas, artboardWidth]);
 
   /* ─── Canvas scale helper ─── */
-  const getCanvasScale = useCallback(() => {
-    if (!canvasRef.current) return 1;
-    return zoom / 100;
-  }, [zoom]);
+  const getCanvasScale = useCallback(() => zoom / 100, [zoom]);
 
-  /* ─── Drag/resize start ─── */
+  /* ─── Drag start ─── */
   function startDragOnElement(
     target: HTMLElement,
     clientX: number,
@@ -240,48 +263,23 @@ export default function HmfEditor({
   ) {
     const dragable = target.closest(".dragable") as HTMLElement | null;
     if (!dragable) return;
-
-    // Exclude body placeholder
     const placeholder = document.getElementById("hmf-body-placeholder");
     if (placeholder?.contains(dragable)) return;
-
     const cs = window.getComputedStyle(dragable);
     const origLeft = parseFloat(cs.left) || 0;
     const origTop = parseFloat(cs.top) || 0;
-
-    // Remove old handles, apply new selection
     applySelection(dragable);
-
-    dragRef.current = {
-      el: dragable,
-      startX: clientX,
-      startY: clientY,
-      origLeft,
-      origTop,
-    };
+    dragRef.current = { el: dragable, startX: clientX, startY: clientY, origLeft, origTop };
   }
 
   /* ─── Selection helper ─── */
   function applySelection(el: HTMLElement | null) {
-    // Clear previous selection
-    document
-      .querySelectorAll(".hmf-de-selected")
-      .forEach((e) => e.classList.remove("hmf-de-selected"));
-    document
-      .querySelectorAll(".hmf-resize-handle")
-      .forEach((h) => h.remove());
-
-    if (!el) {
-      setSelectedElId(null);
-      return;
-    }
-
+    document.querySelectorAll(".hmf-de-selected").forEach((e) => e.classList.remove("hmf-de-selected"));
+    document.querySelectorAll(".hmf-resize-handle").forEach((h) => h.remove());
+    if (!el) { setSelectedElId(null); return; }
     el.classList.add("hmf-de-selected");
     setSelectedElId(el.id || el.className);
-
-    // Inject 8 resize handles
-    const handles = ["n", "ne", "e", "se", "s", "sw", "w", "nw"];
-    handles.forEach((h) => {
+    ["n", "ne", "e", "se", "s", "sw", "w", "nw"].forEach((h) => {
       const handle = document.createElement("div");
       handle.className = `hmf-resize-handle hmf-handle-${h}`;
       handle.setAttribute("data-handle", h);
@@ -289,29 +287,25 @@ export default function HmfEditor({
     });
   }
 
-  /* ─── Attach drag events to HMF containers ─── */
+  /* ─── Drag events on HMF containers ─── */
   useEffect(() => {
     const containers = [headerRef.current, menuRef.current, footerRef.current];
-
     function handleDown(e: MouseEvent | TouchEvent) {
-      let clientX: number, clientY: number;
       const target = e.target as HTMLElement;
-      if (target.classList.contains("hmf-resize-handle")) return; // handled separately
+      if (target.classList.contains("hmf-resize-handle")) return;
       if (target.closest('[contenteditable="true"]')) return;
+      let clientX: number, clientY: number;
       if ("touches" in e) {
         const touch = (e as TouchEvent).touches[0];
         if (!touch) return;
-        clientX = touch.clientX;
-        clientY = touch.clientY;
+        clientX = touch.clientX; clientY = touch.clientY;
       } else {
-        clientX = (e as MouseEvent).clientX;
-        clientY = (e as MouseEvent).clientY;
+        clientX = (e as MouseEvent).clientX; clientY = (e as MouseEvent).clientY;
       }
       if (!target.closest(".dragable")) return;
       e.preventDefault();
       startDragOnElement(target, clientX, clientY);
     }
-
     containers.forEach((c) => {
       c?.addEventListener("mousedown", handleDown);
       c?.addEventListener("touchstart", handleDown as EventListener, { passive: false });
@@ -327,41 +321,30 @@ export default function HmfEditor({
   /* ─── Resize handle events ─── */
   useEffect(() => {
     const containers = [headerRef.current, menuRef.current, footerRef.current];
-
     function handleResizeDown(e: MouseEvent | TouchEvent) {
       const target = e.target as HTMLElement;
       if (!target.classList.contains("hmf-resize-handle")) return;
-      e.preventDefault();
-      e.stopPropagation();
-
+      e.preventDefault(); e.stopPropagation();
       const handle = target.getAttribute("data-handle") || "";
       const el = target.parentElement as HTMLElement;
       if (!el) return;
-
       const cs = window.getComputedStyle(el);
       let clientX: number, clientY: number;
       if ("touches" in e) {
         const touch = (e as TouchEvent).touches[0];
         if (!touch) return;
-        clientX = touch.clientX;
-        clientY = touch.clientY;
+        clientX = touch.clientX; clientY = touch.clientY;
       } else {
-        clientX = (e as MouseEvent).clientX;
-        clientY = (e as MouseEvent).clientY;
+        clientX = (e as MouseEvent).clientX; clientY = (e as MouseEvent).clientY;
       }
-
       resizeRef.current = {
-        el,
-        handle,
-        startX: clientX,
-        startY: clientY,
+        el, handle, startX: clientX, startY: clientY,
         origLeft: parseFloat(cs.left) || 0,
         origTop: parseFloat(cs.top) || 0,
         origWidth: el.offsetWidth,
         origHeight: el.offsetHeight,
       };
     }
-
     containers.forEach((c) => {
       c?.addEventListener("mousedown", handleResizeDown);
       c?.addEventListener("touchstart", handleResizeDown as EventListener, { passive: false });
@@ -378,7 +361,6 @@ export default function HmfEditor({
   useEffect(() => {
     function handleMove(clientX: number, clientY: number) {
       const scale = getCanvasScale();
-
       if (dragRef.current) {
         const { el, startX, startY, origLeft, origTop } = dragRef.current;
         const dx = (clientX - startX) / scale;
@@ -389,43 +371,27 @@ export default function HmfEditor({
         el.style.top = origTop + dy + "px";
         setIsDirty(true);
       }
-
       if (resizeRef.current) {
         const r = resizeRef.current;
         const dx = (clientX - r.startX) / scale;
         const dy = (clientY - r.startY) / scale;
         if (Math.abs(dx) > 2 || Math.abs(dy) > 2) r.moved = true;
         if (!r.moved) return;
-        if (r.handle.includes("e"))
-          r.el.style.width = Math.max(30, r.origWidth + dx) + "px";
-        if (r.handle.includes("w")) {
-          r.el.style.width = Math.max(30, r.origWidth - dx) + "px";
-          r.el.style.left = r.origLeft + dx + "px";
-        }
-        if (r.handle.includes("s"))
-          r.el.style.height = Math.max(20, r.origHeight + dy) + "px";
-        if (r.handle.includes("n")) {
-          r.el.style.height = Math.max(20, r.origHeight - dy) + "px";
-          r.el.style.top = r.origTop + dy + "px";
-        }
+        if (r.handle.includes("e"))  r.el.style.width = Math.max(30, r.origWidth + dx) + "px";
+        if (r.handle.includes("w")) { r.el.style.width = Math.max(30, r.origWidth - dx) + "px"; r.el.style.left = r.origLeft + dx + "px"; }
+        if (r.handle.includes("s"))  r.el.style.height = Math.max(20, r.origHeight + dy) + "px";
+        if (r.handle.includes("n")) { r.el.style.height = Math.max(20, r.origHeight - dy) + "px"; r.el.style.top = r.origTop + dy + "px"; }
         setIsDirty(true);
       }
     }
-
-    function onMouseMove(e: MouseEvent) {
-      handleMove(e.clientX, e.clientY);
-    }
+    function onMouseMove(e: MouseEvent) { handleMove(e.clientX, e.clientY); }
     function onTouchMove(e: TouchEvent) {
       if (!dragRef.current && !resizeRef.current) return;
       e.preventDefault();
       const touch = e.touches[0];
       if (touch) handleMove(touch.clientX, touch.clientY);
     }
-    function onEnd() {
-      dragRef.current = null;
-      resizeRef.current = null;
-    }
-
+    function onEnd() { dragRef.current = null; resizeRef.current = null; }
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("touchmove", onTouchMove, { passive: false });
     window.addEventListener("mouseup", onEnd);
@@ -438,17 +404,13 @@ export default function HmfEditor({
     };
   }, [getCanvasScale]);
 
-  /* ─── Click on canvas background: deselect ─── */
+  /* ─── Canvas click: deselect / block links ─── */
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     function handleCanvasClick(e: MouseEvent) {
-      const target = e.target as HTMLElement;
-      if (!target.closest(".dragable")) {
-        applySelection(null);
-      }
+      if (!(e.target as HTMLElement).closest(".dragable")) applySelection(null);
     }
-    // Block link navigation inside canvas
     function blockLinks(e: Event) {
       const anchor = (e.target as HTMLElement).closest("a");
       if (anchor) { e.preventDefault(); e.stopPropagation(); }
@@ -463,39 +425,26 @@ export default function HmfEditor({
     };
   }, []);
 
-  /* ─── Keyboard: arrow key nudge + ESC deselect + Delete ─── */
+  /* ─── Keyboard: nudge / ESC / Delete ─── */
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        applySelection(null);
-        return;
-      }
+      if (e.key === "Escape") { applySelection(null); return; }
       if (!selectedElId) return;
       const el = document.getElementById(selectedElId) ||
-        document.querySelector(`.hmf-de-selected`) as HTMLElement | null;
+        document.querySelector(".hmf-de-selected") as HTMLElement | null;
       if (!el) return;
-
-      // Delete
       if ((e.key === "Delete" || e.key === "Backspace") &&
           !(e.target as HTMLElement).closest('[contenteditable="true"]')) {
-        e.preventDefault();
-        applySelection(null);
-        el.remove();
-        setIsDirty(true);
-        return;
+        e.preventDefault(); applySelection(null); el.remove(); setIsDirty(true); return;
       }
-
-      // Arrow keys
       if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
         e.preventDefault();
         const step = e.shiftKey ? 10 : 1;
         const cs = window.getComputedStyle(el);
-        const top = parseFloat(cs.top) || 0;
-        const left = parseFloat(cs.left) || 0;
-        if (e.key === "ArrowUp") el.style.top = top - step + "px";
-        if (e.key === "ArrowDown") el.style.top = top + step + "px";
-        if (e.key === "ArrowLeft") el.style.left = left - step + "px";
-        if (e.key === "ArrowRight") el.style.left = left + step + "px";
+        if (e.key === "ArrowUp")    el.style.top  = parseFloat(cs.top)  - step + "px";
+        if (e.key === "ArrowDown")  el.style.top  = parseFloat(cs.top)  + step + "px";
+        if (e.key === "ArrowLeft")  el.style.left = parseFloat(cs.left) - step + "px";
+        if (e.key === "ArrowRight") el.style.left = parseFloat(cs.left) + step + "px";
         setIsDirty(true);
       }
     }
@@ -506,44 +455,28 @@ export default function HmfEditor({
   /* ─── Save ─── */
   const handleSave = useCallback(async () => {
     if (isSaving) return;
-    setIsSaving(true);
-    setSaveError("");
-    setSaveOk(false);
+    setIsSaving(true); setSaveError(""); setSaveOk(false);
     try {
-      // Clean up editor UI from DOM before reading innerHTML
       const cleanup = (container: HTMLDivElement | null) => {
         if (!container) return "";
-        container
-          .querySelectorAll(".hmf-resize-handle")
-          .forEach((h) => h.remove());
-        container
-          .querySelectorAll(".hmf-de-selected")
-          .forEach((el) => el.classList.remove("hmf-de-selected"));
+        container.querySelectorAll(".hmf-resize-handle").forEach((h) => h.remove());
+        container.querySelectorAll(".hmf-de-selected").forEach((el) => el.classList.remove("hmf-de-selected"));
         return container.innerHTML;
       };
-
       const headerHtml = cleanup(headerRef.current);
-      const menuHtml = cleanup(menuRef.current);
+      const menuHtml   = cleanup(menuRef.current);
       const footerHtml = cleanup(footerRef.current);
 
       const res = await fetch(`/api/sites/${siteId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          headerHtml,
-          menuHtml,
-          footerHtml,
-          hmfLang: activeLang,
-        }),
+        body: JSON.stringify({ headerHtml, menuHtml, footerHtml, hmfLang: activeLang, hmfDevice: device }),
       });
-
       if (!res.ok) {
         const j = (await res.json().catch(() => ({}))) as { error?: string };
         throw new Error(j.error || `저장 실패 (${res.status})`);
       }
-
-      setIsDirty(false);
-      setSaveOk(true);
+      setIsDirty(false); setSaveOk(true);
       setTimeout(() => setSaveOk(false), 2000);
       setSelectedElId(null);
     } catch (err) {
@@ -551,22 +484,22 @@ export default function HmfEditor({
     } finally {
       setIsSaving(false);
     }
-  }, [isSaving, siteId, activeLang]);
+  }, [isSaving, siteId, activeLang, device]);
 
-  /* ─── Keyboard shortcut: Ctrl/Cmd+S ─── */
+  /* ─── Ctrl/Cmd+S ─── */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
-        e.preventDefault();
-        handleSave();
-      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "s") { e.preventDefault(); handleSave(); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [handleSave]);
 
-  /* ─── Artboard width ─── */
-  const artboardWidth = designCanvasWidth ?? (isModernCanvas ? undefined : 1000);
+  /* ─── Device / lang switch guard ─── */
+  function confirmSwitch(msg: string): boolean {
+    if (!isDirty) return true;
+    return confirm(`저장하지 않은 변경사항이 있습니다.\n${msg} 전환하면 변경사항이 사라집니다. 계속하시겠습니까?`);
+  }
 
   /* ─── Render ─── */
   return (
@@ -586,11 +519,35 @@ export default function HmfEditor({
         </div>
 
         <div className="hmf-toolbar-center">
-          {/* 공지 배너 */}
-          <div className="hmf-notice">
-            <i className="fa-solid fa-circle-info" style={{ fontSize: 11, color: "#60a5fa" }} />
-            &nbsp;여기서 저장하면 <strong>모든 페이지</strong>에 즉시 적용됩니다
-          </div>
+          {/* PC/Tablet/Mobile 탭 — 절대좌표 모드에서만 */}
+          {isAbsolute && (
+            <div className="hmf-device-group">
+              {(["pc", "tablet", "mobile"] as Device[]).map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  className={`hmf-device-btn${device === d ? " active" : ""}`}
+                  title={`${DEVICE_LABEL[d]} (${d === "pc" ? (designCanvasWidth ?? 1000) : DEVICE_WIDTH[d]}px)`}
+                  onClick={() => {
+                    if (!confirmSwitch(`${DEVICE_LABEL[d]}으로`)) return;
+                    setDevice(d);
+                  }}
+                >
+                  <i className={`fa-solid ${DEVICE_ICON[d]}`} />
+                  <span>{DEVICE_LABEL[d]}</span>
+                  <small>{d === "pc" ? `${designCanvasWidth ?? 1000}px` : `${DEVICE_WIDTH[d]}px`}</small>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* 공지 배너 (디바이스 탭 없을 때) */}
+          {!isAbsolute && (
+            <div className="hmf-notice">
+              <i className="fa-solid fa-circle-info" style={{ fontSize: 11, color: "#60a5fa" }} />
+              &nbsp;여기서 저장하면 <strong>모든 페이지</strong>에 즉시 적용됩니다
+            </div>
+          )}
         </div>
 
         <div className="hmf-toolbar-right">
@@ -603,7 +560,7 @@ export default function HmfEditor({
                   type="button"
                   className={`hmf-lang-btn${lang === activeLang ? " active" : ""}`}
                   onClick={() => {
-                    if (isDirty && !confirm("저장하지 않은 변경사항이 있습니다. 언어를 전환하면 변경사항이 사라집니다. 계속하시겠습니까?")) return;
+                    if (!confirmSwitch(`${LANG_LABEL[lang] ?? lang}으로`)) return;
                     setActiveLang(lang);
                   }}
                 >
@@ -615,21 +572,15 @@ export default function HmfEditor({
 
           {/* 줌 */}
           <div className="hmf-zoom-group">
-            <button type="button" className="hmf-zoom-btn" onClick={() => setZoom((z) => Math.max(25, z - 10))} title="축소 (-)">
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                <path d="M3 8h10" />
-              </svg>
+            <button type="button" className="hmf-zoom-btn" onClick={() => setZoom((z) => Math.max(25, z - 10))} title="축소">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M3 8h10" /></svg>
             </button>
             <span className="hmf-zoom-val">{zoom}%</span>
-            <button type="button" className="hmf-zoom-btn" onClick={() => setZoom((z) => Math.min(200, z + 10))} title="확대 (+)">
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                <path d="M8 3v10M3 8h10" />
-              </svg>
+            <button type="button" className="hmf-zoom-btn" onClick={() => setZoom((z) => Math.min(200, z + 10))} title="확대">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M8 3v10M3 8h10" /></svg>
             </button>
-            <button type="button" className="hmf-zoom-btn" onClick={() => setZoom(100)} title="100%로 초기화">
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                <path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" />
-              </svg>
+            <button type="button" className="hmf-zoom-btn" onClick={() => setZoom(100)} title="100%">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" /></svg>
             </button>
           </div>
 
@@ -640,16 +591,19 @@ export default function HmfEditor({
             onClick={handleSave}
             disabled={isSaving}
           >
-            {isSaving
-              ? "저장 중…"
-              : saveOk
-              ? "✓ 저장됨"
-              : isDirty
-              ? "저장하기 *"
-              : "저장하기"}
+            {isSaving ? "저장 중…" : saveOk ? "✓ 저장됨" : isDirty ? "저장하기 *" : "저장하기"}
           </button>
         </div>
       </header>
+
+      {/* 절대좌표 모드 공지 (디바이스 탭 아래) */}
+      {isAbsolute && (
+        <div className="hmf-device-notice">
+          <i className="fa-solid fa-circle-info" style={{ fontSize: 10 }} />
+          &nbsp;
+          <strong>{DEVICE_LABEL[device]}</strong> 레이아웃을 편집 중입니다. 저장하면 이 디바이스에만 적용됩니다 (다른 디바이스는 독립 레이아웃).
+        </div>
+      )}
 
       {saveError && (
         <div className="hmf-error-bar">
@@ -669,11 +623,7 @@ export default function HmfEditor({
             ...(artboardWidth ? { width: artboardWidth } : {}),
           }}
         >
-          {/* Canvas CSS */}
-          <style
-            id="hmf-canvas-css"
-            dangerouslySetInnerHTML={{ __html: canvasCss }}
-          />
+          <style id="hmf-canvas-css" dangerouslySetInnerHTML={{ __html: canvasCss }} />
 
           <div
             className={`hmf-canvas-inner c_v_home_dft${isModernCanvas ? " is-modern" : ""}`}
@@ -686,13 +636,10 @@ export default function HmfEditor({
               &nbsp;헤더 / 메뉴 영역
             </div>
 
-            {/* HEADER — ref로만 관리, DOM 직접 업데이트 */}
             <div id="hns_header" ref={headerRef} />
-
-            {/* MENU — ref로만 관리 */}
             <div id="hns_menu" ref={menuRef} />
 
-            {/* BODY PLACEHOLDER — 편집 불가 영역 */}
+            {/* ── 페이지 본문 플레이스홀더 ── */}
             <div
               id="hmf-body-placeholder"
               className="hmf-body-placeholder"
@@ -711,16 +658,17 @@ export default function HmfEditor({
               &nbsp;풋터 영역
             </div>
 
-            {/* FOOTER — ref로만 관리 */}
             <div id="hns_footer" ref={footerRef} />
           </div>
         </div>
 
         {/* 아트보드 레이블 */}
         <div className="hmf-artboard-label">
-          <span>
-            {isModernCanvas ? "100% × auto" : `${artboardWidth ?? 1000} × auto`}
-          </span>
+          {isAbsolute
+            ? `${artboardWidth ?? designCanvasWidth ?? 1000}px × auto (${DEVICE_LABEL[device]})`
+            : isModernCanvas
+            ? "100% × auto (Responsive)"
+            : `${artboardWidth ?? 1000}px × auto`}
         </div>
       </div>
 
@@ -730,11 +678,11 @@ export default function HmfEditor({
         <span className="sep">·</span>
         <span>모서리 핸들로 크기 조정</span>
         <span className="sep">·</span>
-        <span>방향키로 1px 이동 (Shift: 10px)</span>
+        <span>방향키 1px (Shift: 10px)</span>
         <span className="sep">·</span>
-        <span>Del 키로 삭제</span>
+        <span>Del 삭제</span>
         <span className="sep">·</span>
-        <span>⌘S / Ctrl+S 저장</span>
+        <span>⌘S 저장</span>
       </div>
     </div>
   );

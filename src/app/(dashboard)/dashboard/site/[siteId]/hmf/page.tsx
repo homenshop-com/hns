@@ -13,6 +13,7 @@ interface Props {
  *  페이지 에디터와 달리 body 영역은 비활성화(플레이스홀더)되고,
  *  header/menu/footer 만 드래그·리사이즈 편집 가능.
  *  저장 시 SiteHmf에 기록 → 모든 페이지에 즉시 적용.
+ *  절대좌표 모드 사이트는 PC/Tablet/Mobile 디바이스별 독립 편집 지원.
  */
 export default async function HmfEditorPage({ params }: Props) {
   const session = await auth();
@@ -43,35 +44,10 @@ export default async function HmfEditorPage({ params }: Props) {
   const siteLanguages =
     (site as typeof site & { languages?: string[] }).languages || ["ko"];
 
-  // 언어별 HMF 맵 구성
-  const langHmfMap: Record<
-    string,
-    { headerHtml: string; menuHtml: string; footerHtml: string }
-  > = {};
-  for (const lang of siteLanguages) {
-    const hmf =
-      site.hmfTranslations?.find((h) => h.lang === lang) ||
-      site.hmfTranslations?.find((h) => h.lang === site.defaultLanguage);
-    langHmfMap[lang] = {
-      headerHtml: hmf?.headerHtml ?? (site as any).headerHtml ?? "",
-      menuHtml: hmf?.menuHtml || (site as any).menuHtml || "",
-      footerHtml: hmf?.footerHtml ?? (site as any).footerHtml ?? "",
-    };
-  }
-
-  const templatePath = (site as any).templatePath || "";
+  const editorMode = (site as unknown as { editorMode?: string | null }).editorMode ?? null;
+  const templatePath = (site as unknown as { templatePath?: string }).templatePath || "";
   const rawTemplateCss = templatePath ? readTemplateCss(templatePath) : "";
-  const cssText = (site as any).cssText || "";
-
-  // 에셋 URL 절대화 (published route / page editor와 동일 처리)
-  if (templatePath) {
-    for (const lang of Object.keys(langHmfMap)) {
-      const h = langHmfMap[lang];
-      h.headerHtml = rewriteAssetUrls(h.headerHtml, templatePath);
-      h.menuHtml = rewriteAssetUrls(h.menuHtml, templatePath);
-      h.footerHtml = rewriteAssetUrls(h.footerHtml, templatePath);
-    }
-  }
+  const cssText = (site as unknown as { cssText?: string }).cssText || "";
 
   const isModernCanvas =
     cssText.includes("/* HNS-MODERN-TEMPLATE */") ||
@@ -92,11 +68,58 @@ export default async function HmfEditorPage({ params }: Props) {
     return max > 1000 ? max : null;
   })();
 
+  /** asset URL을 절대 경로로 변환하는 헬퍼 */
+  const rw = (html: string) =>
+    templatePath ? rewriteAssetUrls(html, templatePath) : html;
+
+  // 언어별 × 디바이스별 HMF 맵 구성
+  const langHmfMap: Record<
+    string,
+    {
+      pc: { headerHtml: string; menuHtml: string; footerHtml: string };
+      tablet: { headerHtml: string; menuHtml: string; footerHtml: string };
+      mobile: { headerHtml: string; menuHtml: string; footerHtml: string };
+    }
+  > = {};
+
+  for (const lang of siteLanguages) {
+    const hmf =
+      site.hmfTranslations?.find((h) => h.lang === lang) ||
+      site.hmfTranslations?.find((h) => h.lang === site.defaultLanguage);
+
+    const siteAny = site as unknown as Record<string, string | null | undefined>;
+
+    // PC base
+    const pcHeader = rw(hmf?.headerHtml ?? siteAny.headerHtml ?? "");
+    const pcMenu   = rw(hmf?.menuHtml   ?? siteAny.menuHtml   ?? "");
+    const pcFooter = rw(hmf?.footerHtml ?? siteAny.footerHtml ?? "");
+
+    // Tablet — 없으면 PC 복사 (첫 편집 시 PC를 출발점으로)
+    const tabHeader = rw(hmf?.tabletHeaderHtml ?? pcHeader);
+    const tabMenu   = rw(hmf?.tabletMenuHtml   ?? pcMenu);
+    const tabFooter = rw(hmf?.tabletFooterHtml ?? pcFooter);
+
+    // Mobile — 없으면 PC 복사
+    const mobHeader = rw(hmf?.mobileHeaderHtml ?? pcHeader);
+    const mobMenu   = rw(hmf?.mobileMenuHtml   ?? pcMenu);
+    const mobFooter = rw(hmf?.mobileFooterHtml ?? pcFooter);
+
+    langHmfMap[lang] = {
+      pc:     { headerHtml: pcHeader,  menuHtml: pcMenu,   footerHtml: pcFooter },
+      tablet: { headerHtml: tabHeader, menuHtml: tabMenu,  footerHtml: tabFooter },
+      mobile: { headerHtml: mobHeader, menuHtml: mobMenu,  footerHtml: mobFooter },
+    };
+  }
+
   return (
     <HmfEditor
       siteId={site.id}
-      shopId={(site as any).shopId}
-      siteName={(site as any).name || (site as any).shopId}
+      shopId={(site as unknown as { shopId?: string }).shopId ?? ""}
+      siteName={
+        (site as unknown as { name?: string }).name ||
+        (site as unknown as { shopId?: string }).shopId ||
+        ""
+      }
       defaultLanguage={site.defaultLanguage}
       siteLanguages={siteLanguages}
       langHmfMap={langHmfMap}
@@ -105,6 +128,7 @@ export default async function HmfEditorPage({ params }: Props) {
       templatePath={templatePath}
       isModernCanvas={isModernCanvas}
       designCanvasWidth={designCanvasWidth}
+      editorMode={editorMode}
     />
   );
 }

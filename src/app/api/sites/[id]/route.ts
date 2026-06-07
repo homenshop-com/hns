@@ -69,7 +69,7 @@ export async function PUT(
   }
 
   const body = await request.json();
-  const { name, description, published, languages, defaultLanguage, googleAnalyticsId, googleAnalyticsPropertyId, googleVerification, headerHtml, menuHtml, footerHtml, hmfLang, tempDomain } = body;
+  const { name, description, published, languages, defaultLanguage, googleAnalyticsId, googleAnalyticsPropertyId, googleVerification, headerHtml, menuHtml, footerHtml, hmfLang, hmfDevice, tempDomain } = body;
 
   if (tempDomain !== undefined && !isAllowedTempDomain(tempDomain)) {
     return NextResponse.json(
@@ -133,12 +133,20 @@ export async function PUT(
     },
   });
 
-  // Update HMF (header/menu/footer) per language if provided
+  // Update HMF (header/menu/footer) per language + device if provided
   if (hmfLang && (headerHtml !== undefined || menuHtml !== undefined || footerHtml !== undefined)) {
+    // Map device name to Prisma field names
+    const DEVICE_FIELDS: Record<string, { h: string; m: string; f: string }> = {
+      pc:     { h: "headerHtml",       m: "menuHtml",       f: "footerHtml" },
+      tablet: { h: "tabletHeaderHtml", m: "tabletMenuHtml", f: "tabletFooterHtml" },
+      mobile: { h: "mobileHeaderHtml", m: "mobileMenuHtml", f: "mobileFooterHtml" },
+    };
+    const fields = DEVICE_FIELDS[hmfDevice as string] ?? DEVICE_FIELDS.pc;
+
     const hmfData: Record<string, string> = {};
-    if (headerHtml !== undefined) hmfData.headerHtml = headerHtml;
-    if (menuHtml !== undefined) hmfData.menuHtml = menuHtml;
-    if (footerHtml !== undefined) hmfData.footerHtml = footerHtml;
+    if (headerHtml !== undefined) hmfData[fields.h] = headerHtml;
+    if (menuHtml !== undefined)   hmfData[fields.m] = menuHtml;
+    if (footerHtml !== undefined) hmfData[fields.f] = footerHtml;
 
     await prisma.siteHmf.upsert({
       where: { siteId_lang: { siteId: id, lang: hmfLang } },

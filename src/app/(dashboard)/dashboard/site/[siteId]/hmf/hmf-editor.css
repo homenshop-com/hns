@@ -104,6 +104,68 @@
   font-weight: 700;
 }
 
+/* ─── Device switcher (PC / Tablet / Mobile) ─── */
+.hmf-device-group {
+  display: flex;
+  gap: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 3px;
+}
+.hmf-device-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-width: 60px;
+  padding: 4px 10px;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  color: #aaa;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  font-family: inherit;
+}
+.hmf-device-btn i {
+  font-size: 14px;
+}
+.hmf-device-btn span {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+.hmf-device-btn small {
+  font-size: 9px;
+  color: #666;
+  font-weight: 400;
+}
+.hmf-device-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ddd;
+}
+.hmf-device-btn.active {
+  background: rgba(74, 144, 217, 0.25);
+  color: #60a5fa;
+}
+.hmf-device-btn.active small {
+  color: #93c5fd;
+}
+
+/* ─── Device notice bar ─── */
+.hmf-device-notice {
+  background: rgba(74, 144, 217, 0.1);
+  border-bottom: 1px solid rgba(74, 144, 217, 0.2);
+  color: #94a3b8;
+  font-size: 11.5px;
+  padding: 5px 16px;
+  flex-shrink: 0;
+}
+.hmf-device-notice strong {
+  color: #60a5fa;
+  font-weight: 700;
+}
+
 /* ─── Language switcher ─── */
 .hmf-lang-group {
   display: flex;

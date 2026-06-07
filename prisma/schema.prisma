@@ -314,9 +314,18 @@ model SiteHmf {
   id         String  @id @default(cuid())
   siteId     String
   lang       String
+  // PC (base)
   headerHtml String? @db.Text
   menuHtml   String? @db.Text
   footerHtml String? @db.Text
+  // Tablet (768px) — absolute-coordinate sites only
+  tabletHeaderHtml String? @db.Text
+  tabletMenuHtml   String? @db.Text
+  tabletFooterHtml String? @db.Text
+  // Mobile (375px) — absolute-coordinate sites only
+  mobileHeaderHtml String? @db.Text
+  mobileMenuHtml   String? @db.Text
+  mobileFooterHtml String? @db.Text
 
   site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
 
