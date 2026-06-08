@@ -85,6 +85,15 @@ ${fontVar}}
   color: var(--brand-text) !important;
 }
 
+/* Header area: inherit surface as default background.
+   Intentionally omits !important so the HNS-HEADER-LAYOUT block's
+   explicit --hns-header-bg value (which comes later in cascade order)
+   can override it when the user sets a custom header background. */
+#de-canvas-inner > #hns_header,
+#hns_header {
+  background-color: var(--brand-surface);
+}
+
 /* Body copy — paragraphs and generic text blocks follow --brand-text.
    Headings & buttons get their own color rules below, which override
    this via cascade order. */
