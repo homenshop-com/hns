@@ -2019,6 +2019,11 @@ export default function DesignEditor({
             multiSelectedRef.current.clear();
             // Move the DOM node into the header container.
             dest.appendChild(dragEl);
+            // Native header objects are `.dragable`; `legacyHmfToScene` only
+            // collects `.dragable` top-level children. A relocated body inline
+            // (el_*) / non-dragable layer would otherwise enter the header DOM
+            // but never surface in the 헤더 섹션 list (and hide behind the nav).
+            dragEl.classList.add("dragable");
             // Header objects must beat boosted page CSS → pin geometry as
             // !important (same contract as live HMF drag, see setGeom).
             dragEl.style.setProperty("position", "absolute", "important");
@@ -3329,6 +3334,11 @@ export default function DesignEditor({
     const newTop = 20;
     multiSelectedRef.current.clear();
     dest.appendChild(dragEl);
+    // Native header objects are `.dragable`; `legacyHmfToScene` only collects
+    // `.dragable` top-level children. Without this, a relocated body inline
+    // (el_*) / non-dragable layer enters the header DOM but never appears in
+    // the 헤더 섹션 list (and visually hides behind the nav).
+    dragEl.classList.add("dragable");
     dragEl.style.setProperty("position", "absolute", "important");
     dragEl.style.setProperty("left", `${newLeft}px`, "important");
     dragEl.style.setProperty("top", `${newTop}px`, "important");
