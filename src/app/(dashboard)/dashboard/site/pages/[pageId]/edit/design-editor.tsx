@@ -2009,9 +2009,18 @@ export default function DesignEditor({
           if (overHeader && dragEl.id) {
             // Destination container: prefer the inner header content wrapper so
             // the element sits where authored header objects live.
-            const dest =
+            let dest: HTMLElement =
               (headerEl.querySelector("#hns_header_content") as HTMLElement | null) ||
               headerEl;
+            // legacyHmfToScene's collect() pushes the FIRST .dragable ancestor and
+            // never recurses into it. In some templates #hns_header_content IS itself
+            // the single header .dragable ("박스 1"), or lives inside one — appending
+            // there would nest the moved object so it never surfaces as a top-level
+            // 헤더 섹션 object. Append as a SIBLING of the outermost dragable instead.
+            const dragableAncestor = dest.closest<HTMLElement>(".dragable");
+            if (dragableAncestor?.parentElement) {
+              dest = dragableAncestor.parentElement;
+            }
             // Compute header-local coordinates from the element's CURRENT
             // rendered rect (where the user dragged it), before the DOM move.
             const scale = getCanvasScale();
@@ -3357,9 +3366,19 @@ export default function DesignEditor({
       dragEl.id = `el_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
     }
     const domId = dragEl.id;
-    const dest =
+    let dest: HTMLElement =
       (headerEl.querySelector("#hns_header_content") as HTMLElement | null) ||
       headerEl;
+    // `legacyHmfToScene`'s collect() pushes the FIRST `.dragable` ancestor it
+    // meets and never recurses into it. In some templates the content wrapper
+    // (#hns_header_content) IS itself the single header `.dragable` ("박스 1"),
+    // or lives inside one — appending the moved object there would nest it and
+    // it would never surface as a top-level 헤더 섹션 object. Append it as a
+    // SIBLING of the outermost dragable instead so it becomes its own layer.
+    const dragableAncestor = dest.closest<HTMLElement>(".dragable");
+    if (dragableAncestor?.parentElement) {
+      dest = dragableAncestor.parentElement;
+    }
     const w = dragEl.offsetWidth;
     const h = dragEl.offsetHeight;
     const curLeft = parseInt(dragEl.style.left) || 0;
