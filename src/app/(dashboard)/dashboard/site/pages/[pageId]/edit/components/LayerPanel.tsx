@@ -25,6 +25,7 @@ import {
   selectRoot,
   selectSelectedId,
   selectMultiIds,
+  selectHeaderRoot,
 } from "../store/editor-store";
 import type { GroupLayer, Layer, LayerId, LayerType } from "@/lib/scene";
 
@@ -253,6 +254,28 @@ export function LayerPanel() {
   const root = useEditorStore(selectRoot);
   const selectedId = useEditorStore(selectSelectedId);
   const multiIds = useEditorStore(selectMultiIds);
+  const headerRoot = useEditorStore(selectHeaderRoot);
+
+  // Synthetic "헤더 섹션" group so the raw-injected header objects (logo,
+  // lang, nav…) appear in the LayerPanel and can be selected/edited just
+  // like body sections. The header objects live in a separate scene
+  // (headerScene); this read-only wrapper merely groups them under a labeled
+  // row at the top of the tree. Header edits persist site-wide.
+  const HEADER_SECTION_ID = "__hns_header_section__" as LayerId;
+  const headerGroup = useMemo<GroupLayer | null>(() => {
+    if (!headerRoot || headerRoot.children.length === 0) return null;
+    return {
+      id: HEADER_SECTION_ID,
+      name: "헤더 섹션",
+      type: "group",
+      visible: true,
+      locked: false,
+      frame: { x: 0, y: 0, w: 0, h: 0 },
+      style: {},
+      children: headerRoot.children,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [headerRoot]);
 
   const moveLayer = useEditorStore((s) => s.moveLayer);
   const groupAction = useEditorStore((s) => s.group);
@@ -266,6 +289,13 @@ export function LayerPanel() {
   const [expanded, setExpanded] = useState<Set<LayerId>>(
     () => new Set([root.id]),
   );
+  // Expand the header section once it appears so its objects are visible.
+  useEffect(() => {
+    if (headerGroup) {
+      setExpanded((prev) => (prev.has(HEADER_SECTION_ID) ? prev : new Set(prev).add(HEADER_SECTION_ID)));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [headerGroup]);
   const toggleExpanded = useCallback((id: LayerId) => {
     setExpanded((prev) => {
       const next = new Set(prev);
@@ -446,8 +476,22 @@ export function LayerPanel() {
       </div>
 
       <div className="layerpanel-list" role="tree" ref={listRef}>
+        {/* 헤더 섹션 — site-wide header objects, rendered above body layers. */}
+        {headerGroup ? (
+          <Row
+            key={headerGroup.id}
+            layer={headerGroup}
+            depth={0}
+            selectedId={selectedId}
+            multiIds={multiIds}
+            expanded={expanded}
+            toggleExpanded={toggleExpanded}
+            onDropOn={onDropOn}
+            t={t}
+          />
+        ) : null}
         {root.children.length === 0 ? (
-          <div className="layerpanel-empty">{t("layers.empty")}</div>
+          headerGroup ? null : <div className="layerpanel-empty">{t("layers.empty")}</div>
         ) : (
           (() => {
             // When the page is section-based (flow), show top-to-bottom

@@ -11,13 +11,16 @@ import { getResellerForHost } from "@/lib/reseller";
 
 interface EditPageProps {
   params: Promise<{ pageId: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }
 
-export default async function EditPagePage({ params }: EditPageProps) {
+export default async function EditPagePage({ params, searchParams }: EditPageProps) {
   const session = await auth();
   if (!session) redirect("/login");
 
   const { pageId } = await params;
+  const sp = searchParams ? await searchParams : {};
+  const initialEditingTarget = sp.mode === "hmf" ? "hmf" : "body";
 
   // Find the page first, then verify ownership
   const currentPage = await prisma.page.findUnique({
@@ -179,6 +182,7 @@ export default async function EditPagePage({ params }: EditPageProps) {
       editorV2Enabled={isEditorV2Enabled(session.user?.email)}
       isResponsiveTemplate={isResponsiveTemplate}
       brand={brand}
+      initialEditingTarget={initialEditingTarget}
     />
   );
 }

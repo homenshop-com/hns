@@ -107,6 +107,8 @@ export default function HmfEditor({
   const [isDirty, setIsDirty] = useState(false);
   const [saveOk, setSaveOk] = useState(false);
   const [saveError, setSaveError] = useState("");
+  /** 헤더 배경색 — "transparent"는 테마 배경 자동 상속 */
+  const [headerBg, setHeaderBg] = useState<string>("transparent");
 
   /* ─── Refs ─── */
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -124,6 +126,42 @@ export default function HmfEditor({
     menuHtml: "",
     footerHtml: "",
   };
+
+  /* ─── Parse existing header bg from site cssText on mount ─── */
+  useEffect(() => {
+    const re = /\/\* HNS-HEADER-LAYOUT:START \*\/[\s\S]*?\/\* HNS-HEADER-LAYOUT:END \*\//;
+    const m = (cssText ?? "").match(re);
+    if (m) {
+      const bgMatch = m[0].match(/--hns-header-bg:\s*([^;]+);/);
+      if (bgMatch) setHeaderBg(bgMatch[1].trim());
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* ─── Live-apply header bg to canvas ─── */
+  useEffect(() => {
+    if (headerRef.current) {
+      headerRef.current.style.background =
+        headerBg && headerBg !== "transparent" ? headerBg : "";
+    }
+  }, [headerBg]);
+
+  /* ─── Build updated Site.cssText with HNS-HEADER-LAYOUT block ─── */
+  function buildUpdatedCssText(bg: string): string {
+    const MARK_START = "/* HNS-HEADER-LAYOUT:START */";
+    const MARK_END   = "/* HNS-HEADER-LAYOUT:END */";
+    const bgLine =
+      bg && bg !== "transparent"
+        ? `  --hns-header-bg: ${bg};\n  #hns_header { background: var(--hns-header-bg); }\n`
+        : "";
+    const block = `${MARK_START}\n:root {\n${bgLine}  /* sticky:0 */\n}\n${MARK_END}`;
+    const re = new RegExp(
+      MARK_START.replace(/[/*]/g, "\\$&") + "[\\s\\S]*?" + MARK_END.replace(/[/*]/g, "\\$&")
+    );
+    const base = cssText ?? "";
+    return re.test(base)
+      ? base.replace(re, block)
+      : base + (base.trim() ? "\n\n" : "") + block + "\n";
+  }
 
   /* ─── Artboard width ─── */
   const isAbsolute = editorMode === "absolute" || (!editorMode && !isModernCanvas);
@@ -206,8 +244,10 @@ export default function HmfEditor({
         );
       }
       if (stripBg) {
+        // Strip ALL background / background-color declarations from the canvas root
+        // so dark templates (e.g. body{background:#333}) don't paint the editor gray.
         result = result.replace(
-          /(#hmf-canvas-inner\s*\{[^}]*?)background\s*:\s*url\([^)]*\)[^;]*;?/gi,
+          /(#hmf-canvas-inner\s*\{[^}]*?)background(?:-color)?\s*:[^;]+;?/gi,
           "$1"
         );
       }
@@ -217,14 +257,15 @@ export default function HmfEditor({
     const hmfFixes = isModernCanvas
       ? `
         #hns_menu:empty { min-height: 0; display: none; }
-        #hmf-canvas-inner { margin: 0; padding: 0; }
+        #hmf-canvas-inner { margin: 0; padding: 0; background-color: #ffffff !important; }
         #hns_header, #hns_body, #hns_footer { position: relative; }
+        #hns_header { background-color: #ffffff; }
         .de-resize-handle { display: none !important; }
       `
       : `
-        #hmf-canvas-inner { margin: 0; padding: 0; }
-        #hns_header { position: relative; }
-        #hns_body { position: relative; }
+        #hmf-canvas-inner { margin: 0; padding: 0; background-color: #ffffff !important; }
+        #hns_header { position: relative; background-color: #ffffff; }
+        #hns_body { position: relative; background-color: #ffffff; }
         #hns_footer { position: static; }
         #hns_menu:empty { display: none; }
         #hns_footer_content { top: 0 !important; position: relative !important; }
@@ -470,10 +511,15 @@ export default function HmfEditor({
       const menuHtml   = cleanup(menuRef.current);
       const footerHtml = cleanup(footerRef.current);
 
+      const updatedCssText = buildUpdatedCssText(headerBg);
       const res = await fetch(`/api/sites/${siteId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ headerHtml, menuHtml, footerHtml, hmfLang: activeLang, hmfDevice: device }),
+        body: JSON.stringify({
+          headerHtml, menuHtml, footerHtml,
+          hmfLang: activeLang, hmfDevice: device,
+          cssText: updatedCssText,
+        }),
       });
       if (!res.ok) {
         const j = (await res.json().catch(() => ({}))) as { error?: string };
@@ -572,6 +618,44 @@ export default function HmfEditor({
               ))}
             </div>
           )}
+
+          {/* 헤더 배경색 */}
+          <div className="hmf-header-bg-group">
+            <span className="hmf-header-bg-label">헤더 배경</span>
+            <label
+              className="hmf-header-bg-swatch"
+              title="헤더 배경색 선택"
+              style={{
+                background: headerBg !== "transparent" ? headerBg : undefined,
+              }}
+            >
+              {headerBg === "transparent" && (
+                <span className="hmf-header-bg-auto">자동</span>
+              )}
+              <input
+                type="color"
+                className="hmf-header-bg-input"
+                value={headerBg !== "transparent" ? headerBg : "#ffffff"}
+                onChange={(e) => {
+                  setHeaderBg(e.target.value);
+                  setIsDirty(true);
+                }}
+              />
+            </label>
+            {headerBg !== "transparent" && (
+              <button
+                type="button"
+                className="hmf-header-bg-reset"
+                title="배경색 초기화 (테마 배경색 자동 사용)"
+                onClick={() => {
+                  setHeaderBg("transparent");
+                  setIsDirty(true);
+                }}
+              >
+                ✕
+              </button>
+            )}
+          </div>
 
           {/* 줌 */}
           <div className="hmf-zoom-group">

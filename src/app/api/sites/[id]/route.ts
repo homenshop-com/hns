@@ -69,7 +69,7 @@ export async function PUT(
   }
 
   const body = await request.json();
-  const { name, description, published, languages, defaultLanguage, googleAnalyticsId, googleAnalyticsPropertyId, googleVerification, headerHtml, menuHtml, footerHtml, hmfLang, hmfDevice, tempDomain } = body;
+  const { name, description, published, languages, defaultLanguage, googleAnalyticsId, googleAnalyticsPropertyId, googleVerification, headerHtml, menuHtml, footerHtml, hmfLang, hmfDevice, tempDomain, cssText } = body;
 
   if (tempDomain !== undefined && !isAllowedTempDomain(tempDomain)) {
     return NextResponse.json(
@@ -130,6 +130,7 @@ export async function PUT(
       }),
       ...(googleVerification !== undefined && { googleVerification: googleVerification?.trim() || null }),
       ...(tempDomain !== undefined && { tempDomain }),
+      ...(cssText !== undefined && { cssText }),
     },
   });
 

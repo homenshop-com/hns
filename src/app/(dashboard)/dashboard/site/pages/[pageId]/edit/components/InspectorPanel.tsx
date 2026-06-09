@@ -161,15 +161,40 @@ function layerMeta(type: string): { label: string; icon: string; color: string }
 
 /* ───── Component ────────────────────────────────────────────────── */
 
+/** Shared type with DesignEditor — mirrors the headerLayout state shape. */
+export interface HmfHeaderLayout {
+  sticky: boolean;
+  height: string;   // "auto" | "64px" etc.
+  background: string; // hex / var() / "transparent"
+}
+
 interface Props {
   /** Null when editor-v2 is disabled — then we render legacy LayerPanel-less state. */
   enabled: boolean;
   /** Owner site id — passed to /api/upload so files land in the
    *  per-site folder and show up in the 에셋 tab. */
   siteId?: string;
+  /** Current editing target — when "hmf", show HMF-specific panel if nothing is selected. */
+  editingTarget?: "body" | "hmf";
+  /** Current header layout values (background / sticky / height) from DesignEditor. */
+  headerLayout?: HmfHeaderLayout;
+  /** Callback to apply header layout changes (updates CSS + DOM). */
+  onApplyHeaderLayout?: (next: HmfHeaderLayout) => void;
+  /** Open the full HeaderEditModal from the inspector "고급 편집" button. */
+  onOpenHeaderEdit?: () => void;
+  /** Open the full FooterEditModal from the inspector "고급 편집" button. */
+  onOpenFooterEdit?: () => void;
 }
 
-export default function InspectorPanel({ enabled, siteId }: Props) {
+export default function InspectorPanel({
+  enabled,
+  siteId,
+  editingTarget,
+  headerLayout,
+  onApplyHeaderLayout,
+  onOpenHeaderEdit,
+  onOpenFooterEdit,
+}: Props) {
   const t = useTranslations("editor");
   const [tab, setTab] = useState<Tab>("design");
   const [selectedId, setSelectedId] = useState<LayerId | null>(null);
@@ -185,11 +210,24 @@ export default function InspectorPanel({ enabled, siteId }: Props) {
   }, [enabled]);
 
   const { layer, path } = useMemo(() => {
-    const root = selectRoot(useEditorStore.getState());
-    return findLayerAndPath(
+    const st = useEditorStore.getState();
+    const root = selectRoot(st);
+    const fromBody = findLayerAndPath(
       root as unknown as Parameters<typeof findLayerAndPath>[0],
       selectedId,
     );
+    if (fromBody.layer) return fromBody;
+    // Header objects live in a separate scene (headerRef DOM). When a header
+    // layer is selected, surface its properties in the Inspector too so the
+    // header section is editable "본문섹션처럼" (just like body sections).
+    const headerRoot = st.headerScene?.root ?? null;
+    if (headerRoot) {
+      return findLayerAndPath(
+        headerRoot as unknown as Parameters<typeof findLayerAndPath>[0],
+        selectedId,
+      );
+    }
+    return fromBody;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId, tick]);
 
@@ -228,7 +266,17 @@ export default function InspectorPanel({ enabled, siteId }: Props) {
 
       <div className="ins-scroll">
         {tab === "design" && (
-          <DesignTab layer={layer} path={path} siteId={siteId} live={live} />
+          <DesignTab
+            layer={layer}
+            path={path}
+            siteId={siteId}
+            live={live}
+            editingTarget={editingTarget}
+            headerLayout={headerLayout}
+            onApplyHeaderLayout={onApplyHeaderLayout}
+            onOpenHeaderEdit={onOpenHeaderEdit}
+            onOpenFooterEdit={onOpenFooterEdit}
+          />
         )}
 
         {tab === "layers" && (
@@ -252,11 +300,94 @@ interface DesignTabProps {
   path: Array<{ id: string; name: string; type: string }>;
   siteId?: string;
   live: LiveSnapshot | null;
+  /** Forwarded from InspectorPanel — switches empty state to HMF settings. */
+  editingTarget?: "body" | "hmf";
+  headerLayout?: HmfHeaderLayout;
+  onApplyHeaderLayout?: (next: HmfHeaderLayout) => void;
+  onOpenHeaderEdit?: () => void;
+  onOpenFooterEdit?: () => void;
 }
 
-function DesignTab({ layer, path, siteId, live }: DesignTabProps) {
+function DesignTab({
+  layer, path, siteId, live,
+  editingTarget, headerLayout, onApplyHeaderLayout,
+  onOpenHeaderEdit, onOpenFooterEdit,
+}: DesignTabProps) {
   const t = useTranslations("editor");
   if (!layer) {
+    /* HMF mode empty state — show header/footer settings panel. */
+    if (editingTarget === "hmf") {
+      const layout = headerLayout ?? { sticky: false, height: "auto", background: "" };
+      return (
+        <div className="ins-hmf-panel">
+          <header className="ins-sel-header">
+            <div className="ins-sel-row">
+              <div className="ins-sel-icon" style={{ color: "#5be5b3" }}>
+                <i className="fa-solid fa-table-columns" aria-hidden />
+              </div>
+              <span className="ins-sel-name-static">헤더/풋터 설정</span>
+              <span className="ins-sel-badge">HMF</span>
+            </div>
+          </header>
+
+          <Section title="헤더 설정">
+            <SwatchEditor
+              label="배경색"
+              value={layout.background}
+              onChange={(v) => onApplyHeaderLayout?.({ ...layout, background: v })}
+            />
+            <div className="ins-prop-row" style={{ marginTop: 8 }}>
+              <label className="ins-device-toggle" style={{ cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={layout.sticky}
+                  onChange={(e) => onApplyHeaderLayout?.({ ...layout, sticky: e.target.checked })}
+                />
+                <span>상단 고정 (sticky)</span>
+              </label>
+            </div>
+          </Section>
+
+          <Section title="고급 편집">
+            <div className="ins-prop-row" style={{ gap: 8 }}>
+              <button
+                type="button"
+                onClick={() => onOpenHeaderEdit?.()}
+                style={{
+                  flex: 1, padding: "8px 10px",
+                  background: "#1f2937", color: "#e5e7eb",
+                  border: "1px solid #374151", borderRadius: 6,
+                  cursor: "pointer", fontSize: 12,
+                }}
+              >
+                <i className="fa-solid fa-pen-to-square" style={{ marginRight: 6 }} />
+                헤더 편집
+              </button>
+              <button
+                type="button"
+                onClick={() => onOpenFooterEdit?.()}
+                style={{
+                  flex: 1, padding: "8px 10px",
+                  background: "#1f2937", color: "#e5e7eb",
+                  border: "1px solid #374151", borderRadius: 6,
+                  cursor: "pointer", fontSize: 12,
+                }}
+              >
+                <i className="fa-solid fa-pen-to-square" style={{ marginRight: 6 }} />
+                풋터 편집
+              </button>
+            </div>
+          </Section>
+
+          <div className="ins-hmf-notice">
+            <i className="fa-solid fa-circle-info" aria-hidden />
+            <span>헤더/풋터 변경 사항은 모든 페이지에 즉시 반영됩니다</span>
+          </div>
+        </div>
+      );
+    }
+
+    /* Default empty state — nothing selected. */
     return (
       <div className="ins-empty">
         <div className="ins-empty-icon">
@@ -979,9 +1110,12 @@ function FillSection({ layer, live }: { layer: Layer; live: LiveSnapshot | null 
   const t = useTranslations("editor");
   const setStyle = useEditorStore((s) => s.setStyle);
   const s = layer.style ?? {};
-  // Background may be a gradient or shorthand string (`url() center/cover`)
-  // — only fall back to the computed solid color when the layer has no
-  // inline background at all.
+
+  // Background value: prefer the scene-stored value (inline override set by a
+  // previous fill edit) then fall back to the live computed background-color.
+  // `applyStyleToEl` in editor-sync.ts handles the visual — when a solid color
+  // is set it suppresses absolutely-positioned overlay children (bg images,
+  // gradient divs, <img> containers) so the result is actually visible.
   const bgValue = s.background ?? live?.background ?? "";
   const opacityValue =
     s.opacity != null ? String(s.opacity) : (live?.opacity ?? "");

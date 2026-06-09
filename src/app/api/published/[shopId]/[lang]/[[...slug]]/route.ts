@@ -1396,7 +1396,30 @@ export async function GET(
     `
     : `
     /* Legacy template: absolute positioning */
-    body { margin: 0; padding: 0; background-image: none !important; }
+    /* ── CSS variable safe defaults ──────────────────────────────────────────
+       Dark templates (e.g. body{background:#333;color:#fff}) set body-level
+       colors that bleed into every element via inheritance. We:
+         1. Define --brand-* fallback values so all var() theme rules work even
+            when no explicit theme has been saved (overridden by HNS-THEME-TOKENS
+            block in pageCss which comes later in the cascade).
+         2. Reset body background + text color with !important so template rules
+            never win over our neutral base.
+       ──────────────────────────────────────────────────────────────────────── */
+    :root {
+      --brand-surface: #ffffff;
+      --brand-text:    #111827;
+      --brand-color:   #111827;
+      --brand-accent:  #3182f6;
+    }
+    body {
+      margin: 0; padding: 0;
+      background-image: none !important;
+      background-color: transparent !important;
+      color: var(--brand-text) !important;
+    }
+    a { color: var(--brand-color); }
+    #hns_header { background-color: var(--brand-surface); color: var(--brand-text); }
+    #hns_body   { background-color: var(--brand-surface); }
     #hns_header { position: relative; }
     #hns_body { position: relative; }
     #hns_footer { position: static; }

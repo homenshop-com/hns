@@ -1,6 +1,6 @@
 export * from "./types";
 export * from "./ids";
-export { legacyHtmlToScene, applyMobileCssToScene } from "./parse";
+export { legacyHtmlToScene, legacyHmfToScene, applyMobileCssToScene } from "./parse";
 export {
   sceneToLegacyHtml,
   serializeLayerHtml,

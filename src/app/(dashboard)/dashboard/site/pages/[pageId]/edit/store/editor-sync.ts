@@ -76,6 +76,30 @@ const HIDDEN_ATTR = "data-de-hidden";
 const LOCKED_ATTR = "data-de-locked";
 const HIDDEN_STYLE_OPACITY = "0.3";
 
+/**
+ * Tracks the last background value applied to each SECTION element.
+ *
+ * Purpose: overlay suppression (hiding gradient/image overlay children when
+ * the user sets a solid fill on a section) must fire only when the background
+ * changes OR on the very first non-initial-load sync (to catch sections that
+ * were saved with a solid bg + visible overlay — e.g. from a session before
+ * overlay suppression was deployed).
+ *
+ * `undefined`  → element not yet seen (first time through applyStyleToEl).
+ * `null`       → section currently has no background (cleared or not set).
+ * string       → last background value applied to this element.
+ */
+const lastAppliedSectionBg = new WeakMap<HTMLElement, string | null>();
+
+/**
+ * Tracks sections that have already received their first post-initial-load
+ * sync. On that first non-initial sync we run overlay suppression even if the
+ * background value hasn't changed — this repairs sections that were saved with
+ * a solid bg but the overlay was never hidden (pre-suppression deployment, or
+ * the user changed opacity instead of background last session).
+ */
+const sectionPostInitSynced = new WeakSet<HTMLElement>();
+
 /* ─── Helpers ─── */
 
 function walk(root: GroupLayer, fn: (l: Layer) => void) {
@@ -355,6 +379,15 @@ function scrubDescendantTypography(el: HTMLElement, layer: Layer) {
   }
 }
 
+/** Options bag for applyStyleToEl / applyStructure / syncStoreToDom.
+ *
+ *  `isInitialLoad` — when true the call is the first-ever reconciliation
+ *  for this canvas (editor mount). Overlay suppression for sections is
+ *  SKIPPED so the editor opens in an identical visual state to the
+ *  published page. The WeakMap is still seeded with the initial values so
+ *  subsequent user-driven changes can detect a real delta. */
+type SyncOpts = { isInitialLoad?: boolean };
+
 /** Apply the scene's typography / fill / border / effect tokens to a
  *  DOM node so Inspector edits show immediately on the canvas. Mirrors
  *  the keys emitted by serialize.ts `buildStyleMap`.
@@ -371,7 +404,7 @@ function scrubDescendantTypography(el: HTMLElement, layer: Layer) {
  *  is the intent target, but presets and AI-generated markup commonly
  *  duplicate the same declarations on inner `<p>` / `<h1>` tags which
  *  would win the cascade and swallow the Inspector edit. */
-function applyStyleToEl(el: HTMLElement, layer: Layer) {
+function applyStyleToEl(el: HTMLElement, layer: Layer, opts?: SyncOpts) {
   // Virtual / inline layers don't own their visual box in the same way
   // — skip to avoid clobbering flow-inline CSS.
   if (layer.type === "group" && (layer as GroupLayer).virtual) return;
@@ -389,8 +422,89 @@ function applyStyleToEl(el: HTMLElement, layer: Layer) {
   set("line-height", s.lineHeight);
   set("letter-spacing", s.letterSpacing);
   set("text-align", s.textAlign);
-  // Fill
-  set("background", s.background);
+  // Fill — use !important so the Inspector edit beats any CSS rule that may
+  // carry !important (template CSS, explicitly authored page CSS). The save
+  // pipeline strips this annotation before persisting so content.html stays
+  // clean. `opacity` is non-structural; plain inline suffices.
+  if (s.background != null && s.background !== "") {
+    el.style.setProperty("background", s.background, "important");
+
+    // For sections: suppress or restore absolutely-positioned overlay
+    // children (gradient divs, colour overlays, AI hero bg <img> containers)
+    // so Inspector fill changes are actually visible on the canvas, and so
+    // the correct state is captured when the user saves (bodyEl.innerHTML).
+    //
+    // IMPORTANT: we only act when the background VALUE CHANGED from the last
+    // time this element was processed, not on every reconciliation call.
+    // Without this guard every scene mutation (font change, selection, etc.)
+    // would re-suppress overlays for sections whose background the user never
+    // touched — breaking WYSIWYG and causing accidental saves.
+    //
+    // On `isInitialLoad` the WeakMap is seeded with the current value but
+    // overlays are NOT modified (editor opens identical to published page).
+    if (layer.type === "section") {
+      const newBg = s.background;
+      const isFirstSeen = !lastAppliedSectionBg.has(el);
+      const lastBg = lastAppliedSectionBg.get(el); // undefined if first seen
+
+      // Always record; even on initial load we need the baseline.
+      lastAppliedSectionBg.set(el, newBg);
+
+      // Track whether this section has had its first post-initial-load sync.
+      // On that FIRST non-initial sync we also fire suppression even if the
+      // background value didn't change — this repairs sections saved with a
+      // solid bg but no overlay-hidden state (pre-deployment or opacity-0
+      // workaround sessions).
+      const isFirstPostInit = !opts?.isInitialLoad && !sectionPostInitSynced.has(el);
+      if (!opts?.isInitialLoad) sectionPostInitSynced.add(el);
+
+      const shouldAct = !opts?.isInitialLoad && !isFirstSeen && (newBg !== lastBg || isFirstPostInit);
+      if (shouldAct) {
+        // Solid colour → hide overlays so the fill shows through.
+        // Image / gradient → restore overlays (bg imagery should be visible).
+        const isSolid =
+          !newBg.includes("url(") &&
+          !newBg.toLowerCase().includes("gradient(");
+        for (const ch of Array.from(el.children) as HTMLElement[]) {
+          const cs = window.getComputedStyle(ch);
+          if (cs.position !== "absolute" && cs.position !== "fixed") continue;
+          // Detect visual bg: CSS background-image, gradient, non-transparent
+          // colour, or an embedded <img> element.
+          const hasVisual =
+            cs.backgroundImage !== "none" ||
+            cs.background.toLowerCase().includes("gradient") ||
+            (cs.backgroundColor !== "rgba(0, 0, 0, 0)" &&
+              cs.backgroundColor !== "transparent") ||
+            ch.querySelector("img") !== null;
+          if (!hasVisual) continue;
+          if (isSolid) {
+            ch.style.setProperty("display", "none", "important");
+          } else {
+            ch.style.removeProperty("display");
+          }
+        }
+      }
+    }
+  } else {
+    el.style.removeProperty("background");
+    // When a section's background is cleared, restore any overlay children
+    // that were hidden by the solid-colour logic — so the section returns to
+    // its original authored visual (gradient overlay, hero image, etc.).
+    if (layer.type === "section") {
+      const lastBg = lastAppliedSectionBg.get(el);
+      lastAppliedSectionBg.set(el, null);
+      if (!opts?.isInitialLoad) sectionPostInitSynced.add(el);
+
+      // Only act if bg was previously set (don't touch on initial load with
+      // no background, or on repeated null→null no-ops).
+      const shouldAct = !opts?.isInitialLoad && lastBg != null;
+      if (shouldAct) {
+        for (const ch of Array.from(el.children) as HTMLElement[]) {
+          ch.style.removeProperty("display");
+        }
+      }
+    }
+  }
   set("opacity", s.opacity != null ? String(s.opacity) : undefined);
   // Border — serializer preserves both shorthand and split; apply in
   // the same order so split wins if both are set.
@@ -453,6 +567,7 @@ export function applyStructure(
   scene: SceneGraph,
   container: HTMLElement,
   viewportMode: DeviceMode = "desktop",
+  opts?: SyncOpts,
 ) {
   const reconcile = (node: GroupLayer | import("@/lib/scene").SectionLayer, domParent: HTMLElement) => {
     // Sprint 9h — when reconciling a SECTION's children, respect the
@@ -505,7 +620,7 @@ export function applyStructure(
       if (child.type === "inline") {
         applyFrameToEl(childEl, child, viewportMode);
         applyTransformToEl(childEl, child, viewportMode);
-        applyStyleToEl(childEl, child);
+        applyStyleToEl(childEl, child, opts);
         if (hasTypedChildren(child)) reconcile(child, childEl);
         continue;
       }
@@ -532,7 +647,7 @@ export function applyStructure(
 
       applyFrameToEl(childEl, child, viewportMode);
       applyTransformToEl(childEl, child, viewportMode);
-      applyStyleToEl(childEl, child);
+      applyStyleToEl(childEl, child, opts);
       applyInteractionToEl(childEl, child);
       if (child.type === "image" || child.type === "box") {
         applyImageDataToEl(childEl, child);
@@ -748,8 +863,48 @@ export function syncStoreToDom(
   scene: SceneGraph,
   container: HTMLElement,
   viewportMode: DeviceMode = "desktop",
+  opts?: SyncOpts,
 ) {
-  applyStructure(scene, container, viewportMode);
+  applyStructure(scene, container, viewportMode, opts);
   pruneOrphans(scene, container);
   applyVisibilityAndLock(scene, container);
+}
+
+/**
+ * Reconcile the **header** scene onto the raw-injected header DOM.
+ *
+ * Unlike `syncStoreToDom`, the header objects (logo, lang, nav…) are not
+ * structural scene children rendered from a template — they are raw HTML
+ * injected into `headerRef`. So we never add / remove / reparent nodes here
+ * (no applyStructure / pruneOrphans). We only reflect per-layer *property*
+ * edits onto the existing elements, matched by id:
+ *
+ *   • style (typography / fill / border / effect / opacity)
+ *   • interaction (click link/scroll/modal)
+ *   • image (src / alt / href / object-fit)
+ *   • visibility / lock
+ *
+ * Geometry is intentionally NOT written back. Header objects need their
+ * inline left/top/width/height as `!important` to beat the boosted page CSS
+ * (the live drag/resize path + per-device `@media` system already do this).
+ * Re-emitting a plain inline frame here would lose to that CSS and snap the
+ * object back — and the live DOM is already correct from the drag, with the
+ * store update existing purely to feed the LayerPanel/Inspector.
+ */
+export function syncHeaderSceneToDom(
+  headerScene: SceneGraph,
+  headerEl: HTMLElement,
+  opts?: SyncOpts,
+) {
+  const byId = new Map<LayerId, Layer>();
+  walk(headerScene.root, (l) => byId.set(l.id, l));
+  byId.forEach((layer, id) => {
+    if (layer.type === "group" && (layer as GroupLayer).virtual) return;
+    const el = headerEl.querySelector<HTMLElement>(`#${CSS.escape(id)}`);
+    if (!el) return;
+    applyStyleToEl(el, layer, opts);
+    applyInteractionToEl(el, layer);
+    applyImageDataToEl(el, layer);
+  });
+  applyVisibilityAndLock(headerScene, headerEl);
 }

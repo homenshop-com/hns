@@ -15,6 +15,7 @@ import {
   applySelection as syncApplySelection,
   normalizeAnchorImageBoxes,
   syncStoreToDom,
+  syncHeaderSceneToDom,
 } from "./store/editor-sync";
 import { snapRect, type Rect as SnapRect } from "./store/snap";
 import {
@@ -22,6 +23,7 @@ import {
   buildDeviceMediaCss,
   stripDeviceMediaCss,
   applyDeviceOverridesFromScene,
+  legacyHmfToScene,
   type SceneGraph,
 } from "@/lib/scene";
 // Sprint 9k — section preset library for LeftPalette "섹션 블록" list.
@@ -144,6 +146,10 @@ interface DesignEditorProps {
    *  reseller's siteName/logo; the canonical host falls back to "homeNshop".
    *  Computed in the server parent via getResellerForHost(). */
   brand?: { brandName: string; logoUrl: string | null; whiteLabel: boolean };
+  /** Initial editing focus. "hmf" launches the editor in header/footer mode
+   *  (body dimmed, header/footer elements interactive). Passed from the server
+   *  when ?mode=hmf is present (e.g. redirected from /hmf legacy route). */
+  initialEditingTarget?: "body" | "hmf";
 }
 
 /* ─── Component ─── */
@@ -174,6 +180,7 @@ export default function DesignEditor({
   isResponsiveTemplate = false,
   editorMode,
   brand = { brandName: "homeNshop", logoUrl: null, whiteLabel: false },
+  initialEditingTarget = "body",
 }: DesignEditorProps) {
   const router = useRouter();
   const t = useTranslations("editor");
@@ -250,6 +257,12 @@ export default function DesignEditor({
   // the sub-toolbar guard logic (always "page" now) so existing code
   // paths don't need to be audited for every touch.
   const activeTab: "page" = "page";
+  // Editing target: "body" (page content, default) or "hmf" (header/footer).
+  // In "hmf" mode the body is dimmed and non-interactive; header/footer
+  // elements are fully drag/resizable. Initialised from the `initialEditingTarget`
+  // prop so ?mode=hmf (e.g. redirected from /hmf) opens in HMF mode.
+  const [editingTarget, setEditingTarget] = useState<"body" | "hmf">(initialEditingTarget);
+
   // Site settings modal — opens from ⋯ overflow menu (holds what used to
   // be in the old "설정" tab: header/logo, menu mode, footer reset).
   const [showSiteSettings, setShowSiteSettings] = useState(false);
@@ -501,6 +514,11 @@ export default function DesignEditor({
     importantPin?: boolean;
   } | null>(null);
 
+  // Last pointer position during an active drag/resize gesture. Used at
+  // mouse/touch-up to decide whether a body element was dropped over the
+  // header zone (goal 2: cross-container drag body → header section).
+  const lastPointerRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
   const canvasRef = useRef<HTMLDivElement>(null);
   // Outer scroll container — referenced by CanvasRulers to track scrollLeft /
   // scrollTop so the ruler origin stays glued to the artboard.
@@ -549,6 +567,19 @@ export default function DesignEditor({
     }
   }, [bodyHtml]);
 
+  // Apply / remove body-dim overlay when editing target switches.
+  // "hmf" → body is visually dimmed and pointer-events:none so only
+  // header/footer elements are interactive. CSS rule lives in editor-styles.css.
+  useEffect(() => {
+    const bodyEl = bodyRef.current;
+    if (!bodyEl) return;
+    if (editingTarget === "hmf") {
+      bodyEl.dataset.hmfMode = "inactive";
+    } else {
+      delete bodyEl.dataset.hmfMode;
+    }
+  }, [editingTarget]);
+
   /* ─── V2 store → DOM sync ───
    * Subscribes once to the store. Every mutation runs a cheap DOM
    * reconcile pass: prune deleted layers, reorder, apply visibility/
@@ -559,9 +590,13 @@ export default function DesignEditor({
     const bodyEl = bodyRef.current;
     if (!bodyEl) return;
     // Run once on mount with the current state.
+    // `isInitialLoad: true` seeds the section-background WeakMap without
+    // triggering overlay suppression — editor opens identical to the
+    // published page (WYSIWYG). Subsequent scene changes use the default
+    // (isInitialLoad: false) and can suppress/restore overlays on demand.
     {
       const s = useEditorStore.getState();
-      syncStoreToDom(s.scene, bodyEl, s.viewportMode);
+      syncStoreToDom(s.scene, bodyEl, s.viewportMode, { isInitialLoad: true });
       syncApplySelection(s.selectedId, s.multiSelectedIds, bodyEl);
     }
     // Zustand v5 default subscribe fires on every state change. Cache
@@ -571,6 +606,8 @@ export default function DesignEditor({
     let lastPrimary = useEditorStore.getState().selectedId;
     let lastMulti = useEditorStore.getState().multiSelectedIds;
     let lastViewport = useEditorStore.getState().viewportMode;
+    let lastHeaderScene = useEditorStore.getState().headerScene;
+    let headerSeeded = false;
     const unsub = useEditorStore.subscribe((s) => {
       const el = bodyRef.current;
       if (!el) return;
@@ -581,10 +618,24 @@ export default function DesignEditor({
         // Re-apply selection after order/visibility changes.
         syncApplySelection(s.selectedId, s.multiSelectedIds, el);
       }
+      // Header scene → raw-injected header DOM (property edits only; geometry
+      // stays owned by the live drag + @media path). Site-wide persistence.
+      if (s.headerScene !== lastHeaderScene && headerRef.current) {
+        lastHeaderScene = s.headerScene;
+        if (s.headerScene) {
+          syncHeaderSceneToDom(s.headerScene, headerRef.current, { isInitialLoad: !headerSeeded });
+          headerSeeded = true;
+        }
+      }
       if (s.selectedId !== lastPrimary || s.multiSelectedIds !== lastMulti) {
         lastPrimary = s.selectedId;
         lastMulti = s.multiSelectedIds;
         syncApplySelection(s.selectedId, s.multiSelectedIds, el);
+        // Header objects live outside bodyRef — mirror selection there too so
+        // the .de-selected outline tracks LayerPanel clicks on header layers.
+        if (headerRef.current) {
+          syncApplySelection(s.selectedId, s.multiSelectedIds, headerRef.current);
+        }
         // Mirror LayerPanel selection → legacy canvas state so the
         // drag/resize handles and keyboard shortcuts pick up the target.
         // (The old auto-switch to 위치 tab is gone — the right Inspector
@@ -753,8 +804,21 @@ export default function DesignEditor({
       // Detect logo URL
       const logoImg = headerRef.current.querySelector("#hns_h_logo img, .logo img, [id*=logo] img, a img") as HTMLImageElement | null;
       if (logoImg?.src) setLogoUrl(logoImg.src);
+
+      // V2 — build the header SceneGraph so the header objects (logo, lang,
+      // nav…) show up in the LayerPanel and are editable in the Inspector
+      // "본문섹션처럼" (just like body sections). Stamp a stable id on every
+      // header `.dragable` FIRST so the parsed scene ids match the live DOM,
+      // enabling id-based property sync. Header edits persist site-wide.
+      if (editorV2Enabled) {
+        let n = 0;
+        headerRef.current.querySelectorAll<HTMLElement>(".dragable").forEach((el) => {
+          if (!el.id) el.id = `hmf_${Date.now().toString(36)}_${(n++).toString(36)}`;
+        });
+        useEditorStore.getState().setHeaderScene(legacyHmfToScene(headerRef.current.innerHTML));
+      }
     }
-  }, [headerHtml]);
+  }, [headerHtml, editorV2Enabled]);
 
   useEffect(() => {
     if (menuRef.current && !menuInitedRef.current) {
@@ -904,7 +968,16 @@ export default function DesignEditor({
           }
         });
       }
-      const html = bodyEl ? bodyEl.innerHTML : currentBodyHtml;
+      // Strip canvas-only `!important` annotations from inline background
+      // styles before persisting. `applyStyleToEl` writes background with
+      // `!important` so it beats CSS rules on the canvas; the saved HTML
+      // should carry the clean value so published pages and future parses
+      // see a plain inline `background:…` without the flag.
+      const rawHtml = bodyEl ? bodyEl.innerHTML : currentBodyHtml;
+      const html = rawHtml.replace(
+        /\bbackground\s*:\s*([^;!}"']*?)\s*!important\s*([;}"'])/gi,
+        "background: $1$2",
+      );
 
       // V2 dual-save: attach the current scene graph alongside the HTML.
       // Publisher / legacy consumers keep reading `content.html`; V2-aware
@@ -974,7 +1047,7 @@ export default function DesignEditor({
             if (c) applyHmfDevicePreview(c, map, base, dv);
           }
         }
-        await fetch(`/api/sites/${siteId}`, {
+        const hmfRes = await fetch(`/api/sites/${siteId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -984,6 +1057,9 @@ export default function DesignEditor({
             ...(footerHtmlToSave !== undefined && { footerHtml: footerHtmlToSave }),
           }),
         });
+        // Header edits are now persisted site-wide → clear the header dirty
+        // flag so the unsaved-changes guard doesn't re-warn for the header.
+        if (hmfRes.ok && editorV2Enabled) useEditorStore.getState().markHeaderClean();
       }
 
       if (res.ok) {
@@ -1374,6 +1450,7 @@ export default function DesignEditor({
 
     let movedFar = false;
     let dropIndex: number | null = null;
+    const originalOpacity = sectionEl.style.opacity; // preserve before drag temporarily changes it
 
     const computeDropIndex = (clientY: number): number => {
       // Walk siblings; whatever's mid-Y is above the cursor pushes the
@@ -1426,7 +1503,7 @@ export default function DesignEditor({
     const onUp = () => {
       document.removeEventListener("pointermove", onMove);
       document.removeEventListener("pointerup", onUp);
-      sectionEl.style.opacity = "";
+      sectionEl.style.opacity = originalOpacity; // restore — don't clobber opacity:0 user settings
       sectionEl.style.cursor = "";
       document.body.style.cursor = "";
       ind.style.display = "none";
@@ -1744,6 +1821,20 @@ export default function DesignEditor({
     function handleMove(clientX: number, clientY: number) {
       // Block drag/resize while any modal is open
       if (document.querySelector(".de-modal-overlay, [data-tiptap-modal]")) return;
+      lastPointerRef.current = { x: clientX, y: clientY };
+      // Goal 2: while dragging a BODY element, highlight the header zone as a
+      // drop target when the pointer hovers over it. Dropping there relocates
+      // the element into the site-wide header section (see onEnd).
+      const headerEl = headerRef.current;
+      if (headerEl && editorV2Enabled && dragRef.current && (dragRef.current as any).moved) {
+        const fromBody = bodyRef.current?.contains(dragRef.current.el) ?? false;
+        const hr = headerEl.getBoundingClientRect();
+        const over =
+          fromBody &&
+          clientX >= hr.left && clientX <= hr.right &&
+          clientY >= hr.top && clientY <= hr.bottom;
+        headerEl.classList.toggle("de-hmf-droptarget", over);
+      }
       const scale = getCanvasScale();
       // Write a geometry prop as `!important` when the element is raw-injected
       // HMF. WHY: the editor boosts page CSS position/size props to !important
@@ -1825,6 +1916,76 @@ export default function DesignEditor({
       if (editorV2Enabled) {
         const store = useEditorStore.getState();
         const dv = store.viewportMode as HmfViewport;
+
+        // ─── Goal 2: cross-container drop (body element → header section) ───
+        // If a body-scene element was dragged and released over the header
+        // zone, physically relocate it into the header container and re-home
+        // it into the header scene (persisted site-wide), removing it from the
+        // body scene. Only the desktop (PC base) layout owns the header HTML,
+        // so restrict the relocation to the desktop viewport.
+        const headerEl = headerRef.current;
+        if (headerEl) headerEl.classList.remove("de-hmf-droptarget");
+        if (
+          headerEl &&
+          dv === "desktop" &&
+          dragRef.current &&
+          (dragRef.current as any).moved &&
+          (bodyRef.current?.contains(dragRef.current.el) ?? false)
+        ) {
+          const dragEl = dragRef.current.el;
+          const hr = headerEl.getBoundingClientRect();
+          const px = lastPointerRef.current.x;
+          const py = lastPointerRef.current.y;
+          const overHeader =
+            px >= hr.left && px <= hr.right && py >= hr.top && py <= hr.bottom;
+          if (overHeader && dragEl.id) {
+            // Destination container: prefer the inner header content wrapper so
+            // the element sits where authored header objects live.
+            const dest =
+              (headerEl.querySelector("#hns_header_content") as HTMLElement | null) ||
+              headerEl;
+            // Compute header-local coordinates from the element's CURRENT
+            // rendered rect (where the user dragged it), before the DOM move.
+            const scale = getCanvasScale();
+            const destRect = dest.getBoundingClientRect();
+            const elRect = dragEl.getBoundingClientRect();
+            const newLeft = (elRect.left - destRect.left) / scale;
+            const newTop = (elRect.top - destRect.top) / scale;
+            const w = dragEl.offsetWidth;
+            const h = dragEl.offsetHeight;
+            // Drop selection state tied to body before re-homing.
+            multiSelectedRef.current.clear();
+            // Move the DOM node into the header container.
+            dest.appendChild(dragEl);
+            // Header objects must beat boosted page CSS → pin geometry as
+            // !important (same contract as live HMF drag, see setGeom).
+            dragEl.style.setProperty("position", "absolute", "important");
+            dragEl.style.setProperty("left", `${newLeft}px`, "important");
+            dragEl.style.setProperty("top", `${newTop}px`, "important");
+            dragEl.style.setProperty("width", `${w}px`, "important");
+            dragEl.style.setProperty("height", `${h}px`, "important");
+            // Remove from the body scene (page-local) …
+            store.remove(dragEl.id);
+            // … and rebuild the header scene from the live header DOM so the
+            // relocated element appears under the "헤더 섹션" group. Re-stamp
+            // ids for any unnamed children, then mark the header dirty so the
+            // site-wide save fires.
+            let n = 0;
+            headerEl.querySelectorAll<HTMLElement>(".dragable").forEach((el) => {
+              if (!el.id) el.id = `hmf_${Date.now().toString(36)}_${(n++).toString(36)}`;
+            });
+            const hStore = useEditorStore.getState();
+            hStore.setHeaderScene(legacyHmfToScene(headerEl.innerHTML));
+            hStore.markHeaderDirty();
+            // Reselect the element in its new home.
+            hStore.select(dragEl.id);
+            setSelectedElId(dragEl.id);
+            dragRef.current = null;
+            resizeRef.current = null;
+            return;
+          }
+        }
+
         // Which raw-injected HMF container (if any) owns this element? Body
         // scene layers return null and take the store.setFrame path.
         const hmfContainerOf = (el: HTMLElement): HTMLElement | null => {
@@ -1851,6 +2012,22 @@ export default function DesignEditor({
                   width: el.style.width || undefined,
                   height: el.style.height || undefined,
                 };
+              }
+              // If this is a HEADER object tracked in the header scene, mirror
+              // the final geometry into the scene frame so the LayerPanel /
+              // Inspector position stay in sync. store.setFrame routes to the
+              // header scene + headerDirty via mutateOwning, and no-ops if the
+              // id isn't in any scene (e.g. V2 off / menu/footer object). The
+              // live inline geometry the drag wrote stays authoritative for
+              // the DOM — the header sync deliberately doesn't write it back.
+              if (el.id && container === headerRef.current) {
+                const hx = parseInt(el.style.left) || 0;
+                const hy = parseInt(el.style.top) || 0;
+                if (withSize) {
+                  store.setFrame(el.id, { x: hx, y: hy, w: el.offsetWidth, h: el.offsetHeight });
+                } else {
+                  store.setFrame(el.id, { x: hx, y: hy });
+                }
               }
               return;
             }
@@ -3292,6 +3469,49 @@ export default function DesignEditor({
             </button>
           </nav>
         </div>
+        {/* Center: editing-target toggle (본문 ↔ 헤더/풋터) */}
+        <div className="de-header-center">
+          <div className="de-edit-target-toggle" role="group" aria-label="편집 영역 선택">
+            <button
+              type="button"
+              className={`de-edit-target-btn${editingTarget === "body" ? " active" : ""}`}
+              onClick={() => setEditingTarget("body")}
+              aria-pressed={editingTarget === "body"}
+              title="페이지 본문 편집"
+            >
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" style={{ display: "block" }}>
+                <rect x="1" y="1" width="14" height="14" rx="2" />
+                <line x1="4" y1="5" x2="12" y2="5" />
+                <line x1="4" y1="8" x2="10" y2="8" />
+                <line x1="4" y1="11" x2="8" y2="11" />
+              </svg>
+              본문
+            </button>
+            <button
+              type="button"
+              className={`de-edit-target-btn${editingTarget === "hmf" ? " active" : ""}`}
+              onClick={() => {
+                setEditingTarget("hmf");
+                // Clear body selection when entering HMF mode
+                setSelectedElId(null);
+                setEditingTextId(null);
+                multiSelectedRef.current.clear();
+                setMultiSelectCount(0);
+                if (editorV2Enabled) useEditorStore.getState().select(null as unknown as string);
+              }}
+              aria-pressed={editingTarget === "hmf"}
+              title="헤더/풋터 편집 — 모든 페이지에 적용됩니다"
+            >
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" style={{ display: "block" }}>
+                <rect x="1" y="1" width="14" height="4" rx="1" />
+                <rect x="1" y="11" width="14" height="4" rx="1" />
+                <line x1="4" y1="8" x2="12" y2="8" strokeDasharray="2 2" />
+              </svg>
+              헤더/풋터
+            </button>
+          </div>
+        </div>
+
         <div className="de-header-right">
           {editorV2Enabled && (
             <span
@@ -4042,7 +4262,18 @@ export default function DesignEditor({
           bare LayerPanel on the right rail. */}
       {editorV2Enabled && (
         <Suspense fallback={null}>
-          <InspectorPanel enabled={editorV2Enabled} siteId={siteId} />
+          <InspectorPanel
+            enabled={editorV2Enabled}
+            siteId={siteId}
+            editingTarget={editingTarget}
+            headerLayout={headerLayout}
+            onApplyHeaderLayout={(next) => {
+              setHeaderLayout(next);
+              applyHeaderLayout(next);
+            }}
+            onOpenHeaderEdit={() => setShowHeaderEdit(true)}
+            onOpenFooterEdit={() => setShowFooterEdit(true)}
+          />
         </Suspense>
       )}
 

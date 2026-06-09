@@ -844,6 +844,49 @@ export function legacyHtmlToScene(html: string): SceneGraph {
 }
 
 /**
+ * Parse raw-injected HMF (header / menu / footer) innerHTML into a
+ * SceneGraph for the LayerPanel / Inspector.
+ *
+ * Unlike `legacyHtmlToScene`, HMF markup wraps its draggable objects in a
+ * structural container that is NOT itself a `.dragable`
+ * (`#hns_header_content`, `#hns_footer_content`, …). `directLayerChildren`
+ * stops at the first level and would therefore return zero layers. Here we
+ * descend through non-dragable wrappers and collect the *top-level*
+ * `.dragable` objects (logo, lang, nav, …), then build typed layers.
+ *
+ * The structural wrappers stay intact in the live DOM — this scene is only
+ * a representation; sync writes changes back to the same elements by id.
+ * Callers must ensure each live `.dragable` already has a stable `id`
+ * before parsing so scene ids match DOM ids for id-based sync.
+ */
+export function legacyHmfToScene(html: string): SceneGraph {
+  const body = parseBodyFragment(html);
+  const topEls: Element[] = [];
+  const collect = (parent: Element) => {
+    for (let i = 0; i < parent.children.length; i++) {
+      const c = parent.children[i]!;
+      if (hasClass(c, DRAGABLE_CLASS)) topEls.push(c);
+      else collect(c);
+    }
+  };
+  collect(body);
+  const nameIdx = { n: 0 };
+  const children = topEls.map((c) => elementToLayer(c, nameIdx));
+  const root: GroupLayer = {
+    id: ROOT_GROUP_ID,
+    name: "헤더/풋터",
+    type: "group",
+    visible: true,
+    locked: false,
+    frame: { x: 0, y: 0, w: 0, h: 0 },
+    style: {},
+    children,
+    virtual: true,
+  };
+  return { version: 1, root };
+}
+
+/**
  * Walk the scene and populate `mobileFrame` / `mobileFrameKeys` /
  * `mobileTransform` on each layer from the `@media (max-width: 768px)`
  * block that `sceneToMobileCss` writes into pageCss on save.

@@ -24,7 +24,7 @@
 import { create } from "zustand";
 import { temporal } from "zundo";
 import { produce } from "immer";
-import { applyDeviceOverridesFromScene, applyMobileCssToScene, hasTypedChildren, isSection, legacyHtmlToScene, sceneToLegacyHtml } from "@/lib/scene";
+import { applyDeviceOverridesFromScene, applyMobileCssToScene, hasTypedChildren, isSection, legacyHmfToScene, legacyHtmlToScene, sceneToLegacyHtml } from "@/lib/scene";
 import type {
   BoxLayer,
   GroupLayer,
@@ -71,6 +71,21 @@ export interface EditorState {
   dirty: boolean;
   /** Active editing viewport. Starts at "desktop". */
   viewportMode: ViewportMode;
+
+  /**
+   * Separate scene for the raw-injected header objects (logo, lang, nav…).
+   * The header DOM lives in its own `headerRef` container outside the body
+   * `bodyRef`, so it can't share the body scene (pruneOrphans/applyStructure
+   * operate on a single container). Built on load via `legacyHmfToScene`
+   * and mirrored to the header DOM by id. `null` until the header is parsed.
+   *
+   * Header edits persist site-wide (PUT /api/sites/{siteId}, not the page),
+   * so they carry their own `headerDirty` flag — independent of the page's
+   * `dirty`.
+   */
+  headerScene: SceneGraph | null;
+  /** Dirty flag for header edits — cleared after a successful site save. */
+  headerDirty: boolean;
 }
 
 export interface EditorActions {
@@ -170,6 +185,16 @@ export interface EditorActions {
 
   /** Clear dirty flag — call after a successful save. */
   markClean(): void;
+
+  /** Replace the header scene (built from the raw-injected header DOM via
+   *  `legacyHmfToScene`). Does NOT mark anything dirty — this is a load-time
+   *  hydration, mirroring `importHtml`. */
+  setHeaderScene(scene: SceneGraph | null): void;
+  /** Clear the header dirty flag — call after a successful site (HMF) save. */
+  markHeaderClean(): void;
+  /** Mark the header scene dirty (e.g. after a cross-container drop moves a
+   *  body element into the header). The header HTML is saved site-wide. */
+  markHeaderDirty(): void;
 
   /** Switch the active editing viewport. Subsequent drag/resize/transform
    *  mutations target this viewport's override fields. Does NOT re-render
@@ -321,6 +346,44 @@ function findLayer(root: Container, id: LayerId): Layer | null {
   return null;
 }
 
+/**
+ * Produce a partial-state update that mutates whichever scene — body or
+ * header — owns `id`, and flags the right dirty bit.
+ *
+ *   • body layer   → `{ scene, dirty: true }`        (saved to the page)
+ *   • header layer → `{ headerScene, headerDirty }`  (saved site-wide)
+ *
+ * This lets the Inspector/frame mutations (setStyle, setFrame, setImage…)
+ * transparently target a selected header object without each action
+ * branching on scene membership. The `mutator` runs against the Immer draft
+ * layer; it may also touch the scene draft (e.g. for nested lookups).
+ */
+function mutateOwning(
+  s: EditorState,
+  id: LayerId,
+  mutator: (layer: Layer, sceneDraft: SceneGraph) => void,
+): Partial<EditorState> {
+  if (findLayer(s.scene.root, id)) {
+    return {
+      scene: produce(s.scene, (draft) => {
+        const l = findLayer(draft.root, id);
+        if (l) mutator(l, draft);
+      }),
+      dirty: true,
+    };
+  }
+  if (s.headerScene && findLayer(s.headerScene.root, id)) {
+    return {
+      headerScene: produce(s.headerScene, (draft) => {
+        const l = findLayer(draft.root, id);
+        if (l) mutator(l, draft);
+      }),
+      headerDirty: true,
+    };
+  }
+  return {};
+}
+
 function collectDescendants(layer: Layer, set: Set<LayerId>) {
   set.add(layer.id);
   if (hasTypedChildren(layer)) {
@@ -355,8 +418,16 @@ export const useEditorStore = create<EditorStore>()(
       multiSelectedIds: new Set(),
       dirty: false,
       viewportMode: "desktop",
+      headerScene: null,
+      headerDirty: false,
 
       setViewportMode: (mode) => set(() => ({ viewportMode: mode })),
+
+      setHeaderScene: (scene) => set(() => ({ headerScene: scene, headerDirty: false })),
+
+      markHeaderClean: () => set(() => ({ headerDirty: false })),
+
+      markHeaderDirty: () => set(() => ({ headerDirty: true })),
 
       setScene: (scene) =>
         set(() => ({ scene, dirty: true, selectedId: null, multiSelectedIds: new Set() })),
@@ -414,41 +485,37 @@ export const useEditorStore = create<EditorStore>()(
         set(() => ({ selectedId: null, multiSelectedIds: new Set() })),
 
       toggleVisibility: (id) =>
-        set((s) => ({
-          scene: produce(s.scene, (draft) => {
-            const l = findLayer(draft.root, id);
-            if (l) l.visible = !l.visible;
-          }),
-          dirty: true,
-        })),
+        set((s) => mutateOwning(s, id, (l) => { l.visible = !l.visible; })),
 
       toggleLock: (id) =>
-        set((s) => ({
-          scene: produce(s.scene, (draft) => {
-            const l = findLayer(draft.root, id);
-            if (l) l.locked = !l.locked;
-          }),
-          dirty: true,
-        })),
+        set((s) => mutateOwning(s, id, (l) => { l.locked = !l.locked; })),
 
       rename: (id, name) =>
-        set((s) => ({
-          scene: produce(s.scene, (draft) => {
-            const l = findLayer(draft.root, id);
-            if (l) l.name = name;
-          }),
-          dirty: true,
-        })),
+        set((s) => mutateOwning(s, id, (l) => { l.name = name; })),
 
       remove: (id) =>
-        set((s) => ({
-          scene: produce(s.scene, (draft) => {
-            const loc = findParentAndIndex(draft.root, id);
-            if (loc) loc.parent.children.splice(loc.index, 1);
-          }),
-          selectedId: s.selectedId === id ? null : s.selectedId,
-          dirty: true,
-        })),
+        set((s) => {
+          // Removal mutates the owning scene's tree (not a single layer), so
+          // it can't use mutateOwning's layer-level mutator. Branch by owner.
+          if (s.headerScene && findLayer(s.headerScene.root, id)) {
+            return {
+              headerScene: produce(s.headerScene, (draft) => {
+                const loc = findParentAndIndex(draft.root, id);
+                if (loc) loc.parent.children.splice(loc.index, 1);
+              }),
+              selectedId: s.selectedId === id ? null : s.selectedId,
+              headerDirty: true,
+            };
+          }
+          return {
+            scene: produce(s.scene, (draft) => {
+              const loc = findParentAndIndex(draft.root, id);
+              if (loc) loc.parent.children.splice(loc.index, 1);
+            }),
+            selectedId: s.selectedId === id ? null : s.selectedId,
+            dirty: true,
+          };
+        }),
 
       moveLayer: (fromId, toParentId, toIndex) =>
         set((s) => ({
@@ -537,10 +604,7 @@ export const useEditorStore = create<EditorStore>()(
         })),
 
       setStyle: (id, patch) =>
-        set((s) => ({
-          scene: produce(s.scene, (draft) => {
-            const l = findLayer(draft.root, id);
-            if (!l) return;
+        set((s) => mutateOwning(s, id, (l) => {
             // Merge with empty-string / null treated as "clear this key".
             // Treating "" as clear lets the Inspector color/text inputs
             // remove a value by blanking the field.
@@ -557,29 +621,19 @@ export const useEditorStore = create<EditorStore>()(
               }
             }
             l.style = next;
-          }),
-          dirty: true,
         })),
 
       setInteraction: (id, patch) =>
-        set((s) => ({
-          scene: produce(s.scene, (draft) => {
-            const l = findLayer(draft.root, id);
-            if (!l) return;
+        set((s) => mutateOwning(s, id, (l) => {
             if (patch === null) {
               l.interaction = undefined;
             } else {
               l.interaction = patch;
             }
-          }),
-          dirty: true,
         })),
 
       setImage: (id, patch) =>
-        set((s) => ({
-          scene: produce(s.scene, (draft) => {
-            const l = findLayer(draft.root, id);
-            if (!l) return;
+        set((s) => mutateOwning(s, id, (l) => {
             if (l.type === "image") {
               const img = l as ImageLayer;
               if (patch.src !== undefined) img.src = patch.src;
@@ -611,15 +665,10 @@ export const useEditorStore = create<EditorStore>()(
                 objectFit: patch.objectFit !== undefined ? patch.objectFit : current.objectFit,
               });
             }
-          }),
-          dirty: true,
         })),
 
       setTransform: (id, patch) =>
-        set((s) => ({
-          scene: produce(s.scene, (draft) => {
-            const l = findLayer(draft.root, id);
-            if (!l) return;
+        set((s) => mutateOwning(s, id, (l) => {
             const device = s.viewportMode; // "desktop" | "tablet" | "mobile"
             if (patch === null) {
               if (device === "mobile") l.mobileTransform = undefined;
@@ -644,8 +693,6 @@ export const useEditorStore = create<EditorStore>()(
             if (device === "mobile") l.mobileTransform = hasAny ? next : undefined;
             else if (device === "tablet") l.tabletTransform = hasAny ? next : undefined;
             else l.transform = hasAny ? next : undefined;
-          }),
-          dirty: true,
         })),
 
       alignLayers: (ids, mode) =>
@@ -713,10 +760,8 @@ export const useEditorStore = create<EditorStore>()(
         })),
 
       setFrame: (id, patch) =>
-        set((s) => ({
-          scene: produce(s.scene, (draft) => {
-            const l = findLayer(draft.root, id);
-            if (!l || l.id === draft.root.id) return;
+        set((s) => mutateOwning(s, id, (l, draft) => {
+            if (l.id === draft.root.id) return;
 
             const device = s.viewportMode; // "desktop" | "tablet" | "mobile"
 
@@ -794,8 +839,6 @@ export const useEditorStore = create<EditorStore>()(
             if (patch.w !== undefined) keys.add("width");
             if (patch.h !== undefined) keys.add("height");
             l.frameKeys = Array.from(keys) as NonNullable<Layer["frameKeys"]>;
-          }),
-          dirty: true,
         })),
 
       setHidden: (id, device, hidden) =>
@@ -952,8 +995,10 @@ export const useEditorStore = create<EditorStore>()(
     {
       // zundo temporal options
       limit: 50,
-      // Skip tracking selection / hover / dirty — only scene is persisted in history.
-      partialize: (state) => ({ scene: state.scene }) as Partial<EditorState>,
+      // Skip tracking selection / hover / dirty — only the scenes are
+      // persisted in history (body + header, so header edits are undoable).
+      partialize: (state) =>
+        ({ scene: state.scene, headerScene: state.headerScene }) as Partial<EditorState>,
       // Debounce rapid successive mutations (e.g. typing) into one history entry.
       handleSet: (handleSet) => {
         let last = 0;
@@ -983,6 +1028,9 @@ export const selectSelectedId = (s: EditorStore) => s.selectedId;
 export const selectMultiIds = (s: EditorStore) => s.multiSelectedIds;
 export const selectDirty = (s: EditorStore) => s.dirty;
 export const selectViewportMode = (s: EditorStore) => s.viewportMode;
+export const selectHeaderScene = (s: EditorStore) => s.headerScene;
+export const selectHeaderRoot = (s: EditorStore) => s.headerScene?.root ?? null;
+export const selectHeaderDirty = (s: EditorStore) => s.headerDirty;
 
 /** Access the temporal (undo/redo) API. */
 export const useEditorHistory = () => useEditorStore.temporal;
