@@ -572,10 +572,17 @@
 }
 /* Drop-target highlight while dragging a body element over the header zone
    (goal 2: drag body element → site-wide header section). */
-#de-canvas-inner #hns_header.de-hmf-droptarget {
+#de-canvas-inner #hns_header.de-hmf-droptarget,
+#de-canvas-inner #hns_menu.de-hmf-droptarget {
   outline: 2px dashed #22c55e !important;
   outline-offset: -2px;
   background: rgba(34, 197, 94, 0.08) !important;
+}
+/* Legacy headers collapse to ~0 height (absolute children); give the header
+   a visible minimum band while it is an active drop target so the user has a
+   clear target to release over. Menu keeps its natural (nav) height. */
+#de-canvas-inner #hns_header.de-hmf-droptarget {
+  min-height: 56px;
 }
 #de-canvas-inner #hns_body {
   position: relative;

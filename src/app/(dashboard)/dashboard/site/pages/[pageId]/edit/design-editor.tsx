@@ -1841,6 +1841,27 @@ export default function DesignEditor({
 
   /* ─── Mouse/Touch move/up for drag and resize ─── */
   useEffect(() => {
+    // Goal 2: the header "drop zone" is the whole canvas band ABOVE #hns_body
+    // (i.e. everything occupied by #hns_header + #hns_menu). We define it by
+    // body-top rather than the header rect because legacy headers collapse to
+    // ~0 height in the editor (their logo/nav are absolutely positioned), so
+    // headerEl.getBoundingClientRect() is a thin sliver and almost never
+    // catches the pointer. The band-above-body test is collapse-proof and also
+    // covers the separate #hns_menu (nav) container.
+    const overHeaderZone = (clientX: number, clientY: number): boolean => {
+      const headerEl = headerRef.current;
+      const bodyEl = bodyRef.current;
+      if (!headerEl || !bodyEl) return false;
+      const inner = document.getElementById("de-canvas-inner");
+      const innerRect = (inner ?? headerEl).getBoundingClientRect();
+      const bodyTop = bodyEl.getBoundingClientRect().top;
+      return (
+        clientX >= innerRect.left &&
+        clientX <= innerRect.right &&
+        clientY >= innerRect.top &&
+        clientY < bodyTop
+      );
+    };
     function handleMove(clientX: number, clientY: number) {
       // Block drag/resize while any modal is open
       if (document.querySelector(".de-modal-overlay, [data-tiptap-modal]")) return;
@@ -1851,12 +1872,22 @@ export default function DesignEditor({
       const headerEl = headerRef.current;
       if (headerEl && editorV2Enabled && dragRef.current && (dragRef.current as any).moved) {
         const fromBody = bodyRef.current?.contains(dragRef.current.el) ?? false;
-        const hr = headerEl.getBoundingClientRect();
-        const over =
-          fromBody &&
-          clientX >= hr.left && clientX <= hr.right &&
-          clientY >= hr.top && clientY <= hr.bottom;
+        const over = fromBody && overHeaderZone(clientX, clientY);
         headerEl.classList.toggle("de-hmf-droptarget", over);
+        menuRef.current?.classList.toggle("de-hmf-droptarget", over);
+        // Float the dragged body element above the header/menu (z-index 100/200)
+        // so it stays VISIBLE while crossing into the header band — otherwise it
+        // slides behind the opaque header and the user thinks the drag failed.
+        // The raised z-index is temporary; onEnd restores/clears it before
+        // committing geometry so it never leaks into the saved HTML.
+        if (fromBody) {
+          const dragAny = dragRef.current as any;
+          if (dragAny.tempZRaised !== true) {
+            dragAny.origZIndex = dragRef.current.el.style.zIndex;
+            dragRef.current.el.style.setProperty("z-index", "99999", "important");
+            dragAny.tempZRaised = true;
+          }
+        }
       }
       const scale = getCanvasScale();
       // Write a geometry prop as `!important` when the element is raw-injected
@@ -1948,6 +1979,16 @@ export default function DesignEditor({
         // so restrict the relocation to the desktop viewport.
         const headerEl = headerRef.current;
         if (headerEl) headerEl.classList.remove("de-hmf-droptarget");
+        menuRef.current?.classList.remove("de-hmf-droptarget");
+        // Undo the temporary raised z-index applied during the drag (handleMove)
+        // so it never persists into the element's inline style / saved HTML.
+        if (dragRef.current && (dragRef.current as any).tempZRaised) {
+          const dEl = dragRef.current.el;
+          const oz = (dragRef.current as any).origZIndex;
+          if (oz) dEl.style.zIndex = oz;
+          else dEl.style.removeProperty("z-index");
+          (dragRef.current as any).tempZRaised = false;
+        }
         if (
           headerEl &&
           dv === "desktop" &&
@@ -1956,11 +1997,9 @@ export default function DesignEditor({
           (bodyRef.current?.contains(dragRef.current.el) ?? false)
         ) {
           const dragEl = dragRef.current.el;
-          const hr = headerEl.getBoundingClientRect();
           const px = lastPointerRef.current.x;
           const py = lastPointerRef.current.y;
-          const overHeader =
-            px >= hr.left && px <= hr.right && py >= hr.top && py <= hr.bottom;
+          const overHeader = overHeaderZone(px, py);
           if (overHeader && dragEl.id) {
             // Destination container: prefer the inner header content wrapper so
             // the element sits where authored header objects live.
