@@ -21,7 +21,7 @@ import { useTranslations } from "next-intl";
 import { SECTION_PRESETS } from "./section-library";
 import { FONT_CATALOG, FONT_CATEGORIES } from "./font-catalog";
 import { THEME_PRESETS, THEME_CATEGORIES, type ThemePreset } from "./theme-presets";
-import { useEditorStore, selectRoot, selectHeaderRoot } from "../store/editor-store";
+import { useEditorStore, selectRoot, selectHeaderRoot, selectFooterRoot } from "../store/editor-store";
 import type { Layer } from "@/lib/scene";
 
 type ShapeKind =
@@ -99,6 +99,9 @@ interface Props {
    *  body section row onto the 헤더 섹션 panel to re-home it (mirrors the
    *  canvas drag-into-header gesture). */
   onMoveLayerToHeader?(layerId: string): void;
+  /** Relocate a BODY scene layer (by id) into the site-wide footer section.
+   *  Footer mirror of onMoveLayerToHeader. */
+  onMoveLayerToFooter?(layerId: string): void;
   /** Owner site id — used by the 에셋 tab to fetch /api/uploads/list
    *  scoped to this site. */
   siteId?: string;
@@ -136,6 +139,7 @@ export default function LeftPalette({
   onOpenHeaderEdit,
   onOpenFooterEdit,
   onMoveLayerToHeader,
+  onMoveLayerToFooter,
   siteId,
   onApplyTheme,
   currentThemeId,
@@ -532,6 +536,7 @@ export default function LeftPalette({
           onOpenHeaderEdit={onOpenHeaderEdit}
           onOpenFooterEdit={onOpenFooterEdit}
           onMoveLayerToHeader={onMoveLayerToHeader}
+          onMoveLayerToFooter={onMoveLayerToFooter}
         />
       )}
 
@@ -944,11 +949,13 @@ function SectionsTab({
   onOpenHeaderEdit,
   onOpenFooterEdit,
   onMoveLayerToHeader,
+  onMoveLayerToFooter,
 }: {
   onAddSectionClick: () => void;
   onOpenHeaderEdit?: () => void;
   onOpenFooterEdit?: () => void;
   onMoveLayerToHeader?: (layerId: string) => void;
+  onMoveLayerToFooter?: (layerId: string) => void;
 }) {
   const t = useTranslations("editor");
   // Subscribe to the scene root so the list reflects every reorder /
@@ -1102,23 +1109,17 @@ function SectionsTab({
         )}
       </div>
 
-      {/* ── 하단 고정: 풋터 편집 ─────────────────────────────────── */}
-      {onOpenFooterEdit && (
-        <div className="lp-pinned-frame bottom">
-          <button type="button" onClick={onOpenFooterEdit} className="lp-frame-btn footer" style={frameRowBtn}>
-            <span style={{ ...frameRowIcon, background: "#7a5af8", transform: "rotate(180deg)" }}>
-              <i className="fa-solid fa-window-maximize" />
-            </span>
-            <span style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600 }}>{t("sectionsTab.footerEdit")}</div>
-              <div style={{ fontSize: 10, color: "#888", marginTop: 2 }}>
-                {t("sectionsTab.footerEditSub")}
-              </div>
-            </span>
-            <i className="fa-solid fa-chevron-right" style={{ color: "#666", fontSize: 11 }} />
-          </button>
-        </div>
-      )}
+      {/* ── 하단 고정: 푸터 섹션 (헤더와 동일한 관리 UI) ──────────── */}
+      <FooterSectionPanel
+        selectedId={selectedId}
+        onOpenFooterEdit={onOpenFooterEdit}
+        draggingId={draggingId}
+        onMoveLayerToFooter={onMoveLayerToFooter}
+        onAfterDrop={() => {
+          setDraggingId(null);
+          setDragOverIdx(null);
+        }}
+      />
     </div>
   );
 }
@@ -1248,6 +1249,169 @@ function HeaderSectionPanel({
       {objects.length === 0 ? (
         <div className="lp-empty-sub" style={{ padding: "2px 2px 4px" }}>
           {t("sectionsTab.headerEmpty")}
+        </div>
+      ) : (
+        <ol className="lp-section-list lp-header-object-list">
+          {objects.map((o) => (
+            <li
+              key={o.id}
+              onClick={() => onRowClick(o.id)}
+              style={{
+                position: "relative",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "7px 8px",
+                background: o.id === selectedId ? "rgba(42,121,255,0.15)" : "#1a1c24",
+                border: o.id === selectedId ? "1px solid #2a79ff" : "1px solid #2a2d3a",
+                borderRadius: 6,
+                cursor: "pointer",
+                userSelect: "none",
+              }}
+            >
+              <span style={{ ...frameRowIcon, width: 18, height: 18, background: "#2a79ff", fontSize: 9 }}>
+                <i className={`fa-solid ${headerObjectIcon(o)}`} />
+              </span>
+              <span
+                title={o.name}
+                style={{
+                  flex: 1,
+                  fontSize: 12,
+                  color: "#e8eaf2",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {o.name}
+              </span>
+              <RowBtn
+                icon="fa-trash"
+                title={t("sectionsTab.actionDelete")}
+                danger
+                onClick={(e) => {
+                  e.stopPropagation();
+                  del(o.id);
+                }}
+              />
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
+
+/* ─── 푸터 섹션 패널 (섹션 탭 하단 고정) ───────────────────────────────
+ *
+ * HeaderSectionPanel 의 미러. footerScene 의 top-level 자식을 행으로 나열하고,
+ * 본문 섹션 행을 드래그해 푸터로 이동하는 드롭 타깃을 제공한다. 모든 편집은
+ * 사이트 단위(모든 페이지)로 저장된다. "고급 편집"은 FooterEditModal 을 연다. */
+function FooterSectionPanel({
+  selectedId,
+  onOpenFooterEdit,
+  draggingId,
+  onMoveLayerToFooter,
+  onAfterDrop,
+}: {
+  selectedId: string | null;
+  onOpenFooterEdit?: () => void;
+  draggingId?: string | null;
+  onMoveLayerToFooter?: (layerId: string) => void;
+  onAfterDrop?: () => void;
+}) {
+  const t = useTranslations("editor");
+  const [tick, setTick] = useState(0);
+  const [dropActive, setDropActive] = useState(false);
+  const canDrop = !!(draggingId && onMoveLayerToFooter);
+  useEffect(() => {
+    return useEditorStore.subscribe((s, prev) => {
+      if (s.footerScene !== prev.footerScene) setTick((n) => n + 1);
+    });
+  }, []);
+
+  const objects = useMemo(() => {
+    const root = selectFooterRoot(useEditorStore.getState());
+    return (root?.children ?? []).filter((c) => c.type !== "inline");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tick]);
+
+  const onRowClick = (id: string) => {
+    useEditorStore.getState().select(id);
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+  const del = (id: string) => {
+    if (!confirm(t("sectionsTab.confirmDelete"))) return;
+    useEditorStore.getState().remove(id);
+  };
+
+  return (
+    <div
+      className="lp-pinned-frame bottom"
+      onDragOver={(e) => {
+        if (!canDrop) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        if (!dropActive) setDropActive(true);
+      }}
+      onDragLeave={(e) => {
+        if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+        setDropActive(false);
+      }}
+      onDrop={(e) => {
+        if (!canDrop) return;
+        e.preventDefault();
+        const id = e.dataTransfer.getData("text/plain") || draggingId || "";
+        setDropActive(false);
+        if (id && onMoveLayerToFooter) onMoveLayerToFooter(id);
+        onAfterDrop?.();
+      }}
+      style={
+        dropActive
+          ? { outline: "2px dashed #22c55e", outlineOffset: -2, background: "rgba(34,197,94,0.08)", borderRadius: 8 }
+          : undefined
+      }
+    >
+      {canDrop && (
+        <div
+          style={{
+            fontSize: 10,
+            color: "#22c55e",
+            padding: "0 2px 6px",
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+            fontWeight: 600,
+          }}
+        >
+          <i className="fa-solid fa-arrow-down-to-bracket" aria-hidden /> {t("sectionsTab.footerDropHint")}
+        </div>
+      )}
+      <div className="lp-section-list-head" style={{ paddingTop: 2 }}>
+        <div className="lp-section-list-title">
+          <i className="fa-solid fa-window-maximize" aria-hidden style={{ transform: "rotate(180deg)" }} /> {t("sectionsTab.footerSection")}
+          {objects.length > 0 && (
+            <span className="lp-section-count">{objects.length}</span>
+          )}
+        </div>
+        {onOpenFooterEdit && (
+          <button
+            type="button"
+            onClick={onOpenFooterEdit}
+            className="lp-section-add-btn"
+            title={t("sectionsTab.footerAdvanced")}
+          >
+            <i className="fa-solid fa-sliders" /> {t("sectionsTab.footerAdvanced")}
+          </button>
+        )}
+      </div>
+      <div style={{ fontSize: 10, color: "#7a5af8", padding: "0 2px 6px", display: "flex", alignItems: "center", gap: 4 }}>
+        <i className="fa-solid fa-globe" aria-hidden /> {t("sectionsTab.footerSectionSub")}
+      </div>
+      {objects.length === 0 ? (
+        <div className="lp-empty-sub" style={{ padding: "2px 2px 4px" }}>
+          {t("sectionsTab.footerEmpty")}
         </div>
       ) : (
         <ol className="lp-section-list lp-header-object-list">
@@ -1533,21 +1697,6 @@ function RowBtn({
   );
 }
 
-
-const frameRowBtn: React.CSSProperties = {
-  width: "100%",
-  display: "flex",
-  alignItems: "center",
-  gap: 10,
-  padding: "10px",
-  background: "#1a1c24",
-  border: "1px solid #2a2d3a",
-  borderRadius: 6,
-  cursor: "pointer",
-  color: "#e8eaf2",
-  fontSize: 12,
-  textAlign: "left",
-};
 
 const frameRowIcon: React.CSSProperties = {
   width: 22,

@@ -16,6 +16,7 @@ import {
   normalizeAnchorImageBoxes,
   syncStoreToDom,
   syncHeaderSceneToDom,
+  syncFooterSceneToDom,
 } from "./store/editor-sync";
 import { snapRect, type Rect as SnapRect } from "./store/snap";
 import {
@@ -608,6 +609,8 @@ export default function DesignEditor({
     let lastViewport = useEditorStore.getState().viewportMode;
     let lastHeaderScene = useEditorStore.getState().headerScene;
     let headerSeeded = false;
+    let lastFooterScene = useEditorStore.getState().footerScene;
+    let footerSeeded = false;
     const unsub = useEditorStore.subscribe((s) => {
       const el = bodyRef.current;
       if (!el) return;
@@ -650,6 +653,33 @@ export default function DesignEditor({
           headerSeeded = true;
         }
       }
+      // Footer scene → raw-injected footer DOM (mirror of the header branch).
+      if (s.footerScene !== lastFooterScene && footerRef.current) {
+        const prevFooterScene = lastFooterScene;
+        lastFooterScene = s.footerScene;
+        if (s.footerScene) {
+          // Surgical DOM prune — same contract as the header: only remove ids
+          // present in the previous footer scene but absent from the new one.
+          if (prevFooterScene && footerSeeded) {
+            const newIds = new Set<string>();
+            const gather = (l: { id: string; children?: unknown[] }) => {
+              newIds.add(l.id);
+              (l.children as typeof l[] | undefined)?.forEach(gather);
+            };
+            gather(s.footerScene.root as unknown as { id: string; children?: unknown[] });
+            const prune = (l: { id: string; children?: unknown[] }) => {
+              (l.children as typeof l[] | undefined)?.forEach(prune);
+              if (!newIds.has(l.id)) {
+                const node = footerRef.current?.querySelector<HTMLElement>(`#${CSS.escape(l.id)}`);
+                if (node) node.remove();
+              }
+            };
+            prune(prevFooterScene.root as unknown as { id: string; children?: unknown[] });
+          }
+          syncFooterSceneToDom(s.footerScene, footerRef.current, { isInitialLoad: !footerSeeded });
+          footerSeeded = true;
+        }
+      }
       if (s.selectedId !== lastPrimary || s.multiSelectedIds !== lastMulti) {
         lastPrimary = s.selectedId;
         lastMulti = s.multiSelectedIds;
@@ -658,6 +688,10 @@ export default function DesignEditor({
         // the .de-selected outline tracks LayerPanel clicks on header layers.
         if (headerRef.current) {
           syncApplySelection(s.selectedId, s.multiSelectedIds, headerRef.current);
+        }
+        // Footer objects also live outside bodyRef — mirror selection there too.
+        if (footerRef.current) {
+          syncApplySelection(s.selectedId, s.multiSelectedIds, footerRef.current);
         }
         // Mirror LayerPanel selection → legacy canvas state so the
         // drag/resize handles and keyboard shortcuts pick up the target.
@@ -888,9 +922,21 @@ export default function DesignEditor({
     if (footerRef.current && !footerInitedRef.current) {
       footerRef.current.innerHTML = footerHtml;
       footerInitedRef.current = true;
+      normalizeAnchorImageBoxes(footerRef.current);
       hydrateHmfDevice(footerRef.current);
+      // V2 — build the footer SceneGraph (mirrors the header effect above) so
+      // footer objects appear in the "푸터 섹션" list and are Inspector-editable.
+      // Stamp stable ids on every footer `.dragable` first so the parsed scene
+      // ids match the live DOM. Footer edits persist site-wide.
+      if (editorV2Enabled) {
+        let n = 0;
+        footerRef.current.querySelectorAll<HTMLElement>(".dragable").forEach((el) => {
+          if (!el.id) el.id = `hmf_${Date.now().toString(36)}_${(n++).toString(36)}`;
+        });
+        useEditorStore.getState().setFooterScene(legacyHmfToScene(footerRef.current.innerHTML));
+      }
     }
-  }, [footerHtml]);
+  }, [footerHtml, editorV2Enabled]);
 
   /* ─── HMF per-device preview paint ───
    * The editor canvas is a wide viewport with a narrow artboard, so the
@@ -1080,9 +1126,12 @@ export default function DesignEditor({
             ...(footerHtmlToSave !== undefined && { footerHtml: footerHtmlToSave }),
           }),
         });
-        // Header edits are now persisted site-wide → clear the header dirty
-        // flag so the unsaved-changes guard doesn't re-warn for the header.
-        if (hmfRes.ok && editorV2Enabled) useEditorStore.getState().markHeaderClean();
+        // Header/footer edits are now persisted site-wide → clear both dirty
+        // flags so the unsaved-changes guard doesn't re-warn for the HMF.
+        if (hmfRes.ok && editorV2Enabled) {
+          useEditorStore.getState().markHeaderClean();
+          useEditorStore.getState().markFooterClean();
+        }
       }
 
       if (res.ok) {
@@ -1862,6 +1911,22 @@ export default function DesignEditor({
         clientY < bodyTop
       );
     };
+    // Footer mirror of overHeaderZone: the band BELOW the body, down to the
+    // canvas bottom (collapse-proof — covers a short/0-height footer too).
+    const overFooterZone = (clientX: number, clientY: number): boolean => {
+      const footerEl = footerRef.current;
+      const bodyEl = bodyRef.current;
+      if (!footerEl || !bodyEl) return false;
+      const inner = document.getElementById("de-canvas-inner");
+      const innerRect = (inner ?? footerEl).getBoundingClientRect();
+      const bodyBottom = bodyEl.getBoundingClientRect().bottom;
+      return (
+        clientX >= innerRect.left &&
+        clientX <= innerRect.right &&
+        clientY > bodyBottom &&
+        clientY <= innerRect.bottom
+      );
+    };
     function handleMove(clientX: number, clientY: number) {
       // Block drag/resize while any modal is open
       if (document.querySelector(".de-modal-overlay, [data-tiptap-modal]")) return;
@@ -1875,6 +1940,9 @@ export default function DesignEditor({
         const over = fromBody && overHeaderZone(clientX, clientY);
         headerEl.classList.toggle("de-hmf-droptarget", over);
         menuRef.current?.classList.toggle("de-hmf-droptarget", over);
+        // Footer is a symmetric drop target — highlight it when hovered.
+        const overFooter = fromBody && overFooterZone(clientX, clientY);
+        footerRef.current?.classList.toggle("de-hmf-droptarget", overFooter);
         // Float the dragged body element above the header/menu (z-index 100/200)
         // so it stays VISIBLE while crossing into the header band — otherwise it
         // slides behind the opaque header and the user thinks the drag failed.
@@ -1980,6 +2048,7 @@ export default function DesignEditor({
         const headerEl = headerRef.current;
         if (headerEl) headerEl.classList.remove("de-hmf-droptarget");
         menuRef.current?.classList.remove("de-hmf-droptarget");
+        footerRef.current?.classList.remove("de-hmf-droptarget");
         // Undo the temporary raised z-index applied during the drag (handleMove)
         // so it never persists into the element's inline style / saved HTML.
         if (dragRef.current && (dragRef.current as any).tempZRaised) {
@@ -2066,6 +2135,52 @@ export default function DesignEditor({
             resizeRef.current = null;
             return;
           }
+          // ─── Symmetric footer drop (body element → footer section) ───
+          const footerEl = footerRef.current;
+          const overFooter = overFooterZone(px, py);
+          if (footerEl && overFooter && !dragEl.id) {
+            dragEl.id = `el_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+          }
+          if (footerEl && overFooter && dragEl.id) {
+            let dest: HTMLElement =
+              (footerEl.querySelector("#hns_footer_content") as HTMLElement | null) ||
+              footerEl;
+            // Same nesting guard as the header: append as a SIBLING of the
+            // outermost footer .dragable so legacyHmfToScene.collect() surfaces
+            // the moved object as a top-level "푸터 섹션" item.
+            const dragableAncestor = dest.closest<HTMLElement>(".dragable");
+            if (dragableAncestor?.parentElement) {
+              dest = dragableAncestor.parentElement;
+            }
+            const scale = getCanvasScale();
+            const destRect = dest.getBoundingClientRect();
+            const elRect = dragEl.getBoundingClientRect();
+            const newLeft = (elRect.left - destRect.left) / scale;
+            const newTop = (elRect.top - destRect.top) / scale;
+            const w = dragEl.offsetWidth;
+            const h = dragEl.offsetHeight;
+            multiSelectedRef.current.clear();
+            dest.appendChild(dragEl);
+            dragEl.classList.add("dragable");
+            dragEl.style.setProperty("position", "absolute", "important");
+            dragEl.style.setProperty("left", `${newLeft}px`, "important");
+            dragEl.style.setProperty("top", `${newTop}px`, "important");
+            dragEl.style.setProperty("width", `${w}px`, "important");
+            dragEl.style.setProperty("height", `${h}px`, "important");
+            store.remove(dragEl.id);
+            let n = 0;
+            footerEl.querySelectorAll<HTMLElement>(".dragable").forEach((el) => {
+              if (!el.id) el.id = `hmf_${Date.now().toString(36)}_${(n++).toString(36)}`;
+            });
+            const fStore = useEditorStore.getState();
+            fStore.setFooterScene(legacyHmfToScene(footerEl.innerHTML));
+            fStore.markFooterDirty();
+            fStore.select(dragEl.id);
+            setSelectedElId(dragEl.id);
+            dragRef.current = null;
+            resizeRef.current = null;
+            return;
+          }
         }
 
         // Which raw-injected HMF container (if any) owns this element? Body
@@ -2095,14 +2210,14 @@ export default function DesignEditor({
                   height: el.style.height || undefined,
                 };
               }
-              // If this is a HEADER object tracked in the header scene, mirror
-              // the final geometry into the scene frame so the LayerPanel /
-              // Inspector position stay in sync. store.setFrame routes to the
-              // header scene + headerDirty via mutateOwning, and no-ops if the
-              // id isn't in any scene (e.g. V2 off / menu/footer object). The
-              // live inline geometry the drag wrote stays authoritative for
-              // the DOM — the header sync deliberately doesn't write it back.
-              if (el.id && container === headerRef.current) {
+              // If this is a HEADER or FOOTER object tracked in its scene,
+              // mirror the final geometry into the scene frame so the
+              // LayerPanel / Inspector position stay in sync. store.setFrame
+              // routes to the header/footer scene + dirty bit via mutateOwning,
+              // and no-ops if the id isn't in any scene (e.g. V2 off / menu
+              // object). The live inline geometry the drag wrote stays
+              // authoritative for the DOM — the HMF sync never writes it back.
+              if (el.id && (container === headerRef.current || container === footerRef.current)) {
                 const hx = parseInt(el.style.left) || 0;
                 const hy = parseInt(el.style.top) || 0;
                 if (withSize) {
@@ -3412,6 +3527,62 @@ export default function DesignEditor({
     setSelectedElId(domId);
   }, []);
 
+  // Footer mirror of moveBodyLayerToHeader (see that callback for the full
+  // rationale on id resolution, the sibling-of-dragable dest, and `.dragable`).
+  const moveBodyLayerToFooter = useCallback((layerId: string) => {
+    const footerEl = footerRef.current;
+    const bodyEl = bodyRef.current;
+    if (!footerEl || !bodyEl || !layerId) return;
+    const store = useEditorStore.getState();
+    let dragEl = document.getElementById(layerId) as HTMLElement | null;
+    if (!dragEl || !bodyEl.contains(dragEl)) {
+      const root = store.scene?.root as { children?: { id: string }[] } | undefined;
+      const idx = root?.children?.findIndex((c) => c.id === layerId) ?? -1;
+      if (idx >= 0) {
+        const topDragables = Array.from(
+          bodyEl.querySelectorAll<HTMLElement>(":scope > .dragable"),
+        );
+        dragEl = topDragables[idx] ?? null;
+      }
+    }
+    if (!dragEl || !bodyEl.contains(dragEl)) return;
+    if (!dragEl.id) {
+      dragEl.id = `el_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+    }
+    const domId = dragEl.id;
+    let dest: HTMLElement =
+      (footerEl.querySelector("#hns_footer_content") as HTMLElement | null) ||
+      footerEl;
+    const dragableAncestor = dest.closest<HTMLElement>(".dragable");
+    if (dragableAncestor?.parentElement) {
+      dest = dragableAncestor.parentElement;
+    }
+    const w = dragEl.offsetWidth;
+    const h = dragEl.offsetHeight;
+    const curLeft = parseInt(dragEl.style.left) || 0;
+    const newLeft = Math.max(0, curLeft);
+    const newTop = 20;
+    multiSelectedRef.current.clear();
+    dest.appendChild(dragEl);
+    dragEl.classList.add("dragable");
+    dragEl.style.setProperty("position", "absolute", "important");
+    dragEl.style.setProperty("left", `${newLeft}px`, "important");
+    dragEl.style.setProperty("top", `${newTop}px`, "important");
+    dragEl.style.setProperty("width", `${w}px`, "important");
+    dragEl.style.setProperty("height", `${h}px`, "important");
+    dragEl.style.removeProperty("z-index");
+    store.remove(layerId);
+    let n = 0;
+    footerEl.querySelectorAll<HTMLElement>(".dragable").forEach((el) => {
+      if (!el.id) el.id = `hmf_${Date.now().toString(36)}_${(n++).toString(36)}`;
+    });
+    const fStore = useEditorStore.getState();
+    fStore.setFooterScene(legacyHmfToScene(footerEl.innerHTML));
+    fStore.markFooterDirty();
+    fStore.select(domId);
+    setSelectedElId(domId);
+  }, []);
+
   function applyTheme(tokens: ThemeTokens) {
     const block = buildThemeCssBlock(tokens);
     const css = currentPageCss ?? "";
@@ -4395,6 +4566,7 @@ export default function DesignEditor({
             onOpenHeaderEdit={() => setShowHeaderEdit(true)}
             onOpenFooterEdit={() => setShowFooterEdit(true)}
             onMoveLayerToHeader={moveBodyLayerToHeader}
+            onMoveLayerToFooter={moveBodyLayerToFooter}
             siteId={siteId}
             onApplyTheme={applyTheme}
             currentThemeId={currentThemeId}

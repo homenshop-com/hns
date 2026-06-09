@@ -896,7 +896,12 @@
       "headerSectionSub": "Se aplica a todas las páginas",
       "headerAdvanced": "Avanzado",
       "headerEmpty": "Sin elementos de encabezado.",
-      "headerDropHint": "Suelta aquí para mover al encabezado"
+      "headerDropHint": "Suelta aquí para mover al encabezado",
+      "footerSection": "Sección de pie de página",
+      "footerSectionSub": "Se aplica a todas las páginas",
+      "footerAdvanced": "Avanzado",
+      "footerEmpty": "Sin elementos de pie de página.",
+      "footerDropHint": "Suelta aquí para mover al pie de página"
     },
     "assets": {
       "library": "Biblioteca de recursos",

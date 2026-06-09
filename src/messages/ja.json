@@ -896,7 +896,12 @@
       "headerSectionSub": "全ページに適用",
       "headerAdvanced": "詳細編集",
       "headerEmpty": "ヘッダー要素がありません。",
-      "headerDropHint": "ここにドロップしてヘッダーへ移動"
+      "headerDropHint": "ここにドロップしてヘッダーへ移動",
+      "footerSection": "フッターセクション",
+      "footerSectionSub": "全ページに適用",
+      "footerAdvanced": "詳細編集",
+      "footerEmpty": "フッター要素がありません。",
+      "footerDropHint": "ここにドロップしてフッターへ移動"
     },
     "assets": {
       "library": "アセットライブラリ",

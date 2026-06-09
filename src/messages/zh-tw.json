@@ -896,7 +896,12 @@
       "headerSectionSub": "套用到所有頁面",
       "headerAdvanced": "進階編輯",
       "headerEmpty": "沒有頁首元素。",
-      "headerDropHint": "拖放到此處移動到頁首"
+      "headerDropHint": "拖放到此處移動到頁首",
+      "footerSection": "頁尾區塊",
+      "footerSectionSub": "套用到所有頁面",
+      "footerAdvanced": "進階編輯",
+      "footerEmpty": "沒有頁尾元素。",
+      "footerDropHint": "拖放到此處移動到頁尾"
     },
     "assets": {
       "library": "素材庫",

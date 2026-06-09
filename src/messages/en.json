@@ -910,7 +910,12 @@
       "headerSectionSub": "Applies to all pages",
       "headerAdvanced": "Advanced",
       "headerEmpty": "No header elements.",
-      "headerDropHint": "Drop here to move to header"
+      "headerDropHint": "Drop here to move to header",
+      "footerSection": "Footer Section",
+      "footerSectionSub": "Applies to all pages",
+      "footerAdvanced": "Advanced",
+      "footerEmpty": "No footer elements.",
+      "footerDropHint": "Drop here to move to footer"
     },
     "assets": {
       "library": "Asset Library",

@@ -910,7 +910,12 @@
       "headerSectionSub": "모든 페이지에 적용",
       "headerAdvanced": "고급 편집",
       "headerEmpty": "헤더에 요소가 없습니다.",
-      "headerDropHint": "여기에 놓아 헤더로 이동"
+      "headerDropHint": "여기에 놓아 헤더로 이동",
+      "footerSection": "푸터 섹션",
+      "footerSectionSub": "모든 페이지에 적용",
+      "footerAdvanced": "고급 편집",
+      "footerEmpty": "푸터에 요소가 없습니다.",
+      "footerDropHint": "여기에 놓아 푸터로 이동"
     },
     "assets": {
       "library": "에셋 라이브러리",

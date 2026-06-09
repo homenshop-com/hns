@@ -896,7 +896,12 @@
       "headerSectionSub": "应用到所有页面",
       "headerAdvanced": "高级编辑",
       "headerEmpty": "没有页眉元素。",
-      "headerDropHint": "拖放到此处移动到页眉"
+      "headerDropHint": "拖放到此处移动到页眉",
+      "footerSection": "页脚区块",
+      "footerSectionSub": "应用到所有页面",
+      "footerAdvanced": "高级编辑",
+      "footerEmpty": "没有页脚元素。",
+      "footerDropHint": "拖放到此处移动到页脚"
     },
     "assets": {
       "library": "素材库",

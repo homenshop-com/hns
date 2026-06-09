@@ -86,6 +86,17 @@ export interface EditorState {
   headerScene: SceneGraph | null;
   /** Dirty flag for header edits — cleared after a successful site save. */
   headerDirty: boolean;
+
+  /**
+   * Footer mirror of `headerScene`. The footer DOM lives in its own
+   * `footerRef` container outside the body, built on load via
+   * `legacyHmfToScene` and mirrored to the footer DOM by id. Footer edits
+   * also persist site-wide (PUT /api/sites/{siteId}), so they carry an
+   * independent `footerDirty` flag. `null` until the footer is parsed.
+   */
+  footerScene: SceneGraph | null;
+  /** Dirty flag for footer edits — cleared after a successful site save. */
+  footerDirty: boolean;
 }
 
 export interface EditorActions {
@@ -195,6 +206,15 @@ export interface EditorActions {
   /** Mark the header scene dirty (e.g. after a cross-container drop moves a
    *  body element into the header). The header HTML is saved site-wide. */
   markHeaderDirty(): void;
+
+  /** Replace the footer scene (built from the raw-injected footer DOM via
+   *  `legacyHmfToScene`). Does NOT mark anything dirty — load-time hydration. */
+  setFooterScene(scene: SceneGraph | null): void;
+  /** Clear the footer dirty flag — call after a successful site (HMF) save. */
+  markFooterClean(): void;
+  /** Mark the footer scene dirty (e.g. after a cross-container drop moves a
+   *  body element into the footer). The footer HTML is saved site-wide. */
+  markFooterDirty(): void;
 
   /** Switch the active editing viewport. Subsequent drag/resize/transform
    *  mutations target this viewport's override fields. Does NOT re-render
@@ -347,11 +367,12 @@ function findLayer(root: Container, id: LayerId): Layer | null {
 }
 
 /**
- * Produce a partial-state update that mutates whichever scene — body or
- * header — owns `id`, and flags the right dirty bit.
+ * Produce a partial-state update that mutates whichever scene — body,
+ * header or footer — owns `id`, and flags the right dirty bit.
  *
  *   • body layer   → `{ scene, dirty: true }`        (saved to the page)
  *   • header layer → `{ headerScene, headerDirty }`  (saved site-wide)
+ *   • footer layer → `{ footerScene, footerDirty }`  (saved site-wide)
  *
  * This lets the Inspector/frame mutations (setStyle, setFrame, setImage…)
  * transparently target a selected header object without each action
@@ -379,6 +400,15 @@ function mutateOwning(
         if (l) mutator(l, draft);
       }),
       headerDirty: true,
+    };
+  }
+  if (s.footerScene && findLayer(s.footerScene.root, id)) {
+    return {
+      footerScene: produce(s.footerScene, (draft) => {
+        const l = findLayer(draft.root, id);
+        if (l) mutator(l, draft);
+      }),
+      footerDirty: true,
     };
   }
   return {};
@@ -420,6 +450,8 @@ export const useEditorStore = create<EditorStore>()(
       viewportMode: "desktop",
       headerScene: null,
       headerDirty: false,
+      footerScene: null,
+      footerDirty: false,
 
       setViewportMode: (mode) => set(() => ({ viewportMode: mode })),
 
@@ -428,6 +460,12 @@ export const useEditorStore = create<EditorStore>()(
       markHeaderClean: () => set(() => ({ headerDirty: false })),
 
       markHeaderDirty: () => set(() => ({ headerDirty: true })),
+
+      setFooterScene: (scene) => set(() => ({ footerScene: scene, footerDirty: false })),
+
+      markFooterClean: () => set(() => ({ footerDirty: false })),
+
+      markFooterDirty: () => set(() => ({ footerDirty: true })),
 
       setScene: (scene) =>
         set(() => ({ scene, dirty: true, selectedId: null, multiSelectedIds: new Set() })),
@@ -505,6 +543,16 @@ export const useEditorStore = create<EditorStore>()(
               }),
               selectedId: s.selectedId === id ? null : s.selectedId,
               headerDirty: true,
+            };
+          }
+          if (s.footerScene && findLayer(s.footerScene.root, id)) {
+            return {
+              footerScene: produce(s.footerScene, (draft) => {
+                const loc = findParentAndIndex(draft.root, id);
+                if (loc) loc.parent.children.splice(loc.index, 1);
+              }),
+              selectedId: s.selectedId === id ? null : s.selectedId,
+              footerDirty: true,
             };
           }
           return {
@@ -996,9 +1044,13 @@ export const useEditorStore = create<EditorStore>()(
       // zundo temporal options
       limit: 50,
       // Skip tracking selection / hover / dirty — only the scenes are
-      // persisted in history (body + header, so header edits are undoable).
+      // persisted in history (body + header + footer, so HMF edits are undoable).
       partialize: (state) =>
-        ({ scene: state.scene, headerScene: state.headerScene }) as Partial<EditorState>,
+        ({
+          scene: state.scene,
+          headerScene: state.headerScene,
+          footerScene: state.footerScene,
+        }) as Partial<EditorState>,
       // Debounce rapid successive mutations (e.g. typing) into one history entry.
       handleSet: (handleSet) => {
         let last = 0;
@@ -1031,6 +1083,9 @@ export const selectViewportMode = (s: EditorStore) => s.viewportMode;
 export const selectHeaderScene = (s: EditorStore) => s.headerScene;
 export const selectHeaderRoot = (s: EditorStore) => s.headerScene?.root ?? null;
 export const selectHeaderDirty = (s: EditorStore) => s.headerDirty;
+export const selectFooterScene = (s: EditorStore) => s.footerScene;
+export const selectFooterRoot = (s: EditorStore) => s.footerScene?.root ?? null;
+export const selectFooterDirty = (s: EditorStore) => s.footerDirty;
 
 /** Access the temporal (undo/redo) API. */
 export const useEditorHistory = () => useEditorStore.temporal;

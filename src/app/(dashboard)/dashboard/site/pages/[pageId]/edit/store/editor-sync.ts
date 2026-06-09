@@ -908,3 +908,11 @@ export function syncHeaderSceneToDom(
   });
   applyVisibilityAndLock(headerScene, headerEl);
 }
+
+/**
+ * Footer mirror of {@link syncHeaderSceneToDom}. The footer is another
+ * raw-injected HMF container outside the body, so the sync logic is identical
+ * (property edits by id, geometry left to the live drag/@media path). Kept as
+ * a separate named export for call-site clarity in design-editor.
+ */
+export const syncFooterSceneToDom = syncHeaderSceneToDom;

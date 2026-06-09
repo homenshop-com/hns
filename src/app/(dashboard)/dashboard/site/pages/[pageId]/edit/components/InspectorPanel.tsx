@@ -222,8 +222,18 @@ export default function InspectorPanel({
     // header section is editable "본문섹션처럼" (just like body sections).
     const headerRoot = st.headerScene?.root ?? null;
     if (headerRoot) {
-      return findLayerAndPath(
+      const fromHeader = findLayerAndPath(
         headerRoot as unknown as Parameters<typeof findLayerAndPath>[0],
+        selectedId,
+      );
+      if (fromHeader.layer) return fromHeader;
+    }
+    // Footer objects also live in a separate scene (footerRef DOM) — same
+    // fallback so the footer section is Inspector-editable just like the header.
+    const footerRoot = st.footerScene?.root ?? null;
+    if (footerRoot) {
+      return findLayerAndPath(
+        footerRoot as unknown as Parameters<typeof findLayerAndPath>[0],
         selectedId,
       );
     }
