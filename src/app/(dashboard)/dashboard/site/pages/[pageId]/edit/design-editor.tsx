@@ -2000,6 +2000,12 @@ export default function DesignEditor({
           const px = lastPointerRef.current.x;
           const py = lastPointerRef.current.y;
           const overHeader = overHeaderZone(px, py);
+          // id-less body objects (generated scene id never reached the DOM)
+          // must still be relocatable — stamp a stable id before the move so
+          // the rebuilt header scene + selection reference the same node.
+          if (overHeader && !dragEl.id) {
+            dragEl.id = `el_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+          }
           if (overHeader && dragEl.id) {
             // Destination container: prefer the inner header content wrapper so
             // the element sits where authored header objects live.
@@ -3321,9 +3327,36 @@ export default function DesignEditor({
     const headerEl = headerRef.current;
     const bodyEl = bodyRef.current;
     if (!headerEl || !bodyEl || !layerId) return;
-    const dragEl = document.getElementById(layerId) as HTMLElement | null;
-    if (!dragEl || !bodyEl.contains(dragEl)) return;
     const store = useEditorStore.getState();
+    // Resolve the live DOM node for this scene layer. Most body objects carry
+    // their original id, so getElementById hits directly. But layers parsed
+    // from id-less markup get a *generated* scene id (`newLayerId`) that was
+    // only stamped on the detached parse, never on the live DOM — so a direct
+    // lookup misses. Fall back to document order: `legacyHtmlToScene` builds
+    // the top-level scene children from `body`'s direct `.dragable` children
+    // in order, so the layer's index in `scene.root.children` maps 1:1 to the
+    // Nth direct `.dragable` child of the live body. Without this fallback the
+    // relocation silently no-ops and the row "returns" to the body list.
+    let dragEl = document.getElementById(layerId) as HTMLElement | null;
+    if (!dragEl || !bodyEl.contains(dragEl)) {
+      const root = store.scene?.root as { children?: { id: string }[] } | undefined;
+      const idx = root?.children?.findIndex((c) => c.id === layerId) ?? -1;
+      if (idx >= 0) {
+        const topDragables = Array.from(
+          bodyEl.querySelectorAll<HTMLElement>(":scope > .dragable"),
+        );
+        dragEl = topDragables[idx] ?? null;
+      }
+    }
+    if (!dragEl || !bodyEl.contains(dragEl)) return;
+    // Ensure the relocated element has a stable id so the rebuilt header scene
+    // and the post-move selection reference the SAME node. (Generated scene
+    // ids never reach the DOM, so without this the header scene would parse a
+    // brand-new id and the select() below would target a stale id.)
+    if (!dragEl.id) {
+      dragEl.id = `el_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+    }
+    const domId = dragEl.id;
     const dest =
       (headerEl.querySelector("#hns_header_content") as HTMLElement | null) ||
       headerEl;
@@ -3346,6 +3379,8 @@ export default function DesignEditor({
     dragEl.style.setProperty("height", `${h}px`, "important");
     // Drop any temporary raised z-index that a prior canvas drag may have left.
     dragEl.style.removeProperty("z-index");
+    // Remove the layer from the body scene by its ORIGINAL scene id (layerId),
+    // which may differ from the DOM id we just ensured.
     store.remove(layerId);
     let n = 0;
     headerEl.querySelectorAll<HTMLElement>(".dragable").forEach((el) => {
@@ -3354,8 +3389,8 @@ export default function DesignEditor({
     const hStore = useEditorStore.getState();
     hStore.setHeaderScene(legacyHmfToScene(headerEl.innerHTML));
     hStore.markHeaderDirty();
-    hStore.select(layerId);
-    setSelectedElId(layerId);
+    hStore.select(domId);
+    setSelectedElId(domId);
   }, []);
 
   function applyTheme(tokens: ThemeTokens) {
