@@ -895,7 +895,8 @@
       "headerSection": "ヘッダーセクション",
       "headerSectionSub": "全ページに適用",
       "headerAdvanced": "詳細編集",
-      "headerEmpty": "ヘッダー要素がありません。"
+      "headerEmpty": "ヘッダー要素がありません。",
+      "headerDropHint": "ここにドロップしてヘッダーへ移動"
     },
     "assets": {
       "library": "アセットライブラリ",

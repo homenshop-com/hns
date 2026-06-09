@@ -94,6 +94,11 @@ interface Props {
   onOpenHeaderEdit?(): void;
   /** Open the dedicated footer edit modal — same pattern as header. */
   onOpenFooterEdit?(): void;
+  /** Relocate a BODY scene layer (by id) into the site-wide header section.
+   *  Wired to design-editor's moveBodyLayerToHeader; lets the user drag a
+   *  body section row onto the 헤더 섹션 panel to re-home it (mirrors the
+   *  canvas drag-into-header gesture). */
+  onMoveLayerToHeader?(layerId: string): void;
   /** Owner site id — used by the 에셋 tab to fetch /api/uploads/list
    *  scoped to this site. */
   siteId?: string;
@@ -130,6 +135,7 @@ export default function LeftPalette({
   onInsertAsset,
   onOpenHeaderEdit,
   onOpenFooterEdit,
+  onMoveLayerToHeader,
   siteId,
   onApplyTheme,
   currentThemeId,
@@ -525,6 +531,7 @@ export default function LeftPalette({
           onAddSectionClick={() => setTab("insert")}
           onOpenHeaderEdit={onOpenHeaderEdit}
           onOpenFooterEdit={onOpenFooterEdit}
+          onMoveLayerToHeader={onMoveLayerToHeader}
         />
       )}
 
@@ -936,10 +943,12 @@ function SectionsTab({
   onAddSectionClick,
   onOpenHeaderEdit,
   onOpenFooterEdit,
+  onMoveLayerToHeader,
 }: {
   onAddSectionClick: () => void;
   onOpenHeaderEdit?: () => void;
   onOpenFooterEdit?: () => void;
+  onMoveLayerToHeader?: (layerId: string) => void;
 }) {
   const t = useTranslations("editor");
   // Subscribe to the scene root so the list reflects every reorder /
@@ -1013,6 +1022,12 @@ function SectionsTab({
       <HeaderSectionPanel
         selectedId={selectedId}
         onOpenHeaderEdit={onOpenHeaderEdit}
+        draggingId={draggingId}
+        onMoveLayerToHeader={onMoveLayerToHeader}
+        onAfterDrop={() => {
+          setDraggingId(null);
+          setDragOverIdx(null);
+        }}
       />
 
       {/* ── 가운데 스크롤: 본문 섹션 리스트 ─────────────────────── */}
@@ -1123,12 +1138,26 @@ function SectionsTab({
 function HeaderSectionPanel({
   selectedId,
   onOpenHeaderEdit,
+  draggingId,
+  onMoveLayerToHeader,
+  onAfterDrop,
 }: {
   selectedId: string | null;
   onOpenHeaderEdit?: () => void;
+  /** id of the body section row currently being dragged (from SectionsTab),
+   *  used to show the drop affordance on this panel. */
+  draggingId?: string | null;
+  /** Relocate the dragged body layer into the header section. */
+  onMoveLayerToHeader?: (layerId: string) => void;
+  /** Reset the parent's drag state after a successful drop. */
+  onAfterDrop?: () => void;
 }) {
   const t = useTranslations("editor");
   const [tick, setTick] = useState(0);
+  // True while a body section row is being dragged over this panel — gives a
+  // clear green drop affordance (mirrors the canvas de-hmf-droptarget).
+  const [dropActive, setDropActive] = useState(false);
+  const canDrop = !!(draggingId && onMoveLayerToHeader);
   useEffect(() => {
     return useEditorStore.subscribe((s, prev) => {
       if (s.headerScene !== prev.headerScene) setTick((n) => n + 1);
@@ -1152,7 +1181,49 @@ function HeaderSectionPanel({
   };
 
   return (
-    <div className="lp-pinned-frame top">
+    <div
+      className="lp-pinned-frame top"
+      onDragOver={(e) => {
+        if (!canDrop) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        if (!dropActive) setDropActive(true);
+      }}
+      onDragLeave={(e) => {
+        // Only clear when the pointer truly leaves the panel (not when moving
+        // between child rows, which fire dragleave on the inner node).
+        if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+        setDropActive(false);
+      }}
+      onDrop={(e) => {
+        if (!canDrop) return;
+        e.preventDefault();
+        const id = e.dataTransfer.getData("text/plain") || draggingId || "";
+        setDropActive(false);
+        if (id && onMoveLayerToHeader) onMoveLayerToHeader(id);
+        onAfterDrop?.();
+      }}
+      style={
+        dropActive
+          ? { outline: "2px dashed #22c55e", outlineOffset: -2, background: "rgba(34,197,94,0.08)", borderRadius: 8 }
+          : undefined
+      }
+    >
+      {canDrop && (
+        <div
+          style={{
+            fontSize: 10,
+            color: "#22c55e",
+            padding: "0 2px 6px",
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+            fontWeight: 600,
+          }}
+        >
+          <i className="fa-solid fa-arrow-down-to-bracket" aria-hidden /> {t("sectionsTab.headerDropHint")}
+        </div>
+      )}
       <div className="lp-section-list-head" style={{ paddingTop: 2 }}>
         <div className="lp-section-list-title">
           <i className="fa-solid fa-window-maximize" aria-hidden /> {t("sectionsTab.headerSection")}

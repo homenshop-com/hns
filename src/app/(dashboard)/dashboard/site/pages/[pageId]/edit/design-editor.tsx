@@ -3303,6 +3303,51 @@ export default function DesignEditor({
     }
   }
 
+  /** Relocate a BODY scene layer into the site-wide header section by id.
+   *  This is the LEFT-PANEL counterpart to the canvas drag-into-header
+   *  gesture (see onEnd → Goal 2): the user drags a 본문 섹션 row onto the
+   *  헤더 섹션 panel. Same relocation contract — move the DOM node into
+   *  #hns_header_content, pin geometry !important (header objects must beat
+   *  boosted page CSS), drop it from the body scene, rebuild the header scene
+   *  and mark it dirty so the site-wide save fires. We place it near the
+   *  header's top-left (the body coords are meaningless inside the header) so
+   *  the user can immediately see and fine-tune it. */
+  const moveBodyLayerToHeader = useCallback((layerId: string) => {
+    const headerEl = headerRef.current;
+    const bodyEl = bodyRef.current;
+    if (!headerEl || !bodyEl || !layerId) return;
+    const dragEl = document.getElementById(layerId) as HTMLElement | null;
+    if (!dragEl || !bodyEl.contains(dragEl)) return;
+    const store = useEditorStore.getState();
+    const dest =
+      (headerEl.querySelector("#hns_header_content") as HTMLElement | null) ||
+      headerEl;
+    const w = dragEl.offsetWidth;
+    const h = dragEl.offsetHeight;
+    const curLeft = parseInt(dragEl.style.left) || 0;
+    const newLeft = Math.max(0, curLeft);
+    const newTop = 20;
+    multiSelectedRef.current.clear();
+    dest.appendChild(dragEl);
+    dragEl.style.setProperty("position", "absolute", "important");
+    dragEl.style.setProperty("left", `${newLeft}px`, "important");
+    dragEl.style.setProperty("top", `${newTop}px`, "important");
+    dragEl.style.setProperty("width", `${w}px`, "important");
+    dragEl.style.setProperty("height", `${h}px`, "important");
+    // Drop any temporary raised z-index that a prior canvas drag may have left.
+    dragEl.style.removeProperty("z-index");
+    store.remove(layerId);
+    let n = 0;
+    headerEl.querySelectorAll<HTMLElement>(".dragable").forEach((el) => {
+      if (!el.id) el.id = `hmf_${Date.now().toString(36)}_${(n++).toString(36)}`;
+    });
+    const hStore = useEditorStore.getState();
+    hStore.setHeaderScene(legacyHmfToScene(headerEl.innerHTML));
+    hStore.markHeaderDirty();
+    hStore.select(layerId);
+    setSelectedElId(layerId);
+  }, []);
+
   function applyTheme(tokens: ThemeTokens) {
     const block = buildThemeCssBlock(tokens);
     const css = currentPageCss ?? "";
@@ -4285,6 +4330,7 @@ export default function DesignEditor({
             onInsertAsset={(url) => addImageAsset(url)}
             onOpenHeaderEdit={() => setShowHeaderEdit(true)}
             onOpenFooterEdit={() => setShowFooterEdit(true)}
+            onMoveLayerToHeader={moveBodyLayerToHeader}
             siteId={siteId}
             onApplyTheme={applyTheme}
             currentThemeId={currentThemeId}

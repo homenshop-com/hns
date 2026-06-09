@@ -909,7 +909,8 @@
       "headerSection": "Header Section",
       "headerSectionSub": "Applies to all pages",
       "headerAdvanced": "Advanced",
-      "headerEmpty": "No header elements."
+      "headerEmpty": "No header elements.",
+      "headerDropHint": "Drop here to move to header"
     },
     "assets": {
       "library": "Asset Library",

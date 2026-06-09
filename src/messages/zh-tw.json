@@ -895,7 +895,8 @@
       "headerSection": "頁首區塊",
       "headerSectionSub": "套用到所有頁面",
       "headerAdvanced": "進階編輯",
-      "headerEmpty": "沒有頁首元素。"
+      "headerEmpty": "沒有頁首元素。",
+      "headerDropHint": "拖放到此處移動到頁首"
     },
     "assets": {
       "library": "素材庫",

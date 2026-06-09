@@ -895,7 +895,8 @@
       "headerSection": "Sección de encabezado",
       "headerSectionSub": "Se aplica a todas las páginas",
       "headerAdvanced": "Avanzado",
-      "headerEmpty": "Sin elementos de encabezado."
+      "headerEmpty": "Sin elementos de encabezado.",
+      "headerDropHint": "Suelta aquí para mover al encabezado"
     },
     "assets": {
       "library": "Biblioteca de recursos",
