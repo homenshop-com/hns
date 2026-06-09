@@ -891,7 +891,11 @@
       "actionUp": "上移",
       "actionDown": "下移",
       "actionDuplicate": "複製",
-      "actionDelete": "刪除"
+      "actionDelete": "刪除",
+      "headerSection": "頁首區塊",
+      "headerSectionSub": "套用到所有頁面",
+      "headerAdvanced": "進階編輯",
+      "headerEmpty": "沒有頁首元素。"
     },
     "assets": {
       "library": "素材庫",

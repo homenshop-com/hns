@@ -21,7 +21,7 @@ import { useTranslations } from "next-intl";
 import { SECTION_PRESETS } from "./section-library";
 import { FONT_CATALOG, FONT_CATEGORIES } from "./font-catalog";
 import { THEME_PRESETS, THEME_CATEGORIES, type ThemePreset } from "./theme-presets";
-import { useEditorStore, selectRoot } from "../store/editor-store";
+import { useEditorStore, selectRoot, selectHeaderRoot } from "../store/editor-store";
 import type { Layer } from "@/lib/scene";
 
 type ShapeKind =
@@ -146,7 +146,9 @@ export default function LeftPalette({
   onUndoAi,
 }: Props) {
   const t = useTranslations("editor");
-  const [tab, setTab] = useState<"insert" | "sections" | "assets" | "theme" | "ai">("insert");
+  // Default to the 섹션 (Sections) tab — it's the primary page-structure
+  // view (header section + body sections + footer) the user lands on.
+  const [tab, setTab] = useState<"insert" | "sections" | "assets" | "theme" | "ai">("sections");
   const [query, setQuery] = useState("");
   const [shapePopoverOpen, setShapePopoverOpen] = useState(false);
   const aiRef = useRef<HTMLTextAreaElement>(null);
@@ -1007,23 +1009,11 @@ function SectionsTab({
    * 진입점은 항상 보임. */
   return (
     <div className="lp-section-tab">
-      {/* ── 상단 고정: 헤더 편집 ─────────────────────────────────── */}
-      {onOpenHeaderEdit && (
-        <div className="lp-pinned-frame top">
-          <button type="button" onClick={onOpenHeaderEdit} className="lp-frame-btn header" style={frameRowBtn}>
-            <span style={{ ...frameRowIcon, background: "#2a79ff" }}>
-              <i className="fa-solid fa-window-maximize" />
-            </span>
-            <span style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600 }}>{t("sectionsTab.headerEdit")}</div>
-              <div style={{ fontSize: 10, color: "#888", marginTop: 2 }}>
-                {t("sectionsTab.headerEditSub")}
-              </div>
-            </span>
-            <i className="fa-solid fa-chevron-right" style={{ color: "#666", fontSize: 11 }} />
-          </button>
-        </div>
-      )}
+      {/* ── 상단 고정: 헤더 섹션 (본문 섹션과 동일한 관리 UI) ──────── */}
+      <HeaderSectionPanel
+        selectedId={selectedId}
+        onOpenHeaderEdit={onOpenHeaderEdit}
+      />
 
       {/* ── 가운데 스크롤: 본문 섹션 리스트 ─────────────────────── */}
       <div className="lp-section-scroll">
@@ -1116,6 +1106,139 @@ function SectionsTab({
       )}
     </div>
   );
+}
+
+/* ─── 헤더 섹션 패널 (섹션 탭 상단 고정) ───────────────────────────────
+ *
+ * 헤더 객체(로고 · 메뉴 · 텍스트 · 언어 등)를 본문 섹션과 동일한 방식으로
+ * 왼쪽 패널에서 직접 관리한다. headerScene 의 top-level 자식을 행으로
+ * 나열하며, 각 행은:
+ *   - 클릭 → 해당 헤더 객체 선택 (캔버스 하이라이트 + 인스펙터 편집)
+ *   - 🗑   → 삭제 (scene 제거 → design-editor 가 헤더 DOM 노드도 prune,
+ *            사이트 전체 저장에 반영)
+ * 헤더 객체는 절대좌표 배치라 본문 섹션과 달리 순서(↑↓)·복제는 제공하지
+ * 않는다. "고급 편집" 버튼은 기존 HeaderEditModal 을 연다.
+ *
+ * 모든 편집은 모든 페이지에 동시 적용된다(헤더는 사이트 단위 저장). */
+function HeaderSectionPanel({
+  selectedId,
+  onOpenHeaderEdit,
+}: {
+  selectedId: string | null;
+  onOpenHeaderEdit?: () => void;
+}) {
+  const t = useTranslations("editor");
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    return useEditorStore.subscribe((s, prev) => {
+      if (s.headerScene !== prev.headerScene) setTick((n) => n + 1);
+    });
+  }, []);
+
+  const objects = useMemo(() => {
+    const root = selectHeaderRoot(useEditorStore.getState());
+    return (root?.children ?? []).filter((c) => c.type !== "inline");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tick]);
+
+  const onRowClick = (id: string) => {
+    useEditorStore.getState().select(id);
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+  const del = (id: string) => {
+    if (!confirm(t("sectionsTab.confirmDelete"))) return;
+    useEditorStore.getState().remove(id);
+  };
+
+  return (
+    <div className="lp-pinned-frame top">
+      <div className="lp-section-list-head" style={{ paddingTop: 2 }}>
+        <div className="lp-section-list-title">
+          <i className="fa-solid fa-window-maximize" aria-hidden /> {t("sectionsTab.headerSection")}
+          {objects.length > 0 && (
+            <span className="lp-section-count">{objects.length}</span>
+          )}
+        </div>
+        {onOpenHeaderEdit && (
+          <button
+            type="button"
+            onClick={onOpenHeaderEdit}
+            className="lp-section-add-btn"
+            title={t("sectionsTab.headerAdvanced")}
+          >
+            <i className="fa-solid fa-sliders" /> {t("sectionsTab.headerAdvanced")}
+          </button>
+        )}
+      </div>
+      <div style={{ fontSize: 10, color: "#7a5af8", padding: "0 2px 6px", display: "flex", alignItems: "center", gap: 4 }}>
+        <i className="fa-solid fa-globe" aria-hidden /> {t("sectionsTab.headerSectionSub")}
+      </div>
+      {objects.length === 0 ? (
+        <div className="lp-empty-sub" style={{ padding: "2px 2px 4px" }}>
+          {t("sectionsTab.headerEmpty")}
+        </div>
+      ) : (
+        <ol className="lp-section-list lp-header-object-list">
+          {objects.map((o) => (
+            <li
+              key={o.id}
+              onClick={() => onRowClick(o.id)}
+              style={{
+                position: "relative",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "7px 8px",
+                background: o.id === selectedId ? "rgba(42,121,255,0.15)" : "#1a1c24",
+                border: o.id === selectedId ? "1px solid #2a79ff" : "1px solid #2a2d3a",
+                borderRadius: 6,
+                cursor: "pointer",
+                userSelect: "none",
+              }}
+            >
+              <span style={{ ...frameRowIcon, width: 18, height: 18, background: "#2a79ff", fontSize: 9 }}>
+                <i className={`fa-solid ${headerObjectIcon(o)}`} />
+              </span>
+              <span
+                title={o.name}
+                style={{
+                  flex: 1,
+                  fontSize: 12,
+                  color: "#e8eaf2",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {o.name}
+              </span>
+              <RowBtn
+                icon="fa-trash"
+                title={t("sectionsTab.actionDelete")}
+                danger
+                onClick={(e) => {
+                  e.stopPropagation();
+                  del(o.id);
+                }}
+              />
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
+
+/** Pick a Font Awesome glyph that hints at the header object's kind. */
+function headerObjectIcon(layer: Layer): string {
+  switch (layer.type) {
+    case "image": return "fa-image";
+    case "text": return "fa-font";
+    case "menu": return "fa-bars";
+    case "group": return "fa-object-group";
+    default: return "fa-square";
+  }
 }
 
 function SectionRow({

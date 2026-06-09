@@ -905,7 +905,11 @@
       "actionUp": "위로",
       "actionDown": "아래로",
       "actionDuplicate": "복제",
-      "actionDelete": "삭제"
+      "actionDelete": "삭제",
+      "headerSection": "헤더 섹션",
+      "headerSectionSub": "모든 페이지에 적용",
+      "headerAdvanced": "고급 편집",
+      "headerEmpty": "헤더에 요소가 없습니다."
     },
     "assets": {
       "library": "에셋 라이브러리",

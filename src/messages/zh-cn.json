@@ -891,7 +891,11 @@
       "actionUp": "上移",
       "actionDown": "下移",
       "actionDuplicate": "复制",
-      "actionDelete": "删除"
+      "actionDelete": "删除",
+      "headerSection": "页眉区块",
+      "headerSectionSub": "应用到所有页面",
+      "headerAdvanced": "高级编辑",
+      "headerEmpty": "没有页眉元素。"
     },
     "assets": {
       "library": "素材库",

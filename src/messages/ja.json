@@ -891,7 +891,11 @@
       "actionUp": "上へ",
       "actionDown": "下へ",
       "actionDuplicate": "複製",
-      "actionDelete": "削除"
+      "actionDelete": "削除",
+      "headerSection": "ヘッダーセクション",
+      "headerSectionSub": "全ページに適用",
+      "headerAdvanced": "詳細編集",
+      "headerEmpty": "ヘッダー要素がありません。"
     },
     "assets": {
       "library": "アセットライブラリ",

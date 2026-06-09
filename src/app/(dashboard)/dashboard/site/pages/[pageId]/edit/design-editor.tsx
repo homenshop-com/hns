@@ -621,8 +621,31 @@ export default function DesignEditor({
       // Header scene → raw-injected header DOM (property edits only; geometry
       // stays owned by the live drag + @media path). Site-wide persistence.
       if (s.headerScene !== lastHeaderScene && headerRef.current) {
+        const prevHeaderScene = lastHeaderScene;
         lastHeaderScene = s.headerScene;
         if (s.headerScene) {
+          // Surgical DOM prune: when a header object is removed from the scene
+          // (LayerPanel / 섹션 tab delete), the raw-injected header DOM node
+          // must also go so the site-wide save (innerHTML) drops it. We remove
+          // ONLY ids that existed in the previous header scene but are absent
+          // from the new one — never a blanket prune — because header objects
+          // can contain nested .dragable children not tracked as scene layers.
+          if (prevHeaderScene && headerSeeded) {
+            const newIds = new Set<string>();
+            const gather = (l: { id: string; children?: unknown[] }) => {
+              newIds.add(l.id);
+              (l.children as typeof l[] | undefined)?.forEach(gather);
+            };
+            gather(s.headerScene.root as unknown as { id: string; children?: unknown[] });
+            const prune = (l: { id: string; children?: unknown[] }) => {
+              (l.children as typeof l[] | undefined)?.forEach(prune);
+              if (!newIds.has(l.id)) {
+                const node = headerRef.current?.querySelector<HTMLElement>(`#${CSS.escape(l.id)}`);
+                if (node) node.remove();
+              }
+            };
+            prune(prevHeaderScene.root as unknown as { id: string; children?: unknown[] });
+          }
           syncHeaderSceneToDom(s.headerScene, headerRef.current, { isInitialLoad: !headerSeeded });
           headerSeeded = true;
         }

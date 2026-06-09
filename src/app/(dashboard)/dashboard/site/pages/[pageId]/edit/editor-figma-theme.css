@@ -2063,6 +2063,15 @@ body:has(.inspector-rail) .de-canvas-wrapper {
 .lp-frame-btn { transition: background 0.12s, border-color 0.12s; }
 .lp-frame-btn:hover { background: var(--fig-bg-3) !important; }
 
+/* 헤더 섹션 객체 리스트 — 항목이 많아도 상단 프레임이 본문 섹션 리스트를
+   밀어내지 않도록 자체 스크롤(최대 높이)을 둔다. */
+.lp-header-object-list {
+  max-height: 30vh;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+}
+
 /* Middle zone — body sections list. Scrolls when content overflows. */
 .lp-section-scroll {
   flex: 1 1 auto;

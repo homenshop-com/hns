@@ -891,7 +891,11 @@
       "actionUp": "Subir",
       "actionDown": "Bajar",
       "actionDuplicate": "Duplicar",
-      "actionDelete": "Eliminar"
+      "actionDelete": "Eliminar",
+      "headerSection": "Sección de encabezado",
+      "headerSectionSub": "Se aplica a todas las páginas",
+      "headerAdvanced": "Avanzado",
+      "headerEmpty": "Sin elementos de encabezado."
     },
     "assets": {
       "library": "Biblioteca de recursos",

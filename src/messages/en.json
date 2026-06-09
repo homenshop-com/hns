@@ -905,7 +905,11 @@
       "actionUp": "Up",
       "actionDown": "Down",
       "actionDuplicate": "Duplicate",
-      "actionDelete": "Delete"
+      "actionDelete": "Delete",
+      "headerSection": "Header Section",
+      "headerSectionSub": "Applies to all pages",
+      "headerAdvanced": "Advanced",
+      "headerEmpty": "No header elements."
     },
     "assets": {
       "library": "Asset Library",
