@@ -2014,7 +2014,20 @@ export async function GET(
 </html>`;
 
   // Migrate legacy wowasp_ prefixed IDs to hns_
-  const migratedHtml = html.replace(/wowaspfoot/g, "hnsfoot").replace(/wowasp_/g, "hns_");
+  let migratedHtml = html.replace(/wowaspfoot/g, "hnsfoot").replace(/wowasp_/g, "hns_");
+
+  // Full white-label: on a reseller `home.{domain}` host, rewrite any absolute
+  // managed-host asset URLs baked into the STORED content (logos/icons inserted
+  // as https://home.homenshop.com/{shopId}/...) to the reseller host, so the
+  // page source carries zero homenshop.com references. That host serves the
+  // same /{shopId}/uploaded paths via the multi-tenant snippet, so they resolve.
+  if (isResellerHome) {
+    for (const leakHost of ["home.homenshop.com", getTempDomain(site)]) {
+      if (leakHost && leakHost !== tempDomain) {
+        migratedHtml = migratedHtml.split(`//${leakHost}/`).join(`//${tempDomain}/`);
+      }
+    }
+  }
 
   return new NextResponse(migratedHtml, {
     status: 200,
