@@ -30,7 +30,24 @@
   display: flex;
   align-items: center;
   gap: 0;
+  /* Let the page-tab strip shrink + scroll instead of pushing the right-hand
+     Save/Publish group off the edge on smaller screens. */
+  min-width: 0;
+  flex: 0 1 auto;
 }
+/* Page-tab strip — scrolls horizontally when there are many pages so it never
+   steals width from the toolbar actions. */
+.de-header-pagetabs {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  scrollbar-width: thin;
+}
+.de-header-pagetabs::-webkit-scrollbar { height: 4px; }
+.de-header-pagetabs::-webkit-scrollbar-thumb { background: #3a3a55; border-radius: 2px; }
+.de-header-pagetab { flex-shrink: 0; white-space: nowrap; }
 .de-logo {
   font-size: 16px;
   font-weight: 700;
@@ -813,6 +830,44 @@
 }
 .de-modal-btn.secondary:hover {
   background: #e0e0e0;
+}
+
+/* ── Small-laptop topbar: split into 2 rows ──
+   On laptops (≤1366px) the single-row topbar (logo + page tabs + 본문/헤더푸터
+   토글 + PC/Tablet/Mobile + URL + Undo/Redo + 저장 + 퍼블리시 + ⋯) overflows and
+   the Save/Publish buttons get pushed off-screen. Wrap into two rows:
+     Row 1 → logo + page tabs (scrollable)
+     Row 2 → editing-target toggle + viewport + URL + history + Save/Publish
+   The centered toggle is absolutely positioned for the wide layout; here it
+   rejoins normal flow so it sits on row 2 next to the actions. */
+@media (max-width: 1366px) {
+  .de-header {
+    flex-wrap: wrap;
+    height: auto;
+    align-items: center;
+    padding: 4px 12px;
+    row-gap: 4px;
+  }
+  .de-header-left {
+    order: 1;
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  .de-header-center {
+    order: 2;
+    position: static;
+    left: auto;
+    transform: none;
+    pointer-events: auto;
+    flex: 0 0 auto;
+    margin-right: auto; /* push the actions to the far right of row 2 */
+  }
+  .de-header-right {
+    order: 3;
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: flex-end;
+  }
 }
 
 /* ── Mobile Responsive ── */
