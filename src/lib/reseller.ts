@@ -56,6 +56,29 @@ export async function isResellerHomeHost(
   return !!r;
 }
 
+export type ResellerHomeBranding = { domain: string; siteName: string };
+
+/**
+ * Like {@link isResellerHomeHost} but returns the reseller's brand (domain +
+ * site name) for a `home.{domain}` host, or null. Used by the published route
+ * to render white-label expired / "not found" / preparing pages — so a
+ * reseller member-site host NEVER shows the homeNshop brand or links to
+ * homenshop.com / .net. Cheap for non-`home.` hosts (no DB).
+ */
+export async function getResellerHomeBranding(
+  host: string | null | undefined,
+): Promise<ResellerHomeBranding | null> {
+  const norm = normalizeHost(host ?? null);
+  if (!norm || !norm.startsWith("home.")) return null;
+  const base = norm.slice("home.".length);
+  if (!base) return null;
+  const r = await prisma.reseller.findFirst({
+    where: { domain: base, isActive: true },
+    select: { domain: true, siteName: true },
+  });
+  return r ? { domain: r.domain, siteName: r.siteName } : null;
+}
+
 /**
  * Resolve white-label branding for the current request's Host header.
  *

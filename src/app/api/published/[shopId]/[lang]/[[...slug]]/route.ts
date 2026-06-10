@@ -14,7 +14,7 @@ import {
 } from "@/lib/seo-jsonld";
 import { isSiteExpired } from "@/lib/site-expiration";
 import { getTempDomain, isManagedTempHost } from "@/lib/temp-domains";
-import { isResellerHomeHost } from "@/lib/reseller";
+import { isResellerHomeHost, getResellerHomeBranding } from "@/lib/reseller";
 import {
   DEVICE_MEDIA_COMMENT_MARK,
   stripPinnedGeometryCss,
@@ -22,11 +22,19 @@ import {
   stripFooterPinnedTop,
 } from "@/lib/scene";
 
-function renderExpiredPage(shopId: string, name: string): string {
+function renderExpiredPage(
+  shopId: string,
+  name: string,
+  reseller?: { domain: string; siteName: string } | null,
+): string {
   const safeName = name.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  // White-label: on a reseller member-site host, brand + links point to the
+  // reseller — never homeNshop / homenshop.net.
+  const brandName = reseller ? reseller.siteName.replace(/</g, "&lt;") : "homeNshop";
+  const homeBase = reseller ? `https://${reseller.domain}` : "https://homenshop.net";
   return `<!DOCTYPE html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${safeName} - 체험 기간이 종료되었습니다</title>
+<title>${safeName || brandName} - 이용할 수 없는 사이트</title>
 <meta name="robots" content="noindex">
 <style>
   body{margin:0;font-family:'Pretendard','Apple SD Gothic Neo',sans-serif;background:#f8fafc;color:#334155;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
@@ -40,10 +48,10 @@ function renderExpiredPage(shopId: string, name: string): string {
 </style></head>
 <body><div class="card">
   <div class="icon">⏳</div>
-  <h1>체험 기간이 종료되었습니다</h1>
-  <p>이 홈페이지의 무료 체험 기간이 만료되어 더 이상 공개되지 않습니다.<br>사이트 소유자님은 로그인 후 플랜을 업그레이드하여 계속 사용하실 수 있습니다.</p>
-  <a href="https://homenshop.net/pricing" class="btn">요금제 보기</a>
-  <a href="https://homenshop.net/login" class="btn secondary">로그인</a>
+  <h1>이 사이트는 현재 이용할 수 없습니다</h1>
+  <p>요청하신 홈페이지의 이용 기간이 만료되어 더 이상 공개되지 않습니다.<br>사이트 소유자님은 로그인 후 플랜을 업그레이드하여 계속 사용하실 수 있습니다.</p>
+  <a href="${homeBase}/pricing" class="btn">요금제 보기</a>
+  <a href="${homeBase}/login" class="btn secondary">로그인</a>
   <div class="shop">shopId: ${shopId}</div>
 </div></body></html>`;
 }
@@ -60,8 +68,14 @@ function renderExpiredPage(shopId: string, name: string): string {
  * a misleading message for a brand-new site. Returning 200 keeps
  * nginx from falling through.
  */
-function renderPreparingPage(shopId: string, name: string, refresh = true): string {
+function renderPreparingPage(
+  shopId: string,
+  name: string,
+  refresh = true,
+  reseller?: { domain: string; siteName: string } | null,
+): string {
   const safeName = name.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const dashboardUrl = reseller ? `https://${reseller.domain}/dashboard` : "https://homenshop.net/dashboard";
   return `<!DOCTYPE html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${safeName} - 사이트 준비 중</title>
@@ -81,7 +95,7 @@ ${refresh ? '<meta http-equiv="refresh" content="6">' : ""}
   <div class="spinner"></div>
   <h1>사이트가 준비 중입니다</h1>
   <p>${safeName}을(를) 게시 중이에요. 잠시 후 자동으로 새로고침됩니다.<br>오랫동안 이 화면이 보인다면 사이트 소유자에게 문의하세요.</p>
-  <a href="https://homenshop.net/dashboard" class="btn">대시보드로</a>
+  <a href="${dashboardUrl}" class="btn">대시보드로</a>
   <div class="shop">shopId: ${shopId}</div>
 </div></body></html>`;
 }
@@ -892,7 +906,10 @@ export async function GET(
   // /{shopId}/...), NOT per-site custom domains — keep the /{shopId} prefix so
   // internal links don't lose the shopId (which caused shopless `/ko/*.html`
   // URLs → wrong-lang redirect loop on reseller member-site hosts).
-  const isResellerHome = !!hostHeader && (await isResellerHomeHost(hostHeader));
+  // Reseller member-site host branding (null on non-reseller hosts). Drives
+  // both multi-tenant routing AND white-label expired/preparing pages.
+  const resellerHomeBrand = hostHeader ? await getResellerHomeBranding(hostHeader) : null;
+  const isResellerHome = !!resellerHomeBrand;
   const isCustomDomain =
     !!hostHeader && !isManagedTempHost(hostHeader) && !isResellerHome;
   const urlPrefix = isCustomDomain ? "" : `/${shopId}`;
@@ -910,6 +927,15 @@ export async function GET(
   });
 
   if (!site) {
+    // On a reseller member-site host, never let nginx fall through to the
+    // homeNshop-branded static /expired.html. Serve a white-label page with a
+    // status nginx does NOT intercept (410, not 404).
+    if (resellerHomeBrand) {
+      return new NextResponse(renderExpiredPage(shopId, "", resellerHomeBrand), {
+        status: 410,
+        headers: { "content-type": "text/html; charset=utf-8" },
+      });
+    }
     return new NextResponse("Not Found", { status: 404 });
   }
 
@@ -924,7 +950,7 @@ export async function GET(
     ? hostHeader.split(":")[0].toLowerCase()
     : getTempDomain(site);
   if (isSiteExpired(site)) {
-    return new NextResponse(renderExpiredPage(shopId, site.name), {
+    return new NextResponse(renderExpiredPage(shopId, site.name, resellerHomeBrand), {
       status: 410,
       headers: { "content-type": "text/html; charset=utf-8" },
     });
@@ -935,7 +961,7 @@ export async function GET(
     // serve the legacy /expired.html — which says "계정이 만료되어
     // 삭제되었습니다". That's a flat-out lie for a brand-new site, so we
     // serve a "준비 중" page with a 200 instead.
-    return new NextResponse(renderPreparingPage(shopId, site.name), {
+    return new NextResponse(renderPreparingPage(shopId, site.name, true, resellerHomeBrand), {
       status: 200,
       headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
     });
@@ -973,7 +999,7 @@ export async function GET(
     // A fresh site that just had its Site row inserted but pages still
     // racing to commit hits this branch. Serve "준비 중" instead of a
     // 404 that nginx will replace with the legacy expired.html.
-    return new NextResponse(renderPreparingPage(shopId, site.name), {
+    return new NextResponse(renderPreparingPage(shopId, site.name, true, resellerHomeBrand), {
       status: 200,
       headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
     });
