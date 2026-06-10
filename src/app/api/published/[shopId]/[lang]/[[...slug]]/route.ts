@@ -1041,14 +1041,26 @@ export async function GET(
   // Get page-specific CSS — boost position/size properties with !important
   // so they override site-upgrade.css !important rules (pageCss is page-specific)
   const rawPageCss = (page as any).css || "";
-  // Strip base-level geometry that the rendered body owns inline (drag/resize
+  // Strip base-level geometry that an inline-positioned element owns (drag/resize
   // wrote it as plain inline). Without this the boosted page-CSS rule
-  // `#id{left:..!important}` beats the element's plain inline value, so a
-  // dragged body object snaps back to its old CSS position. Device `@media`
-  // blocks are preserved. Mirrors the editor canvas (collectSceneGeometryOwners).
+  // `#id{left:..!important}` beats the element's plain inline value, so the
+  // object snaps back to its old CSS position.
+  //
+  // Owners must include BOTH the body AND the raw HMF (header/menu/footer) HTML.
+  // HMF objects (logo, nav `#v-wdg-nav`, header/footer images) are pinned via
+  // SiteHmf inline styles shared across all pages, but per-page CSS can carry
+  // legacy `#id{left:..!important}` rules with stale coordinates. The editor
+  // canvas strips those (design-editor.tsx collectInlineGeometryOwners over
+  // header+menu+footer), so the editor shows the inline position — but the
+  // published route previously scanned only `bodyHtml`, leaving the stale CSS
+  // to win and shifting header objects (e.g. the nav 26px right of the editor),
+  // which desynced sushi-icon ↔ menu alignment. Scan the HMF HTML too so the
+  // inline geometry governs in BOTH places. Device `@media` blocks preserved.
   const strippedPageCss = stripPinnedGeometryCss(
     rawPageCss,
-    collectInlineGeometryOwners(bodyHtml),
+    collectInlineGeometryOwners(
+      bodyHtml + siteHeaderHtml + siteMenuHtml + siteFooterHtml,
+    ),
   );
   let pageCss = strippedPageCss.replace(
     /(\b(?:top|left|width|height|display|position|z-index)\s*:\s*)([^;!}]+)(;|})/gi,
