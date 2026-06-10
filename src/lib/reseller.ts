@@ -32,6 +32,31 @@ function normalizeHost(host: string | null): string | null {
 }
 
 /**
+ * True when `host` is a reseller's MULTI-TENANT member-site host —
+ * `home.{active reseller domain}` (e.g. home.webnshop.com.au). These hosts
+ * serve published member sites path-based (`/{shopId}/{lang}/...`), exactly
+ * like home.homenshop.com, so the published route must treat them as managed
+ * temp hosts (NOT per-site custom domains) — otherwise it drops the `/{shopId}`
+ * URL prefix and internal links break (lose shopId, wrong lang → redirect loop).
+ *
+ * Cheap for non-`home.` hosts (string check, no DB). Only hits the DB when the
+ * host actually starts with `home.`.
+ */
+export async function isResellerHomeHost(
+  host: string | null | undefined,
+): Promise<boolean> {
+  const norm = normalizeHost(host ?? null);
+  if (!norm || !norm.startsWith("home.")) return false;
+  const base = norm.slice("home.".length);
+  if (!base) return false;
+  const r = await prisma.reseller.findFirst({
+    where: { domain: base, isActive: true },
+    select: { id: true },
+  });
+  return !!r;
+}
+
+/**
  * Resolve white-label branding for the current request's Host header.
  *
  * Mirrors the legacy lib/global.php behaviour (`select * from reseller where

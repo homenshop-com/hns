@@ -14,6 +14,7 @@ import {
 } from "@/lib/seo-jsonld";
 import { isSiteExpired } from "@/lib/site-expiration";
 import { getTempDomain, isManagedTempHost } from "@/lib/temp-domains";
+import { isResellerHomeHost } from "@/lib/reseller";
 import {
   DEVICE_MEDIA_COMMENT_MARK,
   stripPinnedGeometryCss,
@@ -859,9 +860,12 @@ export async function GET(
     const defaultLang = siteForLang?.defaultLanguage || "ko";
     const hostHeader = request.headers.get("host") || "";
     // Custom domain = NOT one of our managed multi-tenant temp hosts.
-    // Both home.homenshop.com and aesthetic.helper.so route by /{shopId},
-    // so neither should be treated as a per-site bound custom domain.
-    const isCustomDomain = !!hostHeader && !isManagedTempHost(hostHeader);
+    // home.homenshop.com, aesthetic.helper.so AND reseller `home.{domain}`
+    // hosts all route by /{shopId}, so none is a per-site bound custom domain.
+    const isCustomDomain =
+      !!hostHeader &&
+      !isManagedTempHost(hostHeader) &&
+      !(await isResellerHomeHost(hostHeader));
     const prefix = isCustomDomain ? "" : `/${shopId}`;
     const slugPath = slug?.join("/") || "";
     const qs = url.search || "";
@@ -884,7 +888,14 @@ export async function GET(
   // are bound 1:1 to a site so they omit /{shopId} from URLs; managed
   // temp hosts multiplex many sites under /{shopId}/{lang}/.
   const hostHeader = request.headers.get("host") || request.headers.get("x-forwarded-host") || "";
-  const isCustomDomain = !!hostHeader && !isManagedTempHost(hostHeader);
+  // Reseller `home.{domain}` hosts are managed multi-tenant hosts (path-based
+  // /{shopId}/...), NOT per-site custom domains — keep the /{shopId} prefix so
+  // internal links don't lose the shopId (which caused shopless `/ko/*.html`
+  // URLs → wrong-lang redirect loop on reseller member-site hosts).
+  const isCustomDomain =
+    !!hostHeader &&
+    !isManagedTempHost(hostHeader) &&
+    !(await isResellerHomeHost(hostHeader));
   const urlPrefix = isCustomDomain ? "" : `/${shopId}`;
 
   // Find the site by shopId with lang-filtered pages and HMF translations
