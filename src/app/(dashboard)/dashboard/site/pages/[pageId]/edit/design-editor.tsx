@@ -84,6 +84,35 @@ const FooterEditModal = lazy(() => import("./components/FooterEditModal"));
  *  as JSON so the user can paste into another tab of the same editor. */
 let v2Clipboard: unknown[] = [];
 
+/** Editor-only transient classes that must never be saved into the site-wide
+ *  HMF HTML nor count as a "change" when diffing for save. */
+const HMF_TRANSIENT_CLASSES = [
+  "de-selected",
+  "de-editing",
+  "de-text-editing",
+  "de-hmf-droptarget",
+];
+
+/**
+ * Normalized signature of an HMF container's content — its innerHTML with
+ * editor-only selection/edit classes and `contenteditable` stripped. Used to
+ * (a) detect whether the header/footer was actually edited this session (so a
+ * page that didn't touch it can't clobber the site-wide copy), and (b) produce
+ * a clean value to persist (no `de-selected` leaking into the published page).
+ */
+function hmfSignature(el: HTMLElement | null): string {
+  if (!el) return "";
+  const clone = el.cloneNode(true) as HTMLElement;
+  clone
+    .querySelectorAll<HTMLElement>(HMF_TRANSIENT_CLASSES.map((c) => `.${c}`).join(","))
+    .forEach((n) => {
+      HMF_TRANSIENT_CLASSES.forEach((c) => n.classList.remove(c));
+      if (!n.getAttribute("class")) n.removeAttribute("class");
+    });
+  clone.querySelectorAll("[contenteditable]").forEach((n) => n.removeAttribute("contenteditable"));
+  return clone.innerHTML;
+}
+
 /* ─── Types ─── */
 export interface LayerData {
   id: string;
@@ -535,6 +564,16 @@ export default function DesignEditor({
   const menuInitedRef = useRef(false);
   const footerInitedRef = useRef(false);
 
+  /* ─── HMF baseline signatures (header/footer are SITE-WIDE) ───
+   * The header/footer are shared across every page. Saving a page used to
+   * ALWAYS write the site-wide header/footer back, so opening page B (which
+   * loaded the header BEFORE page A's edit) and saving it would clobber page
+   * A's header edits with B's stale copy. We capture the header/footer DOM
+   * signature at load and only re-save them when THIS page actually changed
+   * them — so a page that never touched the header can't overwrite it. */
+  const initialHeaderSigRef = useRef<string>("");
+  const initialFooterSigRef = useRef<string>("");
+
   /* ─── HMF per-device geometry (Wix-style 3-mode independence) ───
    * HMF blocks are raw-injected, not part of the scene graph, so their
    * per-device overrides can't live on scene layers. Instead we keep them in
@@ -875,6 +914,9 @@ export default function DesignEditor({
         });
         useEditorStore.getState().setHeaderScene(legacyHmfToScene(headerRef.current.innerHTML));
       }
+      // Baseline for the site-wide clobber guard (see save). Captured AFTER
+      // all load-time normalization/id-stamping so an untouched save matches.
+      initialHeaderSigRef.current = hmfSignature(headerRef.current);
     }
   }, [headerHtml, editorV2Enabled]);
 
@@ -939,6 +981,7 @@ export default function DesignEditor({
         });
         useEditorStore.getState().setFooterScene(legacyHmfToScene(footerRef.current.innerHTML));
       }
+      initialFooterSigRef.current = hmfSignature(footerRef.current);
     }
   }, [footerHtml, editorV2Enabled]);
 
@@ -1113,28 +1156,53 @@ export default function DesignEditor({
         // Auto menu mode: save empty menuHtml so published route generates dynamically
         // Custom menu mode: save current DOM menuHtml
         const menuHtmlToSave = menuMode === "auto" ? "" : (mEl ? mEl.innerHTML : undefined);
-        const headerHtmlToSave = hEl ? hEl.innerHTML : undefined;
-        const footerHtmlToSave = fEl ? fEl.innerHTML : undefined;
+        // Header/footer are SITE-WIDE. Only re-save them when THIS page actually
+        // changed them (signature differs from what it loaded) — otherwise a
+        // page that never touched the header would overwrite the shared copy
+        // with its now-stale version, wiping header edits made on another page.
+        // The signature is also the cleaned value we persist (no editor-only
+        // `de-selected` / contenteditable leaking into the published page).
+        const headerSig = hEl ? hmfSignature(hEl) : undefined;
+        const footerSig = fEl ? hmfSignature(fEl) : undefined;
+        const headerHtmlToSave =
+          headerSig !== undefined && headerSig !== initialHeaderSigRef.current
+            ? headerSig
+            : undefined;
+        const footerHtmlToSave =
+          footerSig !== undefined && footerSig !== initialFooterSigRef.current
+            ? footerSig
+            : undefined;
         if (dv !== "desktop") {
           for (const c of [hEl, mEl, fEl]) {
             if (c) applyHmfDevicePreview(c, map, base, dv);
           }
         }
-        const hmfRes = await fetch(`/api/sites/${siteId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            hmfLang: currentLang,
-            ...(headerHtmlToSave !== undefined && { headerHtml: headerHtmlToSave }),
-            ...(menuHtmlToSave !== undefined && { menuHtml: menuHtmlToSave }),
-            ...(footerHtmlToSave !== undefined && { footerHtml: footerHtmlToSave }),
-          }),
-        });
+        const sendHmf =
+          headerHtmlToSave !== undefined ||
+          footerHtmlToSave !== undefined ||
+          menuHtmlToSave !== undefined;
+        const hmfRes = sendHmf
+          ? await fetch(`/api/sites/${siteId}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                hmfLang: currentLang,
+                ...(headerHtmlToSave !== undefined && { headerHtml: headerHtmlToSave }),
+                ...(menuHtmlToSave !== undefined && { menuHtml: menuHtmlToSave }),
+                ...(footerHtmlToSave !== undefined && { footerHtml: footerHtmlToSave }),
+              }),
+            })
+          : null;
         // Header/footer edits are now persisted site-wide → clear both dirty
-        // flags so the unsaved-changes guard doesn't re-warn for the HMF.
-        if (hmfRes.ok && editorV2Enabled) {
+        // flags and advance the baseline so subsequent saves diff against the
+        // just-saved state.
+        if ((hmfRes === null || hmfRes.ok) && editorV2Enabled) {
           useEditorStore.getState().markHeaderClean();
           useEditorStore.getState().markFooterClean();
+          if (headerHtmlToSave !== undefined && headerSig !== undefined)
+            initialHeaderSigRef.current = headerSig;
+          if (footerHtmlToSave !== undefined && footerSig !== undefined)
+            initialFooterSigRef.current = footerSig;
         }
       }
 
