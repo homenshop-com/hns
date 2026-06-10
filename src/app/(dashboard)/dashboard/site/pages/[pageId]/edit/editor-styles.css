@@ -598,6 +598,15 @@
   top: 0 !important;
   position: relative !important;
 }
+/* Footer objects flow AFTER the body (relative), never pinned at an absolute
+   top. The injection (stripFooterPinnedTop) removes inline top/position, then
+   this rule makes the direct .dragable children flow in document order right
+   below the body — identical to the published route's matching rule. `left`
+   stays inline as a relative offset. */
+#de-canvas-inner #hns_footer > .dragable {
+  top: auto !important;
+  position: relative !important;
+}
 
 /* Make .dragable elements interactive in the editor */
 #de-canvas-inner .dragable {

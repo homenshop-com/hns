@@ -25,6 +25,7 @@ import {
   stripDeviceMediaCss,
   applyDeviceOverridesFromScene,
   legacyHmfToScene,
+  stripFooterPinnedTop,
   type SceneGraph,
 } from "@/lib/scene";
 // Sprint 9k — section preset library for LeftPalette "섹션 블록" list.
@@ -920,7 +921,10 @@ export default function DesignEditor({
 
   useEffect(() => {
     if (footerRef.current && !footerInitedRef.current) {
-      footerRef.current.innerHTML = footerHtml;
+      // Footer objects flow after the body (relative); strip any pinned
+      // absolute top/position so they sit below the body on every page —
+      // matching the published route (stripFooterPinnedTop there too).
+      footerRef.current.innerHTML = stripFooterPinnedTop(footerHtml);
       footerInitedRef.current = true;
       normalizeAnchorImageBoxes(footerRef.current);
       hydrateHmfDevice(footerRef.current);
@@ -1224,7 +1228,7 @@ export default function DesignEditor({
         menuRef.current.innerHTML = data.menu;
       }
       if (data.footer !== undefined && footerRef.current) {
-        footerRef.current.innerHTML = data.footer;
+        footerRef.current.innerHTML = stripFooterPinnedTop(data.footer);
       }
       if (data.pageCss !== undefined) {
         setCurrentPageCss(data.pageCss);
@@ -1254,7 +1258,7 @@ export default function DesignEditor({
           menuRef.current.innerHTML = prev.menu;
         }
         if (footerRef.current && prev.footer) {
-          footerRef.current.innerHTML = prev.footer;
+          footerRef.current.innerHTML = stripFooterPinnedTop(prev.footer);
         }
         if (prev.pageCss !== undefined) {
           setCurrentPageCss(prev.pageCss);
@@ -2156,15 +2160,18 @@ export default function DesignEditor({
             const destRect = dest.getBoundingClientRect();
             const elRect = dragEl.getBoundingClientRect();
             const newLeft = (elRect.left - destRect.left) / scale;
-            const newTop = (elRect.top - destRect.top) / scale;
             const w = dragEl.offsetWidth;
             const h = dragEl.offsetHeight;
             multiSelectedRef.current.clear();
             dest.appendChild(dragEl);
             dragEl.classList.add("dragable");
-            dragEl.style.setProperty("position", "absolute", "important");
+            // Footer objects flow after the body (relative), not absolutely
+            // pinned — keep left as a relative offset + size, drop top so the
+            // object stacks below existing footer content (matches the header's
+            // counterpart being absolute, but footer is flow per design).
+            dragEl.style.setProperty("position", "relative", "important");
+            dragEl.style.removeProperty("top");
             dragEl.style.setProperty("left", `${newLeft}px`, "important");
-            dragEl.style.setProperty("top", `${newTop}px`, "important");
             dragEl.style.setProperty("width", `${w}px`, "important");
             dragEl.style.setProperty("height", `${h}px`, "important");
             store.remove(dragEl.id);
@@ -3375,7 +3382,7 @@ export default function DesignEditor({
     if (!confirm(t("siteSettingsModal.confirmFooterReset"))) return;
     const fEl = footerRef.current;
     if (fEl) {
-      fEl.innerHTML = footerHtml;
+      fEl.innerHTML = stripFooterPinnedTop(footerHtml);
     }
   }
 
@@ -3561,13 +3568,16 @@ export default function DesignEditor({
     const h = dragEl.offsetHeight;
     const curLeft = parseInt(dragEl.style.left) || 0;
     const newLeft = Math.max(0, curLeft);
-    const newTop = 20;
     multiSelectedRef.current.clear();
     dest.appendChild(dragEl);
     dragEl.classList.add("dragable");
-    dragEl.style.setProperty("position", "absolute", "important");
+    // Footer objects flow AFTER the body (relative) — unlike the header, they
+    // are NOT absolutely pinned. Keep left as a relative offset + width/height,
+    // but force relative flow and drop any top so the object stacks below the
+    // existing footer content (matches stripFooterPinnedTop + the CSS rule).
+    dragEl.style.setProperty("position", "relative", "important");
+    dragEl.style.removeProperty("top");
     dragEl.style.setProperty("left", `${newLeft}px`, "important");
-    dragEl.style.setProperty("top", `${newTop}px`, "important");
     dragEl.style.setProperty("width", `${w}px`, "important");
     dragEl.style.setProperty("height", `${h}px`, "important");
     dragEl.style.removeProperty("z-index");

@@ -18,6 +18,7 @@ import {
   DEVICE_MEDIA_COMMENT_MARK,
   stripPinnedGeometryCss,
   collectInlineGeometryOwners,
+  stripFooterPinnedTop,
 } from "@/lib/scene";
 
 function renderExpiredPage(shopId: string, name: string): string {
@@ -1392,7 +1393,13 @@ export async function GET(
     );
   const cleanedBodyHtml = rewriteInternalLinks(cleanHtml(processedBodyHtml));
   const cleanedHeaderHtml = rewriteInternalLinks(cleanHtml(headerHtml));
-  const cleanedFooterHtml = rewriteInternalLinks(cleanHtml(footerHtml));
+  // Footer objects flow AFTER the body (relative), never at a fixed absolute
+  // top. Strip inline top/position so the `#hns_footer > .dragable` relative
+  // rule governs (inline !important would otherwise beat it). Same helper runs
+  // in the editor injection, keeping editor ↔ published WYSIWYG identical.
+  const cleanedFooterHtml = stripFooterPinnedTop(
+    rewriteInternalLinks(cleanHtml(footerHtml)),
+  );
 
   // Build CSS based on template type
   const publishedCss = isModernTemplate

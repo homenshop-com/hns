@@ -19,3 +19,4 @@ export {
   collectInlineGeometryOwners,
   collectSceneGeometryOwners,
 } from "./geometry-strip";
+export { stripFooterPinnedTop } from "./footer-flow";
