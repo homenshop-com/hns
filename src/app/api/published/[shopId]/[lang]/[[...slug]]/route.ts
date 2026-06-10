@@ -892,10 +892,9 @@ export async function GET(
   // /{shopId}/...), NOT per-site custom domains — keep the /{shopId} prefix so
   // internal links don't lose the shopId (which caused shopless `/ko/*.html`
   // URLs → wrong-lang redirect loop on reseller member-site hosts).
+  const isResellerHome = !!hostHeader && (await isResellerHomeHost(hostHeader));
   const isCustomDomain =
-    !!hostHeader &&
-    !isManagedTempHost(hostHeader) &&
-    !(await isResellerHomeHost(hostHeader));
+    !!hostHeader && !isManagedTempHost(hostHeader) && !isResellerHome;
   const urlPrefix = isCustomDomain ? "" : `/${shopId}`;
 
   // Find the site by shopId with lang-filtered pages and HMF translations
@@ -914,11 +913,16 @@ export async function GET(
     return new NextResponse("Not Found", { status: 404 });
   }
 
-  // Site's chosen managed temp domain — used for asset URLs (image src,
-  // OG, canonical, hreflang) regardless of which host this request came
-  // in on. Keeps SEO stable when the same site is reachable through
-  // multiple aliases.
-  const tempDomain = getTempDomain(site);
+  // Host used for absolute asset + SEO URLs (image src, OG, canonical,
+  // hreflang). On a reseller `home.{domain}` host, use that SAME host so the
+  // reseller's published pages are fully white-label — never leaking
+  // home.homenshop.com into page source / canonical / OG. That host already
+  // serves /{shopId}/uploaded, /tpl, /thumb, … via the multi-tenant snippet,
+  // so the URLs resolve. Otherwise fall back to the site's stable temp domain
+  // (keeps SEO stable across the homenshop/helper aliases).
+  const tempDomain = isResellerHome
+    ? hostHeader.split(":")[0].toLowerCase()
+    : getTempDomain(site);
   if (isSiteExpired(site)) {
     return new NextResponse(renderExpiredPage(shopId, site.name), {
       status: 410,
