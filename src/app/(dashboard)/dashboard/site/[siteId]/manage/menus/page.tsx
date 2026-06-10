@@ -11,7 +11,8 @@ import "../manage-v2.css";
 import "./menus-v2.css";
 import { DashboardIconSprite, Icon } from "../../../../dashboard-icons";
 import DashboardShell from "../../../../dashboard-shell";
-import { getTempDomain } from "@/lib/temp-domains";
+import { resolvePublicHost } from "@/lib/temp-domains";
+import { getResellerForHost } from "@/lib/reseller";
 import { canManageSite } from "@/lib/site-access";
 
 const SITE_THUMB_GRADS: Record<string, [string, string, string, string]> = {
@@ -76,7 +77,10 @@ export default async function MenuManagerPage({
 
   const siteLanguages = site.languages || ["ko"];
   const activeDomain = site.domains[0];
-  const publicUrlLabel = activeDomain ? activeDomain.domain : `${getTempDomain(site)}/${site.shopId}`;
+  // Reseller context: on a white-label host, the public URL label must surface
+  // `home.{reseller domain}` instead of leaking `home.homenshop.com`.
+  const reseller = await getResellerForHost();
+  const publicUrlLabel = activeDomain ? activeDomain.domain : `${resolvePublicHost(site, reseller)}/${site.shopId}`;
   const siteName = site.name || site.shopId;
   const displayName = currentUser?.name || currentUser?.email?.split("@")[0] || t("guest");
   const credits = currentUser?.credits ?? 0;

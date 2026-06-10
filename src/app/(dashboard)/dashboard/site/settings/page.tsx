@@ -16,7 +16,8 @@ import { DashboardIconSprite, Icon } from "../../dashboard-icons";
 import DashboardShell from "../../dashboard-shell";
 import SupportUnreadIndicator from "../../support-unread-indicator";
 import { resolveExpiresAt, FREE_TRIAL_DAYS } from "@/lib/site-expiration";
-import { getTempDomain, TEMP_DOMAINS } from "@/lib/temp-domains";
+import { resolvePublicHost, TEMP_DOMAINS } from "@/lib/temp-domains";
+import { getResellerForHost } from "@/lib/reseller";
 import TempDomainSelect from "./temp-domain-select";
 import { getManageScope, manageableSiteWhere } from "@/lib/site-access";
 import QrCodeGenerator from "./qr-code-generator";
@@ -108,6 +109,10 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
     select: { name: true, email: true, credits: true },
   });
 
+  // Reseller context (resolved once): on a white-label host, public URLs must
+  // surface `home.{reseller domain}` instead of leaking `home.homenshop.com`.
+  const reseller = await getResellerForHost();
+
   const siteLanguages = (site as typeof site & { languages?: string[] }).languages || ["ko"];
 
   // Sitemap stats (unchanged from previous version)
@@ -145,7 +150,7 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
     : null;
 
   const activeDomain = site.domains.find((d) => d.status === "ACTIVE");
-  const sTemp = getTempDomain(site);
+  const sTemp = resolvePublicHost(site, reseller);
   const publicUrl = activeDomain ? `https://${activeDomain.domain}` : `https://${sTemp}/${site.shopId}/${site.defaultLanguage}/`;
   const defaultUrlLabel = `${sTemp}/${site.shopId}/${site.defaultLanguage}/`;
 

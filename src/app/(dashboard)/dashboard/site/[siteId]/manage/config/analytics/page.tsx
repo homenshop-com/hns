@@ -7,6 +7,8 @@ import AnalyticsForm from "./AnalyticsForm";
 import { getServiceAccountEmail, getAnalyticsSummary } from "@/lib/analytics";
 import { canManageSite } from "@/lib/site-access";
 import { getTranslations } from "next-intl/server";
+import { resolvePublicHost } from "@/lib/temp-domains";
+import { getResellerForHost } from "@/lib/reseller";
 
 export default async function AnalyticsConfigPage({
   params,
@@ -37,6 +39,10 @@ export default async function AnalyticsConfigPage({
   }
 
   const serviceAccountEmail = getServiceAccountEmail();
+
+  // Reseller context: on a white-label host, public URLs must surface
+  // `home.{reseller domain}` instead of leaking `home.homenshop.com`.
+  const reseller = await getResellerForHost();
 
   // If a Property ID is set, kick off a Data API call so we can show a
   // preview row inline. Failure → render a "not yet" hint, never crash.
@@ -192,9 +198,7 @@ export default async function AnalyticsConfigPage({
                   <code style={{ background: "#f2f4f6", padding: "1px 6px", borderRadius: 3, fontSize: 12 }}>
                     {customDomains[0]?.domain
                       ? `https://${customDomains[0].domain}`
-                      : site.tempDomain
-                        ? `https://${site.tempDomain}/${site.shopId}`
-                        : `https://home.homenshop.com/${site.shopId}`}
+                      : `https://${resolvePublicHost(site, reseller)}/${site.shopId}`}
                   </code>
                 </li>
                 <li>{t("gaGuideStep2Stream")}</li>

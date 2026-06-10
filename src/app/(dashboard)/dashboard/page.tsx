@@ -19,7 +19,8 @@ import {
   isSiteExpired,
   shouldShowExpirationWarning,
 } from "@/lib/site-expiration";
-import { getTempDomain } from "@/lib/temp-domains";
+import { resolvePublicHost } from "@/lib/temp-domains";
+import { getResellerForHost } from "@/lib/reseller";
 import { getManageScope, manageableSiteWhere } from "@/lib/site-access";
 
 /* ────────────────────────────────────────────────────────────────
@@ -147,6 +148,10 @@ export default async function DashboardPage({
     },
     orderBy: { updatedAt: "desc" },
   });
+
+  // Reseller context (resolved once): on a white-label host, public URLs must
+  // surface `home.{reseller domain}` instead of leaking `home.homenshop.com`.
+  const reseller = await getResellerForHost();
 
   /* 활동 피드(최근 주문/예약/문의)는 리셀러가 직접 소유한 사이트로만 제한한다.
      manageableSiteWhere 로 가져온 sites 에는 리셀러가 대신 관리하는 고객
@@ -902,7 +907,7 @@ export default async function DashboardPage({
                         s.updatedAt,
                       );
                       const activeDomain = s.domains[0];
-                      const sTemp = getTempDomain(s);
+                      const sTemp = resolvePublicHost(s, reseller);
                       const publicUrl = activeDomain
                         ? `https://${activeDomain.domain}`
                         : `https://${sTemp}/${s.shopId}/`;

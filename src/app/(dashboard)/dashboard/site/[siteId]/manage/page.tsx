@@ -14,7 +14,8 @@ import "../../../dashboard-v2.css";
 import "./manage-v2.css";
 import { DashboardIconSprite, Icon } from "../../../dashboard-icons";
 import DashboardShell from "../../../dashboard-shell";
-import { getTempDomain } from "@/lib/temp-domains";
+import { resolvePublicHost } from "@/lib/temp-domains";
+import { getResellerForHost } from "@/lib/reseller";
 import { getAnalyticsSummary } from "@/lib/analytics";
 import AnalyticsPanel from "@/app/admin/analytics-panel";
 import { canManageSite } from "@/lib/site-access";
@@ -224,7 +225,10 @@ export default async function SiteManagePage({
     site.pages[0];
 
   const activeDomain = site.domains[0];
-  const sTemp = getTempDomain(site);
+  // Reseller context: on a white-label host, public URLs must surface
+  // `home.{reseller domain}` instead of leaking `home.homenshop.com`.
+  const reseller = await getResellerForHost();
+  const sTemp = resolvePublicHost(site, reseller);
   const publicUrl = activeDomain ? `https://${activeDomain.domain}` : `https://${sTemp}/${site.shopId}/`;
   const publicUrlLabel = activeDomain ? activeDomain.domain : `${sTemp}/${site.shopId}`;
   const defaultUrl = `${sTemp}/${site.shopId}`;

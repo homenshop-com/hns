@@ -14,7 +14,8 @@ import {
   isSiteExpired,
   shouldShowExpirationWarning,
 } from "@/lib/site-expiration";
-import { getTempDomain } from "@/lib/temp-domains";
+import { resolvePublicHost } from "@/lib/temp-domains";
+import { getResellerForHost } from "@/lib/reseller";
 import { getManageScope, manageableSiteWhere } from "@/lib/site-access";
 
 const PLAN_TAG: Record<string, { cls: string; key: "planFree" | "planPaid" | "planTest" | "planExpired" }> = {
@@ -112,6 +113,10 @@ export default async function SitesPage() {
     }),
     prisma.template.count({ where: { isPublic: true } }),
   ]);
+
+  // Reseller context (resolved once): on a white-label host, public URLs must
+  // surface `home.{reseller domain}` instead of leaking `home.homenshop.com`.
+  const reseller = await getResellerForHost();
 
   const aiLabels = {
     btnNewSiteAI: t("btnNewSiteAI"),
@@ -262,7 +267,7 @@ export default async function SitesPage() {
                   s.updatedAt,
                 );
                 const activeDomain = s.domains[0];
-                const sTemp = getTempDomain(s);
+                const sTemp = resolvePublicHost(s, reseller);
                 const publicUrl = activeDomain
                   ? `https://${activeDomain.domain}`
                   : `https://${sTemp}/${s.shopId}/`;

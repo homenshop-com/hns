@@ -33,6 +33,27 @@ export function getTempDomain(site: { tempDomain?: string | null } | null | unde
 }
 
 /**
+ * Resolve the PUBLIC host to show/link for a site, reseller-aware.
+ *
+ * On a white-label reseller host the member site is served at
+ * `home.{reseller domain}` (see ResellerDomainGuide). A reseller must NEVER
+ * see `home.homenshop.com` (or .net) leak into preview URLs, dashboard links,
+ * or labels — so when an active non-canonical reseller is in context, derive
+ * the host from the reseller domain; otherwise fall back to the site's temp
+ * domain. Pure (no I/O): pass the already-resolved reseller so list pages can
+ * resolve the reseller once and reuse it for every row.
+ */
+export function resolvePublicHost(
+  site: { tempDomain?: string | null } | null | undefined,
+  reseller: { domain: string; isCanonical: boolean } | null | undefined,
+): string {
+  if (reseller && !reseller.isCanonical && reseller.domain) {
+    return `home.${reseller.domain.replace(/^www\./, "").replace(/:.*$/, "")}`;
+  }
+  return getTempDomain(site);
+}
+
+/**
  * True when an incoming Host header is one of our managed temp domains.
  * Used by the published route to distinguish path-based multi-tenant
  * hosts (where `/{shopId}` is the URL prefix) from per-site bound

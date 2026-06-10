@@ -5,7 +5,7 @@ import { renderBoardPluginContent, renderProductPluginContent } from "@/lib/plug
 import { readTemplateCss, rewriteAssetUrls } from "@/lib/template-parser";
 import { isEditorV2Enabled } from "@/lib/editor-flags";
 import EditorRouter, { type EditorMode } from "./EditorRouter";
-import { getTempDomain } from "@/lib/temp-domains";
+import { resolvePublicHost } from "@/lib/temp-domains";
 import { getManageScope, canManage } from "@/lib/site-access";
 import { getResellerForHost } from "@/lib/reseller";
 
@@ -144,6 +144,11 @@ export default async function EditPagePage({ params, searchParams }: EditPagePro
     ? { brandName: reseller.siteName, logoUrl: reseller.logoUrl, whiteLabel: true }
     : { brandName: "homeNshop", logoUrl: null, whiteLabel: false };
 
+  // Preview/temp domain shown in the editor topbar + publish modal. On a
+  // white-label reseller host the member site is served at `home.{reseller
+  // domain}` — NEVER expose `home.homenshop.com` (or .net) on a reseller.
+  const previewDomain = resolvePublicHost(site, reseller);
+
   let headerHtmlFinal = headerHtml;
   let footerHtmlFinal = footerHtml;
   let menuHtmlFinal = menuHtml;
@@ -161,7 +166,7 @@ export default async function EditPagePage({ params, searchParams }: EditPagePro
       shopId={site.shopId}
       siteName={site.name}
       defaultLanguage={site.defaultLanguage}
-      tempDomain={getTempDomain(site)}
+      tempDomain={previewDomain}
       templatePath={templatePath}
       headerHtml={headerHtmlFinal}
       menuHtml={menuHtmlFinal}
