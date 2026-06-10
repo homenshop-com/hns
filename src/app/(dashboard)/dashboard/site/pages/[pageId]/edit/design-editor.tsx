@@ -573,6 +573,10 @@ export default function DesignEditor({
    * them — so a page that never touched the header can't overwrite it. */
   const initialHeaderSigRef = useRef<string>("");
   const initialFooterSigRef = useRef<string>("");
+  // Cross-tab sync channel for the site-wide header/footer (option A): a tab
+  // that saves the HMF broadcasts it so other open editor tabs of the same
+  // site+lang refresh their header/footer instead of holding a stale copy.
+  const hmfChannelRef = useRef<BroadcastChannel | null>(null);
 
   /* ─── HMF per-device geometry (Wix-style 3-mode independence) ───
    * HMF blocks are raw-injected, not part of the scene graph, so their
@@ -985,6 +989,104 @@ export default function DesignEditor({
     }
   }, [footerHtml, editorV2Enabled]);
 
+  /* ─── Re-inject the site-wide header/footer from a fresh value ───
+   * Used by cross-tab sync (A) and refresh-on-edit-entry (C): replace the
+   * container's content, rebuild its scene + ids, and reset the clobber-guard
+   * baseline so the freshly-applied copy isn't seen as a local edit. */
+  const applyHeaderHtml = useCallback((html: string) => {
+    const el = headerRef.current;
+    if (!el || typeof html !== "string") return;
+    multiSelectedRef.current.clear();
+    useEditorStore.getState().clearSelection();
+    el.innerHTML = html;
+    normalizeAnchorImageBoxes(el);
+    hydrateHmfDevice(el);
+    if (editorV2Enabled) {
+      let n = 0;
+      el.querySelectorAll<HTMLElement>(".dragable").forEach((d) => {
+        if (!d.id) d.id = `hmf_${Date.now().toString(36)}_${(n++).toString(36)}`;
+      });
+      useEditorStore.getState().setHeaderScene(legacyHmfToScene(el.innerHTML));
+    }
+    initialHeaderSigRef.current = hmfSignature(el);
+  }, [editorV2Enabled]);
+
+  const applyFooterHtml = useCallback((html: string) => {
+    const el = footerRef.current;
+    if (!el || typeof html !== "string") return;
+    multiSelectedRef.current.clear();
+    useEditorStore.getState().clearSelection();
+    el.innerHTML = stripFooterPinnedTop(html);
+    normalizeAnchorImageBoxes(el);
+    hydrateHmfDevice(el);
+    if (editorV2Enabled) {
+      let n = 0;
+      el.querySelectorAll<HTMLElement>(".dragable").forEach((d) => {
+        if (!d.id) d.id = `hmf_${Date.now().toString(36)}_${(n++).toString(36)}`;
+      });
+      useEditorStore.getState().setFooterScene(legacyHmfToScene(el.innerHTML));
+    }
+    initialFooterSigRef.current = hmfSignature(el);
+  }, [editorV2Enabled]);
+
+  /* ─── (C) Refresh the site-wide HMF from the server ───
+   * On entering "헤더/푸터 편집" mode, pull the freshest header/footer so the
+   * user edits the current shared copy, not a stale one from page load. Skips
+   * any container that has unsaved local edits (don't discard work). */
+  const refreshHmfFromServer = useCallback(async () => {
+    const headerClean =
+      !headerRef.current || hmfSignature(headerRef.current) === initialHeaderSigRef.current;
+    const footerClean =
+      !footerRef.current || hmfSignature(footerRef.current) === initialFooterSigRef.current;
+    if (!headerClean && !footerClean) return;
+    try {
+      const res = await fetch(
+        `/api/sites/${siteId}/hmf?lang=${encodeURIComponent(currentLang)}`,
+        { cache: "no-store" },
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      if (headerClean && typeof data.headerHtml === "string" && data.headerHtml.trim()) {
+        applyHeaderHtml(data.headerHtml);
+      }
+      if (footerClean && typeof data.footerHtml === "string" && data.footerHtml.trim()) {
+        applyFooterHtml(data.footerHtml);
+      }
+    } catch {
+      /* network hiccup — keep the current copy */
+    }
+  }, [siteId, currentLang, applyHeaderHtml, applyFooterHtml]);
+
+  /* ─── (A) Cross-tab header/footer sync via BroadcastChannel ─── */
+  useEffect(() => {
+    if (typeof BroadcastChannel === "undefined") return;
+    const ch = new BroadcastChannel("hns-hmf");
+    hmfChannelRef.current = ch;
+    ch.onmessage = (ev: MessageEvent) => {
+      const m = ev.data as { siteId?: string; lang?: string; header?: string; footer?: string } | null;
+      if (!m || m.siteId !== siteId || m.lang !== currentLang) return;
+      // Only apply if this tab has NO unsaved local edits for that container.
+      if (
+        typeof m.header === "string" &&
+        headerRef.current &&
+        hmfSignature(headerRef.current) === initialHeaderSigRef.current
+      ) {
+        applyHeaderHtml(m.header);
+      }
+      if (
+        typeof m.footer === "string" &&
+        footerRef.current &&
+        hmfSignature(footerRef.current) === initialFooterSigRef.current
+      ) {
+        applyFooterHtml(m.footer);
+      }
+    };
+    return () => {
+      ch.close();
+      hmfChannelRef.current = null;
+    };
+  }, [siteId, currentLang, applyHeaderHtml, applyFooterHtml]);
+
   /* ─── HMF per-device preview paint ───
    * The editor canvas is a wide viewport with a narrow artboard, so the
    * embedded `<style data-hns-device>` @media block never fires here (it keys
@@ -1203,6 +1305,21 @@ export default function DesignEditor({
             initialHeaderSigRef.current = headerSig;
           if (footerHtmlToSave !== undefined && footerSig !== undefined)
             initialFooterSigRef.current = footerSig;
+          // (A) Tell other open editor tabs of the same site+lang to refresh
+          // their site-wide header/footer with what we just saved.
+          if (
+            hmfRes &&
+            hmfRes.ok &&
+            hmfChannelRef.current &&
+            (headerHtmlToSave !== undefined || footerHtmlToSave !== undefined)
+          ) {
+            hmfChannelRef.current.postMessage({
+              siteId,
+              lang: currentLang,
+              ...(headerHtmlToSave !== undefined && { header: headerHtmlToSave }),
+              ...(footerHtmlToSave !== undefined && { footer: footerHtmlToSave }),
+            });
+          }
         }
       }
 
@@ -3885,6 +4002,9 @@ export default function DesignEditor({
                 multiSelectedRef.current.clear();
                 setMultiSelectCount(0);
                 if (editorV2Enabled) useEditorStore.getState().select(null as unknown as string);
+                // (C) Pull the freshest site-wide header/footer so edits start
+                // from the current shared copy, not a stale page-load snapshot.
+                void refreshHmfFromServer();
               }}
               aria-pressed={editingTarget === "hmf"}
               title="헤더/풋터 편집 — 모든 페이지에 적용됩니다"
