@@ -7,17 +7,23 @@
   color: #e0e0e0;
   overflow: hidden;
   font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+  /* Single source of truth for the App-bar height. The header is a 2-row bar
+     (actions row + page-tabs row); the fixed left/right rails hug its bottom
+     via calc(var(--de-header-h) + 1px). Change here = everything follows. */
+  --de-header-h: 78px;
 }
 
 /* ── Header ── */
 .de-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  align-content: flex-start;
   justify-content: space-between;
   background: #1a1a2e;
   border-bottom: 1px solid #333;
   padding: 0 16px;
-  height: 44px;
+  height: var(--de-header-h, 78px);
   flex-shrink: 0;
   /* Defensive: ensure editor toolbar always stacks above any user-injected
      canvas CSS. Claude Designs / Claude Code zip exports often include
@@ -30,23 +36,11 @@
   display: flex;
   align-items: center;
   gap: 0;
-  /* Let the page-tab strip shrink + scroll instead of pushing the right-hand
-     Save/Publish group off the edge on smaller screens. */
   min-width: 0;
   flex: 0 1 auto;
+  /* Row 1 height (the actions row); the page-tabs row sits below it. */
+  min-height: 44px;
 }
-/* Page-tab strip — scrolls horizontally when there are many pages so it never
-   steals width from the toolbar actions. */
-.de-header-pagetabs {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  overflow-x: auto;
-  flex-wrap: nowrap;
-  scrollbar-width: thin;
-}
-.de-header-pagetabs::-webkit-scrollbar { height: 4px; }
-.de-header-pagetabs::-webkit-scrollbar-thumb { background: #3a3a55; border-radius: 2px; }
 .de-header-pagetab { flex-shrink: 0; white-space: nowrap; }
 .de-logo {
   font-size: 16px;
@@ -168,12 +162,18 @@
   display: flex;
   align-items: center;
   gap: 16px;
+  /* Row 1 height (the actions row). */
+  min-height: 44px;
 }
 
-/* ── Editing-target toggle (본문 | 헤더/풋터) ── */
+/* ── Editing-target toggle (본문 | 헤더/풋터) ──
+   Absolutely centered on ROW 1 only (top 0 → 44px), so it stays centered in
+   the actions row and never overlaps the page-tabs row below. */
 .de-header-center {
   position: absolute;
   left: 50%;
+  top: 0;
+  height: 44px;
   transform: translateX(-50%);
   display: flex;
   align-items: center;
@@ -832,44 +832,6 @@
   background: #e0e0e0;
 }
 
-/* ── Small-laptop topbar: split into 2 rows ──
-   On laptops (≤1366px) the single-row topbar (logo + page tabs + 본문/헤더푸터
-   토글 + PC/Tablet/Mobile + URL + Undo/Redo + 저장 + 퍼블리시 + ⋯) overflows and
-   the Save/Publish buttons get pushed off-screen. Wrap into two rows:
-     Row 1 → logo + page tabs (scrollable)
-     Row 2 → editing-target toggle + viewport + URL + history + Save/Publish
-   The centered toggle is absolutely positioned for the wide layout; here it
-   rejoins normal flow so it sits on row 2 next to the actions. */
-@media (max-width: 1366px) {
-  .de-header {
-    flex-wrap: wrap;
-    height: auto;
-    align-items: center;
-    padding: 4px 12px;
-    row-gap: 4px;
-  }
-  .de-header-left {
-    order: 1;
-    flex: 1 1 100%;
-    min-width: 0;
-  }
-  .de-header-center {
-    order: 2;
-    position: static;
-    left: auto;
-    transform: none;
-    pointer-events: auto;
-    flex: 0 0 auto;
-    margin-right: auto; /* push the actions to the far right of row 2 */
-  }
-  .de-header-right {
-    order: 3;
-    flex: 1 1 auto;
-    min-width: 0;
-    justify-content: flex-end;
-  }
-}
-
 /* ── Mobile Responsive ── */
 @media (max-width: 768px) {
   .de-root { height: auto; min-height: 100vh; overflow: visible; }
@@ -885,14 +847,17 @@
   .de-handle-w  { left: -8px; }
   .de-handle-nw { top: -8px; left: -8px; }
 
-  /* Header — two rows */
-  .de-header {
+  /* Header — let it grow on phones (rails are hidden <1023px so the fixed
+     `--de-header-h` offset doesn't apply; allow natural multi-row height).
+     `.de-root .de-header` specificity needed to beat the figma-theme rule. */
+  .de-root .de-header {
     flex-wrap: wrap;
     height: auto;
+    align-content: flex-start;
     padding: 6px 10px;
     gap: 0;
   }
-  .de-header-left { width: 100%; }
+  .de-header-left { width: 100%; min-height: 0; }
   .de-logo { font-size: 14px; padding-right: 12px; }
   .de-tabs { flex: 1; }
   .de-tab { padding: 8px 12px; font-size: 12px; }
@@ -1091,7 +1056,7 @@
    PC layout ("PC 레이아웃 변경 금지" project rule). */
 .layerpanel-rail {
   position: fixed;
-  top: 92px; /* de-header (44px) + de-subtoolbar (48px) */
+  top: calc(var(--de-header-h, 78px) + 1px); /* hug the 2-row App-bar bottom */
   right: 0;
   bottom: 0;
   width: 260px;

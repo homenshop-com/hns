@@ -44,13 +44,18 @@
   line-height: 1.4;
 }
 
-/* ───── Header (44px) ─────────────────────────────────────────────── */
+/* ───── Header (2 rows: actions row + page-tabs row) ─────────────────
+   Height is the single source of truth (`--de-header-h`, set on .de-root);
+   the fixed left/right rails reference it via calc() so they always hug the
+   header bottom no matter how tall it is. */
 .de-root .de-header {
   background: var(--fig-bg-1);
   border-bottom: 1px solid var(--fig-line-2);
-  height: 44px;
+  height: var(--de-header-h, 78px);
   padding: 0 10px 0 14px;
   gap: 0;
+  flex-wrap: wrap;
+  align-content: flex-start;
 }
 .de-root .de-logo {
   font-size: 14px;
@@ -657,9 +662,9 @@
 /* ───── Left palette rail ──────────────────────────────────────────── */
 .leftpalette-rail {
   position: fixed;
-  /* 2026-04-22 — single-row App bar (44px) + 1px border. Sub-toolbar
-     was removed, so the rail hugs the header directly. */
-  top: 45px;
+  /* Hug the header bottom — header is now a 2-row App bar whose height is
+     `--de-header-h`. +1px clears the bottom border. */
+  top: calc(var(--de-header-h, 78px) + 1px);
   left: 0;
   bottom: 26px; /* above status bar */
   width: 240px;
@@ -905,7 +910,7 @@
 /* ───── Inspector rail (right) ─────────────────────────────────────── */
 .inspector-rail {
   position: fixed;
-  top: 45px;
+  top: calc(var(--de-header-h, 78px) + 1px);
   right: 0;
   bottom: 26px;
   width: 300px;
@@ -1729,9 +1734,17 @@ body:has(.inspector-rail) .de-canvas-wrapper {
   display: flex;
   align-items: center;
   gap: 1px;
-  margin-left: 6px;
+  /* Second row of the App bar — full width, below the actions row. `order`
+     places it after the logo/actions so flex-wrap drops it to its own line. */
+  order: 99;
+  flex: 0 0 100%;
+  width: 100%;
+  max-width: 100%;
+  margin-left: 0;
+  height: 34px;
+  padding: 0 4px;
+  border-top: 1px solid var(--fig-line-2);
   overflow-x: auto;
-  max-width: 48vw;
   scrollbar-width: none;
 }
 .de-root .de-header-pagetabs::-webkit-scrollbar { display: none; }

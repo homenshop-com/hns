@@ -3787,39 +3787,6 @@ export default function DesignEditor({
               })}
             </div>
           )}
-          {/* Page tabs — Figma-style, inline in the App bar. */}
-          <nav className="de-header-pagetabs" aria-label={t("topbar.pageTabsLabel")}>
-            {pages.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                className={`de-header-pagetab${p.id === pageId ? " active" : ""}`}
-                onClick={() => {
-                  if (p.id !== pageId) {
-                    router.push(`/dashboard/site/pages/${p.id}/edit`);
-                  }
-                }}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  setPageCtxMenu({ pageId: p.id, x: e.clientX, y: e.clientY });
-                }}
-                title={p.title}
-              >
-                {p.title}
-              </button>
-            ))}
-            <button
-              type="button"
-              className="de-header-pageadd"
-              onClick={() => router.push(`/dashboard/site/pages/new`)}
-              title={t("topbar.addPage")}
-              aria-label={t("topbar.addPage")}
-            >
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                <path d="M8 3v10M3 8h10" />
-              </svg>
-            </button>
-          </nav>
         </div>
         {/* Center: editing-target toggle (본문 ↔ 헤더/풋터) */}
         <div className="de-header-center">
@@ -4067,6 +4034,39 @@ export default function DesignEditor({
             )}
           </div>
         </div>
+        {/* Page tabs — second row of the App bar (full width, scrollable). */}
+        <nav className="de-header-pagetabs" aria-label={t("topbar.pageTabsLabel")}>
+          {pages.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              className={`de-header-pagetab${p.id === pageId ? " active" : ""}`}
+              onClick={() => {
+                if (p.id !== pageId) {
+                  router.push(`/dashboard/site/pages/${p.id}/edit`);
+                }
+              }}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setPageCtxMenu({ pageId: p.id, x: e.clientX, y: e.clientY });
+              }}
+              title={p.title}
+            >
+              {p.title}
+            </button>
+          ))}
+          <button
+            type="button"
+            className="de-header-pageadd"
+            onClick={() => router.push(`/dashboard/site/pages/new`)}
+            title={t("topbar.addPage")}
+            aria-label={t("topbar.addPage")}
+          >
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+              <path d="M8 3v10M3 8h10" />
+            </svg>
+          </button>
+        </nav>
       </header>
 
       {/* Page tab context menu (right-click on a page tab). */}
