@@ -253,6 +253,14 @@
   font-family: monospace;
   text-decoration: none;
   cursor: pointer;
+  /* The URL is the one compressible element in the crowded topbar — let it
+     ellipsis-truncate so the fixed-width Save/Publish buttons never get
+     squeezed into a wrapping 2-char column. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex-shrink: 1;
 }
 .de-url:hover {
   color: #adf;
@@ -267,6 +275,10 @@
   border-radius: 4px;
   cursor: pointer;
   transition: background 0.15s;
+  /* Never let the toolbar squeeze these into a 2-char column that wraps
+     "저장 (⌘S)" / "퍼블리시" onto two lines. */
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .de-save-btn:hover {
   background: #357abd;
@@ -285,6 +297,8 @@
   border-radius: 4px;
   cursor: pointer;
   transition: background 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .de-publish-btn:hover {
   background: #16a34a;
