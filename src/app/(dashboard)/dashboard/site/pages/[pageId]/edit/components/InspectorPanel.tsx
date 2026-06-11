@@ -15,7 +15,7 @@
 
 "use client";
 
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import {
   useEditorStore,
@@ -431,6 +431,9 @@ function DesignTab({
         layerId={layer.id}
         disabled={layer.type === "section" || layer.type === "inline"}
       />
+
+      {/* Stacking order (z-index): beginner front/back buttons + expert input. */}
+      <ArrangeSection layer={layer} disabled={layer.type === "inline"} />
 
       {/* Per-device overrides — only visible while editing tablet/mobile.
           Renders null at desktop (the authoring base). */}
@@ -906,6 +909,112 @@ function PositionSizeSection({ frame, rotate, layerId, disabled }: PosProps) {
           onCommit={(v) => setTransform(layerId, { rotate: v })}
         />
         <EditableProp label="◱" value={0} unit="°" onCommit={() => {}} disabled />
+      </div>
+    </Section>
+  );
+}
+
+/* ─── Stacking-order (z-index) section ───────────────────────────────
+ * Two tiers:
+ *   • Beginner — PowerPoint-style 맨 앞으로 / 앞으로 / 뒤로 / 맨 뒤로 buttons.
+ *     Front/back are computed against the SELECTED element's live sibling
+ *     z-indexes (read from the DOM), so they work for body, header and footer
+ *     objects alike. Forward/back just ±1 the current value.
+ *   • Expert — a raw z-index number input.
+ * All write `style.zIndex` via setStyle → mutateOwning routes to the owning
+ * scene (body/header/footer) → applyStyleToEl emits `z-index` on the element. */
+function ArrangeSection({ layer, disabled }: { layer: Layer; disabled: boolean }) {
+  const t = useTranslations("editor");
+  const setStyle = useEditorStore((s) => s.setStyle);
+
+  const domEl = () => (typeof document !== "undefined" ? document.getElementById(layer.id) : null);
+  const computedZ = (el: HTMLElement | null): number => {
+    if (!el) return 0;
+    const z = parseInt(window.getComputedStyle(el).zIndex, 10);
+    return Number.isFinite(z) ? z : 0;
+  };
+  // Current effective z-index: explicit scene value wins, else the rendered one.
+  const current = layer.style?.zIndex ?? computedZ(domEl());
+
+  const siblingZ = (): number[] => {
+    const el = domEl();
+    const parent = el?.parentElement;
+    if (!el || !parent) return [];
+    return Array.from(parent.children)
+      .filter((c) => c !== el && c instanceof HTMLElement && c.classList.contains("dragable"))
+      .map((c) => computedZ(c as HTMLElement));
+  };
+  const apply = (z: number) => {
+    if (disabled) return;
+    setStyle(layer.id, { zIndex: Math.round(z) });
+  };
+  const toFront = () => {
+    const sib = siblingZ();
+    apply((sib.length ? Math.max(...sib) : current) + 1);
+  };
+  const toBack = () => {
+    const sib = siblingZ();
+    apply((sib.length ? Math.min(...sib) : current) - 1);
+  };
+
+  const btn = (label: string, title: string, onClick: () => void, svg: ReactNode) => (
+    <button
+      type="button"
+      className="ins-arrange-btn"
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+    >
+      <span className="ins-arrange-ic" aria-hidden>{svg}</span>
+      <span>{label}</span>
+    </button>
+  );
+
+  return (
+    <Section title={t("inspector.arrange.section")}>
+      <div className="ins-arrange-grid">
+        {btn(
+          t("inspector.arrange.toFront"),
+          t("inspector.arrange.toFrontTitle"),
+          toFront,
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="6" width="12" height="12" rx="1" fill="currentColor" fillOpacity="0.18"/><path d="M3 9l9-6 9 6-9 6-9-6z"/></svg>,
+        )}
+        {btn(
+          t("inspector.arrange.forward"),
+          t("inspector.arrange.forwardTitle"),
+          () => apply(current + 1),
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>,
+        )}
+        {btn(
+          t("inspector.arrange.backward"),
+          t("inspector.arrange.backwardTitle"),
+          () => apply(current - 1),
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>,
+        )}
+        {btn(
+          t("inspector.arrange.toBack"),
+          t("inspector.arrange.toBackTitle"),
+          toBack,
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="6" width="12" height="12" rx="1"/><path d="M3 15l9 6 9-6-9-6-9 6z" fill="currentColor" fillOpacity="0.18"/></svg>,
+        )}
+      </div>
+      <div className="ins-prop-grid" style={{ marginTop: 8 }}>
+        <EditableProp
+          label="z-index"
+          value={current}
+          unit=""
+          onCommit={(v) => apply(v)}
+          disabled={disabled}
+        />
+        <button
+          type="button"
+          className="ins-arrange-reset"
+          onClick={() => !disabled && setStyle(layer.id, { zIndex: undefined })}
+          disabled={disabled}
+          title={t("inspector.arrange.autoTitle")}
+        >
+          {t("inspector.arrange.auto")}
+        </button>
       </div>
     </Section>
   );

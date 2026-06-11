@@ -1116,6 +1116,19 @@
       "position": {
         "section": "位置·尺寸"
       },
+      "arrange": {
+        "section": "排列·层级",
+        "toFront": "置于顶层",
+        "forward": "上移一层",
+        "backward": "下移一层",
+        "toBack": "置于底层",
+        "toFrontTitle": "置于最顶层",
+        "forwardTitle": "上移一层",
+        "backwardTitle": "下移一层",
+        "toBackTitle": "置于最底层",
+        "auto": "自动",
+        "autoTitle": "清除 z-index 并恢复默认顺序"
+      },
       "typography": {
         "section": "排版",
         "font": "字体",

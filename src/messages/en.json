@@ -1130,6 +1130,19 @@
       "position": {
         "section": "Position · Size"
       },
+      "arrange": {
+        "section": "Arrange · Order",
+        "toFront": "To Front",
+        "forward": "Forward",
+        "backward": "Backward",
+        "toBack": "To Back",
+        "toFrontTitle": "Bring to front",
+        "forwardTitle": "Bring forward one step",
+        "backwardTitle": "Send backward one step",
+        "toBackTitle": "Send to back",
+        "auto": "Auto",
+        "autoTitle": "Clear z-index and restore default order"
+      },
       "typography": {
         "section": "Typography",
         "font": "Font",

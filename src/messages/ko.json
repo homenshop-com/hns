@@ -1130,6 +1130,19 @@
       "position": {
         "section": "위치 · 크기"
       },
+      "arrange": {
+        "section": "정렬 · 순서",
+        "toFront": "맨 앞으로",
+        "forward": "앞으로",
+        "backward": "뒤로",
+        "toBack": "맨 뒤로",
+        "toFrontTitle": "선택 객체를 맨 위로 올립니다",
+        "forwardTitle": "한 단계 앞으로",
+        "backwardTitle": "한 단계 뒤로",
+        "toBackTitle": "선택 객체를 맨 아래로 내립니다",
+        "auto": "자동",
+        "autoTitle": "z-index를 비우고 기본 순서로 되돌립니다"
+      },
       "typography": {
         "section": "타이포그래피",
         "font": "폰트",

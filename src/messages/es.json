@@ -1116,6 +1116,19 @@
       "position": {
         "section": "Posición · Tamaño"
       },
+      "arrange": {
+        "section": "Organizar · Orden",
+        "toFront": "Al frente",
+        "forward": "Adelante",
+        "backward": "Atrás",
+        "toBack": "Al fondo",
+        "toFrontTitle": "Traer al frente",
+        "forwardTitle": "Traer adelante un paso",
+        "backwardTitle": "Enviar atrás un paso",
+        "toBackTitle": "Enviar al fondo",
+        "auto": "Auto",
+        "autoTitle": "Borrar z-index y restaurar el orden predeterminado"
+      },
       "typography": {
         "section": "Tipografía",
         "font": "Fuente",

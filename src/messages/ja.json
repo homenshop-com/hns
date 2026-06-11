@@ -1116,6 +1116,19 @@
       "position": {
         "section": "位置・サイズ"
       },
+      "arrange": {
+        "section": "配置・重なり順",
+        "toFront": "最前面へ",
+        "forward": "前面へ",
+        "backward": "背面へ",
+        "toBack": "最背面へ",
+        "toFrontTitle": "最前面に移動",
+        "forwardTitle": "1つ前面へ",
+        "backwardTitle": "1つ背面へ",
+        "toBackTitle": "最背面に移動",
+        "auto": "自動",
+        "autoTitle": "z-indexをクリアして既定の順序に戻す"
+      },
       "typography": {
         "section": "タイポグラフィ",
         "font": "フォント",
