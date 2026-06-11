@@ -19,8 +19,13 @@ function getWhitelist(): string[] {
 }
 
 export function isEditorV2Enabled(email: string | null | undefined): boolean {
-  if (!email) return false;
   const list = getWhitelist();
+  // "*" means literally everyone — must win BEFORE the email guard. On
+  // white-label reseller domains the OAuth proxy flow can yield a session
+  // without an email; with "*" set, V2 must still be on for that session,
+  // otherwise the per-device save path is silently bypassed and a
+  // mobile-mode edit bakes its geometry into the desktop base html.
   if (list.includes("*")) return true;
+  if (!email) return false;
   return list.includes(email.toLowerCase());
 }
