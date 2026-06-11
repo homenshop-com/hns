@@ -400,6 +400,19 @@
   overflow: hidden;
 }
 
+/* Tablet preview — symmetric centering (mirror mobile, no phone frame).
+   Without a `.de-root`-prefixed rule, `.de-canvas-wrapper.tablet-preview`
+   (specificity 0,2,0) LOSES to the rail-padding rule
+   `body:has(.leftpalette-rail) .de-canvas-wrapper` (0,2,1), so the tablet
+   artboard inherits the asymmetric 240/300 left/right padding and renders
+   off-center. This `.de-root` prefix (0,3,0) restores the symmetric padding
+   so the 768 artboard centers in the canvas viewport, exactly like mobile. */
+.de-root .de-canvas-wrapper.tablet-preview {
+  padding: 32px 20px 60px;
+  background:
+    radial-gradient(circle at 50% 30%, #1a1d26 0%, var(--fig-canvas-floor) 70%);
+}
+
 /* Floating breakpoint switcher (top-left on canvas) — NEW */
 .de-canvas-float-tl {
   position: absolute;
