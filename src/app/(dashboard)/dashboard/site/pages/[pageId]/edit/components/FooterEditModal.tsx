@@ -320,46 +320,6 @@ export default function FooterEditModal({
           </button>
         </div>
 
-        {/* 위치/크기 편집 링크 배너 */}
-        <div
-          style={{
-            padding: "8px 16px",
-            background: "rgba(124,58,237,0.12)",
-            borderBottom: "1px solid rgba(124,58,237,0.25)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 10,
-          }}
-        >
-          <span style={{ fontSize: 12, color: "#a78bfa" }}>
-            <i className="fa-solid fa-arrows-up-down-left-right" style={{ marginRight: 5, fontSize: 11 }} />
-            풋터 요소의 위치·크기를 드래그로 조정하려면
-          </span>
-          <a
-            href={`/dashboard/site/${siteId}/hmf`}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 5,
-              fontSize: 12,
-              fontWeight: 700,
-              color: "#c4b5fd",
-              background: "rgba(124,58,237,0.2)",
-              border: "1px solid rgba(124,58,237,0.4)",
-              borderRadius: 5,
-              padding: "3px 10px",
-              textDecoration: "none",
-              whiteSpace: "nowrap",
-            }}
-          >
-            헤더/풋터 편집기 열기
-            <i className="fa-solid fa-arrow-up-right-from-square" style={{ fontSize: 10 }} />
-          </a>
-        </div>
-
         {/* Body */}
         <div
           style={{
