@@ -20,3 +20,10 @@ export {
   collectSceneGeometryOwners,
 } from "./geometry-strip";
 export { stripFooterPinnedTop } from "./footer-flow";
+export {
+  validateHmf,
+  assertHmfContract,
+  type HmfIssue,
+  type HmfValidateInput,
+  type HmfValidateResult,
+} from "./hmf-contract";
