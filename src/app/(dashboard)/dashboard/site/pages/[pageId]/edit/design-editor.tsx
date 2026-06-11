@@ -1186,6 +1186,20 @@ export default function DesignEditor({
           }
         });
       }
+      // `content.html` MUST be the DESKTOP base. The canvas DOM currently
+      // reflects whichever device is previewed (tablet/mobile) — reading it
+      // as-is bakes that device's geometry (e.g. a mobile-shrunk hero) into
+      // the base html, so on reload `legacyHtmlToScene(html)` parses the
+      // shrunk size as the base and EVERY device inherits it. Re-sync the body
+      // to desktop before reading, then restore the preview. Device overrides
+      // persist separately (content.layers + pageCss `@media`), so nothing is
+      // lost. Mirrors the HMF save's desktop reset. (Sprint: per-device fix.)
+      const saveDevice = editorV2Enabled
+        ? (useEditorStore.getState().viewportMode as ViewportMode)
+        : "desktop";
+      if (bodyEl && saveDevice !== "desktop") {
+        syncStoreToDom(useEditorStore.getState().scene, bodyEl, "desktop");
+      }
       // Strip canvas-only `!important` annotations from inline background
       // styles before persisting. `applyStyleToEl` writes background with
       // `!important` so it beats CSS rules on the canvas; the saved HTML
@@ -1196,6 +1210,10 @@ export default function DesignEditor({
         /\bbackground\s*:\s*([^;!}"']*?)\s*!important\s*([;}"'])/gi,
         "background: $1$2",
       );
+      if (bodyEl && saveDevice !== "desktop") {
+        // Restore the device preview the user was editing in.
+        syncStoreToDom(useEditorStore.getState().scene, bodyEl, saveDevice);
+      }
 
       // V2 dual-save: attach the current scene graph alongside the HTML.
       // Publisher / legacy consumers keep reading `content.html`; V2-aware
