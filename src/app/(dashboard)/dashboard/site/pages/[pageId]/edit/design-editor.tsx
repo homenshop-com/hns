@@ -1125,21 +1125,6 @@ export default function DesignEditor({
       setFitOffsetX(0);
       return;
     }
-    // AUTO-FIT sites (no manual per-device overrides) publish a single
-    // shrink-to-fit layout — the route scales the whole design width down to
-    // the viewport. Mirror that in the editor: show the FULL design-width
-    // artboard scaled to the device proportion (375/design, 768/design) — a
-    // clean phone/tablet preview, no desktop content spilling past a narrow
-    // artboard, and visually distinct per device. (`autoFitDevice` /
-    // `designCanvasWidth` are declared later in the component body; this
-    // callback runs after render, so they are initialized by then.)
-    if (autoFitDevice) {
-      const dw = designCanvasWidth ?? 1000;
-      const target = viewportMode === "mobile" ? 375 : 768;
-      setZoom(Math.max(20, Math.round((target / dw) * 100)));
-      setFitOffsetX(0);
-      return;
-    }
     let cancelled = false;
     const fit = () => {
       if (cancelled) return;
@@ -3656,25 +3641,12 @@ export default function DesignEditor({
    * which also renders absolute coords at the real device width.
    * Flow (modern) sites never enter device mode via the toggle, so this only
    * affects the absolute paradigm. */
-  // AUTO-FIT vs MANUAL per-device. A page with NO device-override block
-  // (`SCENE-DEVICE-OVERRIDES` in pageCss) is published as a single shrink-to-
-  // fit layout (route.ts scales the whole design width to the viewport). The
-  // editor mirrors that: device modes keep the FULL design-width artboard and
-  // are scaled DOWN to the device proportion by the zoom effect — a clean
-  // preview, no desktop content spilling past a 375/768 artboard. Once the
-  // user manually repositions for a device (which writes a SCENE-DEVICE-
-  // OVERRIDES block), the page switches to the per-band 375/768 artboard so
-  // those re-pins line up with the published per-band scale.
-  const hasDeviceOverrides = currentPageCss.includes("SCENE-DEVICE-OVERRIDES");
-  const autoFitDevice = !isModernCanvas && !hasDeviceOverrides;
   const deviceArtboardWidth =
-    autoFitDevice
-      ? null // → falls through to designCanvasWidth; zoom shrinks to device
-      : !isModernCanvas && viewportMode === "mobile"
-        ? 375
-        : !isModernCanvas && viewportMode === "tablet"
-          ? 768
-          : null;
+    !isModernCanvas && viewportMode === "mobile"
+      ? 375
+      : !isModernCanvas && viewportMode === "tablet"
+        ? 768
+        : null;
   const artboardWidth = deviceArtboardWidth ?? designCanvasWidth ?? null;
 
   const selectedProps = getSelectedElProps();
