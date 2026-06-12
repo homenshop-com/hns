@@ -1200,6 +1200,38 @@ export default function DesignEditor({
       if (bodyEl && saveDevice !== "desktop") {
         syncStoreToDom(useEditorStore.getState().scene, bodyEl, "desktop");
       }
+      // Plugins (boardPlugin/productPlugin/…) are CSS-governed: their real
+      // size lives in the page CSS real-size rule (+ device `@media`).
+      // `applyFrameToEl` writes a plugin's frame inline with `!important` for
+      // live-canvas preview, but a *persisted* inline `!important` geometry
+      // beats BOTH the CSS rule AND the mobile `@media` (inline `!important`
+      // wins the cascade), pinning the plugin to one size on every device and
+      // silently defeating the user's per-device override. For plugins that
+      // carry a tablet/mobile override in the scene, strip the inline geometry
+      // before persisting so the CSS cascade (desktop rule + `@media`) governs.
+      // Scoped to overridden plugins only → zero effect on single-size plugins.
+      if (bodyEl && editorV2Enabled) {
+        type WalkNode = {
+          id?: string;
+          tabletFrame?: unknown;
+          mobileFrame?: unknown;
+          children?: WalkNode[];
+        };
+        const overridden = new Set<string>();
+        const walk = (n: WalkNode | undefined): void => {
+          if (!n) return;
+          if (n.id && (n.tabletFrame || n.mobileFrame)) overridden.add(n.id);
+          n.children?.forEach(walk);
+        };
+        walk(useEditorStore.getState().scene.root as unknown as WalkNode);
+        bodyEl.querySelectorAll<HTMLElement>(".dragable").forEach((el) => {
+          if (!/\b[A-Za-z]+Plugin\b/.test(el.className)) return;
+          if (!el.id || !overridden.has(el.id)) return;
+          for (const p of ["left", "top", "width", "height"] as const) {
+            el.style.removeProperty(p);
+          }
+        });
+      }
       // Strip canvas-only `!important` annotations from inline background
       // styles before persisting. `applyStyleToEl` writes background with
       // `!important` so it beats CSS rules on the canvas; the saved HTML
