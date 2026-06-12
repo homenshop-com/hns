@@ -379,6 +379,10 @@ export default function DesignEditor({
   // zoom pill. Zoom only drives a CSS transform on the canvas; drag math is
   // unaffected (handlers use getBoundingClientRect which reflects the scale).
   const [zoom, setZoom] = useState(100);
+  // Horizontal shift (viewport px) applied with the zoom transform so the
+  // device-mode fit centers the actual CONTENT (which may spill past the
+  // artboard) rather than the artboard box. 0 in desktop / normal zoom.
+  const [fitOffsetX, setFitOffsetX] = useState(0);
   const [cursorCoord, setCursorCoord] = useState<[number, number] | null>(null);
   // Live layer count for the status bar — updated from the store.
   const [layerCount, setLayerCount] = useState(0);
@@ -1118,6 +1122,7 @@ export default function DesignEditor({
     if (!editorV2Enabled) return;
     if (viewportMode === "desktop") {
       setZoom(100);
+      setFitOffsetX(0);
       return;
     }
     let cancelled = false;
@@ -1132,7 +1137,9 @@ export default function DesignEditor({
       const availInner = wrap.clientWidth - padL - padR - 48; // breathing room
       if (availInner <= 0) return;
       const cRect = canvas.getBoundingClientRect();
-      const centerVp = cRect.left + cRect.width / 2;
+      const W = canvas.offsetWidth || 768; // unscaled artboard width
+      const cur = cRect.width / W || 1; // current rendered scale
+      const centerVp = cRect.left + cRect.width / 2; // artboard center (origin)
       let maxRvp = cRect.right;
       let minLvp = cRect.left;
       canvas.querySelectorAll<HTMLElement>(".dragable").forEach((el) => {
@@ -1141,13 +1148,20 @@ export default function DesignEditor({
         if (r.right > maxRvp) maxRvp = r.right;
         if (r.left < minLvp) minLvp = r.left;
       });
-      // Half-extent (viewport px, current scale) from the artboard center to
-      // the farthest content edge on either side. Target it to availInner/2.
-      const halfExtentVp = Math.max(maxRvp - centerVp, centerVp - minLvp, 1);
-      const cur = cRect.width / (canvas.offsetWidth || 1) || 1;
-      let target = Math.floor(((cur * (availInner / 2)) / halfExtentVp) * 100);
-      target = Math.max(25, Math.min(100, target));
-      setZoom(target);
+      // Convert the content's farthest edges to UNSCALED artboard-local px
+      // (origin is top-center, so unscale around the artboard center).
+      const minL = (minLvp - centerVp) / cur + W / 2;
+      const maxR = (maxRvp - centerVp) / cur + W / 2;
+      const contentCenter = (minL + maxR) / 2;
+      const halfWidth = Math.max((maxR - minL) / 2, 1);
+      // Scale so the full content width fits the visible canvas; never zoom in.
+      const s = Math.max(0.25, Math.min(1, availInner / 2 / halfWidth));
+      // Shift so the CONTENT center (not the artboard center) lands on the
+      // canvas center — the artboard box is margin-auto centered, so translate
+      // the content-center offset (scaled) back to the middle.
+      const tx = -(contentCenter - W / 2) * s;
+      setZoom(Math.round(s * 100));
+      setFitOffsetX(Math.round(tx));
     };
     const t1 = setTimeout(fit, 120);
     const t2 = setTimeout(fit, 480);
@@ -4762,7 +4776,10 @@ export default function DesignEditor({
           className={`de-canvas${isModernCanvas ? " is-modern" : ""}`}
           ref={canvasRef}
           style={{
-            transform: zoom !== 100 ? `scale(${zoom / 100})` : undefined,
+            transform:
+              zoom !== 100 || fitOffsetX !== 0
+                ? `translateX(${fitOffsetX}px) scale(${zoom / 100})`
+                : undefined,
             transformOrigin: "top center",
             ...(artboardWidth ? { width: artboardWidth } : {}),
           }}
