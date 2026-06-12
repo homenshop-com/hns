@@ -388,9 +388,12 @@
   z-index: 1;
 }
 
-/* Mobile preview — refine phone frame */
+/* Mobile preview — refine phone frame. Like tablet, do NOT override the
+   left/right rail padding: the artboard must center within the visible canvas
+   (between the panels) and overflow must stay scrollable rather than hide
+   under the fixed inspector. Centering via `.de-canvas { margin: 0 auto }`. */
 .de-root .de-canvas-wrapper.mobile-preview {
-  padding: 32px 20px 60px;
+  padding-bottom: 60px;
   background:
     radial-gradient(circle at 50% 30%, #1a1d26 0%, var(--fig-canvas-floor) 70%);
 }
@@ -400,15 +403,15 @@
   overflow: hidden;
 }
 
-/* Tablet preview — symmetric centering (mirror mobile, no phone frame).
-   Without a `.de-root`-prefixed rule, `.de-canvas-wrapper.tablet-preview`
-   (specificity 0,2,0) LOSES to the rail-padding rule
-   `body:has(.leftpalette-rail) .de-canvas-wrapper` (0,2,1), so the tablet
-   artboard inherits the asymmetric 240/300 left/right padding and renders
-   off-center. This `.de-root` prefix (0,3,0) restores the symmetric padding
-   so the 768 artboard centers in the canvas viewport, exactly like mobile. */
+/* Tablet preview background. NOTE: deliberately does NOT override the
+   left/right padding — the rail-padding rules (padding-left:240 for the
+   left palette, padding-right:300 for the inspector) must stay so the
+   artboard centers within the VISIBLE canvas (between the panels) and any
+   content that overflows the 768 artboard (e.g. a desktop-width header not
+   yet laid out for tablet) cannot slide UNDER the fixed inspector where its
+   resize handles become unreachable. Centering is handled scroll-safely by
+   `.de-canvas { margin: 0 auto }`. */
 .de-root .de-canvas-wrapper.tablet-preview {
-  padding: 32px 20px 60px;
   background:
     radial-gradient(circle at 50% 30%, #1a1d26 0%, var(--fig-canvas-floor) 70%);
 }

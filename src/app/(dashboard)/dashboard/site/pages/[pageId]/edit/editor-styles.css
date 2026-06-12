@@ -499,6 +499,14 @@
   min-height: 800px;
   position: relative;
   flex-shrink: 0;
+  /* Center via auto margins, NOT the wrapper's `justify-content: center`.
+     A centered flex item traps its overflow: when the artboard (or content
+     that spills out of it, e.g. a desktop-width header in the narrow tablet
+     preview) is wider than the visible canvas, `justify-content: center`
+     makes the overflow unreachable by scrolling. Auto margins center the
+     same way but collapse to 0 on overflow, so `overflow: auto` on the
+     wrapper can scroll all the way to the right edge. */
+  margin: 0 auto;
 }
 .de-canvas-content {
   position: relative;
