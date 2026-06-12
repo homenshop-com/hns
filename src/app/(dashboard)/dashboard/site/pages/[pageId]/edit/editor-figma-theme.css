@@ -400,7 +400,12 @@
 .de-root .de-canvas-wrapper.mobile-preview .de-canvas {
   border: 8px solid #111827;
   border-radius: 28px;
-  overflow: hidden;
+  /* MUST stay `visible`: legacy elements not yet laid out for mobile spill
+     OUTSIDE the 375 phone, and the user needs to see + grab them to drag into
+     the column. `overflow: hidden` (a realistic phone-bezel clip) hides those
+     spilled objects entirely — only their out-of-canvas gizmo badges showed,
+     so the objects looked invisible. Tablet preview is already visible. */
+  overflow: visible;
 }
 
 /* Tablet preview background. NOTE: deliberately does NOT override the
