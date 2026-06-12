@@ -1502,6 +1502,25 @@ export async function GET(
   // PC 1000) so the published page mirrors the editor's fixed-width artboards.
   const hasDeviceOverrides = pageCss.includes(DEVICE_MEDIA_COMMENT_MARK);
 
+  // Real authored design width. Many legacy sites are wider than the default
+  // 1000px viewport (e.g. konnichiwa's header/hero run out to ~1130px). The
+  // shrink-to-fit script must scale the WHOLE authored width down — pinning to
+  // 1000 clips everything past 1000 on every device. Detect it from the
+  // `#v_home_dft` / `.c_v_home_dft` width rule (mirrors the editor's
+  // designCanvasWidth) and never go below 1000.
+  const designWidth = (() => {
+    const sources = [pageCss, templateCss, site.cssText || ""].join("\n");
+    const re =
+      /(?:#v_home_dft|\.c_v_home_dft)\s*\{[^}]*?(?<![a-z-])width\s*:\s*(\d+)px/gi;
+    let max = 1000;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(sources)) !== null) {
+      const w = parseInt(m[1], 10);
+      if (w > max) max = w;
+    }
+    return max;
+  })();
+
   // Scale-to-fit script only for legacy templates
   const scaleScript = isModernTemplate
     ? ''
@@ -1540,15 +1559,16 @@ export async function GET(
       : `<script>(function(){
   window.__dbg=location.search.indexOf('debug')>-1; var el = document.getElementById('v_home_dft');
   if (!el) return;
+  var DW = ${designWidth};
   document.documentElement.style.cssText += 'margin:0;padding:0;overflow-x:hidden;';
   document.body.style.cssText += 'margin:0;padding:0;overflow-x:hidden;';
-  el.style.cssText += 'width:1000px;margin:0 auto;overflow-x:hidden;overflow-y:visible;position:relative;';
+  el.style.cssText += 'width:'+DW+'px;margin:0 auto;overflow-x:hidden;overflow-y:visible;position:relative;';
   function sf() {
     var vw = document.documentElement.clientWidth;
-    if (vw < 1000) {
-      var sc = vw / 1000;
+    if (vw < DW) {
+      var sc = vw / DW;
       el.style.transformOrigin = 'top left';
-      el.style.transform = 'scale(' + sc + ')'; if(window.__dbg){document.title='vw='+vw+' sc='+sc.toFixed(3)+' rect='+el.getBoundingClientRect().left;}
+      el.style.transform = 'scale(' + sc + ')'; if(window.__dbg){document.title='vw='+vw+' DW='+DW+' sc='+sc.toFixed(3);}
       el.style.marginBottom = '-' + ((1 - sc) * el.scrollHeight) + 'px';
     } else {
       el.style.transform = '';
