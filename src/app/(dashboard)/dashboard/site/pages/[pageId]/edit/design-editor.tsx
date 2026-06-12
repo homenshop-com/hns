@@ -1153,13 +1153,28 @@ export default function DesignEditor({
       const minL = (minLvp - centerVp) / cur + W / 2;
       const maxR = (maxRvp - centerVp) / cur + W / 2;
       const contentCenter = (minL + maxR) / 2;
-      const halfWidth = Math.max((maxR - minL) / 2, 1);
-      // Scale so the full content width fits the visible canvas; never zoom in.
-      const s = Math.max(0.25, Math.min(1, availInner / 2 / halfWidth));
-      // Shift so the CONTENT center (not the artboard center) lands on the
-      // canvas center — the artboard box is margin-auto centered, so translate
-      // the content-center offset (scaled) back to the middle.
-      const tx = -(contentCenter - W / 2) * s;
+      const contentWidth = maxR - minL;
+      let s: number;
+      let tx: number;
+      if (contentWidth > W * 1.8) {
+        // Content is FAR wider than the artboard — i.e. legacy elements not
+        // yet laid out for this device (e.g. a desktop header at ~1130 on a
+        // 375 phone). Centering on the content center would shove the tiny
+        // device frame into a corner. Keep the DEVICE FRAME centered (the
+        // anchor the user arranges against) and zoom so the whole spill is
+        // still visible to drag inward. tx=0 (artboard is margin-auto centered).
+        const halfExtent = Math.max(maxR - W / 2, W / 2 - minL, 1);
+        s = Math.max(0.25, Math.min(1, availInner / 2 / halfExtent));
+        tx = 0;
+      } else {
+        // Content roughly fills the artboard (tablet, or an already-laid-out
+        // device): center the CONTENT itself so it reads as balanced. The
+        // artboard box is margin-auto centered, so translate the content-center
+        // offset (scaled) back to the middle.
+        const halfWidth = Math.max(contentWidth / 2, 1);
+        s = Math.max(0.25, Math.min(1, availInner / 2 / halfWidth));
+        tx = -(contentCenter - W / 2) * s;
+      }
       setZoom(Math.round(s * 100));
       setFitOffsetX(Math.round(tx));
     };
