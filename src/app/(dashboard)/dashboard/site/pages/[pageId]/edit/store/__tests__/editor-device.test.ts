@@ -98,6 +98,19 @@ describe("editor-store — tablet frame routing", () => {
     expect(l.tabletFrameKeys ?? []).not.toContain("left");
     expect(l.tabletFrameKeys ?? []).not.toContain("top");
   });
+
+  it("seeds a tablet layout from desktop once, then preserves manual edits", () => {
+    const get = () => useEditorStore.getState();
+    get().seedViewportFromDesktop("tablet", 1000, 500);
+    expect(child("abs").tabletFrame).toEqual({ x: 5, y: 10, w: 50, h: 20 });
+
+    get().setViewportMode("tablet");
+    get().setFrame("abs", { x: 77 });
+    get().seedViewportFromDesktop("tablet", 1000, 500);
+
+    expect(child("abs").tabletFrame).toEqual({ x: 77, y: 10, w: 50, h: 20 });
+    expect(child("abs").frame).toEqual({ x: 10, y: 20, w: 100, h: 40 });
+  });
 });
 
 describe("editor-store — mobile frame routing (unchanged)", () => {

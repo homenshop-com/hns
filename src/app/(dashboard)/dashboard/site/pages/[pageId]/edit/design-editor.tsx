@@ -56,6 +56,7 @@ import {
 import {
   type HmfDeviceMap,
   type HmfBaseMap,
+  type HmfDevice,
   type HmfViewport,
   parseHmfDeviceStyle,
   recordHmfDeviceFrame,
@@ -3648,6 +3649,67 @@ export default function DesignEditor({
         ? 768
         : null;
   const artboardWidth = deviceArtboardWidth ?? designCanvasWidth ?? null;
+
+  const seedHmfViewportFromDesktop = useCallback((device: HmfDevice, desktopWidth: number, deviceWidth: number) => {
+    const scale = desktopWidth > 0 ? deviceWidth / desktopWidth : 1;
+    const map = hmfDeviceFramesRef.current;
+    const base = hmfBaseFramesRef.current;
+    const px = (value: string | undefined): number | null => {
+      if (!value) return null;
+      const n = parseFloat(value);
+      return Number.isFinite(n) ? n : null;
+    };
+    const scaleCss = (value: string | undefined): string | undefined => {
+      const n = px(value);
+      return n == null ? value : `${Math.max(1, Math.round(n * scale))}px`;
+    };
+
+    for (const container of [headerRef.current, menuRef.current, footerRef.current]) {
+      if (!container) continue;
+      let changed = false;
+      snapshotHmfContainerBase(container, base);
+      container.querySelectorAll<HTMLElement>(".dragable").forEach((el) => {
+        const id = el.id || undefined;
+        if (!id) return;
+        if (map[id]?.[device]) return;
+        const box = base[id] ?? {
+          left: el.style.left || undefined,
+          top: el.style.top || undefined,
+          width: el.style.width || undefined,
+          height: el.style.height || undefined,
+        };
+        const next = {
+          left: scaleCss(box.left),
+          top: scaleCss(box.top),
+          width: scaleCss(box.width),
+          height: scaleCss(box.height),
+        };
+        recordHmfDeviceFrame(el, map, device, next);
+        changed = true;
+      });
+      if (changed) {
+        writeHmfDeviceStyle(container, map);
+        if (container === headerRef.current) useEditorStore.getState().markHeaderDirty();
+        if (container === footerRef.current) useEditorStore.getState().markFooterDirty();
+      }
+      applyHmfDevicePreview(container, map, base, device);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!editorV2Enabled || isModernCanvas || viewportMode === "desktop") return;
+    const deviceWidth = viewportMode === "mobile" ? 375 : 768;
+    const desktopWidth = designCanvasWidth ?? 1000;
+    const store = useEditorStore.getState();
+    store.seedViewportFromDesktop(viewportMode, desktopWidth, deviceWidth);
+    seedHmfViewportFromDesktop(viewportMode, desktopWidth, deviceWidth);
+  }, [
+    editorV2Enabled,
+    isModernCanvas,
+    viewportMode,
+    designCanvasWidth,
+    seedHmfViewportFromDesktop,
+  ]);
 
   const selectedProps = getSelectedElProps();
 

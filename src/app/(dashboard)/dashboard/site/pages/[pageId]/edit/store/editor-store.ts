@@ -223,6 +223,14 @@ export interface EditorActions {
   setViewportMode(mode: ViewportMode): void;
 
   /**
+   * Create an initial absolute-coordinate layout for a non-desktop device
+   * from the desktop base. This is intentionally a one-shot seed per layer:
+   * existing tablet/mobile frames are left untouched so manual device edits
+   * remain authoritative.
+   */
+  seedViewportFromDesktop(device: OverrideDevice, desktopWidth: number, deviceWidth: number): void;
+
+  /**
    * Per-device visibility (mutable-baking-falcon Phase 3/4). Hides/shows a
    * layer at tablet or mobile; serialized as `display:none !important`
    * inside the device `@media` block. PC visibility stays on `visible`.
@@ -454,6 +462,43 @@ export const useEditorStore = create<EditorStore>()(
       footerDirty: false,
 
       setViewportMode: (mode) => set(() => ({ viewportMode: mode })),
+
+      seedViewportFromDesktop: (device, desktopWidth, deviceWidth) =>
+        set((s) => {
+          const scale = desktopWidth > 0 ? deviceWidth / desktopWidth : 1;
+          let changed = false;
+          const frameField = device === "tablet" ? "tabletFrame" : "mobileFrame";
+          const keysField = device === "tablet" ? "tabletFrameKeys" : "mobileFrameKeys";
+
+          const seed = (layer: Layer) => {
+            if (hasTypedChildren(layer)) layer.children.forEach(seed);
+            if (layer.type === "inline") return;
+            if (layer[frameField]) return;
+
+            const keys = new Set(layer.frameKeys ?? []);
+            const isAbsolute =
+              keys.has("position") || keys.has("left") || keys.has("top");
+            const isSized = keys.has("width") || keys.has("height");
+            if (!isAbsolute && !isSized) return;
+
+            const next = { ...layer.frame };
+            if (!isSection(layer)) {
+              next.x = Math.round(layer.frame.x * scale);
+              next.y = Math.round(layer.frame.y * scale);
+            }
+            if (keys.has("width")) next.w = Math.max(1, Math.round(layer.frame.w * scale));
+            if (keys.has("height")) next.h = Math.max(1, Math.round(layer.frame.h * scale));
+
+            layer[frameField] = next;
+            layer[keysField] = Array.from(keys) as NonNullable<Layer["mobileFrameKeys"]>;
+            changed = true;
+          };
+
+          const scene = produce(s.scene, (draft) => {
+            draft.root.children.forEach(seed);
+          });
+          return changed ? { scene, dirty: true } : {};
+        }),
 
       setHeaderScene: (scene) => set(() => ({ headerScene: scene, headerDirty: false })),
 
