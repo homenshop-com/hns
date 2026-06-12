@@ -1104,6 +1104,60 @@ export default function DesignEditor({
     }
   }, [editorV2Enabled, viewportMode]);
 
+  /* ─── Auto zoom-to-fit in tablet/mobile (LEGACY ABSOLUTE) ───
+   * The device artboard shrinks to 768/375, but legacy content authored at
+   * the full design width (e.g. a header whose menu-bar image + nav icons sit
+   * out to ~1130px) SPILLS past the artboard. Centered at 100%, that spill
+   * lands under the fixed inspector panel where its resize handles are
+   * unreachable, and the canvas reads as "skewed right / can't edit the right
+   * edge". On entering a device mode we measure the REAL content extent and
+   * zoom out so the whole thing (artboard + spill) fits the visible canvas
+   * width, centered around the artboard center (transform-origin: top center).
+   * Switching back to desktop resets to 100%. */
+  useEffect(() => {
+    if (!editorV2Enabled) return;
+    if (viewportMode === "desktop") {
+      setZoom(100);
+      return;
+    }
+    let cancelled = false;
+    const fit = () => {
+      if (cancelled) return;
+      const wrap = canvasWrapperRef.current;
+      const canvas = canvasRef.current;
+      if (!wrap || !canvas) return;
+      const cs = getComputedStyle(wrap);
+      const padL = parseFloat(cs.paddingLeft) || 0;
+      const padR = parseFloat(cs.paddingRight) || 0;
+      const availInner = wrap.clientWidth - padL - padR - 48; // breathing room
+      if (availInner <= 0) return;
+      const cRect = canvas.getBoundingClientRect();
+      const centerVp = cRect.left + cRect.width / 2;
+      let maxRvp = cRect.right;
+      let minLvp = cRect.left;
+      canvas.querySelectorAll<HTMLElement>(".dragable").forEach((el) => {
+        const r = el.getBoundingClientRect();
+        if (r.width === 0 && r.height === 0) return;
+        if (r.right > maxRvp) maxRvp = r.right;
+        if (r.left < minLvp) minLvp = r.left;
+      });
+      // Half-extent (viewport px, current scale) from the artboard center to
+      // the farthest content edge on either side. Target it to availInner/2.
+      const halfExtentVp = Math.max(maxRvp - centerVp, centerVp - minLvp, 1);
+      const cur = cRect.width / (canvas.offsetWidth || 1) || 1;
+      let target = Math.floor(((cur * (availInner / 2)) / halfExtentVp) * 100);
+      target = Math.max(25, Math.min(100, target));
+      setZoom(target);
+    };
+    const t1 = setTimeout(fit, 120);
+    const t2 = setTimeout(fit, 480);
+    return () => {
+      cancelled = true;
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [editorV2Enabled, viewportMode]);
+
   /* ─── Load AI credit balance + cost ─── */
   const reloadBalance = useCallback(async () => {
     try {
