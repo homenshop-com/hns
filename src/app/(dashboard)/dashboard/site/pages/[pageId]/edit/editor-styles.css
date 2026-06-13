@@ -535,13 +535,21 @@
 }
 .de-canvas-wrapper.mobile-preview .de-canvas,
 .de-canvas-wrapper.tablet-preview .de-canvas {
+  width: var(--de-device-artboard-width) !important;
+  min-width: 0 !important;
+  max-width: none !important;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
   background: #fff;
   overflow: visible;
 }
 /* Off-device spill must remain visible & reachable, never clipped. */
+.de-canvas-wrapper.mobile-preview .de-canvas-content,
+.de-canvas-wrapper.tablet-preview .de-canvas-content,
 .de-canvas-wrapper.mobile-preview #de-canvas-inner,
 .de-canvas-wrapper.tablet-preview #de-canvas-inner {
+  width: var(--de-device-artboard-width) !important;
+  min-width: 0 !important;
+  max-width: none !important;
   overflow: visible;
 }
 

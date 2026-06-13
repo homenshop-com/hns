@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect, lazy, Suspense } from "react";
+import { useState, useRef, useCallback, useEffect, lazy, Suspense, type CSSProperties } from "react";
 import { useStore } from "zustand";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -3649,6 +3649,9 @@ export default function DesignEditor({
         ? 768
         : null;
   const artboardWidth = deviceArtboardWidth ?? designCanvasWidth ?? null;
+  const canvasWrapperStyle: CSSProperties | undefined = deviceArtboardWidth
+    ? { "--de-device-artboard-width": `${deviceArtboardWidth}px` } as CSSProperties
+    : undefined;
 
   const seedHmfViewportFromDesktop = useCallback((device: HmfDevice, desktopWidth: number, deviceWidth: number) => {
     const scale = desktopWidth > 0 ? deviceWidth / desktopWidth : 1;
@@ -4810,6 +4813,7 @@ export default function DesignEditor({
       <div
         ref={canvasWrapperRef}
         className={`de-canvas-wrapper${viewportMode === "mobile" ? " mobile-preview" : viewportMode === "tablet" ? " tablet-preview" : ""}`}
+        style={canvasWrapperStyle}
         onMouseMove={(e) => {
           const host = bodyRef.current;
           if (!host) return;
