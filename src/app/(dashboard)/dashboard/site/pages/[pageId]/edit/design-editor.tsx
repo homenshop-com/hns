@@ -25,6 +25,7 @@ import {
   stripDeviceMediaCss,
   applyDeviceOverridesFromScene,
   legacyHmfToScene,
+  sceneToLegacyHtml,
   stripFooterPinnedTop,
   type SceneGraph,
 } from "@/lib/scene";
@@ -143,6 +144,37 @@ function upsertBodyLayoutCss(css: string, heights: BodyLayoutHeights): string {
   lines.push(BODY_LAYOUT_MARK_END);
   const block = lines.join("\n");
   return base ? `${base}\n\n${block}` : block;
+}
+
+type SerializableSceneLayer = {
+  id?: string;
+  type?: string;
+  html?: string;
+  innerHtml?: string;
+  legacyInnerHtml?: string;
+  legacyClassName?: string;
+  frameKeys?: string[];
+  frameImportant?: string[];
+  tabletFrame?: unknown;
+  mobileFrame?: unknown;
+  children?: SerializableSceneLayer[];
+};
+
+function cloneSceneForDesktopSave(scene: SceneGraph, bodyEl: HTMLElement | null): SceneGraph {
+  const cloned = JSON.parse(JSON.stringify(scene)) as SceneGraph;
+  const syncLiveInnerHtml = (layer: SerializableSceneLayer) => {
+    if (layer.id && bodyEl) {
+      const el = bodyEl.querySelector<HTMLElement>(`#${CSS.escape(layer.id)}`);
+      if (el) {
+        if (layer.type === "text") layer.html = el.innerHTML;
+        else if (layer.type === "image" || layer.type === "box") layer.innerHtml = el.innerHTML;
+        else if (/\b[A-Za-z]+Plugin\b/.test(layer.legacyClassName ?? "")) layer.legacyInnerHtml = el.innerHTML;
+      }
+    }
+    layer.children?.forEach(syncLiveInnerHtml);
+  };
+  syncLiveInnerHtml(cloned.root as unknown as SerializableSceneLayer);
+  return cloned;
 }
 
 /**
@@ -1453,12 +1485,20 @@ export default function DesignEditor({
           }
         });
       }
+      // Build the persisted body from the scene's DESKTOP base, not from the
+      // currently painted canvas DOM. The DOM is only a preview surface and can
+      // contain tablet/mobile inline geometry after the last edited device.
+      const v2Scene = editorV2Enabled
+        ? cloneSceneForDesktopSave(useEditorStore.getState().scene, bodyEl)
+        : null;
+      const rawHtml = v2Scene
+        ? sceneToLegacyHtml(v2Scene)
+        : (bodyEl ? bodyEl.innerHTML : currentBodyHtml);
       // Strip canvas-only `!important` annotations from inline background
       // styles before persisting. `applyStyleToEl` writes background with
       // `!important` so it beats CSS rules on the canvas; the saved HTML
       // should carry the clean value so published pages and future parses
       // see a plain inline `background:…` without the flag.
-      const rawHtml = bodyEl ? bodyEl.innerHTML : currentBodyHtml;
       const html = rawHtml.replace(
         /\bbackground\s*:\s*([^;!}"']*?)\s*!important\s*([;}"'])/gi,
         "background: $1$2",
@@ -1468,14 +1508,6 @@ export default function DesignEditor({
         syncStoreToDom(useEditorStore.getState().scene, bodyEl, saveDevice);
         captureCurrentBodyHeight(saveDevice);
       }
-
-      // V2 dual-save: attach the current scene graph alongside the HTML.
-      // Publisher / legacy consumers keep reading `content.html`; V2-aware
-      // editor paths can preferentially hydrate from `content.layers` to
-      // get the typed tree without re-parsing.
-      const v2Scene = editorV2Enabled
-        ? useEditorStore.getState().scene
-        : null;
 
       // Device viewport overrides (tablet ≤1024 + mobile ≤767 + hidden +
       // cascade) → single `@media` block inside pageCss via the shared
