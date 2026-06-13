@@ -166,63 +166,6 @@
   min-height: 44px;
 }
 
-/* ── Editing-target toggle (본문 | 헤더/풋터) ──
-   Absolutely centered on ROW 1 only (top 0 → 44px), so it stays centered in
-   the actions row and never overlaps the page-tabs row below. */
-.de-header-center {
-  position: absolute;
-  left: 50%;
-  top: 0;
-  height: 44px;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  pointer-events: none; /* let child handle events */
-}
-.de-edit-target-toggle {
-  display: inline-flex;
-  background: #1f2937;
-  border: 1px solid #374151;
-  border-radius: 20px;
-  padding: 3px;
-  gap: 2px;
-  pointer-events: auto;
-}
-.de-edit-target-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 5px 14px;
-  font-size: 12px;
-  font-weight: 500;
-  color: #9ca3af;
-  background: transparent;
-  border: none;
-  border-radius: 16px;
-  cursor: pointer;
-  transition: all 0.15s;
-  white-space: nowrap;
-}
-.de-edit-target-btn:hover {
-  color: #e5e7eb;
-  background: rgba(255, 255, 255, 0.07);
-}
-.de-edit-target-btn.active {
-  color: #fff;
-  background: #3182f6;
-  font-weight: 600;
-}
-.de-edit-target-btn svg {
-  flex-shrink: 0;
-}
-
-/* ── HMF inactive body dim ── */
-[data-hmf-mode="inactive"] {
-  opacity: 0.3;
-  pointer-events: none;
-  user-select: none;
-  transition: opacity 0.2s;
-}
 .de-viewport-toggle {
   display: inline-flex;
   background: #1f2937;

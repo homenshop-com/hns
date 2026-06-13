@@ -261,10 +261,6 @@ interface DesignEditorProps {
    *  reseller's siteName/logo; the canonical host falls back to "homeNshop".
    *  Computed in the server parent via getResellerForHost(). */
   brand?: { brandName: string; logoUrl: string | null; whiteLabel: boolean };
-  /** Initial editing focus. "hmf" launches the editor in header/footer mode
-   *  (body dimmed, header/footer elements interactive). Passed from the server
-   *  when ?mode=hmf is present (e.g. redirected from /hmf legacy route). */
-  initialEditingTarget?: "body" | "hmf";
 }
 
 /* ─── Component ─── */
@@ -295,7 +291,6 @@ export default function DesignEditor({
   isResponsiveTemplate = false,
   editorMode,
   brand = { brandName: "homeNshop", logoUrl: null, whiteLabel: false },
-  initialEditingTarget = "body",
 }: DesignEditorProps) {
   const router = useRouter();
   const t = useTranslations("editor");
@@ -372,11 +367,6 @@ export default function DesignEditor({
   // the sub-toolbar guard logic (always "page" now) so existing code
   // paths don't need to be audited for every touch.
   const activeTab: "page" = "page";
-  // Editing target: "body" (page content, default) or "hmf" (header/footer).
-  // In "hmf" mode the body is dimmed and non-interactive; header/footer
-  // elements are fully drag/resizable. Initialised from the `initialEditingTarget`
-  // prop so ?mode=hmf (e.g. redirected from /hmf) opens in HMF mode.
-  const [editingTarget, setEditingTarget] = useState<"body" | "hmf">(initialEditingTarget);
 
   // Site settings modal — opens from ⋯ overflow menu (holds what used to
   // be in the old "설정" tab: header/logo, menu mode, footer reset).
@@ -710,19 +700,6 @@ export default function DesignEditor({
   useEffect(() => {
     bodyManualMinHeightRef.current = parseBodyLayoutCss(pageCss);
   }, [pageCss, pageId]);
-
-  // Apply / remove body-dim overlay when editing target switches.
-  // "hmf" → body is visually dimmed and pointer-events:none so only
-  // header/footer elements are interactive. CSS rule lives in editor-styles.css.
-  useEffect(() => {
-    const bodyEl = bodyRef.current;
-    if (!bodyEl) return;
-    if (editingTarget === "hmf") {
-      bodyEl.dataset.hmfMode = "inactive";
-    } else {
-      delete bodyEl.dataset.hmfMode;
-    }
-  }, [editingTarget]);
 
   /* ─── V2 store → DOM sync ───
    * Subscribes once to the store. Every mutation runs a cheap DOM
@@ -1132,30 +1109,6 @@ export default function DesignEditor({
    * On entering "헤더/푸터 편집" mode, pull the freshest header/footer so the
    * user edits the current shared copy, not a stale one from page load. Skips
    * any container that has unsaved local edits (don't discard work). */
-  const refreshHmfFromServer = useCallback(async () => {
-    const headerClean =
-      !headerRef.current || hmfSignature(headerRef.current) === initialHeaderSigRef.current;
-    const footerClean =
-      !footerRef.current || hmfSignature(footerRef.current) === initialFooterSigRef.current;
-    if (!headerClean && !footerClean) return;
-    try {
-      const res = await fetch(
-        `/api/sites/${siteId}/hmf?lang=${encodeURIComponent(currentLang)}`,
-        { cache: "no-store" },
-      );
-      if (!res.ok) return;
-      const data = await res.json();
-      if (headerClean && typeof data.headerHtml === "string" && data.headerHtml.trim()) {
-        applyHeaderHtml(data.headerHtml);
-      }
-      if (footerClean && typeof data.footerHtml === "string" && data.footerHtml.trim()) {
-        applyFooterHtml(data.footerHtml);
-      }
-    } catch {
-      /* network hiccup — keep the current copy */
-    }
-  }, [siteId, currentLang, applyHeaderHtml, applyFooterHtml]);
-
   /* ─── (A) Cross-tab header/footer sync via BroadcastChannel ─── */
   useEffect(() => {
     if (typeof BroadcastChannel === "undefined") return;
@@ -4352,51 +4305,10 @@ export default function DesignEditor({
             </div>
           )}
         </div>
-        {/* Center: editing-target toggle (본문 ↔ 헤더/풋터) */}
-        <div className="de-header-center">
-          <div className="de-edit-target-toggle" role="group" aria-label="편집 영역 선택">
-            <button
-              type="button"
-              className={`de-edit-target-btn${editingTarget === "body" ? " active" : ""}`}
-              onClick={() => setEditingTarget("body")}
-              aria-pressed={editingTarget === "body"}
-              title="페이지 본문 편집"
-            >
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" style={{ display: "block" }}>
-                <rect x="1" y="1" width="14" height="14" rx="2" />
-                <line x1="4" y1="5" x2="12" y2="5" />
-                <line x1="4" y1="8" x2="10" y2="8" />
-                <line x1="4" y1="11" x2="8" y2="11" />
-              </svg>
-              본문
-            </button>
-            <button
-              type="button"
-              className={`de-edit-target-btn${editingTarget === "hmf" ? " active" : ""}`}
-              onClick={() => {
-                setEditingTarget("hmf");
-                // Clear body selection when entering HMF mode
-                setSelectedElId(null);
-                setEditingTextId(null);
-                multiSelectedRef.current.clear();
-                setMultiSelectCount(0);
-                if (editorV2Enabled) useEditorStore.getState().select(null as unknown as string);
-                // (C) Pull the freshest site-wide header/footer so edits start
-                // from the current shared copy, not a stale page-load snapshot.
-                void refreshHmfFromServer();
-              }}
-              aria-pressed={editingTarget === "hmf"}
-              title="헤더/풋터 편집 — 모든 페이지에 적용됩니다"
-            >
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" style={{ display: "block" }}>
-                <rect x="1" y="1" width="14" height="4" rx="1" />
-                <rect x="1" y="11" width="14" height="4" rx="1" />
-                <line x1="4" y1="8" x2="12" y2="8" strokeDasharray="2 2" />
-              </svg>
-              헤더/풋터
-            </button>
-          </div>
-        </div>
+        {/* Editing-target toggle removed (2026-06-13): header/footer and body
+            are edited together on one canvas, so the body↔HMF focus-lock mode
+            was redundant and collided with the device toggle. Header/footer
+            advanced settings remain reachable via the left rail "고급 편집". */}
 
         <div className="de-header-right">
           {editorV2Enabled && (
@@ -5211,7 +5123,6 @@ export default function DesignEditor({
           <InspectorPanel
             enabled={editorV2Enabled}
             siteId={siteId}
-            editingTarget={editingTarget}
             headerLayout={headerLayout}
             onApplyHeaderLayout={(next) => {
               setHeaderLayout(next);
