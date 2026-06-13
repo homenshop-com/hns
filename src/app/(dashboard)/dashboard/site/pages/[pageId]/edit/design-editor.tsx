@@ -1513,9 +1513,21 @@ export default function DesignEditor({
             if (c) applyHmfDevicePreview(c, map, base, "desktop");
           }
         }
-        // Auto menu mode: save empty menuHtml so published route generates dynamically
-        // Custom menu mode: save current DOM menuHtml
-        const menuHtmlToSave = menuMode === "auto" ? "" : (mEl ? mEl.innerHTML : undefined);
+        // Menu persistence:
+        //  - If the menu carries per-device geometry (a managed `<style
+        //    data-hns-device>` block, written by writeHmfDeviceStyle when the
+        //    user drags #v-wdg-nav in tablet/mobile mode), it MUST be saved even
+        //    in "auto" mode. Discarding it makes the publisher fall back to the
+        //    fixed-position legacy Site.menuHtml, freezing the menu at desktop
+        //    coords on every device. hmfSignature() keeps that device <style>
+        //    child; the publisher still refreshes link labels inside
+        //    `ul.mainmenu` from the pages list, so auto link-sync is preserved.
+        //  - Otherwise: auto → empty wrapper (dynamic gen); custom → DOM as-is.
+        const menuSig = mEl ? hmfSignature(mEl) : undefined;
+        const menuHtmlToSave =
+          menuSig !== undefined && menuSig.includes("data-hns-device")
+            ? menuSig
+            : (menuMode === "auto" ? "" : (mEl ? mEl.innerHTML : undefined));
         // Header/footer are SITE-WIDE. Only re-save them when THIS page actually
         // changed them (signature differs from what it loaded) — otherwise a
         // page that never touched the header would overwrite the shared copy
