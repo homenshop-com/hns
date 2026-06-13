@@ -94,6 +94,41 @@ const HMF_TRANSIENT_CLASSES = [
   "de-hmf-droptarget",
 ];
 
+const BODY_LAYOUT_MARK_START = "/* HNS-BODY-LAYOUT:START */";
+const BODY_LAYOUT_MARK_END = "/* HNS-BODY-LAYOUT:END */";
+const BODY_BOTTOM_PADDING = 80;
+const BODY_MIN_HEIGHT_FLOOR = 240;
+
+function bodyLayoutBlockRegex() {
+  return new RegExp(
+    String.raw`/\*\s*HNS-BODY-LAYOUT:START\s*\*/[\s\S]*?/\*\s*HNS-BODY-LAYOUT:END\s*\*/`,
+    "g",
+  );
+}
+
+function stripBodyLayoutCss(css: string): string {
+  return (css || "").replace(bodyLayoutBlockRegex(), "").trim();
+}
+
+function parseBodyMinHeightCss(css: string): number | null {
+  const block = (css || "").match(bodyLayoutBlockRegex())?.[0] ?? "";
+  const m = /#hns_body\s*\{[^}]*min-height\s*:\s*([\d.]+)px/i.exec(block);
+  if (!m) return null;
+  const n = Math.round(parseFloat(m[1]!));
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function upsertBodyLayoutCss(css: string, height: number | null): string {
+  const base = stripBodyLayoutCss(css);
+  if (!height || height <= 0) return base;
+  const block = [
+    BODY_LAYOUT_MARK_START,
+    `#hns_body{min-height:${Math.max(BODY_MIN_HEIGHT_FLOOR, Math.round(height))}px;}`,
+    BODY_LAYOUT_MARK_END,
+  ].join("\n");
+  return base ? `${base}\n\n${block}` : block;
+}
+
 /**
  * Normalized signature of an HMF container's content — its innerHTML with
  * editor-only selection/edit classes and `contenteditable` stripped. Used to
@@ -549,6 +584,13 @@ export default function DesignEditor({
     origHeight: number;
     importantPin?: boolean;
   } | null>(null);
+  const bodyResizeRef = useRef<{
+    startY: number;
+    startHeight: number;
+  } | null>(null);
+  const bodyManualMinHeightRef = useRef<number | null>(parseBodyMinHeightCss(pageCss));
+  const bodyHeightRafRef = useRef<number | null>(null);
+  const [bodyHandleTop, setBodyHandleTop] = useState(0);
 
   // Last pointer position during an active drag/resize gesture. Used at
   // mouse/touch-up to decide whether a body element was dropped over the
@@ -616,6 +658,10 @@ export default function DesignEditor({
       bodyRef.current.innerHTML = bodyHtml;
     }
   }, [bodyHtml]);
+
+  useEffect(() => {
+    bodyManualMinHeightRef.current = parseBodyMinHeightCss(pageCss);
+  }, [pageCss, pageId]);
 
   // Apply / remove body-dim overlay when editing target switches.
   // "hmf" → body is visually dimmed and pointer-events:none so only
@@ -1204,22 +1250,75 @@ export default function DesignEditor({
     reloadBalance();
   }, [reloadBalance]);
 
-  /* ─── Calculate hns_body min-height from absolute children + header height ─── */
+  const measureBodyContentHeight = useCallback(() => {
+    const bodyEl = bodyRef.current;
+    if (!bodyEl) return BODY_MIN_HEIGHT_FLOOR;
+    let maxBottom = 0;
+    const children = bodyEl.children;
+    for (let i = 0; i < children.length; i++) {
+      const child = children[i] as HTMLElement;
+      if (child.classList.contains("de-resize-handle")) continue;
+      const top = parseInt(child.style.top) || parseInt(window.getComputedStyle(child).top) || 0;
+      const height = child.offsetHeight || 0;
+      maxBottom = Math.max(maxBottom, top + height);
+    }
+    return Math.max(BODY_MIN_HEIGHT_FLOOR, Math.ceil(maxBottom + BODY_BOTTOM_PADDING));
+  }, []);
+
+  const applyBodyHeight = useCallback((height: number, opts?: { manual?: boolean }) => {
+    const bodyEl = bodyRef.current;
+    if (!bodyEl) return;
+    const next = Math.max(BODY_MIN_HEIGHT_FLOOR, Math.round(height));
+    bodyEl.style.minHeight = `${next}px`;
+    setBodyHandleTop(bodyEl.offsetTop + next);
+    if (opts?.manual) {
+      bodyManualMinHeightRef.current = next;
+      setSaveStatus("");
+    }
+  }, []);
+
+  const syncBodyHeight = useCallback((opts?: { manualHeight?: number }) => {
+    const bodyEl = bodyRef.current;
+    if (!bodyEl) return;
+    const contentHeight = measureBodyContentHeight();
+    const manualHeight = opts?.manualHeight ?? bodyManualMinHeightRef.current ?? 0;
+    applyBodyHeight(Math.max(contentHeight, manualHeight), {
+      manual: opts?.manualHeight !== undefined,
+    });
+  }, [applyBodyHeight, measureBodyContentHeight]);
+
+  const scheduleBodyHeightSync = useCallback(() => {
+    if (bodyHeightRafRef.current != null) return;
+    bodyHeightRafRef.current = requestAnimationFrame(() => {
+      bodyHeightRafRef.current = null;
+      syncBodyHeight();
+    });
+  }, [syncBodyHeight]);
+
+  const startBodyResize = useCallback((clientY: number) => {
+    const bodyEl = bodyRef.current;
+    if (!bodyEl) return;
+    bodyResizeRef.current = {
+      startY: clientY,
+      startHeight: bodyEl.offsetHeight,
+    };
+    multiSelectedRef.current.clear();
+    useEditorStore.getState().clearSelection();
+    setSelectedElId(null);
+    setEditingTextId(null);
+  }, []);
+
+  useEffect(() => {
+    syncBodyHeight();
+  }, [viewportMode, zoom, fitOffsetX, syncBodyHeight]);
+
+  /* ─── Calculate hns_body min-height from content + manual body handle ─── */
   useEffect(() => {
     const bodyEl = bodyRef.current;
     if (!bodyEl) return;
 
     function recalcBodyHeight() {
-      if (!bodyEl) return;
-      let maxBottom = 0;
-      const children = bodyEl.children;
-      for (let i = 0; i < children.length; i++) {
-        const child = children[i] as HTMLElement;
-        const top = parseInt(child.style.top) || parseInt(window.getComputedStyle(child).top) || 0;
-        const height = child.offsetHeight || 0;
-        maxBottom = Math.max(maxBottom, top + height);
-      }
-      bodyEl.style.minHeight = (maxBottom + 40) + "px";
+      syncBodyHeight();
     }
 
     // Recalculate after images load
@@ -1235,13 +1334,18 @@ export default function DesignEditor({
     });
 
     // Initial calculation (with small delay for CSS to apply)
+    recalcBodyHeight();
     setTimeout(recalcBodyHeight, 100);
     setTimeout(recalcBodyHeight, 500);
 
     return () => {
       images.forEach((img) => { img.removeEventListener("load", onLoad); img.removeEventListener("error", onLoad); });
+      if (bodyHeightRafRef.current != null) {
+        cancelAnimationFrame(bodyHeightRafRef.current);
+        bodyHeightRafRef.current = null;
+      }
     };
-  }, [bodyHtml]);
+  }, [bodyHtml, syncBodyHeight]);
 
   /* ─── Save ─── */
   const saveContent = useCallback(async () => {
@@ -1352,6 +1456,15 @@ export default function DesignEditor({
         finalPageCss = deviceBlock
           ? (base ? `${base}\n\n${deviceBlock}` : deviceBlock)
           : base;
+      }
+      if (bodyEl) {
+        syncBodyHeight();
+        const bodyHeight = Math.max(
+          measureBodyContentHeight(),
+          bodyManualMinHeightRef.current ?? 0,
+          parseInt(bodyEl.style.minHeight) || bodyEl.offsetHeight || 0,
+        );
+        finalPageCss = upsertBodyLayoutCss(finalPageCss, bodyHeight);
       }
       const cssChanged = finalPageCss !== pageCss;
 
@@ -2254,6 +2367,16 @@ export default function DesignEditor({
       // Block drag/resize while any modal is open
       if (document.querySelector(".de-modal-overlay, [data-tiptap-modal]")) return;
       lastPointerRef.current = { x: clientX, y: clientY };
+      if (bodyResizeRef.current) {
+        const scale = getCanvasScale();
+        const dy = (clientY - bodyResizeRef.current.startY) / scale;
+        const next = Math.max(
+          measureBodyContentHeight(),
+          bodyResizeRef.current.startHeight + dy,
+        );
+        applyBodyHeight(next, { manual: true });
+        return;
+      }
       // Goal 2: while dragging a BODY element, highlight the header zone as a
       // drop target when the pointer hovers over it. Dropping there relocates
       // the element into the site-wide header section (see onEnd).
@@ -2319,11 +2442,13 @@ export default function DesignEditor({
         }
         setGeom(el, "left", (origLeft + dx) + "px", imp);
         setGeom(el, "top", (origTop + dy) + "px", imp);
+        if (bodyRef.current?.contains(el)) scheduleBodyHeightSync();
         // Move all other multi-selected elements by the same delta
         others.forEach((o) => {
           setGeom(o.el, "left", (o.origLeft + dx) + "px", imp);
           setGeom(o.el, "top", (o.origTop + dy) + "px", imp);
         });
+        if (others.some((o) => bodyRef.current?.contains(o.el))) scheduleBodyHeightSync();
       }
       if (resizeRef.current) {
         const r = resizeRef.current;
@@ -2342,17 +2467,22 @@ export default function DesignEditor({
           setGeom(r.el, "height", Math.max(20, r.origHeight - dy) + "px", rimp);
           setGeom(r.el, "top", (r.origTop + dy) + "px", rimp);
         }
+        if (bodyRef.current?.contains(r.el)) scheduleBodyHeightSync();
       }
     }
 
     function onMouseMove(e: MouseEvent) { handleMove(e.clientX, e.clientY); }
     function onTouchMove(e: TouchEvent) {
-      if (!dragRef.current && !resizeRef.current) return;
+      if (!dragRef.current && !resizeRef.current && !bodyResizeRef.current) return;
       e.preventDefault();
       const touch = e.touches[0];
       if (touch) handleMove(touch.clientX, touch.clientY);
     }
     function onEnd() {
+      if (bodyResizeRef.current) {
+        syncBodyHeight({ manualHeight: bodyManualMinHeightRef.current ?? undefined });
+        bodyResizeRef.current = null;
+      }
       // V2: commit the final DOM position/size back to the scene so
       // LayerPanel / overlay / undo stack reflect the legacy drag-resize.
       // Only if the gesture ACTUALLY moved — a plain click leaves the
@@ -2585,6 +2715,7 @@ export default function DesignEditor({
       }
       dragRef.current = null;
       resizeRef.current = null;
+      bodyResizeRef.current = null;
     }
 
     window.addEventListener("mousemove", onMouseMove);
@@ -4878,6 +5009,27 @@ export default function DesignEditor({
 
             {/* BODY — ref-only */}
             <div id="hns_body" ref={bodyRef} />
+            {!isModernCanvas && (
+              <div
+                className="de-body-resize-bar"
+                style={{ top: bodyHandleTop }}
+                title="본문 영역 높이 조정"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  startBodyResize(e.clientY);
+                }}
+                onTouchStart={(e) => {
+                  const touch = e.touches[0];
+                  if (!touch) return;
+                  e.preventDefault();
+                  e.stopPropagation();
+                  startBodyResize(touch.clientY);
+                }}
+              >
+                <span />
+              </div>
+            )}
 
             {/* FOOTER — ref-only */}
             <div id="hns_footer" ref={footerRef} />

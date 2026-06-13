@@ -635,6 +635,40 @@
   position: relative;
   width: 100%;
 }
+.de-body-resize-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 18px;
+  transform: translateY(-9px);
+  z-index: 9000;
+  cursor: ns-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+}
+.de-body-resize-bar::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 8px;
+  border-top: 1px dashed rgba(42, 121, 255, 0.65);
+}
+.de-body-resize-bar span {
+  position: relative;
+  width: 72px;
+  height: 8px;
+  border-radius: 999px;
+  background: #2a79ff;
+  border: 1px solid #fff;
+  box-shadow: 0 2px 10px rgba(42, 121, 255, 0.35);
+}
+.de-body-resize-bar:hover span {
+  background: #5be5b3;
+  box-shadow: 0 2px 12px rgba(91, 229, 179, 0.45);
+}
 #de-canvas-inner #hns_footer {
   position: static !important;
   width: 100%;
