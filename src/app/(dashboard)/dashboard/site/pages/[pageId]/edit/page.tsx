@@ -8,6 +8,7 @@ import EditorRouter, { type EditorMode } from "./EditorRouter";
 import { resolvePublicHost } from "@/lib/temp-domains";
 import { getManageScope, canManage } from "@/lib/site-access";
 import { getResellerForHost } from "@/lib/reseller";
+import { sceneToLegacyHtml, type SceneGraph } from "@/lib/scene";
 
 interface EditPageProps {
   params: Promise<{ pageId: string }>;
@@ -114,8 +115,10 @@ export default async function EditPagePage({ params, searchParams }: EditPagePro
   const footerHtml = hmf?.footerHtml ?? site.footerHtml ?? "";
 
   // Extract page body HTML from content JSON
-  const pageContent = currentPage.content as { html?: string; layers?: unknown[] } | null;
-  let bodyHtml = pageContent?.html || "";
+  const pageContent = currentPage.content as { html?: string; layers?: SceneGraph } | null;
+  let bodyHtml = pageContent?.layers
+    ? sceneToLegacyHtml(pageContent.layers)
+    : (pageContent?.html || "");
 
   // Server-side render BoardPlugin/ProductPlugin content (replace stale plugin HTML)
   if (bodyHtml) {
@@ -159,6 +162,8 @@ export default async function EditPagePage({ params, searchParams }: EditPagePro
     menuHtmlFinal = rewriteAssetUrls(menuHtml, templatePath);
   }
 
+  const sceneEditorEnabled = editorMode === "absolute" || isEditorV2Enabled(session.user?.email);
+
   return (
     <EditorRouter
       editorMode={editorMode}
@@ -179,16 +184,15 @@ export default async function EditPagePage({ params, searchParams }: EditPagePro
       pageSlug={currentPage.slug}
       pages={pages}
       bodyHtml={bodyHtml}
-      bodyLayers={(pageContent?.layers as unknown as import("@/lib/scene").SceneGraph | undefined) ?? null}
+      bodyLayers={pageContent?.layers ?? null}
       published={site.published}
       currentLang={currentLang}
       siteLanguages={siteLanguages}
       langPageMap={langPageMap}
-      editorV2Enabled={isEditorV2Enabled(session.user?.email)}
+      editorV2Enabled={sceneEditorEnabled}
       isResponsiveTemplate={isResponsiveTemplate}
       brand={brand}
       initialEditingTarget={initialEditingTarget}
     />
   );
 }
-

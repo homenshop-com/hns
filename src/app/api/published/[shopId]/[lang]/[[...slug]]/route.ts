@@ -19,7 +19,9 @@ import {
   DEVICE_MEDIA_COMMENT_MARK,
   stripPinnedGeometryCss,
   collectInlineGeometryOwners,
+  sceneToLegacyHtml,
   stripFooterPinnedTop,
+  type SceneGraph,
 } from "@/lib/scene";
 
 function renderExpiredPage(
@@ -1006,8 +1008,10 @@ export async function GET(
   }
 
   // Extract body HTML
-  const pageContent = page.content as { html?: string } | null;
-  let bodyHtml = pageContent?.html || "";
+  const pageContent = page.content as { html?: string; layers?: SceneGraph } | null;
+  let bodyHtml = pageContent?.layers
+    ? sceneToLegacyHtml(pageContent.layers)
+    : (pageContent?.html || "");
 
   // Board read/list: render board content (replaces page body for board action pages)
   let boardSectionHtml = "";
