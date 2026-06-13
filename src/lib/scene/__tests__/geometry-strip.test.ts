@@ -11,6 +11,7 @@ import {
   stripPinnedGeometryCss,
   collectInlineGeometryOwners,
   collectSceneGeometryOwners,
+  stripInlineGeometryImportant,
 } from "../geometry-strip";
 
 describe("stripPinnedGeometryCss", () => {
@@ -193,6 +194,37 @@ describe("collectSceneGeometryOwners", () => {
     expect(map.has("hero")).toBe(false);
     expect(map.has("grid")).toBe(false);
     expect(map.get("txt")).toEqual(new Set(["left", "top"]));
+  });
+});
+
+describe("stripInlineGeometryImportant", () => {
+  it("removes !important from inline geometry props, keeping the value", () => {
+    const html = `<div id="a" style="position: absolute; width: 354px !important; top: 157px !important; left: 23px !important; height: 67px !important;"></div>`;
+    expect(stripInlineGeometryImportant(html)).toBe(
+      `<div id="a" style="position: absolute; width: 354px; top: 157px; left: 23px; height: 67px;"></div>`,
+    );
+  });
+
+  it("preserves !important on non-geometry props (background, font-size, text-align)", () => {
+    const html = `<div style="left: 10px !important; background: #fff !important; font-size: 40px !important; text-align: center !important;"></div>`;
+    expect(stripInlineGeometryImportant(html)).toBe(
+      `<div style="left: 10px; background: #fff !important; font-size: 40px !important; text-align: center !important;"></div>`,
+    );
+  });
+
+  it("does not touch min-height / max-width (hyphenated props)", () => {
+    const html = `<div style="min-height: 100px !important; max-width: 200px !important;"></div>`;
+    expect(stripInlineGeometryImportant(html)).toBe(html);
+  });
+
+  it("never matches geometry inside <style> blocks (device @media stays !important)", () => {
+    const html = `<style>@media (max-width:1024px){#x{left:10px !important;top:5px !important}}</style>`;
+    expect(stripInlineGeometryImportant(html)).toBe(html);
+  });
+
+  it("is a no-op when there is no !important", () => {
+    const html = `<div style="left: 10px; top: 5px;"></div>`;
+    expect(stripInlineGeometryImportant(html)).toBe(html);
   });
 });
 

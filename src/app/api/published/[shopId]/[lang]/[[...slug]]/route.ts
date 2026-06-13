@@ -19,6 +19,7 @@ import {
   DEVICE_MEDIA_COMMENT_MARK,
   stripPinnedGeometryCss,
   collectInlineGeometryOwners,
+  stripInlineGeometryImportant,
   sceneToLegacyHtml,
   stripFooterPinnedTop,
   type SceneGraph,
@@ -1436,8 +1437,16 @@ export async function GET(
       /(<(?:div|header)\s+id="hns_(?:header|menu|footer)"[^>]*?)\s+style="[^"]*"/gi,
       "$1",
     );
-  const cleanedBodyHtml = rewriteInternalLinks(cleanHtml(processedBodyHtml));
-  const cleanedHeaderHtml = rewriteInternalLinks(cleanHtml(headerHtml));
+  // Demote inline geometry `!important` → plain inline on header/body/menu so
+  // the device `@media` re-pins (tablet ≤1024 / mobile ≤767, themselves
+  // `!important`) actually win. Without this, an inline `!important` left/top/
+  // width/height (baked from legacy HTML or the editor's live-preview pin)
+  // beats the stylesheet `@media !important` and freezes every breakpoint at
+  // the desktop coordinates — i.e. tablet/mobile edits never show on publish.
+  // Footer is handled separately by stripFooterPinnedTop (relative flow).
+  const cleanedBodyHtml = rewriteInternalLinks(cleanHtml(stripInlineGeometryImportant(processedBodyHtml)));
+  const cleanedHeaderHtml = rewriteInternalLinks(cleanHtml(stripInlineGeometryImportant(headerHtml)));
+  menuHtml = stripInlineGeometryImportant(menuHtml);
   // Footer objects flow AFTER the body (relative), never at a fixed absolute
   // top. Strip inline top/position so the `#hns_footer > .dragable` relative
   // rule governs (inline !important would otherwise beat it). Same helper runs

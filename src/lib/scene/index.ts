@@ -18,6 +18,7 @@ export {
   stripPinnedGeometryCss,
   collectInlineGeometryOwners,
   collectSceneGeometryOwners,
+  stripInlineGeometryImportant,
 } from "./geometry-strip";
 export { stripFooterPinnedTop } from "./footer-flow";
 export {

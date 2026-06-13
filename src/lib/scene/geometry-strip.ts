@@ -123,6 +123,40 @@ export function stripPinnedGeometryCss(
   return out;
 }
 
+/**
+ * Strip the `!important` flag from INLINE geometry declarations
+ * (position/left/top/width/height) inside HTML `style="…"` attributes,
+ * preserving each value.
+ *
+ * Why: per the WYSIWYG contract, base geometry must be PLAIN inline so the
+ * device `@media { #id { … !important } }` re-pins (authored against the
+ * tablet/mobile artboards) win at small viewports. An inline `!important`
+ * geometry value — baked in by legacy publisher HTML or by the editor's
+ * live-preview importantPin — beats the stylesheet `@media !important`
+ * (inline `!important` > stylesheet `!important`), freezing EVERY breakpoint
+ * at the desktop coordinates. That is exactly the symptom of "tablet/mobile
+ * edits don't show on the published page". Mirrors `stripFooterPinnedTop`'s
+ * rationale for footer flow, generalized to header/body re-pins.
+ *
+ * Scope: only `style=` ATTRIBUTES are touched. `<style>` blocks — which
+ * legitimately carry the device `@media !important` rules — never match, so
+ * the overrides themselves are preserved. Non-geometry props (background,
+ * font-size, text-align, …) keep their `!important`. `min-height`/`max-width`
+ * are safe: the `(^|;)` anchor prevents matching the `height`/`width` tail of
+ * a hyphenated prop.
+ */
+export function stripInlineGeometryImportant(html: string): string {
+  if (!html || html.indexOf("!important") === -1) return html;
+  return html.replace(/\bstyle=(["'])([\s\S]*?)\1/gi, (full, q: string, body: string) => {
+    if (body.indexOf("!important") === -1) return full;
+    const cleaned = body.replace(
+      /(^|;)(\s*(?:position|left|top|width|height)\s*:[^;!}]*?)\s*!important/gi,
+      "$1$2",
+    );
+    return cleaned === body ? full : `style=${q}${cleaned}${q}`;
+  });
+}
+
 /** Build the id→owned-geometry-prop map from rendered HTML inline styles.
  *  Used by the published route (no scene graph available there). An element
  *  "owns" a prop when its inline `style=` declares it. */
