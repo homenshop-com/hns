@@ -1451,8 +1451,13 @@ export async function GET(
   // top. Strip inline top/position so the `#hns_footer > .dragable` relative
   // rule governs (inline !important would otherwise beat it). Same helper runs
   // in the editor injection, keeping editor ↔ published WYSIWYG identical.
+  // Footer too: demote inline geometry `!important` so footer device re-pins
+  // (left/width/height) win at tablet/mobile. top/position are then removed
+  // outright by stripFooterPinnedTop for direct children (relative flow), and
+  // the `#hns_footer > .dragable{top:auto!important}` rule out-specifies any
+  // device `@media` top, so footer flow is unaffected.
   const cleanedFooterHtml = stripFooterPinnedTop(
-    rewriteInternalLinks(cleanHtml(footerHtml)),
+    stripInlineGeometryImportant(rewriteInternalLinks(cleanHtml(footerHtml))),
   );
 
   // Build CSS based on template type
