@@ -1601,11 +1601,14 @@ export default function DesignEditor({
         if (editorV2Enabled) setCurrentPageCss(finalPageCss);
         setSaveStatus("saved");
         setTimeout(() => setSaveStatus(""), 2000);
+        return true;
       } else {
         setSaveStatus("error");
+        return false;
       }
     } catch {
       setSaveStatus("error");
+      return false;
     } finally {
       setSaving(false);
     }
@@ -1736,34 +1739,22 @@ export default function DesignEditor({
   const publishSite = useCallback(async () => {
     setPublishing(true);
     try {
-      // Save current page first
-      const bodyEl = bodyRef.current;
-      const html = bodyEl ? bodyEl.innerHTML : currentBodyHtml;
-      await fetch(`/api/sites/${siteId}/pages/${pageId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: { html } }),
-      });
+      // Publish must use the same device-safe serializer as Save. Reading
+      // `bodyRef.current.innerHTML` here bakes the active preview DOM
+      // (mobile/tablet) into desktop `content.html`.
+      const saved = await saveContent();
+      if (!saved) return;
 
-      // Save header/menu/footer + set published = true
-      const hEl = headerRef.current;
-      const mEl = menuRef.current;
-      const fEl = footerRef.current;
-      const menuHtmlToSave = menuMode === "auto" ? "" : (mEl ? mEl.innerHTML : undefined);
       const res = await fetch(`/api/sites/${siteId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           published: true,
           hmfLang: currentLang,
-          ...(hEl && { headerHtml: hEl.innerHTML }),
-          ...(menuHtmlToSave !== undefined && { menuHtml: menuHtmlToSave }),
-          ...(fEl && { footerHtml: fEl.innerHTML }),
         }),
       });
       if (res.ok) {
         setIsPublished(true);
-        setCurrentBodyHtml(html);
         setShowPublishModal(true);
       }
     } catch {
@@ -1771,7 +1762,7 @@ export default function DesignEditor({
     } finally {
       setPublishing(false);
     }
-  }, [siteId, pageId, currentBodyHtml]);
+  }, [siteId, currentLang, saveContent]);
 
   /* ─── Keyboard shortcuts ─── */
   useEffect(() => {
