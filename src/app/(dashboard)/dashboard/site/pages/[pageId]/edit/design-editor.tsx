@@ -98,6 +98,7 @@ const BODY_LAYOUT_MARK_START = "/* HNS-BODY-LAYOUT:START */";
 const BODY_LAYOUT_MARK_END = "/* HNS-BODY-LAYOUT:END */";
 const BODY_BOTTOM_PADDING = 80;
 const BODY_MIN_HEIGHT_FLOOR = 240;
+type BodyLayoutHeights = Partial<Record<ViewportMode, number>>;
 
 function bodyLayoutBlockRegex() {
   return new RegExp(
@@ -110,22 +111,37 @@ function stripBodyLayoutCss(css: string): string {
   return (css || "").replace(bodyLayoutBlockRegex(), "").trim();
 }
 
-function parseBodyMinHeightCss(css: string): number | null {
-  const block = (css || "").match(bodyLayoutBlockRegex())?.[0] ?? "";
-  const m = /#hns_body\s*\{[^}]*min-height\s*:\s*([\d.]+)px/i.exec(block);
-  if (!m) return null;
-  const n = Math.round(parseFloat(m[1]!));
-  return Number.isFinite(n) && n > 0 ? n : null;
+function normalizeBodyHeightValue(value: number | null | undefined): number | undefined {
+  if (!value || value <= 0 || !Number.isFinite(value)) return undefined;
+  return Math.max(BODY_MIN_HEIGHT_FLOOR, Math.round(value));
 }
 
-function upsertBodyLayoutCss(css: string, height: number | null): string {
+function parseBodyLayoutCss(css: string): BodyLayoutHeights {
+  const block = (css || "").match(bodyLayoutBlockRegex())?.[0] ?? "";
+  const heights: BodyLayoutHeights = {};
+  const desktopMatch = /#hns_body\s*\{[^}]*min-height\s*:\s*([\d.]+)px/i.exec(block);
+  heights.desktop = normalizeBodyHeightValue(desktopMatch ? parseFloat(desktopMatch[1]!) : undefined);
+
+  const tabletMatch = /@media\s*\(\s*max-width\s*:\s*1024px\s*\)\s*\{\s*#hns_body\s*\{[^}]*min-height\s*:\s*([\d.]+)px/i.exec(block);
+  heights.tablet = normalizeBodyHeightValue(tabletMatch ? parseFloat(tabletMatch[1]!) : undefined);
+
+  const mobileMatch = /@media\s*\(\s*max-width\s*:\s*767px\s*\)\s*\{\s*#hns_body\s*\{[^}]*min-height\s*:\s*([\d.]+)px/i.exec(block);
+  heights.mobile = normalizeBodyHeightValue(mobileMatch ? parseFloat(mobileMatch[1]!) : undefined);
+  return heights;
+}
+
+function upsertBodyLayoutCss(css: string, heights: BodyLayoutHeights): string {
   const base = stripBodyLayoutCss(css);
-  if (!height || height <= 0) return base;
-  const block = [
-    BODY_LAYOUT_MARK_START,
-    `#hns_body{min-height:${Math.max(BODY_MIN_HEIGHT_FLOOR, Math.round(height))}px;}`,
-    BODY_LAYOUT_MARK_END,
-  ].join("\n");
+  const desktop = normalizeBodyHeightValue(heights.desktop);
+  const tablet = normalizeBodyHeightValue(heights.tablet);
+  const mobile = normalizeBodyHeightValue(heights.mobile);
+  if (!desktop && !tablet && !mobile) return base;
+  const lines = [BODY_LAYOUT_MARK_START];
+  if (desktop) lines.push(`#hns_body{min-height:${desktop}px;}`);
+  if (tablet) lines.push(`@media (max-width:1024px){#hns_body{min-height:${tablet}px;}}`);
+  if (mobile) lines.push(`@media (max-width:767px){#hns_body{min-height:${mobile}px;}}`);
+  lines.push(BODY_LAYOUT_MARK_END);
+  const block = lines.join("\n");
   return base ? `${base}\n\n${block}` : block;
 }
 
@@ -588,7 +604,7 @@ export default function DesignEditor({
     startY: number;
     startHeight: number;
   } | null>(null);
-  const bodyManualMinHeightRef = useRef<number | null>(parseBodyMinHeightCss(pageCss));
+  const bodyManualMinHeightRef = useRef<BodyLayoutHeights>(parseBodyLayoutCss(pageCss));
   const bodyHeightRafRef = useRef<number | null>(null);
   const [bodyHandleTop, setBodyHandleTop] = useState(0);
 
@@ -660,7 +676,7 @@ export default function DesignEditor({
   }, [bodyHtml]);
 
   useEffect(() => {
-    bodyManualMinHeightRef.current = parseBodyMinHeightCss(pageCss);
+    bodyManualMinHeightRef.current = parseBodyLayoutCss(pageCss);
   }, [pageCss, pageId]);
 
   // Apply / remove body-dim overlay when editing target switches.
@@ -1265,25 +1281,31 @@ export default function DesignEditor({
     return Math.max(BODY_MIN_HEIGHT_FLOOR, Math.ceil(maxBottom + BODY_BOTTOM_PADDING));
   }, []);
 
-  const applyBodyHeight = useCallback((height: number, opts?: { manual?: boolean }) => {
+  const applyBodyHeight = useCallback((height: number, opts?: { manual?: boolean; device?: ViewportMode }) => {
     const bodyEl = bodyRef.current;
     if (!bodyEl) return;
+    const device = opts?.device ?? useEditorStore.getState().viewportMode;
     const next = Math.max(BODY_MIN_HEIGHT_FLOOR, Math.round(height));
     bodyEl.style.minHeight = `${next}px`;
     setBodyHandleTop(bodyEl.offsetTop + next);
     if (opts?.manual) {
-      bodyManualMinHeightRef.current = next;
+      bodyManualMinHeightRef.current = {
+        ...bodyManualMinHeightRef.current,
+        [device]: next,
+      };
       setSaveStatus("");
     }
   }, []);
 
-  const syncBodyHeight = useCallback((opts?: { manualHeight?: number }) => {
+  const syncBodyHeight = useCallback((opts?: { manualHeight?: number; device?: ViewportMode }) => {
     const bodyEl = bodyRef.current;
     if (!bodyEl) return;
+    const device = opts?.device ?? useEditorStore.getState().viewportMode;
     const contentHeight = measureBodyContentHeight();
-    const manualHeight = opts?.manualHeight ?? bodyManualMinHeightRef.current ?? 0;
+    const manualHeight = opts?.manualHeight ?? bodyManualMinHeightRef.current[device] ?? 0;
     applyBodyHeight(Math.max(contentHeight, manualHeight), {
       manual: opts?.manualHeight !== undefined,
+      device,
     });
   }, [applyBodyHeight, measureBodyContentHeight]);
 
@@ -1388,6 +1410,17 @@ export default function DesignEditor({
       if (bodyEl && saveDevice !== "desktop") {
         syncStoreToDom(useEditorStore.getState().scene, bodyEl, "desktop");
       }
+      const bodyLayoutHeights: BodyLayoutHeights = { ...bodyManualMinHeightRef.current };
+      const captureCurrentBodyHeight = (device: ViewportMode) => {
+        if (!bodyEl) return;
+        syncBodyHeight({ device });
+        bodyLayoutHeights[device] = Math.max(
+          measureBodyContentHeight(),
+          bodyManualMinHeightRef.current[device] ?? 0,
+          parseInt(bodyEl.style.minHeight) || bodyEl.offsetHeight || 0,
+        );
+      };
+      if (bodyEl) captureCurrentBodyHeight("desktop");
       // Plugins (boardPlugin/productPlugin/…) are CSS-governed: their real
       // size lives in the page CSS real-size rule (+ device `@media`).
       // `applyFrameToEl` writes a plugin's frame inline with `!important` for
@@ -1433,6 +1466,7 @@ export default function DesignEditor({
       if (bodyEl && saveDevice !== "desktop") {
         // Restore the device preview the user was editing in.
         syncStoreToDom(useEditorStore.getState().scene, bodyEl, saveDevice);
+        captureCurrentBodyHeight(saveDevice);
       }
 
       // V2 dual-save: attach the current scene graph alongside the HTML.
@@ -1457,15 +1491,7 @@ export default function DesignEditor({
           ? (base ? `${base}\n\n${deviceBlock}` : deviceBlock)
           : base;
       }
-      if (bodyEl) {
-        syncBodyHeight();
-        const bodyHeight = Math.max(
-          measureBodyContentHeight(),
-          bodyManualMinHeightRef.current ?? 0,
-          parseInt(bodyEl.style.minHeight) || bodyEl.offsetHeight || 0,
-        );
-        finalPageCss = upsertBodyLayoutCss(finalPageCss, bodyHeight);
-      }
+      if (bodyEl) finalPageCss = upsertBodyLayoutCss(finalPageCss, bodyLayoutHeights);
       const cssChanged = finalPageCss !== pageCss;
 
       // Save page body + CSS
@@ -2374,7 +2400,7 @@ export default function DesignEditor({
           measureBodyContentHeight(),
           bodyResizeRef.current.startHeight + dy,
         );
-        applyBodyHeight(next, { manual: true });
+        applyBodyHeight(next, { manual: true, device: useEditorStore.getState().viewportMode });
         return;
       }
       // Goal 2: while dragging a BODY element, highlight the header zone as a
@@ -2480,7 +2506,8 @@ export default function DesignEditor({
     }
     function onEnd() {
       if (bodyResizeRef.current) {
-        syncBodyHeight({ manualHeight: bodyManualMinHeightRef.current ?? undefined });
+        const device = useEditorStore.getState().viewportMode;
+        syncBodyHeight({ manualHeight: bodyManualMinHeightRef.current[device], device });
         bodyResizeRef.current = null;
       }
       // V2: commit the final DOM position/size back to the scene so
