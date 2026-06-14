@@ -70,9 +70,18 @@ export function stripPinnedGeometryCss(
     }
     const selector = css.slice(i, braceIdx);
     const selTrim = selector.trim();
+    // A CSS comment can precede the selector (e.g. the DEVICE-OVERRIDES marker
+    // `/* SCENE-DEVICE-OVERRIDES */` sitting right before its `@media`). Strip
+    // comments before BOTH the at-rule test and the `#id` match — otherwise a
+    // comment-prefixed `@media` is misclassified as a plain rule, we descend
+    // INTO it, and strip the per-device geometry it carries (every non-plugin
+    // inline-owner loses its tablet/mobile re-pin → element snaps back to its
+    // desktop coords off-screen). The original `selector` (comment included) is
+    // still emitted verbatim so nothing else changes.
+    const selForMatch = selTrim.replace(/\/\*[\s\S]*?\*\//g, "").trim();
     // At-rules with nested blocks (@media/@supports/@keyframes): copy the
     // whole block verbatim — we only strip TOP-LEVEL geometry duplicates.
-    if (selTrim.startsWith("@")) {
+    if (selForMatch.startsWith("@")) {
       let depth = 0;
       let j = braceIdx;
       for (; j < n; j++) {
@@ -90,14 +99,11 @@ export function stripPinnedGeometryCss(
       continue;
     }
     // Plain rule: declarations run until the first '}' (no nesting).
+    // `selForMatch` (comment-stripped, computed above) also defeats a comment
+    // sitting between the previous rule and a `#id` selector, which would
+    // otherwise leak a geometry duplicate through.
     let closeIdx = css.indexOf("}", braceIdx);
     if (closeIdx === -1) closeIdx = n - 1;
-    // A CSS comment can sit between the previous rule and this selector
-    // (e.g. `/* layout fix */\n#main_text_1 {…}`), which would otherwise
-    // defeat the `^#id$` match and leak the duplicate through. Strip
-    // comments only for the match test — the original `selector` (comment
-    // included) is preserved verbatim in the output.
-    const selForMatch = selTrim.replace(/\/\*[\s\S]*?\*\//g, "").trim();
     const m = /^#([A-Za-z0-9_-]+)$/.exec(selForMatch);
     const props = m ? owned.get(m[1]) : undefined;
     if (props) {

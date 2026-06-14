@@ -197,6 +197,41 @@ describe("collectSceneGeometryOwners", () => {
   });
 });
 
+describe("stripPinnedGeometryCss — comment-prefixed @media", () => {
+  it("preserves a device @media block prefixed by the DEVICE-OVERRIDES marker, even when its #ids are inline-owners", () => {
+    // The published route stamps the device block with this comment marker.
+    // The owner map lists the same ids (they have inline base geometry), so a
+    // naive pass would descend into the @media and strip the per-device re-pin.
+    const css = [
+      "/* SCENE-DEVICE-OVERRIDES */",
+      "@media (max-width: 767px) {",
+      "  #a { position: absolute !important; left: 2px !important; top: 70px !important; width: 370px !important; height: 270px !important; }",
+      "  #b { left: 8px !important; top: 725px !important; }",
+      "}",
+    ].join("\n");
+    const owned = new Map<string, Set<string>>([
+      ["a", new Set(["position", "left", "top", "width", "height"])],
+      ["b", new Set(["left", "top"])],
+    ]);
+    const out = stripPinnedGeometryCss(css, owned);
+    // The @media block (and every rule inside it) must survive untouched.
+    expect(out).toContain("@media (max-width: 767px)");
+    expect(out).toContain("#a {");
+    expect(out).toContain("left: 2px !important");
+    expect(out).toContain("#b {");
+    expect(out).toContain("top: 725px !important");
+  });
+
+  it("still strips a TOP-LEVEL duplicate that follows a comment", () => {
+    const css = "/* note */\n#a { left: 5px; top: 9px; color: red; }";
+    const owned = new Map<string, Set<string>>([["a", new Set(["left", "top"])]]);
+    const out = stripPinnedGeometryCss(css, owned);
+    expect(out).not.toContain("left: 5px");
+    expect(out).not.toContain("top: 9px");
+    expect(out).toContain("color: red");
+  });
+});
+
 describe("stripInlineGeometryImportant", () => {
   it("removes !important from inline geometry props, keeping the value", () => {
     const html = `<div id="a" style="position: absolute; width: 354px !important; top: 157px !important; left: 23px !important; height: 67px !important;"></div>`;
