@@ -891,7 +891,8 @@
       "testimonials": "후기 · 평점 (3개)",
       "navHeader": "상단 네비게이션",
       "footer": "푸터 (4단)",
-      "facebookPage": "Facebook 페이지"
+      "facebookPage": "Facebook 페이지",
+      "googleMap": "Google 지도"
     },
     "sectionsTab": {
       "headerEdit": "헤더 편집",

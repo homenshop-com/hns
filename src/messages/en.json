@@ -891,7 +891,8 @@
       "testimonials": "Testimonials · Ratings (3)",
       "navHeader": "Top Navigation",
       "footer": "Footer (4-col)",
-      "facebookPage": "Facebook Page"
+      "facebookPage": "Facebook Page",
+      "googleMap": "Google Map"
     },
     "sectionsTab": {
       "headerEdit": "Header Edit",

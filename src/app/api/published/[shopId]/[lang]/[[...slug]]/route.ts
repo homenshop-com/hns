@@ -1513,7 +1513,8 @@ export async function GET(
          viewport on mobile. The widget renders at its authored width but is
          capped to the container so it never causes horizontal overflow. */
       .fb-page, .fb_iframe_widget, .fb_iframe_widget span,
-      .hns-fb-embed, iframe[src*="facebook.com/plugins"] { max-width: 100% !important; }
+      .hns-fb-embed, iframe[src*="facebook.com/plugins"],
+      .hns-gmap-embed, iframe[src*="google.com/maps"], iframe[src*="maps.google"] { max-width: 100% !important; }
       /* Body/footer content images: cap a fixed-px image to its (per-device-
          shrunk) box so a 350px QR inside a 297px box scales down to fit instead
          of overflowing. Excludes object-fit fill-the-box photos (height:auto

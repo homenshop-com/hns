@@ -16,6 +16,7 @@
  */
 
 import { buildFacebookEmbedHtml, FB_DEFAULTS } from "../shared/facebook-embed";
+import { buildGoogleMapEmbedHtml, GMAP_DEFAULTS } from "../shared/google-map-embed";
 
 function uid(prefix: string): string {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
@@ -335,6 +336,21 @@ ${items}
       const box = uid("obj_fb");
       return `
 <div class="dragable" id="${box}" style="position:absolute;left:40px;top:240px;width:${FB_DEFAULTS.width}px;height:${FB_DEFAULTS.height}px;z-index:5;">${buildFacebookEmbedHtml(FB_DEFAULTS)}</div>`.trim();
+    },
+  },
+
+  /* ═══════════════════════ GOOGLE MAP EMBED ════════════════════════════ */
+  {
+    id: "google-map",
+    labelKey: "googleMap",
+    icon: "fa-map-location-dot",
+    build() {
+      // Absolute-positioned object. A standalone Google Maps iframe renders
+      // directly; the Inspector "Google 지도 설정" section edits its address /
+      // embed code / size.
+      const box = uid("obj_gmap");
+      return `
+<div class="dragable" id="${box}" style="position:absolute;left:40px;top:240px;width:${GMAP_DEFAULTS.width}px;height:${GMAP_DEFAULTS.height}px;z-index:5;">${buildGoogleMapEmbedHtml(GMAP_DEFAULTS)}</div>`.trim();
     },
   },
 ];

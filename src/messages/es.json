@@ -877,7 +877,8 @@
       "testimonials": "Testimonios · Valoraciones (3)",
       "navHeader": "Navegación superior",
       "footer": "Pie de página (4 col.)",
-      "facebookPage": "Página de Facebook"
+      "facebookPage": "Página de Facebook",
+      "googleMap": "Mapa de Google"
     },
     "sectionsTab": {
       "headerEdit": "Editar encabezado",

@@ -877,7 +877,8 @@
       "testimonials": "レビュー・評価（3件）",
       "navHeader": "トップナビゲーション",
       "footer": "フッター（4カラム）",
-      "facebookPage": "Facebook ページ"
+      "facebookPage": "Facebook ページ",
+      "googleMap": "Google マップ"
     },
     "sectionsTab": {
       "headerEdit": "ヘッダー編集",

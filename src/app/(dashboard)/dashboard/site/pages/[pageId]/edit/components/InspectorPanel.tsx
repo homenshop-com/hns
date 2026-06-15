@@ -37,6 +37,15 @@ import {
   clampFbWidth,
   clampFbHeight,
 } from "../shared/facebook-embed";
+import {
+  type GoogleMapEmbedOpts,
+  GMAP_DEFAULTS,
+  isGoogleMapEmbed,
+  parseGoogleMapEmbed,
+  applyGoogleMapEmbed,
+  resolveMapInput,
+  clampMapSize,
+} from "../shared/google-map-embed";
 
 const LayerPanel = lazy(() => import("./LayerPanel"));
 
@@ -453,6 +462,16 @@ function DesignTab({
         ) : null;
       })()}
 
+      {/* Google Maps embed — appears when the selected element holds a maps
+          iframe. Edits address / embed code / size. */}
+      {(() => {
+        const el =
+          typeof document !== "undefined" ? document.getElementById(layer.id) : null;
+        return isGoogleMapEmbed(el) ? (
+          <GoogleMapSection key={layer.id} layerId={layer.id} />
+        ) : null;
+      })()}
+
       {/* Stacking order (z-index): beginner front/back buttons + expert input. */}
       <ArrangeSection layer={layer} disabled={layer.type === "inline"} />
 
@@ -487,6 +506,9 @@ function DesignTab({
       {layer.type === "box" &&
         !readImgFromInnerHtml((layer as BoxLayer).innerHtml ?? "") &&
         !isFacebookEmbed(
+          typeof document !== "undefined" ? document.getElementById(layer.id) : null,
+        ) &&
+        !isGoogleMapEmbed(
           typeof document !== "undefined" ? document.getElementById(layer.id) : null,
         ) && <BackgroundImageSection layer={layer} siteId={siteId} />}
 
@@ -2095,6 +2117,77 @@ function FacebookSection({ layerId }: { layerId: string }) {
       <div className="ins-hmf-notice" style={{ marginTop: 8 }}>
         <i className="fa-solid fa-circle-info" aria-hidden />
         <span>폭은 Facebook 정책상 180~500px로 제한됩니다. 변경 후 저장하면 퍼블리시에 반영됩니다.</span>
+      </div>
+    </Section>
+  );
+}
+
+/* ─── Google Maps embed section (2026-06-13) ────────────────────────────
+ * Same pattern as FacebookSection: appears when the selected element holds a
+ * Google Maps iframe. Accepts a plain address (→ basic map) OR a pasted Google
+ * Maps embed code / embed URL (→ rich place card), plus width/height. */
+function GoogleMapSection({ layerId }: { layerId: string }) {
+  const initial = (): GoogleMapEmbedOpts =>
+    parseGoogleMapEmbed(
+      typeof document !== "undefined" ? document.getElementById(layerId) : null,
+    ) ?? GMAP_DEFAULTS;
+  const [opts, setOpts] = useState<GoogleMapEmbedOpts>(initial);
+
+  const apply = (patch: Partial<GoogleMapEmbedOpts>) => {
+    const next = { ...opts, ...patch };
+    setOpts(next);
+    const host = document.getElementById(layerId);
+    if (!host) return;
+    applyGoogleMapEmbed(host, next);
+    if (patch.width != null || patch.height != null) {
+      useEditorStore.getState().setFrame(layerId, {
+        w: clampMapSize(next.width),
+        h: clampMapSize(next.height),
+      });
+    }
+  };
+
+  // Show the clean address for a q-form src; the full src for a pasted embed.
+  const display = (() => {
+    try {
+      const u = new URL(opts.src, "https://maps.google.com");
+      const q = u.searchParams.get("q");
+      if (q) return q;
+    } catch {
+      /* not a parseable URL — fall through */
+    }
+    return opts.src;
+  })();
+
+  return (
+    <Section title="Google 지도 설정">
+      <div className="ins-prop-row">
+        <TextField
+          label="주소 또는 임베드 코드"
+          value={display}
+          placeholder="예: 1751 Pittwater Rd, Mona Vale NSW"
+          onCommit={(v) => apply({ src: resolveMapInput(v) })}
+          wide
+        />
+      </div>
+      <div className="ins-prop-row">
+        <TextField
+          label="폭(px)"
+          value={String(opts.width)}
+          onCommit={(v) => apply({ width: clampMapSize(parseInt(v, 10) || opts.width) })}
+        />
+        <TextField
+          label="높이(px)"
+          value={String(opts.height)}
+          onCommit={(v) => apply({ height: clampMapSize(parseInt(v, 10) || opts.height) })}
+        />
+      </div>
+      <div className="ins-hmf-notice" style={{ marginTop: 8 }}>
+        <i className="fa-solid fa-circle-info" aria-hidden />
+        <span>
+          Google 지도에서 ‘공유 → 지도 퍼가기(iframe)’ 코드를 붙여넣으면 상세 카드가
+          표시됩니다. 주소만 입력하면 기본 지도가 표시됩니다.
+        </span>
       </div>
     </Section>
   );
