@@ -3735,10 +3735,16 @@ export default function DesignEditor({
             //    different coordinates, making the header look different on every
             //    page. Stripping those rules lets the SiteHmf's plain inline
             //    styles govern, so the header is visually identical on all pages.
-            // Device `@media` blocks are preserved (wins by source order).
-            // Mirrors the published route.
+            // Device `@media` blocks (SCENE-DEVICE-OVERRIDES) are STRIPPED for
+            // the canvas: the editor simulates each device via JS (per-device
+            // frame cascade in applyFrameToEl + applyVisibilityAndLock), NOT
+            // media queries. Media queries evaluate against the wide editor
+            // browser viewport, not the artboard — so a desktop-hide block
+            // (`@media (min-width:1025px){#id{display:none}}`) would match at
+            // every artboard width and hide the object even in mobile mode.
+            // The published page (real viewport = artboard) keeps the @media.
             stripPinnedGeometryCss(
-              currentPageCss,
+              stripDeviceMediaCss(currentPageCss),
               (() => {
                 const bodyOwned = collectSceneGeometryOwners(useEditorStore.getState().scene.root);
                 const hmfOwned = collectInlineGeometryOwners(
