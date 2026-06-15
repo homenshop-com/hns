@@ -168,11 +168,30 @@ function buildDeviceBlock(layers: Layer[], device: NonPcDevice): string | null {
  * editor save path can replace it idempotently via
  * {@link stripDeviceMediaCss}.
  */
+/** Desktop is the authoring base (no max-width block), so hiding a layer on
+ *  desktop only needs a dedicated `min-width` block — the tablet/mobile
+ *  blocks already cover ≤1024. Pure visibility; geometry is never emitted
+ *  here. Used for "object added in a device view shouldn't clutter the PC
+ *  layout" + the desktop "이 기기에서 숨기기" toggle. */
+function buildDesktopHiddenBlock(layers: Layer[]): string | null {
+  const rules: string[] = [];
+  for (const layer of layers) {
+    if (layer.hidden?.desktop) {
+      rules.push(`  #${cssIdentifier(layer.id)} { display: none !important; }`);
+    }
+  }
+  if (rules.length === 0) return null;
+  const min = DEVICE_MAX_WIDTH.tablet + 1; // 1025
+  return [`@media (min-width: ${min}px) {`, ...rules, `}`].join("\n");
+}
+
 export function buildDeviceMediaCss(scene: SceneGraph): string {
   const layers: Layer[] = [];
   collectAllLayers(scene.root as GroupLayer, layers);
 
   const blocks: string[] = [];
+  const desktopHidden = buildDesktopHiddenBlock(layers);
+  if (desktopHidden) blocks.push(desktopHidden);
   const tablet = buildDeviceBlock(layers, "tablet");
   if (tablet) blocks.push(tablet);
   const mobile = buildDeviceBlock(layers, "mobile");

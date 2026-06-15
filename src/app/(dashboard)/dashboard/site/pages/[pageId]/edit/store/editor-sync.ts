@@ -131,6 +131,7 @@ function collectIds(root: GroupLayer): Set<LayerId> {
 export function applyVisibilityAndLock(
   scene: SceneGraph,
   container: HTMLElement,
+  viewportMode: DeviceMode = "desktop",
 ) {
   const byId = new Map<LayerId, Layer>();
   walk(scene.root, (l) => byId.set(l.id, l));
@@ -146,7 +147,12 @@ export function applyVisibilityAndLock(
     // in the editor (so users can still see and re-select the layer). The
     // published/serialized payload preserves the boolean; publisher can
     // choose to honor it literally (display:none) on the live site.
-    if (!layer.visible) {
+    // Two sources dim a layer: the LayerPanel eye toggle (`!visible`, all
+    // devices) and the per-device "이 기기에서 숨기기" toggle
+    // (`hidden[viewportMode]`) — so a layer hidden on the active device shows
+    // as ghosted in the canvas, matching the published `display:none`.
+    const dimmed = !layer.visible || !!layer.hidden?.[viewportMode];
+    if (dimmed) {
       if (!el.hasAttribute(HIDDEN_ATTR)) {
         el.setAttribute(HIDDEN_ATTR, "1");
         el.dataset.deHiddenPrevOpacity = el.style.opacity || "";
@@ -867,7 +873,7 @@ export function syncStoreToDom(
 ) {
   applyStructure(scene, container, viewportMode, opts);
   pruneOrphans(scene, container);
-  applyVisibilityAndLock(scene, container);
+  applyVisibilityAndLock(scene, container, viewportMode);
 }
 
 /**

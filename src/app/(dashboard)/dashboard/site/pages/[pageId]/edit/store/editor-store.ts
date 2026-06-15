@@ -58,8 +58,13 @@ type Container = GroupLayer | SectionLayer;
  *  shipped UI/state byte-compatible. */
 export type ViewportMode = "desktop" | "tablet" | "mobile";
 
-/** Non-base devices that carry per-device overrides. */
+/** Non-base devices that carry per-device geometry/cascade overrides. */
 export type OverrideDevice = "tablet" | "mobile";
+
+/** Devices that support a per-device visibility (hidden) toggle. Unlike
+ *  OverrideDevice this includes "desktop" — a layer can be hidden on the PC
+ *  base too (emitted via a `min-width` block in the published CSS). */
+export type HideDevice = "desktop" | "tablet" | "mobile";
 
 export interface EditorState {
   scene: SceneGraph;
@@ -236,7 +241,7 @@ export interface EditorActions {
    * inside the device `@media` block. PC visibility stays on `visible`.
    * Passing `false` clears the flag (so the layer re-inherits PC).
    */
-  setHidden(id: LayerId, device: OverrideDevice, hidden: boolean): void;
+  setHidden(id: LayerId, device: HideDevice, hidden: boolean): void;
 
   /**
    * Merge a Webflow-style cascade override for a FLOW layer at tablet or

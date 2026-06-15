@@ -3508,6 +3508,14 @@ export default function DesignEditor({
       // importHtml clears selection; re-apply now so the new element is
       // immediately editable in the Inspector.
       useEditorStore.getState().select(newId);
+      // Auto-hide on PC: an object added (or duplicated) while editing a
+      // small-device view is device-specific by default, so it doesn't
+      // clutter the desktop layout (the authoring base). Reversible via the
+      // PC "이 기기에서 숨기기" toggle. Only fires in tablet/mobile mode.
+      const vm = useEditorStore.getState().viewportMode;
+      if (vm === "tablet" || vm === "mobile") {
+        useEditorStore.getState().setHidden(newId, "desktop", true);
+      }
     }
     setSelectedElId(newId);
   }

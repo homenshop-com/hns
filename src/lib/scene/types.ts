@@ -195,9 +195,10 @@ export interface BaseLayer {
   /**
    * Per-device visibility for the absolute editor. A `true` value hides
    * the layer at that device (emitted as `display:none !important` in the
-   * device `@media` block). PC visibility is governed by `visible`.
+   * device `@media` block; desktop uses a `min-width` block). `visible`
+   * (LayerPanel eye toggle) hides on ALL devices — orthogonal to this.
    */
-  hidden?: { tablet?: boolean; mobile?: boolean };
+  hidden?: { desktop?: boolean; tablet?: boolean; mobile?: boolean };
 
   /**
    * Cascade responsive overrides for FLOW layers (ResponsiveFlowEditor).

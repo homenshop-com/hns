@@ -155,6 +155,18 @@ describe("buildDeviceMediaCss — visibility", () => {
     expect(css).toMatch(/#a \{ display: none !important; \}/);
     expect(css).not.toContain("width: 1px");
   });
+
+  it("emits a min-width block hiding a desktop-hidden layer (PC only)", () => {
+    const scene = sceneOf(
+      '<div class="dragable" id="a" style="position:absolute;left:0;top:0;width:10px;height:10px">x</div>',
+    );
+    scene.root.children[0]!.hidden = { desktop: true };
+    const css = buildDeviceMediaCss(scene);
+    expect(css).toContain("@media (min-width: 1025px) {");
+    expect(css).toMatch(/#a \{ display: none !important; \}/);
+    // Must NOT hide on tablet/mobile (no max-width hide block for it).
+    expect(css).not.toContain("@media (max-width:");
+  });
 });
 
 describe("buildDeviceMediaCss — empty", () => {

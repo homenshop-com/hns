@@ -23,6 +23,7 @@ import {
   selectViewportMode,
   readImgFromInnerHtml,
   type OverrideDevice,
+  type HideDevice,
 } from "../store/editor-store";
 import type { BoxLayer, ImageLayer, Layer, LayerId, LayerInteraction, LayerStyle, ResponsiveOverride } from "@/lib/scene";
 import { FONT_CATALOG, FONT_CATEGORIES, type FontDef } from "./font-catalog";
@@ -1064,19 +1065,28 @@ function DeviceSection({ layer }: { layer: Layer }) {
   const setHidden = useEditorStore((s) => s.setHidden);
   const setResponsive = useEditorStore((s) => s.setResponsive);
 
-  if (viewportMode === "desktop") return null;
-  const device = viewportMode as OverrideDevice;
-  const deviceLabel =
-    device === "tablet" ? t("viewport.tablet") : t("viewport.mobile");
+  const device = viewportMode as HideDevice;
+  const isDesktop = device === "desktop";
+  const deviceLabel = isDesktop
+    ? t("viewport.desktop")
+    : device === "tablet"
+      ? t("viewport.tablet")
+      : t("viewport.mobile");
 
   const isHidden = !!layer.hidden?.[device];
-  const ov: ResponsiveOverride = layer.responsive?.[device] ?? {};
+  // Cascade nudges (fontScale/padding/…) apply only to non-desktop devices.
+  const odevice = (isDesktop ? "mobile" : device) as OverrideDevice;
+  const ov: ResponsiveOverride = isDesktop ? {} : layer.responsive?.[odevice] ?? {};
 
   return (
     <Section title={`${deviceLabel} ${t("inspector.device.section")}`}>
-      <p className="ins-device-hint">{t("inspector.device.hint")}</p>
+      <p className="ins-device-hint">
+        {isDesktop
+          ? "이 객체를 PC(데스크탑)에서 숨깁니다. 모바일/태블릿에서 추가한 객체는 기본적으로 PC에서 숨겨집니다."
+          : t("inspector.device.hint")}
+      </p>
 
-      {/* Visibility toggle — applies to any layer. */}
+      {/* Visibility toggle — applies to any layer, on any device incl. PC. */}
       <label className="ins-device-toggle">
         <input
           type="checkbox"
@@ -1086,7 +1096,7 @@ function DeviceSection({ layer }: { layer: Layer }) {
         <span>{t("inspector.device.hide")}</span>
       </label>
 
-      {!isHidden && (
+      {!isDesktop && !isHidden && (
         <>
           {/* Cascade nudges (flow layers). Empty fields inherit the larger
               breakpoint, so leaving a control at its default = no override. */}
@@ -1096,7 +1106,7 @@ function DeviceSection({ layer }: { layer: Layer }) {
               <select
                 value={ov.display ?? ""}
                 onChange={(e) =>
-                  setResponsive(layer.id, device, {
+                  setResponsive(layer.id, odevice, {
                     display: (e.target.value || undefined) as ResponsiveOverride["display"],
                   })
                 }
@@ -1117,7 +1127,7 @@ function DeviceSection({ layer }: { layer: Layer }) {
               placeholder="1.0"
               onCommit={(v) => {
                 const n = parseFloat(v);
-                setResponsive(layer.id, device, {
+                setResponsive(layer.id, odevice, {
                   fontScale: Number.isFinite(n) && n > 0 ? n : undefined,
                 });
               }}
@@ -1127,7 +1137,7 @@ function DeviceSection({ layer }: { layer: Layer }) {
               value={ov.padding ?? ""}
               placeholder="8px 16px"
               onCommit={(v) =>
-                setResponsive(layer.id, device, { padding: v.trim() || undefined })
+                setResponsive(layer.id, odevice, { padding: v.trim() || undefined })
               }
             />
           </div>
@@ -1138,7 +1148,7 @@ function DeviceSection({ layer }: { layer: Layer }) {
               <select
                 value={ov.align ?? ""}
                 onChange={(e) =>
-                  setResponsive(layer.id, device, {
+                  setResponsive(layer.id, odevice, {
                     align: (e.target.value || undefined) as ResponsiveOverride["align"],
                   })
                 }
@@ -1154,7 +1164,7 @@ function DeviceSection({ layer }: { layer: Layer }) {
               <select
                 value={ov.flexDirection ?? ""}
                 onChange={(e) =>
-                  setResponsive(layer.id, device, {
+                  setResponsive(layer.id, odevice, {
                     flexDirection: (e.target.value || undefined) as ResponsiveOverride["flexDirection"],
                   })
                 }
@@ -1170,7 +1180,7 @@ function DeviceSection({ layer }: { layer: Layer }) {
             <button
               type="button"
               className="ins-device-clear"
-              onClick={() => setResponsive(layer.id, device, null)}
+              onClick={() => setResponsive(layer.id, odevice, null)}
             >
               <i className="fa-solid fa-rotate-left" aria-hidden />{" "}
               {t("inspector.device.clear")}
