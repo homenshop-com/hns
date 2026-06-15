@@ -4987,6 +4987,7 @@ export default function DesignEditor({
           <div
             className={`de-canvas-content c_v_home_dft${isModernCanvas ? " is-modern" : ""}`}
             id="de-canvas-inner"
+            data-de-device={viewportMode}
             style={artboardWidth ? { width: artboardWidth } : undefined}
           >
             {/* HEADER — ref-only, set via useEffect to preserve drag edits */}

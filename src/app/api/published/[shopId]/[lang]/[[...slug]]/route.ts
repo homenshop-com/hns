@@ -1514,6 +1514,12 @@ export async function GET(
          capped to the container so it never causes horizontal overflow. */
       .fb-page, .fb_iframe_widget, .fb_iframe_widget span,
       .hns-fb-embed, iframe[src*="facebook.com/plugins"] { max-width: 100% !important; }
+      /* Body/footer content images: cap a fixed-px image to its (per-device-
+         shrunk) box so a 350px QR inside a 297px box scales down to fit instead
+         of overflowing. Excludes object-fit fill-the-box photos (height:auto
+         would collapse them). Matches the editor canvas rule (WYSIWYG). */
+      #hns_body .dragable img:not([style*="object-fit"]),
+      #hns_footer .dragable img:not([style*="object-fit"]) { max-width: 100% !important; height: auto !important; }
     }
     #hns_header { position: relative; }
     #hns_body { position: relative; }

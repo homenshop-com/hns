@@ -705,6 +705,19 @@
 #de-canvas-inner #hns_footer .dragable img:not([style*="width"]) {
   max-width: 100%;
 }
+/* On tablet/mobile artboards, cap a fixed-px content image to its box so one
+   larger than its per-device box (e.g. a 350px QR inside a 297px mobile box)
+   scales down to fit instead of overflowing. Excludes object-fit images
+   (width:100%;height:100%;object-fit:cover fill-the-box photos) — height:auto
+   would collapse those. Mirrors the published `@media (max-width:1024px)` rule
+   (WYSIWYG). Desktop keeps designer overflow. */
+#de-canvas-inner[data-de-device="mobile"] #hns_body .dragable img:not([style*="object-fit"]),
+#de-canvas-inner[data-de-device="mobile"] #hns_footer .dragable img:not([style*="object-fit"]),
+#de-canvas-inner[data-de-device="tablet"] #hns_body .dragable img:not([style*="object-fit"]),
+#de-canvas-inner[data-de-device="tablet"] #hns_footer .dragable img:not([style*="object-fit"]) {
+  max-width: 100% !important;
+  height: auto !important;
+}
 
 /* boardPlugin: ensure text is visible */
 #de-canvas-inner .boardPlugin li a {
