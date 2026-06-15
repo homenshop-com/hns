@@ -294,11 +294,22 @@ export default function CanvasOverlay({ containerRef, siteId }: Props) {
       });
     });
 
+    // In a device (tablet/mobile) viewport the element is rendered at its
+    // per-device frame, and setFrame writes the result back to that SAME
+    // frame (seeded from the desktop base only on first touch). Start the
+    // resize from the device frame — falling back to the desktop base when no
+    // override exists yet — so the box resizes in place instead of snapping to
+    // its desktop coordinates the instant a handle is grabbed.
+    const device = s.viewportMode;
+    const deviceFrame =
+      device === "tablet" ? layer.tabletFrame
+      : device === "mobile" ? layer.mobileFrame
+      : null;
     // Flow-positioned layers (sections) typically have frame 0/0/0/0
     // because no inline width/height was authored. Measure the DOM
     // rect as the true starting frame so resize deltas are meaningful.
     const domEl = container.ownerDocument.getElementById(single);
-    let startFrame = { ...layer.frame };
+    let startFrame = { ...(deviceFrame ?? layer.frame) };
     if (domEl && (startFrame.w === 0 || startFrame.h === 0)) {
       const r = domEl.getBoundingClientRect();
       startFrame = {
