@@ -1251,6 +1251,8 @@ model InboundEmail {
   isSpam      Boolean  @default(false)
   isRead      Boolean  @default(false)
   tags        String[] @default([])
+  spamScore   Int      @default(0)
+  spamReasons String[] @default([])
   deletedAt   DateTime?
   createdAt   DateTime @default(now())
 
@@ -1258,4 +1260,5 @@ model InboundEmail {
   @@index([createdAt])
   @@index([isSpam])
   @@index([deletedAt])
+  @@index([spamScore])
 }

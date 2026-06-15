@@ -59,6 +59,8 @@ export default async function InboxPage({
         isSpam: true,
         isRead: true,
         tags: true,
+        spamScore: true,
+        spamReasons: true,
         deletedAt: true,
         createdAt: true,
       },
@@ -91,6 +93,8 @@ export default async function InboxPage({
     isSpam: r.isSpam,
     isRead: r.isRead,
     tags: r.tags,
+    spamScore: r.spamScore,
+    spamReasons: r.spamReasons,
     deletedAt: r.deletedAt ? r.deletedAt.toISOString() : null,
     createdAt: r.createdAt.toISOString(),
   }));
@@ -107,6 +111,8 @@ export default async function InboxPage({
         html: selectedRaw.html,
         isSpam: selectedRaw.isSpam,
         tags: selectedRaw.tags,
+        spamScore: selectedRaw.spamScore,
+        spamReasons: selectedRaw.spamReasons,
         deletedAt: selectedRaw.deletedAt
           ? selectedRaw.deletedAt.toISOString()
           : null,

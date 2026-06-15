@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import crypto from "node:crypto";
 import { Resend } from "resend";
 import { prisma } from "@/lib/db";
+import { classifySpam, AUTO_SPAM_THRESHOLD } from "@/lib/spam-classifier";
 
 /**
  * Resend Receiving (Inbound) webhook.
@@ -196,6 +197,16 @@ export async function POST(req: NextRequest) {
       ? ccVal
       : "";
 
+  const subjectStr = typeof d.subject === "string" ? d.subject : null;
+  const spam = classifySpam({
+    fromEmail,
+    fromName,
+    toEmail,
+    subject: subjectStr,
+    text: text ?? null,
+    html: html ?? null,
+  });
+
   const record = await prisma.inboundEmail.create({
     data: {
       resendId:
@@ -206,11 +217,14 @@ export async function POST(req: NextRequest) {
       fromName,
       toEmail,
       cc: cc || null,
-      subject: typeof d.subject === "string" ? d.subject : null,
+      subject: subjectStr,
       text: text ?? null,
       html: html ?? null,
       headers: (d.headers as object | undefined) ?? undefined,
       attachments: (d.attachments as object | undefined) ?? undefined,
+      spamScore: spam.score,
+      spamReasons: spam.reasons,
+      isSpam: spam.score >= AUTO_SPAM_THRESHOLD,
     },
   });
 
@@ -218,14 +232,14 @@ export async function POST(req: NextRequest) {
   if (process.env.RESEND_API_KEY) {
     try {
       const resend = new Resend(process.env.RESEND_API_KEY);
-      const subjectStr = typeof d.subject === "string" ? d.subject : "";
-      const subject = `[${toEmail}] ${subjectStr || "(no subject)"}`;
+      const subjectFwd = subjectStr || "";
+      const subject = `[${toEmail}] ${subjectFwd || "(no subject)"}`;
       const headerHtml = `
 <div style="font-family:sans-serif;font-size:13px;color:#555;border-bottom:1px solid #ddd;padding:8px 0;margin-bottom:12px">
   <div><b>From:</b> ${escapeHtml(fromName ? `${fromName} <${fromEmail}>` : fromEmail)}</div>
   <div><b>To:</b> ${escapeHtml(toEmail)}</div>
   ${cc ? `<div><b>Cc:</b> ${escapeHtml(cc)}</div>` : ""}
-  <div><b>Subject:</b> ${escapeHtml(subjectStr)}</div>
+  <div><b>Subject:</b> ${escapeHtml(subjectFwd)}</div>
 </div>`;
       const body = html
         ? headerHtml + html

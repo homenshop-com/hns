@@ -14,6 +14,8 @@ export interface InboxRow {
   isSpam: boolean;
   isRead: boolean;
   tags: string[];
+  spamScore: number;
+  spamReasons: string[];
   deletedAt: string | null;
   createdAt: string;
 }
@@ -29,9 +31,13 @@ export interface SelectedEmail {
   html: string | null;
   isSpam: boolean;
   tags: string[];
+  spamScore: number;
+  spamReasons: string[];
   deletedAt: string | null;
   createdAt: string;
 }
+
+const SUSPECT_THRESHOLD = 30;
 
 type View = "inbox" | "spam" | "trash" | "all";
 
@@ -92,7 +98,8 @@ export default function InboxClient({
       | "markRead"
       | "markUnread"
       | "addTag"
-      | "removeTag",
+      | "removeTag"
+      | "reclassify",
     tag?: string
   ) {
     const ids = Array.from(picked);
@@ -120,6 +127,11 @@ export default function InboxClient({
         const j = await res.json().catch(() => ({}));
         alert(`실패: ${j.error || res.statusText}`);
         return;
+      }
+      if (action === "reclassify") {
+        const j = await res.json().catch(() => ({}));
+        const moved = typeof j.movedToSpam === "number" ? j.movedToSpam : 0;
+        alert(`재분류 완료: ${j.count ?? 0}건, 스팸 이동 ${moved}건`);
       }
       setPicked(new Set());
       setTagInput("");
@@ -287,6 +299,18 @@ export default function InboxClient({
             제거
           </button>
         </div>
+
+        <div className="h-5 w-px bg-slate-200" />
+
+        <button
+          type="button"
+          onClick={() => run("reclassify")}
+          disabled={disabled || picked.size === 0}
+          className="px-2.5 py-1 rounded border border-violet-200 text-violet-700 hover:bg-violet-50 disabled:opacity-40 disabled:hover:bg-white text-xs"
+          title="선택한 메일을 다시 스팸 점수로 평가합니다"
+        >
+          스팸 재분류
+        </button>
       </div>
 
       <div className="grid grid-cols-12 gap-4 bg-white rounded-lg border border-slate-200 overflow-hidden">
@@ -351,6 +375,18 @@ export default function InboxClient({
                         {e.isSpam && (
                           <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">
                             스팸
+                          </span>
+                        )}
+                        {!e.isSpam && e.spamScore >= SUSPECT_THRESHOLD && (
+                          <span
+                            className="text-[10px] px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 cursor-help"
+                            title={
+                              e.spamReasons.length > 0
+                                ? `점수 ${e.spamScore} — ${e.spamReasons.join(" · ")}`
+                                : `점수 ${e.spamScore}`
+                            }
+                          >
+                            ⚠ 스팸 의심 {e.spamScore}
                           </span>
                         )}
                         {e.deletedAt && (
@@ -435,6 +471,30 @@ export default function InboxClient({
                   </div>
                 )}
               </div>
+              {(selected.isSpam ||
+                selected.spamScore >= SUSPECT_THRESHOLD) &&
+                selected.spamReasons.length > 0 && (
+                  <div
+                    className={`mb-4 rounded-md border px-3 py-2 ${
+                      selected.isSpam
+                        ? "bg-amber-50 border-amber-200 text-amber-900"
+                        : "bg-orange-50 border-orange-200 text-orange-900"
+                    }`}
+                  >
+                    <div className="text-sm font-semibold mb-1">
+                      ⚠ {selected.isSpam ? "스팸으로 분류됨" : "스팸 의심"} —
+                      점수 {selected.spamScore}
+                    </div>
+                    <ul className="text-xs space-y-0.5 list-disc list-inside">
+                      {selected.spamReasons.map((r, i) => (
+                        <li key={i}>{r}</li>
+                      ))}
+                    </ul>
+                    <div className="text-[11px] opacity-70 mt-1">
+                      본문의 링크는 클릭하지 마세요. 발신자 도메인을 확인하세요.
+                    </div>
+                  </div>
+                )}
               {selected.html ? (
                 <iframe
                   title="email body"

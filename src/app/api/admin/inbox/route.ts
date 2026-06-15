@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { classifySpam, AUTO_SPAM_THRESHOLD } from "@/lib/spam-classifier";
 
 async function requireAdmin() {
   const session = await auth();
@@ -21,7 +22,8 @@ type Action =
   | "markRead"
   | "markUnread"
   | "addTag"
-  | "removeTag";
+  | "removeTag"
+  | "reclassify";
 
 interface Body {
   ids?: string[];
@@ -124,6 +126,46 @@ export async function POST(req: NextRequest) {
         }
       }
       return NextResponse.json({ ok: true, count });
+    }
+    case "reclassify": {
+      const rows = await prisma.inboundEmail.findMany({
+        where,
+        select: {
+          id: true,
+          fromEmail: true,
+          fromName: true,
+          toEmail: true,
+          subject: true,
+          text: true,
+          html: true,
+          isSpam: true,
+        },
+      });
+      let scored = 0;
+      let movedToSpam = 0;
+      for (const row of rows) {
+        const r = classifySpam({
+          fromEmail: row.fromEmail,
+          fromName: row.fromName,
+          toEmail: row.toEmail,
+          subject: row.subject,
+          text: row.text,
+          html: row.html,
+        });
+        const shouldSpam = r.score >= AUTO_SPAM_THRESHOLD;
+        await prisma.inboundEmail.update({
+          where: { id: row.id },
+          data: {
+            spamScore: r.score,
+            spamReasons: r.reasons,
+            // Only escalate to spam; do not unset existing spam mark on rescan.
+            isSpam: row.isSpam || shouldSpam,
+          },
+        });
+        scored++;
+        if (shouldSpam && !row.isSpam) movedToSpam++;
+      }
+      return NextResponse.json({ ok: true, count: scored, movedToSpam });
     }
     case "removeTag": {
       const tag = (body.tag || "").trim();
