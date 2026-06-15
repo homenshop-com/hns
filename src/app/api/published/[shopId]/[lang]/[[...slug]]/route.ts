@@ -1498,6 +1498,18 @@ export async function GET(
     a { color: var(--brand-color); }
     #hns_header { background-color: var(--brand-surface); color: var(--brand-text); }
     #hns_body   { background-color: var(--brand-surface); }
+    /* Logo image must track its box on tablet/mobile. The logo art usually
+       carries a fixed inline width (e.g. 406px); on mobile the box shrinks via
+       a device @media re-pin (e.g. ~324px) but the fixed img does not, so it
+       overflows the 375 artboard and the logo shifts right / looks oversized.
+       Cap the img to the box at ≤1024 only (desktop untouched → no regression
+       for sites whose logo intentionally fills/overflows its box at full size),
+       letting height follow to preserve aspect ratio. Mirrors the editor, where
+       the logo fits its box. Scoped to #hns_h_logo. */
+    @media (max-width: 1024px) {
+      #hns_h_logo > a { display: block; }
+      #hns_h_logo img { display: block; max-width: 100% !important; height: auto !important; }
+    }
     #hns_header { position: relative; }
     #hns_body { position: relative; }
     #hns_footer { position: static; }
