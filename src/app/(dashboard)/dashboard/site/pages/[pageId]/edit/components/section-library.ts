@@ -15,6 +15,8 @@
  * collide.
  */
 
+import { buildFacebookEmbedHtml, FB_DEFAULTS } from "../shared/facebook-embed";
+
 function uid(prefix: string): string {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
 }
@@ -318,6 +320,21 @@ ${items}
   </div>
   <div style="max-width:1200px;margin:24px auto 0;text-align:center;font-size:12px;color:rgba(255,255,255,.4);">&copy; 2026 Brand. All rights reserved.</div>
 </div>`.trim();
+    },
+  },
+
+  /* ═══════════════════════ FACEBOOK PAGE EMBED ═════════════════════════ */
+  {
+    id: "facebook-page",
+    labelKey: "facebookPage",
+    icon: "fa-facebook",
+    build() {
+      // Absolute-positioned object (legacy/absolute templates). A standalone
+      // FB page-plugin iframe renders directly in canvas + published; the
+      // Inspector "Facebook 설정" section edits its URL / width / tabs.
+      const box = uid("obj_fb");
+      return `
+<div class="dragable" id="${box}" style="position:absolute;left:40px;top:240px;width:${FB_DEFAULTS.width}px;height:${FB_DEFAULTS.height}px;z-index:5;">${buildFacebookEmbedHtml(FB_DEFAULTS)}</div>`.trim();
     },
   },
 ];

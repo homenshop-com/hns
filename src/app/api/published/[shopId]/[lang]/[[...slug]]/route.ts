@@ -1509,6 +1509,11 @@ export async function GET(
     @media (max-width: 1024px) {
       #hns_h_logo > a { display: block; }
       #hns_h_logo img { display: block; max-width: 100% !important; height: auto !important; }
+      /* Facebook page embed must not push the artboard wider than the
+         viewport on mobile. The widget renders at its authored width but is
+         capped to the container so it never causes horizontal overflow. */
+      .fb-page, .fb_iframe_widget, .fb_iframe_widget span,
+      .hns-fb-embed, iframe[src*="facebook.com/plugins"] { max-width: 100% !important; }
     }
     #hns_header { position: relative; }
     #hns_body { position: relative; }

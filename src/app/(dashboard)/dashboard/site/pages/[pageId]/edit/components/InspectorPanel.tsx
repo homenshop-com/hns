@@ -26,6 +26,16 @@ import {
 } from "../store/editor-store";
 import type { BoxLayer, ImageLayer, Layer, LayerId, LayerInteraction, LayerStyle, ResponsiveOverride } from "@/lib/scene";
 import { FONT_CATALOG, FONT_CATEGORIES, type FontDef } from "./font-catalog";
+import {
+  type FacebookEmbedOpts,
+  FB_DEFAULTS,
+  FB_TAB_OPTIONS,
+  isFacebookEmbed,
+  parseFacebookEmbed,
+  applyFacebookEmbed,
+  clampFbWidth,
+  clampFbHeight,
+} from "../shared/facebook-embed";
 
 const LayerPanel = lazy(() => import("./LayerPanel"));
 
@@ -432,6 +442,16 @@ function DesignTab({
         disabled={layer.type === "section" || layer.type === "inline"}
       />
 
+      {/* Facebook page embed — appears when the selected element holds a FB
+          page-plugin iframe (or legacy .fb-page div). Edits URL / width / etc. */}
+      {(() => {
+        const el =
+          typeof document !== "undefined" ? document.getElementById(layer.id) : null;
+        return isFacebookEmbed(el) ? (
+          <FacebookSection key={layer.id} layerId={layer.id} />
+        ) : null;
+      })()}
+
       {/* Stacking order (z-index): beginner front/back buttons + expert input. */}
       <ArrangeSection layer={layer} disabled={layer.type === "inline"} />
 
@@ -463,9 +483,11 @@ function DesignTab({
       {/* Background image editor — for box layers without an inner <img>,
           let the user set CSS `background-image: url(...)`. Boxes that
           DO have an inner <img> get the ImageSection above instead. */}
-      {layer.type === "box" && !readImgFromInnerHtml((layer as BoxLayer).innerHtml ?? "") && (
-        <BackgroundImageSection layer={layer} siteId={siteId} />
-      )}
+      {layer.type === "box" &&
+        !readImgFromInnerHtml((layer as BoxLayer).innerHtml ?? "") &&
+        !isFacebookEmbed(
+          typeof document !== "undefined" ? document.getElementById(layer.id) : null,
+        ) && <BackgroundImageSection layer={layer} siteId={siteId} />}
 
       <BorderSection layer={layer} live={live} />
 
@@ -1956,6 +1978,115 @@ function SwatchEditor({
         }}
       />
     </div>
+  );
+}
+
+/* ─── Facebook page embed section (2026-06-13) ──────────────────────────
+ * Appears for any selected element whose DOM contains a Facebook page embed
+ * (a standalone plugins/page.php iframe OR a legacy `.fb-page` SDK div). Edits
+ * the page URL / width / height / tabs / display options and rebuilds the
+ * iframe in the live DOM via applyFacebookEmbed — the normal save path
+ * (cloneSceneForDesktopSave) snapshots the element's innerHTML, so the change
+ * persists without any scene-type or save-pipeline change. Width also resizes
+ * the container box (per-device aware via setFrame). */
+function FacebookSection({ layerId }: { layerId: string }) {
+  const initial = (): FacebookEmbedOpts =>
+    parseFacebookEmbed(
+      typeof document !== "undefined" ? document.getElementById(layerId) : null,
+    ) ?? FB_DEFAULTS;
+  const [opts, setOpts] = useState<FacebookEmbedOpts>(initial);
+
+  const apply = (patch: Partial<FacebookEmbedOpts>) => {
+    const next = { ...opts, ...patch };
+    setOpts(next);
+    const host = document.getElementById(layerId);
+    if (!host) return;
+    applyFacebookEmbed(host, next);
+    if (patch.width != null || patch.height != null) {
+      // Keep the container box in sync with the widget so the selection box
+      // matches; setFrame routes to the active device frame automatically.
+      useEditorStore.getState().setFrame(layerId, {
+        w: clampFbWidth(next.width),
+        h: clampFbHeight(next.height),
+      });
+    }
+  };
+
+  const toggleTab = (tab: string) => {
+    const tabs = opts.tabs.includes(tab)
+      ? opts.tabs.filter((x) => x !== tab)
+      : [...opts.tabs, tab];
+    apply({ tabs: tabs.length ? tabs : ["timeline"] });
+  };
+  const tabLabel = (t: string) =>
+    t === "timeline" ? "타임라인" : t === "events" ? "이벤트" : t === "messages" ? "메시지" : t;
+
+  return (
+    <Section title="Facebook 설정">
+      <div className="ins-prop-row">
+        <TextField
+          label="페이지 URL"
+          value={opts.href}
+          placeholder="https://www.facebook.com/yourpage"
+          onCommit={(v) => apply({ href: v.trim() })}
+          wide
+        />
+      </div>
+      <div className="ins-prop-row">
+        <TextField
+          label="폭(px)"
+          value={String(opts.width)}
+          onCommit={(v) => apply({ width: clampFbWidth(parseInt(v, 10) || opts.width) })}
+        />
+        <TextField
+          label="높이(px)"
+          value={String(opts.height)}
+          onCommit={(v) => apply({ height: clampFbHeight(parseInt(v, 10) || opts.height) })}
+        />
+      </div>
+      <div className="ins-prop-row" style={{ flexWrap: "wrap", gap: 10 }}>
+        {FB_TAB_OPTIONS.map((tab) => (
+          <label key={tab} className="ins-device-toggle" style={{ cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={opts.tabs.includes(tab)}
+              onChange={() => toggleTab(tab)}
+            />
+            <span>{tabLabel(tab)}</span>
+          </label>
+        ))}
+      </div>
+      <div className="ins-prop-row" style={{ flexWrap: "wrap", gap: 10 }}>
+        <label className="ins-device-toggle" style={{ cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={opts.smallHeader}
+            onChange={(e) => apply({ smallHeader: e.target.checked })}
+          />
+          <span>작은 헤더</span>
+        </label>
+        <label className="ins-device-toggle" style={{ cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={opts.hideCover}
+            onChange={(e) => apply({ hideCover: e.target.checked })}
+          />
+          <span>표지 숨김</span>
+        </label>
+        <label className="ins-device-toggle" style={{ cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={opts.showFacepile}
+            onChange={(e) => apply({ showFacepile: e.target.checked })}
+          />
+          <span>친구 얼굴</span>
+        </label>
+      </div>
+      <div className="ins-hmf-notice" style={{ marginTop: 8 }}>
+        <i className="fa-solid fa-circle-info" aria-hidden />
+        <span>폭은 Facebook 정책상 180~500px로 제한됩니다. 변경 후 저장하면 퍼블리시에 반영됩니다.</span>
+      </div>
+    </Section>
   );
 }
 
