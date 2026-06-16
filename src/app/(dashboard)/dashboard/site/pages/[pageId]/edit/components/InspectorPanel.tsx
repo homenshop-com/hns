@@ -2200,7 +2200,16 @@ function BodySettingsPanel({
     typeof document !== "undefined" ? document.getElementById("hns_body") : null;
   const [bg, setBg] = useState<string>(() => {
     const el = bodyEl();
-    return (el?.style.background || el?.style.backgroundColor || "").trim();
+    if (!el) return "#ffffff";
+    const inline = (el.style.background || el.style.backgroundColor || "").trim();
+    if (inline) return inline;
+    // No inline override → reflect the live background; default to WHITE (the
+    // page background) rather than the swatch's #000000 fallback.
+    const computed = window.getComputedStyle(el).backgroundColor;
+    if (!computed || computed === "transparent" || /rgba?\(0,\s*0,\s*0,\s*0\)/.test(computed)) {
+      return "#ffffff";
+    }
+    return rgbToHex(computed) || "#ffffff";
   });
   const [minH, setMinH] = useState<string>(() => {
     const el = bodyEl();
