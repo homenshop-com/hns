@@ -131,6 +131,24 @@ function parseBodyLayoutCss(css: string): BodyLayoutHeights {
   return heights;
 }
 
+/* ── Body STYLE block (background) — separate from the per-device min-height
+   HNS-BODY-LAYOUT block above. Managed by the "본문 설정" Inspector panel. */
+const BODY_STYLE_MARK_START = "/* HNS-BODY-STYLE:START */";
+const BODY_STYLE_MARK_END = "/* HNS-BODY-STYLE:END */";
+function bodyStyleBlockRegex() {
+  return new RegExp(
+    String.raw`/\*\s*HNS-BODY-STYLE:START\s*\*/[\s\S]*?/\*\s*HNS-BODY-STYLE:END\s*\*/`,
+    "g",
+  );
+}
+function upsertBodyStyleCss(css: string, background: string): string {
+  const base = (css || "").replace(bodyStyleBlockRegex(), "").trim();
+  const bg = (background || "").trim();
+  if (!bg || bg === "transparent") return base;
+  const block = `${BODY_STYLE_MARK_START}\n#hns_body { background: ${bg} !important; }\n${BODY_STYLE_MARK_END}`;
+  return base + (base ? "\n\n" : "") + block + "\n";
+}
+
 function upsertBodyLayoutCss(css: string, heights: BodyLayoutHeights): string {
   const base = stripBodyLayoutCss(css);
   const desktop = normalizeBodyHeightValue(heights.desktop);
@@ -1259,6 +1277,11 @@ export default function DesignEditor({
     for (let i = 0; i < children.length; i++) {
       const child = children[i] as HTMLElement;
       if (child.classList.contains("de-resize-handle")) continue;
+      // Skip layers hidden on the active device (LayerPanel eye toggle OR the
+      // per-device "이 기기에서 숨기기"). They're display:none on the published
+      // page for this device, so counting them would inflate #hns_body's
+      // min-height and leave a large empty gap before the footer.
+      if (child.hasAttribute("data-de-hidden")) continue;
       const top = parseInt(child.style.top) || parseInt(window.getComputedStyle(child).top) || 0;
       const height = child.offsetHeight || 0;
       maxBottom = Math.max(maxBottom, top + height);
@@ -3988,6 +4011,30 @@ export default function DesignEditor({
     }
   }
 
+  /** Apply "본문 설정" panel changes to #hns_body. Background → an
+   *  HNS-BODY-STYLE block in pageCss (+ live). Min-height → the existing
+   *  per-device manual mechanism (bodyManualMinHeightRef + syncBodyHeight),
+   *  which the save bakes via upsertBodyLayoutCss. `minHeight: 0` = auto. */
+  function applyBodyLayout(patch: { background?: string; minHeight?: number }) {
+    const bodyEl = bodyRef.current;
+    const device = useEditorStore.getState().viewportMode;
+    if (patch.minHeight !== undefined) {
+      const mh = patch.minHeight > 0 ? patch.minHeight : undefined;
+      bodyManualMinHeightRef.current = {
+        ...bodyManualMinHeightRef.current,
+        [device]: mh,
+      };
+      syncBodyHeight({ manualHeight: mh ?? 0, device });
+    }
+    if (patch.background !== undefined) {
+      setCurrentPageCss((c) => upsertBodyStyleCss(c ?? "", patch.background!));
+      if (bodyEl) {
+        bodyEl.style.background =
+          patch.background && patch.background !== "transparent" ? patch.background : "";
+      }
+    }
+  }
+
   /** Relocate a BODY scene layer into the site-wide header section by id.
    *  This is the LEFT-PANEL counterpart to the canvas drag-into-header
    *  gesture (see onEnd → Goal 2): the user drags a 본문 섹션 row onto the
@@ -5155,6 +5202,7 @@ export default function DesignEditor({
               setHeaderLayout(next);
               applyHeaderLayout(next);
             }}
+            onApplyBodyLayout={applyBodyLayout}
             onOpenHeaderEdit={() => setShowHeaderEdit(true)}
             onOpenFooterEdit={() => setShowFooterEdit(true)}
           />

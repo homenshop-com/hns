@@ -204,6 +204,8 @@ interface Props {
   onOpenHeaderEdit?: () => void;
   /** Open the full FooterEditModal from the inspector "고급 편집" button. */
   onOpenFooterEdit?: () => void;
+  /** Apply "본문 설정" panel changes (background / min-height) to #hns_body. */
+  onApplyBodyLayout?: (patch: { background?: string; minHeight?: number }) => void;
 }
 
 export default function InspectorPanel({
@@ -214,6 +216,7 @@ export default function InspectorPanel({
   onApplyHeaderLayout,
   onOpenHeaderEdit,
   onOpenFooterEdit,
+  onApplyBodyLayout,
 }: Props) {
   const t = useTranslations("editor");
   const [tab, setTab] = useState<Tab>("design");
@@ -306,6 +309,7 @@ export default function InspectorPanel({
             onApplyHeaderLayout={onApplyHeaderLayout}
             onOpenHeaderEdit={onOpenHeaderEdit}
             onOpenFooterEdit={onOpenFooterEdit}
+            onApplyBodyLayout={onApplyBodyLayout}
           />
         )}
 
@@ -336,14 +340,14 @@ interface DesignTabProps {
   onApplyHeaderLayout?: (next: HmfHeaderLayout) => void;
   onOpenHeaderEdit?: () => void;
   onOpenFooterEdit?: () => void;
+  onApplyBodyLayout?: (patch: { background?: string; minHeight?: number }) => void;
 }
 
 function DesignTab({
   layer, path, siteId, live,
   editingTarget, headerLayout, onApplyHeaderLayout,
-  onOpenHeaderEdit, onOpenFooterEdit,
+  onOpenHeaderEdit, onOpenFooterEdit, onApplyBodyLayout,
 }: DesignTabProps) {
-  const t = useTranslations("editor");
   if (!layer) {
     /* HMF mode empty state — show header/footer settings panel. */
     if (editingTarget === "hmf") {
@@ -417,20 +421,9 @@ function DesignTab({
       );
     }
 
-    /* Default empty state — nothing selected. */
-    return (
-      <div className="ins-empty">
-        <div className="ins-empty-icon">
-          <i className="fa-solid fa-arrow-pointer" aria-hidden />
-        </div>
-        <div className="ins-empty-title">{t("inspector.emptyTitle")}</div>
-        <div className="ins-empty-sub">
-          {t("inspector.emptyL1")}
-          <br />
-          {t("inspector.emptyL2")}
-        </div>
-      </div>
-    );
+    /* Nothing selected → BODY settings (background / height) + a hint that
+       selecting an object shows its properties. */
+    return <BodySettingsPanel onApply={onApplyBodyLayout} />;
   }
 
   const meta = layerMeta(layer.type);
@@ -2190,6 +2183,89 @@ function GoogleMapSection({ layerId }: { layerId: string }) {
         </span>
       </div>
     </Section>
+  );
+}
+
+/* ─── Body settings panel (2026-06-13) ──────────────────────────────────
+ * Shown in the Design tab when nothing is selected. Controls the page body
+ * region (#hns_body): background color + min-height for the ACTIVE device.
+ * "높이 자동" resets to content height (removes the body↔footer gap). Reads the
+ * live #hns_body so it reflects the current state; writes via onApply. */
+function BodySettingsPanel({
+  onApply,
+}: {
+  onApply?: (patch: { background?: string; minHeight?: number }) => void;
+}) {
+  const bodyEl = () =>
+    typeof document !== "undefined" ? document.getElementById("hns_body") : null;
+  const [bg, setBg] = useState<string>(() => {
+    const el = bodyEl();
+    return (el?.style.background || el?.style.backgroundColor || "").trim();
+  });
+  const [minH, setMinH] = useState<string>(() => {
+    const el = bodyEl();
+    return el ? String(parseInt(el.style.minHeight, 10) || el.offsetHeight || 0) : "";
+  });
+
+  return (
+    <>
+      <Section title="본문 설정">
+        <SwatchEditor
+          label="배경색"
+          value={bg}
+          onChange={(v) => {
+            setBg(v);
+            onApply?.({ background: v });
+          }}
+        />
+        <div className="ins-prop-row" style={{ marginTop: 8 }}>
+          <TextField
+            label="최소 높이(px)"
+            value={minH}
+            onCommit={(v) => {
+              const n = parseInt(v, 10);
+              const val = Number.isFinite(n) && n > 0 ? n : 0;
+              setMinH(String(val || 0));
+              onApply?.({ minHeight: val });
+            }}
+            wide
+          />
+        </div>
+        <div className="ins-prop-row">
+          <button
+            type="button"
+            className="ins-btn"
+            style={{
+              flex: 1,
+              padding: "8px 10px",
+              background: "#1f2937",
+              color: "#e5e7eb",
+              border: "1px solid #374151",
+              borderRadius: 6,
+              cursor: "pointer",
+              fontSize: 12,
+            }}
+            onClick={() => {
+              setMinH("0");
+              onApply?.({ minHeight: 0 });
+            }}
+          >
+            <i className="fa-solid fa-arrows-up-to-line" style={{ marginRight: 6 }} />
+            높이 자동 맞춤 (공백 제거)
+          </button>
+        </div>
+        <div className="ins-hmf-notice" style={{ marginTop: 8 }}>
+          <i className="fa-solid fa-circle-info" aria-hidden />
+          <span>
+            현재 보고 있는 기기(PC·태블릿·모바일) 기준으로 적용됩니다. ‘높이 자동
+            맞춤’은 콘텐츠 높이에 맞춰 본문↔푸터 사이 공백을 없앱니다.
+          </span>
+        </div>
+      </Section>
+      <div className="ins-empty-sub" style={{ padding: "0 16px", marginTop: 12 }}>
+        객체를 클릭하면 해당 객체의 속성이 여기에 표시됩니다.
+      </div>
+    </>
   );
 }
 
