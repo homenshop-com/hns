@@ -1525,9 +1525,9 @@ export async function GET(
     #hns_header { position: relative; }
     #hns_body { position: relative; }
     #hns_footer { position: static; }
-    /* Default footer height (300px). Overridden by the per-device user footer
+    /* Default footer height (150px). Overridden by the per-device user footer
        style block (data-hns-footer) whose min-height is !important. */
-    #hns_footer { min-height: 300px; }
+    #hns_footer { min-height: 150px; }
     #hns_menu:empty { display: none; }
     #hns_footer_content { top: 0 !important; position: relative !important; }
     #hns_footer > .dragable {

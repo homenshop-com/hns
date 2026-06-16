@@ -2337,7 +2337,7 @@ function FooterSettingsPanel({
         <TextField
           label="최소 높이(px)"
           value={cur.minHeight > 0 ? String(cur.minHeight) : ""}
-          placeholder="300 (기본)"
+          placeholder="150 (기본)"
           onCommit={(v) => {
             const n = parseInt(v, 10);
             update({ minHeight: Number.isFinite(n) && n > 0 ? n : 0 });

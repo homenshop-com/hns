@@ -616,10 +616,10 @@
   position: static !important;
   width: 100%;
   clear: both;
-  /* Default footer height (300px) — matches the published baseline. The
+  /* Default footer height (150px) — matches the published baseline. The
      per-device user footer style (live inline / <style data-hns-footer>)
      overrides it. */
-  min-height: 300px;
+  min-height: 150px;
 }
 /* footer_content: override template CSS top:20000px, keep relative so children position inside it */
 #de-canvas-inner #hns_footer_content {
