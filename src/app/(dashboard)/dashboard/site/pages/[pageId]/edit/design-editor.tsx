@@ -149,6 +149,30 @@ function upsertBodyStyleCss(css: string, background: string): string {
   return base + (base ? "\n\n" : "") + block + "\n";
 }
 
+/* ── Footer STYLE block (background + min-height). Managed by the "푸터 설정"
+   Inspector panel. Per-page (pageCss), consistent with body/header/theme. */
+const FOOTER_STYLE_MARK_START = "/* HNS-FOOTER-STYLE:START */";
+const FOOTER_STYLE_MARK_END = "/* HNS-FOOTER-STYLE:END */";
+function footerStyleBlockRegex() {
+  return new RegExp(
+    String.raw`/\*\s*HNS-FOOTER-STYLE:START\s*\*/[\s\S]*?/\*\s*HNS-FOOTER-STYLE:END\s*\*/`,
+    "g",
+  );
+}
+function upsertFooterStyleCss(
+  css: string,
+  style: { background: string; minHeight: number },
+): string {
+  const base = (css || "").replace(footerStyleBlockRegex(), "").trim();
+  const bg = (style.background || "").trim();
+  const decls: string[] = [];
+  if (bg && bg !== "transparent") decls.push(`background: ${bg} !important;`);
+  if (style.minHeight > 0) decls.push(`min-height: ${Math.round(style.minHeight)}px !important;`);
+  if (decls.length === 0) return base;
+  const block = `${FOOTER_STYLE_MARK_START}\n#hns_footer { ${decls.join(" ")} }\n${FOOTER_STYLE_MARK_END}`;
+  return base + (base ? "\n\n" : "") + block + "\n";
+}
+
 function upsertBodyLayoutCss(css: string, heights: BodyLayoutHeights): string {
   const base = stripBodyLayoutCss(css);
   const desktop = normalizeBodyHeightValue(heights.desktop);
@@ -4035,6 +4059,19 @@ export default function DesignEditor({
     }
   }
 
+  /** Apply "푸터 설정" panel changes to #hns_footer (background + min-height).
+   *  Stored in pageCss (HNS-FOOTER-STYLE) + applied live. Receives the FULL
+   *  current values (both go in one block). Note: per-page like the others. */
+  function applyFooterLayout(next: { background: string; minHeight: number }) {
+    setCurrentPageCss((c) => upsertFooterStyleCss(c ?? "", next));
+    const fEl = footerRef.current;
+    if (fEl) {
+      fEl.style.background =
+        next.background && next.background !== "transparent" ? next.background : "";
+      fEl.style.minHeight = next.minHeight > 0 ? `${Math.round(next.minHeight)}px` : "";
+    }
+  }
+
   /** Relocate a BODY scene layer into the site-wide header section by id.
    *  This is the LEFT-PANEL counterpart to the canvas drag-into-header
    *  gesture (see onEnd → Goal 2): the user drags a 본문 섹션 row onto the
@@ -5203,6 +5240,7 @@ export default function DesignEditor({
               applyHeaderLayout(next);
             }}
             onApplyBodyLayout={applyBodyLayout}
+            onApplyFooterLayout={applyFooterLayout}
             onOpenHeaderEdit={() => setShowHeaderEdit(true)}
             onOpenFooterEdit={() => setShowFooterEdit(true)}
           />
