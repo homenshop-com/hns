@@ -65,6 +65,13 @@ import {
   snapshotHmfContainerBase,
   applyHmfDevicePreview,
 } from "./shared/hmf-device";
+import {
+  type FooterStyle,
+  type FooterDevice,
+  parseFooterStyle,
+  applyFooterStyleToDom,
+  applyFooterLivePreview,
+} from "./shared/footer-style";
 
 const TiptapModal = lazy(() => import("./tiptap-modal"));
 // LayerPanel is rendered by InspectorPanel's "레이어" tab; no direct
@@ -149,29 +156,6 @@ function upsertBodyStyleCss(css: string, background: string): string {
   return base + (base ? "\n\n" : "") + block + "\n";
 }
 
-/* ── Footer STYLE block (background + min-height). Managed by the "푸터 설정"
-   Inspector panel. Per-page (pageCss), consistent with body/header/theme. */
-const FOOTER_STYLE_MARK_START = "/* HNS-FOOTER-STYLE:START */";
-const FOOTER_STYLE_MARK_END = "/* HNS-FOOTER-STYLE:END */";
-function footerStyleBlockRegex() {
-  return new RegExp(
-    String.raw`/\*\s*HNS-FOOTER-STYLE:START\s*\*/[\s\S]*?/\*\s*HNS-FOOTER-STYLE:END\s*\*/`,
-    "g",
-  );
-}
-function upsertFooterStyleCss(
-  css: string,
-  style: { background: string; minHeight: number },
-): string {
-  const base = (css || "").replace(footerStyleBlockRegex(), "").trim();
-  const bg = (style.background || "").trim();
-  const decls: string[] = [];
-  if (bg && bg !== "transparent") decls.push(`background: ${bg} !important;`);
-  if (style.minHeight > 0) decls.push(`min-height: ${Math.round(style.minHeight)}px !important;`);
-  if (decls.length === 0) return base;
-  const block = `${FOOTER_STYLE_MARK_START}\n#hns_footer { ${decls.join(" ")} }\n${FOOTER_STYLE_MARK_END}`;
-  return base + (base ? "\n\n" : "") + block + "\n";
-}
 
 function upsertBodyLayoutCss(css: string, heights: BodyLayoutHeights): string {
   const base = stripBodyLayoutCss(css);
@@ -446,6 +430,11 @@ export default function DesignEditor({
     height: "auto",
     background: "transparent",
   });
+  // Site-wide, per-device footer style (background / min-height). Parsed from
+  // the managed `<style data-hns-footer>` block inside footerHtml (SiteHmf).
+  const [footerStyle, setFooterStyle] = useState<FooterStyle>(() =>
+    parseFooterStyle(footerHtml),
+  );
   // Hydrate from existing pageCss on mount (idempotent).
   useEffect(() => {
     const css = pageCss ?? "";
@@ -1106,6 +1095,16 @@ export default function DesignEditor({
       initialFooterSigRef.current = hmfSignature(footerRef.current);
     }
   }, [footerHtml, editorV2Enabled]);
+
+  // Per-device footer live preview: the footer `<style>` @media only fires at
+  // the real viewport, not the editor's wide browser, so paint the ACTIVE
+  // device's footer background / min-height inline on #hns_footer. The inline
+  // is on the container (not in innerHTML) so it is never persisted — the
+  // `<style data-hns-footer>` block remains the single saved source.
+  useEffect(() => {
+    const fEl = footerRef.current;
+    if (fEl) applyFooterLivePreview(fEl, footerStyle, viewportMode as FooterDevice);
+  }, [viewportMode, footerStyle]);
 
   /* ─── Re-inject the site-wide header/footer from a fresh value ───
    * Used by cross-tab sync (A) and refresh-on-edit-entry (C): replace the
@@ -4059,16 +4058,16 @@ export default function DesignEditor({
     }
   }
 
-  /** Apply "푸터 설정" panel changes to #hns_footer (background + min-height).
-   *  Stored in pageCss (HNS-FOOTER-STYLE) + applied live. Receives the FULL
-   *  current values (both go in one block). Note: per-page like the others. */
-  function applyFooterLayout(next: { background: string; minHeight: number }) {
-    setCurrentPageCss((c) => upsertFooterStyleCss(c ?? "", next));
+  /** Apply "푸터 설정" panel changes — SITE-WIDE (footerHtml `<style>` block,
+   *  persisted by the HMF save → all pages) and PER-DEVICE (@media). Receives
+   *  the full FooterStyle (all devices); writes the managed `<style>` into
+   *  #hns_footer + a live inline preview for the active device. */
+  function applyFooterLayout(next: FooterStyle) {
+    setFooterStyle(next);
     const fEl = footerRef.current;
     if (fEl) {
-      fEl.style.background =
-        next.background && next.background !== "transparent" ? next.background : "";
-      fEl.style.minHeight = next.minHeight > 0 ? `${Math.round(next.minHeight)}px` : "";
+      const dev = useEditorStore.getState().viewportMode as FooterDevice;
+      applyFooterStyleToDom(fEl, next, dev);
     }
   }
 
@@ -5240,6 +5239,7 @@ export default function DesignEditor({
               applyHeaderLayout(next);
             }}
             onApplyBodyLayout={applyBodyLayout}
+            footerStyle={footerStyle}
             onApplyFooterLayout={applyFooterLayout}
             onOpenHeaderEdit={() => setShowHeaderEdit(true)}
             onOpenFooterEdit={() => setShowFooterEdit(true)}

@@ -46,6 +46,12 @@ import {
   resolveMapInput,
   clampMapSize,
 } from "../shared/google-map-embed";
+import {
+  type FooterStyle,
+  type FooterDevice,
+  type FooterDeviceStyle,
+  emptyFooterStyle,
+} from "../shared/footer-style";
 
 const LayerPanel = lazy(() => import("./LayerPanel"));
 
@@ -206,8 +212,10 @@ interface Props {
   onOpenFooterEdit?: () => void;
   /** Apply "본문 설정" panel changes (background / min-height) to #hns_body. */
   onApplyBodyLayout?: (patch: { background?: string; minHeight?: number }) => void;
-  /** Apply "푸터 설정" panel changes (background + min-height) to #hns_footer. */
-  onApplyFooterLayout?: (next: { background: string; minHeight: number }) => void;
+  /** Current site-wide per-device footer style (from DesignEditor). */
+  footerStyle?: FooterStyle;
+  /** Apply "푸터 설정" changes (site-wide, per-device) to #hns_footer. */
+  onApplyFooterLayout?: (next: FooterStyle) => void;
 }
 
 export default function InspectorPanel({
@@ -219,6 +227,7 @@ export default function InspectorPanel({
   onOpenHeaderEdit,
   onOpenFooterEdit,
   onApplyBodyLayout,
+  footerStyle,
   onApplyFooterLayout,
 }: Props) {
   const t = useTranslations("editor");
@@ -313,6 +322,7 @@ export default function InspectorPanel({
             onOpenHeaderEdit={onOpenHeaderEdit}
             onOpenFooterEdit={onOpenFooterEdit}
             onApplyBodyLayout={onApplyBodyLayout}
+            footerStyle={footerStyle}
             onApplyFooterLayout={onApplyFooterLayout}
           />
         )}
@@ -345,13 +355,14 @@ interface DesignTabProps {
   onOpenHeaderEdit?: () => void;
   onOpenFooterEdit?: () => void;
   onApplyBodyLayout?: (patch: { background?: string; minHeight?: number }) => void;
-  onApplyFooterLayout?: (next: { background: string; minHeight: number }) => void;
+  footerStyle?: FooterStyle;
+  onApplyFooterLayout?: (next: FooterStyle) => void;
 }
 
 function DesignTab({
   layer, path, siteId, live,
   editingTarget, headerLayout, onApplyHeaderLayout,
-  onOpenHeaderEdit, onOpenFooterEdit, onApplyBodyLayout, onApplyFooterLayout,
+  onOpenHeaderEdit, onOpenFooterEdit, onApplyBodyLayout, footerStyle, onApplyFooterLayout,
 }: DesignTabProps) {
   if (!layer) {
     /* HMF mode empty state — show header/footer settings panel. */
@@ -431,7 +442,7 @@ function DesignTab({
     return (
       <>
         <BodySettingsPanel onApply={onApplyBodyLayout} />
-        <FooterSettingsPanel onApply={onApplyFooterLayout} />
+        <FooterSettingsPanel footerStyle={footerStyle} onApply={onApplyFooterLayout} />
         <div className="ins-empty-sub" style={{ padding: "0 16px", marginTop: 12 }}>
           객체를 클릭하면 해당 객체의 속성이 여기에 표시됩니다.
         </div>
@@ -2290,54 +2301,45 @@ function BodySettingsPanel({
 
 /* ─── Footer settings panel (2026-06-13) ────────────────────────────────
  * Shown alongside BodySettingsPanel when nothing is selected. Controls the
- * site footer region (#hns_footer): background color (fixes the unreadable
- * black band) + min-height. Reads the live #hns_footer; writes via onApply
- * with BOTH values (they share one pageCss block). */
+ * site footer (#hns_footer) background + min-height — SITE-WIDE (all pages,
+ * persisted in the footer `<style data-hns-footer>` block via the HMF save)
+ * and PER-DEVICE (edits the ACTIVE viewport's values; @media for publish). */
 function FooterSettingsPanel({
+  footerStyle,
   onApply,
 }: {
-  onApply?: (next: { background: string; minHeight: number }) => void;
+  footerStyle?: FooterStyle;
+  onApply?: (next: FooterStyle) => void;
 }) {
-  const footerEl = () =>
-    typeof document !== "undefined" ? document.getElementById("hns_footer") : null;
-  const [bg, setBg] = useState<string>(() => {
-    const el = footerEl();
-    if (!el) return "#ffffff";
-    const inline = (el.style.background || el.style.backgroundColor || "").trim();
-    if (inline) return inline;
-    const computed = window.getComputedStyle(el).backgroundColor;
-    if (!computed || computed === "transparent" || /rgba?\(0,\s*0,\s*0,\s*0\)/.test(computed)) {
-      return "#ffffff";
-    }
-    return rgbToHex(computed) || "#ffffff";
-  });
-  const [minH, setMinH] = useState<string>(() => {
-    const el = footerEl();
-    return el ? String(parseInt(el.style.minHeight, 10) || el.offsetHeight || 0) : "";
-  });
+  const viewportMode = useEditorStore(selectViewportMode);
+  const device = viewportMode as FooterDevice;
+  const style = footerStyle ?? emptyFooterStyle();
+  const cur = style[device];
+  const deviceLabel = device === "tablet" ? "태블릿" : device === "mobile" ? "모바일" : "PC";
 
-  const commit = (nextBg: string, nextMinH: string) => {
-    const n = parseInt(nextMinH, 10);
-    onApply?.({ background: nextBg, minHeight: Number.isFinite(n) && n > 0 ? n : 0 });
+  // Effective background shown in the swatch: this device's value, else the
+  // desktop base, else white. Editing writes to THIS device only.
+  const bgValue = cur.background || style.desktop.background || "#ffffff";
+
+  const update = (patch: Partial<FooterDeviceStyle>) => {
+    const next: FooterStyle = { ...style, [device]: { ...cur, ...patch } };
+    onApply?.(next);
   };
 
   return (
-    <Section title="푸터 설정">
+    <Section title={`푸터 설정 · ${deviceLabel}`}>
       <SwatchEditor
         label="배경색"
-        value={bg}
-        onChange={(v) => {
-          setBg(v);
-          commit(v, minH);
-        }}
+        value={bgValue}
+        onChange={(v) => update({ background: v })}
       />
       <div className="ins-prop-row" style={{ marginTop: 8 }}>
         <TextField
           label="최소 높이(px)"
-          value={minH}
+          value={cur.minHeight > 0 ? String(cur.minHeight) : ""}
           onCommit={(v) => {
-            setMinH(v);
-            commit(bg, v);
+            const n = parseInt(v, 10);
+            update({ minHeight: Number.isFinite(n) && n > 0 ? n : 0 });
           }}
           wide
         />
@@ -2345,8 +2347,9 @@ function FooterSettingsPanel({
       <div className="ins-hmf-notice" style={{ marginTop: 8 }}>
         <i className="fa-solid fa-circle-info" aria-hidden />
         <span>
-          푸터(저작권·하단 메뉴) 배경색과 높이를 설정합니다. 검은 영역에 텍스트가
-          묻힐 때 배경색을 밝게 바꾸면 됩니다.
+          {deviceLabel} 기준 푸터 배경색·높이입니다. <b>모든 페이지에 공통</b>으로
+          적용됩니다. 검은 영역에 텍스트가 묻히면 배경색을 밝게 바꾸세요. (기기별로
+          상단 PC·태블릿·모바일 전환 후 각각 설정)
         </span>
       </div>
     </Section>
