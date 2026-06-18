@@ -143,6 +143,11 @@ export function buildHmfDeviceCss(
 ): string {
   const inContainer = (id: string) =>
     !!container.querySelector(`#${CSS.escape(id)}`);
+  // Footer DIRECT children flow relatively (`#hns_footer > .dragable {
+  // top:auto !important; position:relative }`), so a per-device `top` is
+  // meaningless and, when applied inline in the editor device preview, drops
+  // the element far below the footer. Never emit `top` for footer device rules.
+  const isFooter = container.id === "hns_footer";
   const blocks: string[] = [];
   for (const device of ["tablet", "mobile"] as HmfDevice[]) {
     const rules: string[] = [];
@@ -150,7 +155,7 @@ export function buildHmfDeviceCss(
       const box = map[id]?.[device];
       if (!boxHasAny(box)) continue;
       if (!inContainer(id)) continue;
-      const decls = BOX_PROPS.filter((p) => box![p] != null && box![p] !== "")
+      const decls = BOX_PROPS.filter((p) => box![p] != null && box![p] !== "" && !(isFooter && p === "top"))
         .map((p) => `${PROP_CSS[p]}:${box![p]} !important`)
         .join(";");
       if (decls) rules.push(`#${id}{${decls}}`);
