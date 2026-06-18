@@ -347,6 +347,12 @@ model Page {
   depth          String   @default("01")
   showInMenu     Boolean  @default(true)
   menuTitle      String?
+  /// Optional icon shown ABOVE the menu label for this item. Rendered
+  /// site-wide by the publisher (the menu is generated from the pages list),
+  /// so setting it once keeps every page's top menu identical. Holds an
+  /// absolute/relative image URL. Replaces the legacy pattern of duplicating
+  /// absolutely-positioned icon <div>s into each page body.
+  menuIcon       String?
   menuType       String   @default("page")
   externalUrl    String?
   seoTitle       String?

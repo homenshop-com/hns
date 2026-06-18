@@ -1153,31 +1153,55 @@ export async function GET(
   const getChildren = (parentId: string) =>
     visiblePages.filter((p) => p.parentId === parentId);
 
+  // Per-item menu icon (Page.menuIcon): rendered ABOVE the label so a site
+  // can place a small decorative/category icon over each top-menu entry. The
+  // menu is generated from the pages list, so this is automatically identical
+  // on every page (replaces the legacy per-page absolutely-positioned icon
+  // <div>s that drifted out of alignment from page to page).
+  const menuIconImg = (icon: string | null | undefined) =>
+    icon
+      ? `<img class="hns-menu-icon" src="${escapeHtml(icon)}" alt="" aria-hidden="true">`
+      : "";
   const menuItems = topLevelPages
     .map((p) => {
       const label = p.menuTitle || p.title;
+      const icon = menuIconImg((p as { menuIcon?: string | null }).menuIcon);
       const href = p.isHome ? `${urlPrefix}/${lang}/` : `${urlPrefix}/${lang}/${p.slug}.html`;
       const target = p.externalUrl && /^https?:\/\//.test(p.externalUrl) ? ` target="_blank"` : "";
       const actualHref = p.externalUrl || href;
       const children = getChildren(p.id);
 
       if (children.length === 0) {
-        return `<li><a title="${label}" href="${actualHref}"${target}>${label}</a></li>`;
+        return `<li><a title="${label}" href="${actualHref}"${target}>${icon}<span class="hns-menu-label">${label}</span></a></li>`;
       }
 
       const subItems = children
         .map((c) => {
           const cLabel = c.menuTitle || c.title;
+          const cIcon = menuIconImg((c as { menuIcon?: string | null }).menuIcon);
           const cHref = c.externalUrl || (c.isHome ? `${urlPrefix}/${lang}/` : `${urlPrefix}/${lang}/${c.slug}.html`);
           const cTarget = c.externalUrl && /^https?:\/\//.test(c.externalUrl) ? ` target="_blank"` : "";
-          return `<li><a title="${cLabel}" href="${cHref}"${cTarget}>${cLabel}</a></li>`;
+          return `<li><a title="${cLabel}" href="${cHref}"${cTarget}>${cIcon}<span class="hns-menu-label">${cLabel}</span></a></li>`;
         })
         .join("");
 
-      return `<li><a title="${label}" href="${actualHref}"${target}>${label}</a><ul class="submenu">${subItems}</ul></li>`;
+      return `<li><a title="${label}" href="${actualHref}"${target}>${icon}<span class="hns-menu-label">${label}</span></a><ul class="submenu">${subItems}</ul></li>`;
     })
     .join("");
   const generatedMenu = `<ul class="mainmenu">${menuItems}</ul>`;
+  // Stacking CSS — only emitted when at least one item actually has an icon,
+  // so icon-less sites are untouched. Each menu link becomes a centered
+  // column (icon on top, label below).
+  const hasMenuIcons = topLevelPages.some(
+    (p) => !!(p as { menuIcon?: string | null }).menuIcon
+  );
+  const menuIconCss = hasMenuIcons
+    ? `
+    .mainmenu > li > a { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 3px; line-height: 1.15; }
+    .mainmenu .hns-menu-icon { display: block; width: auto; height: auto; max-width: 46px; max-height: 38px; margin: 0 auto; pointer-events: none; }
+    .mainmenu .submenu .hns-menu-icon { max-width: 28px; max-height: 24px; }
+    `
+    : "";
 
   // Build language switcher HTML
   const siteLanguages = (site as any).languages as string[] | undefined;
@@ -1310,10 +1334,11 @@ export async function GET(
     const navLinks = topLevelPages
       .map((p) => {
         const label = p.menuTitle || p.title;
+        const icon = menuIconImg((p as { menuIcon?: string | null }).menuIcon);
         const href = p.isHome ? `${urlPrefix}/${lang}/` : `${urlPrefix}/${lang}/${p.slug}.html`;
         const actualHref = p.externalUrl || href;
         const target = p.externalUrl && /^https?:\/\//.test(p.externalUrl) ? ` target="_blank"` : "";
-        return `<a href="${actualHref}"${target}>${label}</a>`;
+        return `<a href="${actualHref}"${target}>${icon}<span class="hns-menu-label">${label}</span></a>`;
       })
       .join("\n");
     headerHtml = headerHtml.replace(
@@ -2000,6 +2025,7 @@ export async function GET(
     ${templateCss}
     ${siteCss}
     ${publishedCss}
+    ${menuIconCss}
     .board-content { font-family: 'Noto Sans KR', sans-serif; }
     .board-content a:hover { color: #89C23D !important; }
     .board-content table tr:hover { background: rgba(255,255,255,0.03); }
@@ -2082,6 +2108,8 @@ export async function GET(
     ${pageCss}
     /* Published page overrides */
     ${publishedCss}
+    /* Per-item menu icons (Page.menuIcon) */
+    ${menuIconCss}
     /* Board content styles */
     .board-content { font-family: 'Noto Sans KR', sans-serif; }
     .board-content a:hover { color: #89C23D !important; }
