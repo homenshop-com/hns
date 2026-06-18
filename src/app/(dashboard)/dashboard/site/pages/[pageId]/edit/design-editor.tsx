@@ -2148,6 +2148,28 @@ export default function DesignEditor({
       setSelectedElId(dragable.id);
     }
 
+    // Footer direct children are RELATIVE-FLOW (centered, stacked below the
+    // body via `#hns_footer > .dragable { position:relative; top:auto }`).
+    // Promoting one to absolute on drag rips it out of the footer — which then
+    // collapses (loses this child's height) — and pins it at its document
+    // offsetTop (relative to #v_home_dft, ~the whole page height), so it lands
+    // far BELOW the now-shorter footer ("더블클릭 시 객체가 한참 아래로 순간이동"
+    // bug, triggered by a tiny accidental move during the double-click).
+    // Selection is already set above; just skip the pixel-drag. Double-click
+    // (a separate handler) still enters text editing normally.
+    {
+      const fEl = footerRef.current;
+      const fpos = window.getComputedStyle(dragable).position;
+      if (
+        fEl &&
+        dragable.parentElement === fEl &&
+        fpos !== "absolute" &&
+        fpos !== "fixed"
+      ) {
+        return;
+      }
+    }
+
     // DEVICE 3-MODE — In tablet/mobile mode, BODY layers commit their
     // per-device geometry to scene frames (tabletFrame / mobileFrame) via
     // store.setFrame. Header / menu / footer elements (incl. the logo) are
