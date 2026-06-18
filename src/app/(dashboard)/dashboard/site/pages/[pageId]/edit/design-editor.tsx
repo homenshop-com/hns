@@ -1363,6 +1363,18 @@ export default function DesignEditor({
 
   useEffect(() => {
     syncBodyHeight();
+    // Async content (FB embed iframe, board/product plugins, images) finishes
+    // laying out AFTER the immediate measure, so the first pass can be too
+    // short — leaving the footer in the middle of the content on the device
+    // just switched to. Re-measure on a couple of delays (mirrors the
+    // published min-height script) so the footer settles below the lowest
+    // object. Cleared on unmount / next device change.
+    const t1 = setTimeout(() => syncBodyHeight(), 350);
+    const t2 = setTimeout(() => syncBodyHeight(), 1200);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
   }, [viewportMode, zoom, fitOffsetX, syncBodyHeight]);
 
   /* ─── Calculate hns_body min-height from content + manual body handle ─── */
@@ -1452,6 +1464,21 @@ export default function DesignEditor({
         );
       };
       if (bodyEl) captureCurrentBodyHeight("desktop");
+      // Auto-measure TABLET + MOBILE too, so the footer (which flows after
+      // #hns_body) sits below the lowest object on EVERY device — not only the
+      // one currently being edited. Re-render the body at each device, measure,
+      // then restore to desktop for the base-html read below. Without this,
+      // adding/moving objects only refreshed the active device's body height;
+      // other devices kept a stale (often short) min-height, so the footer
+      // landed in the MIDDLE of the content (e.g. tablet footer overlapping the
+      // board/QR). Device overrides persist separately, so the re-render is safe.
+      if (bodyEl && editorV2Enabled) {
+        for (const dev of ["tablet", "mobile"] as ViewportMode[]) {
+          syncStoreToDom(useEditorStore.getState().scene, bodyEl, dev);
+          captureCurrentBodyHeight(dev);
+        }
+        syncStoreToDom(useEditorStore.getState().scene, bodyEl, "desktop");
+      }
       // Plugins (boardPlugin/productPlugin/…) are CSS-governed: their real
       // size lives in the page CSS real-size rule (+ device `@media`).
       // `applyFrameToEl` writes a plugin's frame inline with `!important` for
