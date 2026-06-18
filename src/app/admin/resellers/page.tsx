@@ -41,6 +41,7 @@ export default async function AdminResellersPage({
       orderBy: { domain: "asc" },
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
+      include: { owner: { select: { email: true, name: true } } },
     }),
     prisma.reseller.count({ where }),
     // Tab counts respect the active search so the numbers match the results.
@@ -138,6 +139,7 @@ export default async function AdminResellersPage({
             <tr className="border-b border-slate-100 bg-slate-50 text-left">
               <th className="px-6 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">도메인</th>
               <th className="px-6 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">사이트명</th>
+              <th className="px-6 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">운영자</th>
               <th className="px-6 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">로고</th>
               <th className="px-6 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">상태</th>
               <th className="px-6 py-3 font-semibold text-slate-500 text-[11px] uppercase tracking-wider">
@@ -162,6 +164,13 @@ export default async function AdminResellersPage({
                 <td className="px-6 py-3 text-slate-600">
                   {reseller.siteName}
                 </td>
+                <td className="px-6 py-3 text-slate-600 text-xs">
+                  {reseller.owner ? (
+                    <span className="font-mono">{reseller.owner.email}</span>
+                  ) : (
+                    <span className="text-slate-400">미지정</span>
+                  )}
+                </td>
                 <td className="px-6 py-3 text-slate-500 text-xs truncate max-w-[200px]">
                   {reseller.logo || "-"}
                 </td>
@@ -184,7 +193,7 @@ export default async function AdminResellersPage({
             {resellers.length === 0 && (
               <tr>
                 <td
-                  colSpan={5}
+                  colSpan={6}
                   className="px-6 py-8 text-center text-slate-600"
                 >
                   {search

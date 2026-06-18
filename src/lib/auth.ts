@@ -227,6 +227,31 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
+    // Block Google *sign-up* while still allowing Google *sign-in*.
+    //
+    // The OAuth path bypasses the register form's Turnstile/honeypot/rate-limit
+    // entirely (those guard /api/auth/register only), so a spammer can mint a
+    // throwaway account just by clicking "Google 계정으로 가입하기". We close that
+    // door: a Google login is allowed only when a User with the same email
+    // already exists (created via the gated form, or a prior Google login).
+    // Brand-new Google emails are turned away to the form, which IS gated.
+    //
+    // allowDangerousEmailAccountLinking stays on so an existing Credentials
+    // account links cleanly; this guard just prevents first-time creation.
+    async signIn({ user, account, profile }) {
+      if (account?.provider !== "google") return true;
+      const email = (user?.email || (profile?.email as string | undefined) || "")
+        .trim()
+        .toLowerCase();
+      if (!email) return false;
+      const existing = await prisma.user.findFirst({
+        where: { email: { equals: email, mode: "insensitive" } },
+        select: { id: true },
+      });
+      if (existing) return true;
+      // No account yet — refuse auto-signup and send them to the form.
+      return "/register?error=google_signup_disabled";
+    },
     async jwt({ token, user, trigger }) {
       if (user) {
         token.role = user.role;

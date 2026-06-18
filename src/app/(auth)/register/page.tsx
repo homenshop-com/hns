@@ -7,7 +7,6 @@ import { signIn } from "next-auth/react";
 import { useTranslations } from "next-intl";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import Turnstile from "@/components/turnstile";
-import GoogleSignInButton from "@/components/GoogleSignInButton";
 
 type OtpState =
   | { stage: "idle" }
@@ -23,6 +22,16 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState("");
   const t = useTranslations("auth.register");
+
+  // Google auto-signup is disabled (see auth.ts signIn callback): a first-time
+  // Google login is redirected here so the user creates the account through the
+  // Turnstile-gated form instead. Surface a one-line explanation. Read via
+  // window.location to avoid the useSearchParams() Suspense requirement.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("error") === "google_signup_disabled") {
+      setError("Google 계정으로는 자동 가입이 되지 않습니다. 아래 양식으로 가입해주세요.");
+    }
+  }, []);
 
   // Phone OTP state — kept separate from the main form submit so resending /
   // re-typing doesn't blow away the rest of the inputs.
@@ -219,8 +228,10 @@ export default function RegisterPage() {
       <div className="auth-card register">
         <h1 className="auth-title">{t("title")}</h1>
 
-        <GoogleSignInButton label={t("googleSignUp")} />
-        <div className="auth-or">{t("or")}</div>
+        {/* Google sign-up is intentionally absent here: the OAuth path bypasses
+            the Turnstile-gated form, so first-time Google logins are blocked
+            (see auth.ts signIn callback). Existing members still get the Google
+            button on the login page. */}
 
         <form onSubmit={handleSubmit}>
           {error && <div className="auth-error">{error}</div>}
