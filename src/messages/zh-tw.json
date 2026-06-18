@@ -2164,6 +2164,8 @@
     "membersCount": "會員 {count} 人",
     "membershipUnused": "未使用會員功能",
     "menuDisplayName": "選單顯示名稱",
+    "menuIconLabel": "選單圖示",
+    "menuIconHint": "顯示在選單名稱上方的圖片(選填)。所有頁面通用。",
     "menuDisplayNamePlaceholder": "在選單中顯示的名稱",
     "menuIsClean": "您的選單很整潔",
     "menuIsCleanDesc": "目前<strong>所有頁面</strong>都顯示在選單中。",

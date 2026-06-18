@@ -68,6 +68,8 @@ export async function PUT(
   // Menu fields
   if (body.showInMenu !== undefined) updateData.showInMenu = body.showInMenu;
   if (body.menuTitle !== undefined) updateData.menuTitle = body.menuTitle;
+  if (body.menuIcon !== undefined)
+    updateData.menuIcon = (body.menuIcon as string | null)?.trim() || null;
   if (body.menuType !== undefined) updateData.menuType = body.menuType;
   if (body.externalUrl !== undefined) updateData.externalUrl = body.externalUrl;
 

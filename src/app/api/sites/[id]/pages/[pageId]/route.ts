@@ -75,6 +75,7 @@ export async function PUT(
     parentId,
     showInMenu,
     menuTitle,
+    menuIcon,
     externalUrl,
   } = body;
 
@@ -138,6 +139,7 @@ export async function PUT(
       ...(parentId !== undefined && { parentId: parentId || null }),
       ...(showInMenu !== undefined && { showInMenu }),
       ...(menuTitle !== undefined && { menuTitle: menuTitle?.trim() || null }),
+      ...(menuIcon !== undefined && { menuIcon: menuIcon?.trim() || null }),
       ...(externalUrl !== undefined && { externalUrl: externalUrl?.trim() || null }),
     },
   });

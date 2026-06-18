@@ -55,6 +55,7 @@ export default async function MenuManagerPage({
           select: {
             id: true, title: true, slug: true, lang: true, sortOrder: true,
             isHome: true, parentId: true, showInMenu: true, menuTitle: true,
+            menuIcon: true,
             menuType: true, externalUrl: true, seoTitle: true, seoDescription: true,
             seoKeywords: true, ogImage: true, createdAt: true, updatedAt: true,
           },

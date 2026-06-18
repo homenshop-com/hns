@@ -2164,6 +2164,8 @@
     "membersCount": "会員 {count}名",
     "membershipUnused": "会員機能未使用",
     "menuDisplayName": "メニュー表示名",
+    "menuIconLabel": "メニューアイコン",
+    "menuIconHint": "メニュー名の上に表示される画像(任意)。全ページ共通で適用されます。",
     "menuDisplayNamePlaceholder": "メニューに表示される名前",
     "menuIsClean": "メニューはすっきりしています",
     "menuIsCleanDesc": "現在<strong>すべてのページ</strong>がメニューに表示されています。",

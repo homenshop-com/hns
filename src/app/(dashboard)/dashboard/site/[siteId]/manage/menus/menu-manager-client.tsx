@@ -24,6 +24,7 @@ interface PageItem {
   parentId: string | null;
   showInMenu: boolean;
   menuTitle: string | null;
+  menuIcon: string | null;
   menuType: string;
   externalUrl: string | null;
   seoTitle?: string | null;
@@ -79,6 +80,7 @@ export default function MenuManagerClient({
   const [editTitle, setEditTitle] = useState("");
   const [editSlug, setEditSlug] = useState("");
   const [editMenuTitle, setEditMenuTitle] = useState("");
+  const [editMenuIcon, setEditMenuIcon] = useState("");
   const [editParentId, setEditParentId] = useState<string>("");
   const [editMenuType, setEditMenuType] = useState("page");
   const [editExternalUrl, setEditExternalUrl] = useState("");
@@ -431,6 +433,7 @@ export default function MenuManagerClient({
           title: editTitle.trim(),
           slug: editMenuType === "page" ? slug : showEditModal.slug,
           menuTitle: editMenuTitle.trim() || null,
+          menuIcon: editMenuIcon.trim() || null,
           parentId: editParentId || null,
           menuType: editMenuType,
           externalUrl: editMenuType === "external" ? editExternalUrl.trim() : null,
@@ -450,6 +453,7 @@ export default function MenuManagerClient({
                   title: data.page.title,
                   slug: data.page.slug,
                   menuTitle: data.page.menuTitle,
+                  menuIcon: data.page.menuIcon,
                   parentId: data.page.parentId,
                   menuType: data.page.menuType,
                   externalUrl: data.page.externalUrl,
@@ -522,6 +526,7 @@ export default function MenuManagerClient({
     setEditTitle(page.title);
     setEditSlug(page.slug);
     setEditMenuTitle(page.menuTitle || "");
+    setEditMenuIcon(page.menuIcon || "");
     setEditParentId(page.parentId || "");
     setEditMenuType(page.menuType || "page");
     setEditExternalUrl(page.externalUrl || "");
@@ -1263,6 +1268,32 @@ export default function MenuManagerClient({
                 placeholder={t("menuDisplayNamePlaceholder")}
                 style={inputStyle}
               />
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={labelStyle}>{t("menuIconLabel")}</label>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {editMenuIcon.trim() && (
+                  <span
+                    aria-hidden
+                    style={{
+                      width: 28,
+                      height: 28,
+                      flex: "0 0 auto",
+                      borderRadius: 4,
+                      background: `#f3f4f6 center/contain no-repeat url("${editMenuIcon.trim().replace(/"/g, "%22")}")`,
+                    }}
+                  />
+                )}
+                <input
+                  type="text"
+                  value={editMenuIcon}
+                  onChange={(e) => setEditMenuIcon(e.target.value)}
+                  placeholder="https://..."
+                  style={inputStyle}
+                />
+              </div>
+              <p style={{ margin: "6px 0 0", fontSize: 12, color: "#9ca3af" }}>{t("menuIconHint")}</p>
             </div>
 
             {editMenuType === "page" ? (

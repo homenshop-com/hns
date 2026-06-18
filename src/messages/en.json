@@ -2178,6 +2178,8 @@
     "membersCount": "{count} members",
     "membershipUnused": "Member features not used",
     "menuDisplayName": "Menu display name",
+    "menuIconLabel": "Menu icon",
+    "menuIconHint": "Optional image shown above the menu label. Applied identically on every page.",
     "menuDisplayNamePlaceholder": "Name shown in the menu",
     "menuIsClean": "Your menu is clean",
     "menuIsCleanDesc": "Currently <strong>all pages</strong> are shown in the menu.",

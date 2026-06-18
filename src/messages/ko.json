@@ -2178,6 +2178,8 @@
     "membersCount": "회원 {count}명",
     "membershipUnused": "회원 기능 미사용",
     "menuDisplayName": "메뉴 표시 이름",
+    "menuIconLabel": "메뉴 아이콘",
+    "menuIconHint": "메뉴 이름 위에 표시되는 이미지(선택). 모든 페이지에 동일하게 적용됩니다.",
     "menuDisplayNamePlaceholder": "메뉴에 표시될 이름",
     "menuIsClean": "메뉴가 깔끔합니다",
     "menuIsCleanDesc": "현재 <strong>모든 페이지</strong>가 메뉴에 표시되고 있습니다.",

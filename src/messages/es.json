@@ -2164,6 +2164,8 @@
     "membersCount": "{count} socios",
     "membershipUnused": "Funciones de socios sin usar",
     "menuDisplayName": "Nombre mostrado en el menú",
+    "menuIconLabel": "Icono de menú",
+    "menuIconHint": "Imagen opcional sobre el nombre del menú. Igual en todas las páginas.",
     "menuDisplayNamePlaceholder": "Nombre que se muestra en el menú",
     "menuIsClean": "Tu menú está ordenado",
     "menuIsCleanDesc": "Actualmente <strong>todas las páginas</strong> se muestran en el menú.",

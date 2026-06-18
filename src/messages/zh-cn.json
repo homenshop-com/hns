@@ -2164,6 +2164,8 @@
     "membersCount": "会员 {count} 人",
     "membershipUnused": "未使用会员功能",
     "menuDisplayName": "菜单显示名称",
+    "menuIconLabel": "菜单图标",
+    "menuIconHint": "显示在菜单名称上方的图片(可选)。所有页面通用。",
     "menuDisplayNamePlaceholder": "在菜单中显示的名称",
     "menuIsClean": "您的菜单很整洁",
     "menuIsCleanDesc": "目前<strong>所有页面</strong>都显示在菜单中。",
