@@ -17,12 +17,13 @@
 
 import { useState, type ReactNode } from "react";
 
-type TabKey = "overview" | "audit" | "visibility" | "indexing";
+type TabKey = "overview" | "audit" | "visibility" | "aeo" | "indexing";
 
 interface Props {
   overview: ReactNode;
   audit: ReactNode;
   visibility: ReactNode;
+  aeo: ReactNode;
   indexing: ReactNode;
   initialTab?: TabKey;
 }
@@ -31,6 +32,7 @@ const TABS: { key: TabKey; label: string; isNew?: boolean }[] = [
   { key: "overview", label: "개요" },
   { key: "audit", label: "진단 · 최적화" },
   { key: "visibility", label: "AI 언급률", isNew: true },
+  { key: "aeo", label: "AEO 콘텐츠", isNew: true },
   { key: "indexing", label: "색인 · 연동" },
 ];
 
@@ -38,6 +40,7 @@ export default function SeoDashboardClient({
   overview,
   audit,
   visibility,
+  aeo,
   indexing,
   initialTab = "overview",
 }: Props) {
@@ -64,6 +67,7 @@ export default function SeoDashboardClient({
         {tab === "overview" && overview}
         {tab === "audit" && audit}
         {tab === "visibility" && visibility}
+        {tab === "aeo" && aeo}
         {tab === "indexing" && indexing}
       </div>
     </div>

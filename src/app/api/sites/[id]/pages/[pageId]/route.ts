@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { syncTemplateFromSiteIfLinked } from "@/lib/template-sync";
 import { canManageSite } from "@/lib/site-access";
+import { normalizeAeoBlocks } from "@/lib/aeo";
 
 // GET /api/sites/[id]/pages/[pageId] — 페이지 상세 조회
 export async function GET(
@@ -77,6 +78,7 @@ export async function PUT(
     menuTitle,
     menuIcon,
     externalUrl,
+    aeoBlocks,
   } = body;
 
   if (title !== undefined && (typeof title !== "string" || title.trim().length === 0)) {
@@ -141,6 +143,9 @@ export async function PUT(
       ...(menuTitle !== undefined && { menuTitle: menuTitle?.trim() || null }),
       ...(menuIcon !== undefined && { menuIcon: menuIcon?.trim() || null }),
       ...(externalUrl !== undefined && { externalUrl: externalUrl?.trim() || null }),
+      ...(aeoBlocks !== undefined && {
+        aeoBlocks: JSON.parse(JSON.stringify(normalizeAeoBlocks(aeoBlocks))),
+      }),
     },
   });
 

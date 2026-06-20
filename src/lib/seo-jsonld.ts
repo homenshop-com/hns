@@ -206,6 +206,39 @@ export function buildFaqJsonLd(items: FaqItem[]) {
   };
 }
 
+export interface HowToInput {
+  name: string;
+  steps: Array<{ name?: string; text: string }>;
+}
+
+export function buildHowToJsonLd(h: HowToInput) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "HowTo",
+    name: h.name,
+    step: h.steps.map((s, i) => ({
+      "@type": "HowToStep",
+      position: i + 1,
+      ...(s.name ? { name: s.name } : {}),
+      text: s.text,
+    })),
+  };
+}
+
+export interface DefinedTermInput {
+  term: string;
+  definition: string;
+}
+
+export function buildDefinedTermJsonLd(d: DefinedTermInput) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "DefinedTerm",
+    name: d.term,
+    description: d.definition,
+  };
+}
+
 /** Render JSON-LD objects as an HTML string block suitable for <head>. */
 export function renderJsonLdBlock(
   objects: Array<Record<string, unknown> | null | undefined>

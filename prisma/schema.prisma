@@ -368,6 +368,9 @@ model Page {
   /// Stored output of the last Claude SEO/GEO audit for this page.
   /// Same shape as Site.seoAuditResult (overallScore/categories/findings/meta).
   seoAuditResult Json?
+  /// AEO 콘텐츠 블록 — [{ type: "faq"|"howto"|"tldr"|"definition", ... }].
+  /// 퍼블리시 시 JSON-LD(FAQPage/HowTo/DefinedTerm) + 가시 섹션으로 렌더.
+  aeoBlocks      Json?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

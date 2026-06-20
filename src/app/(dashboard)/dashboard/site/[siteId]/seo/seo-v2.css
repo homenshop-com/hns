@@ -285,6 +285,68 @@
 .seo-vis-modal .btns .primary { background: var(--brand, #3182f6); border: 1px solid var(--brand, #3182f6); color: #fff; }
 .seo-vis-modal .btns .primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
+/* ── AEO 콘텐츠 에디터 ── */
+.aeo-ed-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 10px; margin-bottom: 14px;
+}
+.aeo-ed-pagesel { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2, #4e5968); }
+.aeo-ed-pagesel select {
+  height: 36px; padding: 0 10px; font-size: 13.5px;
+  border: 1px solid var(--seo-line, #e5e8eb); border-radius: 9px; background: #fff; min-width: 200px;
+}
+.aeo-ed-actions { display: flex; align-items: center; gap: 10px; }
+.aeo-ed-actions .saved { font-size: 12px; color: #16a34a; }
+.aeo-ed-actions .save {
+  appearance: none; cursor: pointer; font-size: 13.5px; font-weight: 600;
+  padding: 8px 18px; border-radius: 9px;
+  background: var(--brand, #3182f6); border: 1px solid var(--brand, #3182f6); color: #fff;
+}
+.aeo-ed-actions .save:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.aeo-ed-add { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.aeo-ed-add button {
+  appearance: none; cursor: pointer; font-size: 12.5px; font-weight: 500;
+  padding: 7px 12px; border-radius: 9px;
+  border: 1px dashed var(--color-border-secondary, #c9ced6); background: #fff; color: var(--ink-2, #4e5968);
+}
+.aeo-ed-add button:hover { border-color: var(--brand, #3182f6); color: var(--brand, #3182f6); }
+
+.aeo-ed-empty {
+  font-size: 13px; line-height: 1.7; color: var(--ink-3, #8b95a1);
+  background: var(--surface-2, #f8fafc); border: 1px dashed var(--seo-line, #e5e8eb);
+  border-radius: 12px; padding: 22px;
+}
+
+.aeo-ed-list { display: flex; flex-direction: column; gap: 14px; }
+.aeo-card { border: 1px solid var(--seo-line, #e5e8eb); border-radius: 12px; padding: 14px 16px; background: #fff; }
+.aeo-card-hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.aeo-card-hd .tt { font-size: 13.5px; font-weight: 600; color: var(--ink-1, #191f28); display: flex; align-items: center; gap: 7px; }
+.aeo-card-hd .rm { appearance: none; cursor: pointer; border: 0; background: transparent; color: var(--ink-3, #8b95a1); font-size: 14px; padding: 4px; }
+.aeo-card-hd .rm:hover { color: #dc2626; }
+
+.aeo-rows { display: flex; flex-direction: column; gap: 10px; }
+.aeo-row { display: flex; gap: 8px; align-items: flex-start; }
+.aeo-row input, .aeo-row textarea, .aeo-title, .aeo-rows > input, .aeo-rows > textarea {
+  flex: 1; width: 100%; font-size: 13.5px; font-family: inherit;
+  padding: 8px 10px; border: 1px solid var(--seo-line, #e5e8eb); border-radius: 8px; background: #fff;
+  color: var(--ink-1, #191f28);
+}
+.aeo-row { flex-wrap: wrap; }
+.aeo-row input { flex: 1 1 100%; }
+.aeo-row textarea { flex: 1 1 100%; resize: vertical; }
+.aeo-row .rm-row {
+  appearance: none; cursor: pointer; flex: 0 0 auto;
+  border: 1px solid var(--seo-line, #e5e8eb); background: #fff; color: var(--ink-3, #8b95a1);
+  border-radius: 8px; padding: 8px 10px; font-size: 12px;
+}
+.aeo-row .rm-row:hover { color: #dc2626; border-color: #fecaca; }
+.aeo-rows .add-row {
+  align-self: flex-start; appearance: none; cursor: pointer;
+  font-size: 12.5px; font-weight: 500; color: var(--brand, #3182f6);
+  background: transparent; border: 0; padding: 4px 0;
+}
+
 /* ── settings → seo 유도 배너 (구 기본정보관리 자리) ── */
 .seo-redirect-banner {
   display: flex; align-items: center; gap: 14px;

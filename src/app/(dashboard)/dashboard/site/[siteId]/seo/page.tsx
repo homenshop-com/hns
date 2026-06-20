@@ -11,7 +11,9 @@ import CopyButton from "../../settings/copy-button";
 import SitemapRefreshButton from "../../settings/sitemap-refresh-button";
 import SeoDashboardClient from "./seo-dashboard-client";
 import VisibilityPanel from "./visibility-panel";
+import AeoEditor from "./aeo-editor";
 import { getLatestVisibilityRun } from "@/lib/ai-visibility";
+import { normalizeAeoBlocks } from "@/lib/aeo";
 import "../../../dashboard-v2.css";
 import "../manage/manage-v2.css";
 import "../../settings/settings-v2.css";
@@ -58,6 +60,7 @@ export default async function SeoDashboardPage({ params }: SeoPageProps) {
           sortOrder: true,
           seoAuditAt: true,
           seoAuditResult: true,
+          aeoBlocks: true,
         },
         orderBy: [{ isHome: "desc" }, { sortOrder: "asc" }],
       },
@@ -86,6 +89,16 @@ export default async function SeoDashboardPage({ params }: SeoPageProps) {
       lang: p.lang,
       seoAuditAt: p.seoAuditAt ? p.seoAuditAt.toISOString() : null,
       seoAuditResult: (p.seoAuditResult as AuditResultShape | null) ?? null,
+    }));
+
+  const aeoPages = site.pages
+    .filter((p) => p.lang === site.defaultLanguage)
+    .map((p) => ({
+      id: p.id,
+      title: p.title,
+      slug: p.slug,
+      isHome: p.isHome,
+      blocks: normalizeAeoBlocks(p.aeoBlocks),
     }));
 
   // ── Sitemap stats (mirrors settings page) ──
@@ -331,6 +344,9 @@ export default async function SeoDashboardPage({ params }: SeoPageProps) {
     />
   );
 
+  // ═══════════════ SLOT: AEO 콘텐츠 ═══════════════
+  const aeoSlot = <AeoEditor siteId={site.id} pages={aeoPages} />;
+
   // ═══════════════ SLOT: 색인 · 연동 ═══════════════
   const indexingSlot = (
     <section className="sv2-card ai">
@@ -459,6 +475,7 @@ export default async function SeoDashboardPage({ params }: SeoPageProps) {
         overview={overviewSlot}
         audit={auditSlot}
         visibility={visibilitySlot}
+        aeo={aeoSlot}
         indexing={indexingSlot}
       />
     </DashboardShell>

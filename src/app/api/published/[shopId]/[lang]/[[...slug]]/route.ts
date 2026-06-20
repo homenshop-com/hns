@@ -12,6 +12,7 @@ import {
   renderJsonLdBlock,
   type JsonLdContext,
 } from "@/lib/seo-jsonld";
+import { normalizeAeoBlocks, buildAeoJsonLd, renderAeoHtml } from "@/lib/aeo";
 import { isSiteExpired } from "@/lib/site-expiration";
 import { getTempDomain, isManagedTempHost } from "@/lib/temp-domains";
 import { isResellerHomeHost, getResellerHomeBranding } from "@/lib/reseller";
@@ -1938,6 +1939,14 @@ export async function GET(
     ];
     jsonLdObjects.push(buildBreadcrumbJsonLd(ldCtx, crumbs));
   }
+  // AEO 콘텐츠 블록 — 일반 페이지 뷰에서만 JSON-LD(FAQPage/HowTo/DefinedTerm)
+  // + 가시 섹션 렌더. board/product/search 액션 페이지는 body를 교체하므로 제외.
+  const aeoBlocks =
+    !isProductAction && !isBoardAction && !isSearchAction
+      ? normalizeAeoBlocks(page.aeoBlocks)
+      : [];
+  for (const obj of buildAeoJsonLd(aeoBlocks)) jsonLdObjects.push(obj);
+  const aeoSectionHtml = renderAeoHtml(aeoBlocks, lang);
   const jsonLdBlock = renderJsonLdBlock(jsonLdObjects);
 
   // Unified search box — injected into #hns_header (absolute, top-right) only
@@ -2123,7 +2132,7 @@ export async function GET(
     ${langSwitcherHtml}
     <div id="hns_header">${cleanedHeaderHtml}${menuHtml}${searchBoxHtml}</div>
     <div id="hns_menu"></div>
-    <div id="hns_body">${cleanedBodyHtml}</div>
+    <div id="hns_body">${cleanedBodyHtml}${aeoSectionHtml}</div>
     <div id="hns_footer">${cleanedFooterHtml}</div>
   </div>
   ${minHeightScript}
