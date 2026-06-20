@@ -30,6 +30,9 @@ interface ProductFormData {
   images: string[];
   /** Full image variant data for new uploads */
   imageVariants: ProductImage[];
+  /** 선택적 SEO/AEO 오버라이드 (비우면 name/description 자동 생성). */
+  seoTitle?: string;
+  seoDescription?: string;
 }
 
 interface ProductFormProps {
@@ -62,6 +65,8 @@ export default function ProductForm({
       status: "ACTIVE",
       images: [],
       imageVariants: [],
+      seoTitle: "",
+      seoDescription: "",
     }
   );
 
@@ -109,6 +114,8 @@ export default function ProductForm({
           status: formData.status,
           images: formData.images.length > 0 ? formData.images : null,
           imageVariants: formData.imageVariants.length > 0 ? formData.imageVariants : null,
+          seoTitle: formData.seoTitle ?? "",
+          seoDescription: formData.seoDescription ?? "",
           ...(siteId ? { siteId } : {}),
         }),
       });
@@ -309,6 +316,42 @@ export default function ProductForm({
           <option value="HIDDEN">{tp("statusHidden")}</option>
           <option value="SOLDOUT">{tp("statusSoldout")}</option>
         </select>
+      </div>
+
+      <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-4 space-y-3">
+        <div className="text-sm font-medium flex items-center gap-2">
+          <i className="fa-solid fa-wand-magic-sparkles text-[#6d28d9]" aria-hidden="true" />
+          검색·AI 노출 (SEO/AEO) <span className="text-xs font-normal text-zinc-400">선택</span>
+        </div>
+        <div>
+          <label htmlFor="seoTitle" className="block text-xs text-zinc-500 mb-1">
+            SEO 제목 — 비우면 상품명으로 자동 생성
+          </label>
+          <input
+            id="seoTitle"
+            name="seoTitle"
+            value={formData.seoTitle ?? ""}
+            onChange={handleChange}
+            maxLength={120}
+            className={inputClass}
+            placeholder="예: 군용 잉여물자 전문 — YoungBin"
+          />
+        </div>
+        <div>
+          <label htmlFor="seoDescription" className="block text-xs text-zinc-500 mb-1">
+            SEO 설명 — 비우면 상품 설명에서 자동 생성
+          </label>
+          <textarea
+            id="seoDescription"
+            name="seoDescription"
+            value={formData.seoDescription ?? ""}
+            onChange={handleChange}
+            rows={2}
+            maxLength={300}
+            className={inputClass}
+            placeholder="검색 결과·AI 답변에 노출될 한두 문장"
+          />
+        </div>
       </div>
 
       <div className="flex gap-3 pt-2">

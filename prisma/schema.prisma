@@ -401,6 +401,9 @@ model Product {
   images        Json?
   photos        String?       @db.Text
   specification String?       @db.Text
+  /// 선택적 SEO/AEO 오버라이드. 비우면 name/description 에서 자동 생성.
+  seoTitle       String?
+  seoDescription String?      @db.Text
   status        ProductStatus @default(ACTIVE)
   sortOrder     Int           @default(0)
   createdAt     DateTime      @default(now())
@@ -1037,6 +1040,9 @@ model BoardPost {
   title      String
   content    String   @db.Text
   photos     String?  @db.Text
+  /// 선택적 SEO/AEO 오버라이드. 비우면 title/content 에서 자동 생성.
+  seoTitle       String?
+  seoDescription String?  @db.Text
   views      Int      @default(0)
   isNotice   Boolean  @default(false)
   isPublic   Boolean  @default(true)

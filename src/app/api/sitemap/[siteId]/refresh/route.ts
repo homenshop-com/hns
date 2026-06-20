@@ -21,43 +21,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getManageScope, manageableSiteWhere } from "@/lib/site-access";
-
-// IndexNow endpoints. All accept POST {host, key, keyLocation, urlList}
-const INDEXNOW_TARGETS: Array<{ name: string; url: string }> = [
-  { name: "Bing",    url: "https://www.bing.com/indexnow" },
-  { name: "Yandex",  url: "https://yandex.com/indexnow" },
-  { name: "Naver",   url: "https://searchadvisor.naver.com/indexnow" },
-];
-
-async function pingIndexNow(host: string, key: string, urls: string[]) {
-  const results: Array<{ target: string; ok: boolean; status: number; error?: string }> = [];
-  if (!key || urls.length === 0) return results;
-  // keyLocation points at a fixed /indexnow-key.txt route served by
-  // Next.js (or homenshop.net's public fallback) — search engines fetch
-  // it to verify the key before accepting our URL submission.
-  const body = JSON.stringify({
-    host,
-    key,
-    keyLocation: `https://${host}/indexnow-key.txt`,
-    urlList: urls.slice(0, 10000), // IndexNow caps at 10k per request
-  });
-  await Promise.all(
-    INDEXNOW_TARGETS.map(async (t) => {
-      try {
-        const res = await fetch(t.url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json; charset=utf-8" },
-          body,
-          signal: AbortSignal.timeout(8000),
-        });
-        results.push({ target: t.name, ok: res.ok, status: res.status });
-      } catch (e) {
-        results.push({ target: t.name, ok: false, status: 0, error: String((e as Error).message || e) });
-      }
-    }),
-  );
-  return results;
-}
+import { pingIndexNow } from "@/lib/indexnow";
 
 export async function POST(
   _req: NextRequest,

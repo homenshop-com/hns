@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { syncTemplateFromSiteIfLinked } from "@/lib/template-sync";
 import { canManageSite } from "@/lib/site-access";
 import { normalizeAeoBlocks } from "@/lib/aeo";
+import { notifyIndexNowForSite } from "@/lib/indexnow";
 
 // GET /api/sites/[id]/pages/[pageId] — 페이지 상세 조회
 export async function GET(
@@ -148,6 +149,14 @@ export async function PUT(
       }),
     },
   });
+
+  // 콘텐츠가 실제로 바뀐 저장이면 IndexNow로 검색엔진에 즉시 통지(신선도).
+  // fire-and-forget — 응답을 막지 않고, 커스텀 도메인+키 없으면 no-op.
+  if (content !== undefined || aeoBlocks !== undefined) {
+    void notifyIndexNowForSite(id, [
+      { slug: updated.slug, isHome: updated.isHome, lang: updated.lang },
+    ]).catch((e) => console.error("[indexnow] page save notify failed:", e));
+  }
 
   // Auto-sync: if this page belongs to a template-storage site, push the
   // latest state back to the owning Template row so new sites created

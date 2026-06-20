@@ -24,6 +24,8 @@ interface ProductEditClientProps {
     status: string;
     images: string[];
     imageVariants: ProductImage[];
+    seoTitle?: string;
+    seoDescription?: string;
   };
   /** When a reseller manages a customer site, scope all reads/writes to it. */
   siteId?: string;

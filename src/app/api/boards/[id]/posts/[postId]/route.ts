@@ -56,7 +56,7 @@ export async function PUT(
   }
 
   const body = await request.json();
-  const { title, content, author } = body;
+  const { title, content, author, seoTitle, seoDescription } = body;
 
   const updated = await prisma.boardPost.update({
     where: { id: postId },
@@ -64,6 +64,8 @@ export async function PUT(
       ...(title !== undefined && { title }),
       ...(content !== undefined && { content }),
       ...(author !== undefined && { author }),
+      ...(seoTitle !== undefined && { seoTitle: seoTitle?.trim() || null }),
+      ...(seoDescription !== undefined && { seoDescription: seoDescription?.trim() || null }),
     },
   });
 

@@ -73,6 +73,7 @@ export async function GET(request: NextRequest) {
     "## Metadata",
     "",
     `- Sitemap: ${base}/sitemap.xml`,
+    `- Full content (llms-full.txt): ${base}/llms-full.txt`,
     `- Canonical domain: ${host}`,
     `- Published via: homeNshop (https://homenshop.net)`,
     "",

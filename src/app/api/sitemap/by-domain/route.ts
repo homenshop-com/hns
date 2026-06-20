@@ -35,6 +35,23 @@ export async function GET(request: NextRequest) {
   }
 
   const baseUrl = `https://${host}`;
+  const shopId = site.shopId;
+
+  // 원시 이미지 값(절대 URL / 루트상대 / 파일명)을 절대 URL로 정규화.
+  // 파일명은 레거시 업로드 경로(/{shopId}/uploaded/{file})로 해석.
+  const toImageUrl = (raw: string): string | null => {
+    const v = (raw || "").trim();
+    if (!v) return null;
+    if (/^https?:\/\//i.test(v)) return v;
+    if (v.startsWith("/")) return `${baseUrl}${v}`;
+    return `${baseUrl}/${shopId}/uploaded/${v.replace(/^\.?\//, "")}`;
+  };
+  const imageBlock = (raws: string[]): string =>
+    Array.from(new Set(raws.map(toImageUrl).filter((u): u is string => !!u)))
+      .slice(0, 5)
+      .map((u) => `    <image:image><image:loc>${escapeXml(u)}</image:loc></image:image>`)
+      .join("\n");
+
   const activeLangsList = site.languages && site.languages.length > 0 ? site.languages : [site.defaultLanguage];
   const activeLangs = new Set(activeLangsList);
   const skipSlugs = new Set(["empty", "user", "users", "agreement"]);
@@ -106,18 +123,23 @@ export async function GET(request: NextRequest) {
   // Products → /{lang}/goods.html?action=read&id=N
   const products = await prisma.product.findMany({
     where: { siteId: site.id },
-    select: { legacyId: true, updatedAt: true },
+    select: { legacyId: true, updatedAt: true, images: true, photos: true },
     orderBy: { legacyId: "desc" },
   });
   for (const prod of products) {
     const lastmod = prod.updatedAt.toISOString().split("T")[0];
+    const raws = [
+      ...(Array.isArray(prod.images) ? (prod.images as unknown[]).map((x) => String(x)) : []),
+      ...(prod.photos ? prod.photos.split(",").map((s) => s.trim()) : []),
+    ].filter(Boolean);
+    const imgs = imageBlock(raws);
     for (const lang of langsForItems) {
       const loc = `${baseUrl}/${lang}/goods.html?action=read&id=${prod.legacyId}`;
       urls.push(`  <url>
     <loc>${escapeXml(loc)}</loc>
     <lastmod>${lastmod}</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
+    <priority>0.6</priority>${imgs ? "\n" + imgs : ""}
   </url>`);
     }
   }
@@ -154,7 +176,7 @@ export async function GET(request: NextRequest) {
   // Individual board post read URLs → /{lang}/board.html?action=read&id=N
   const posts = await prisma.boardPost.findMany({
     where: { siteId: site.id, parentId: null, lang: primaryLang },
-    select: { legacyId: true, regdate: true, updatedAt: true },
+    select: { legacyId: true, regdate: true, updatedAt: true, photos: true },
     orderBy: { legacyId: "desc" },
   });
   for (const post of posts) {
@@ -162,19 +184,20 @@ export async function GET(request: NextRequest) {
     const lastmod = post.regdate && /^\d{4}-\d{2}-\d{2}/.test(post.regdate)
       ? post.regdate.substring(0, 10)
       : post.updatedAt.toISOString().split("T")[0];
+    const imgs = imageBlock(post.photos ? post.photos.split(",").map((s) => s.trim()).filter(Boolean) : []);
     for (const lang of langsForItems) {
       const loc = `${baseUrl}/${lang}/board.html?action=read&id=${post.legacyId}`;
       urls.push(`  <url>
     <loc>${escapeXml(loc)}</loc>
     <lastmod>${lastmod}</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
+    <priority>0.6</priority>${imgs ? "\n" + imgs : ""}
   </url>`);
     }
   }
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
 ${urls.join("\n")}
 </urlset>`;
 

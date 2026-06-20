@@ -72,6 +72,8 @@ export default async function ProductDetailPage({
     status: product.status,
     images: imageUrls,
     imageVariants: [],
+    seoTitle: product.seoTitle ?? "",
+    seoDescription: product.seoDescription ?? "",
   };
 
   return (

@@ -18,6 +18,8 @@ export default function EditPostClient() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [author, setAuthor] = useState("");
+  const [seoTitle, setSeoTitle] = useState("");
+  const [seoDescription, setSeoDescription] = useState("");
 
   useEffect(() => {
     fetch(`/api/boards/${boardId}/posts/${postId}`)
@@ -29,6 +31,8 @@ export default function EditPostClient() {
         setTitle(data.post.title);
         setContent(data.post.content);
         setAuthor(data.post.author);
+        setSeoTitle(data.post.seoTitle ?? "");
+        setSeoDescription(data.post.seoDescription ?? "");
       })
       .catch((err) => setError(err.message))
       .finally(() => setFetching(false));
@@ -43,7 +47,7 @@ export default function EditPostClient() {
       const res = await fetch(`/api/boards/${boardId}/posts/${postId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, content, author }),
+        body: JSON.stringify({ title, content, author, seoTitle, seoDescription }),
       });
 
       if (!res.ok) {
@@ -107,6 +111,21 @@ export default function EditPostClient() {
               {t("fieldContent")} <span style={{ color: "#e03131" }}>*</span>
             </label>
             <textarea required rows={12} value={content} onChange={(e) => setContent(e.target.value)} placeholder={t("contentPlaceholder")} style={{ ...inputStyle, resize: "vertical" }} />
+          </div>
+
+          <div style={{ border: "1px solid #e9ecef", borderRadius: 8, padding: 14, marginBottom: 20 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+              <i className="fa-solid fa-wand-magic-sparkles" style={{ color: "#6d28d9" }} aria-hidden="true" />
+              검색·AI 노출 (SEO/AEO) <span style={{ fontSize: 11, fontWeight: 400, color: "#adb5bd" }}>선택</span>
+            </div>
+            <label style={{ display: "block", fontSize: 12, color: "#868e96", marginBottom: 4 }}>
+              SEO 제목 — 비우면 글 제목으로 자동 생성
+            </label>
+            <input type="text" maxLength={120} value={seoTitle} onChange={(e) => setSeoTitle(e.target.value)} style={{ ...inputStyle, marginBottom: 12 }} placeholder="검색·AI에 노출될 제목" />
+            <label style={{ display: "block", fontSize: 12, color: "#868e96", marginBottom: 4 }}>
+              SEO 설명 — 비우면 본문에서 자동 생성
+            </label>
+            <textarea rows={2} maxLength={300} value={seoDescription} onChange={(e) => setSeoDescription(e.target.value)} style={{ ...inputStyle, resize: "vertical" }} placeholder="검색 결과·AI 답변에 노출될 한두 문장" />
           </div>
 
           <div style={{ display: "flex", gap: 8 }}>

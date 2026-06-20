@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { syncTemplateFromSiteIfLinked } from "@/lib/template-sync";
 import { TEMP_DOMAINS, isAllowedTempDomain } from "@/lib/temp-domains";
 import { canManageSite } from "@/lib/site-access";
+import { notifyIndexNowForSite } from "@/lib/indexnow";
 
 // GET /api/sites/[id] — 사이트 상세 조회
 export async function GET(
@@ -154,6 +155,18 @@ export async function PUT(
       update: hmfData,
       create: { siteId: id, lang: hmfLang, ...hmfData },
     });
+  }
+
+  // 퍼블리시(게시) 시 전체 페이지를 IndexNow로 통지 — 신규 공개를 즉시 색인.
+  // fire-and-forget. 커스텀 도메인+키 없으면 no-op.
+  if (published === true) {
+    void (async () => {
+      const pages = await prisma.page.findMany({
+        where: { siteId: id, lang: updated.defaultLanguage },
+        select: { slug: true, isHome: true, lang: true },
+      });
+      await notifyIndexNowForSite(id, pages);
+    })().catch((e) => console.error("[indexnow] publish notify failed:", e));
   }
 
   // Auto-sync: if this site is a template-storage clone, push the fresh

@@ -77,7 +77,7 @@ export async function PUT(
   const site = existing.site;
 
   const body = await request.json();
-  const { name, description, price, salePrice, stock, category, status, images } = body;
+  const { name, description, price, salePrice, stock, category, status, images, seoTitle, seoDescription } = body;
 
   const product = await prisma.product.update({
     where: { id },
@@ -92,6 +92,8 @@ export async function PUT(
       ...(category !== undefined && { category: category || null }),
       ...(status !== undefined && { status }),
       ...(images !== undefined && { images }),
+      ...(seoTitle !== undefined && { seoTitle: seoTitle?.trim() || null }),
+      ...(seoDescription !== undefined && { seoDescription: seoDescription?.trim() || null }),
     },
   });
 

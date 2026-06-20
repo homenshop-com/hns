@@ -1733,10 +1733,10 @@ export async function GET(
     try {
       const pp = await prisma.product.findUnique({ where: { id: prismaProductId } });
       if (pp) {
-        itemSeoTitle = `${pp.name} - ${site.name}`;
+        itemSeoTitle = pp.seoTitle?.trim() || `${pp.name} - ${site.name}`;
         const rawDesc = String(pp.description || "");
         const plainDesc = rawDesc.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
-        itemSeoDesc = plainDesc.length > 160 ? plainDesc.substring(0, 157) + "..." : plainDesc;
+        itemSeoDesc = pp.seoDescription?.trim() || (plainDesc.length > 160 ? plainDesc.substring(0, 157) + "..." : plainDesc);
         itemSeoKeywords = pp.name.replace(/[,/|]/g, ", ");
         const imgs = (pp.images as string[] | null) || [];
         if (imgs[0]) itemOgImage = imgs[0];
@@ -1755,13 +1755,13 @@ export async function GET(
     try {
       const pRow = await prisma.product.findFirst({
         where: { siteId: site.id, legacyId: boardId },
-        select: { id: true, name: true, description: true, photos: true, specification: true, price: true, category: true, images: true },
+        select: { id: true, name: true, description: true, photos: true, specification: true, price: true, category: true, images: true, seoTitle: true, seoDescription: true },
       });
       if (pRow) {
-        itemSeoTitle = `${pRow.name} - ${site.name}`;
+        itemSeoTitle = pRow.seoTitle?.trim() || `${pRow.name} - ${site.name}`;
         const rawDesc = pRow.specification || pRow.description || "";
         const plainDesc = rawDesc.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
-        itemSeoDesc = plainDesc.length > 160 ? plainDesc.substring(0, 157) + "..." : plainDesc;
+        itemSeoDesc = pRow.seoDescription?.trim() || (plainDesc.length > 160 ? plainDesc.substring(0, 157) + "..." : plainDesc);
         itemSeoKeywords = pRow.name.replace(/[,/|]/g, ", ");
         const pPhotos = pRow.photos ? pRow.photos.split("|").filter(Boolean) : [];
         if (pPhotos[0]) {
@@ -1788,13 +1788,13 @@ export async function GET(
     try {
       const bRow = await prisma.boardPost.findFirst({
         where: { siteId: site.id, legacyId: boardId },
-        select: { title: true, content: true, photos: true, author: true, regdate: true, category: { select: { name: true } } },
+        select: { title: true, content: true, photos: true, author: true, regdate: true, seoTitle: true, seoDescription: true, category: { select: { name: true } } },
       });
       if (bRow) {
-        itemSeoTitle = `${bRow.title} - ${site.name}`;
+        itemSeoTitle = bRow.seoTitle?.trim() || `${bRow.title} - ${site.name}`;
         const rawDesc = bRow.content || "";
         const plainDesc = rawDesc.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
-        itemSeoDesc = plainDesc.length > 160 ? plainDesc.substring(0, 157) + "..." : plainDesc;
+        itemSeoDesc = bRow.seoDescription?.trim() || (plainDesc.length > 160 ? plainDesc.substring(0, 157) + "..." : plainDesc);
         itemSeoKeywords = bRow.title;
         const bPhotos = bRow.photos ? bRow.photos.split("|").filter(Boolean) : [];
         const imageExts = new Set(["jpg", "jpeg", "png", "gif", "bmp", "webp", "svg"]);
