@@ -112,9 +112,9 @@
     "footerTerms": "利用規約",
     "footerPrivacy": "プライバシーポリシー",
     "footerContact": "お問い合わせ",
-    "geoEyebrow": "AI-Ready",
-    "geoTitle": "ChatGPT・Gemini・Claude・Perplexityに\nあなたのサイトが引用される",
-    "geoSub": "生成AI検索エンジン(GEO, Generative Engine Optimization)に最適化された構造で自動公開されます。追加設定なしで、公開した瞬間からAIがサイト情報を正確に理解し、回答に引用します。",
+    "geoEyebrow": "AEO · AI-Ready",
+    "geoTitle": "ChatGPT・Gemini・Claude・Perplexityの\nAI回答にあなたのサイトが引用される",
+    "geoSub": "ChatGPT・Claude・Perplexity などの AI 回答エンジン(AEO, Answer Engine Optimization)と生成 AI 検索(GEO, Generative Engine Optimization)に最適化された構造で自動公開されます。追加設定なしで、公開した瞬間から AI がサイト情報を正確に理解し、回答に引用します。",
     "geoFeat1Title": "構造化データの自動挿入",
     "geoFeat1Desc": "Organization・Product・Article・FAQ・BreadcrumbListのschema.org JSON-LDがすべてのページに自動挿入され、AIが製品・会社情報を事実として抽出できます。",
     "geoFeat2Title": "AIクローラー許可リスト",
@@ -132,7 +132,7 @@
     "geoBullet2": "Perplexity・Claudeの回答にソースとして表示",
     "geoBullet3": "Google AI Overviewに構造化データを提供",
     "geoBullet4": "Apple Intelligence・Meta AIにも対応",
-    "geoBadge": "GEO - Generative Engine Optimization"
+    "geoBadge": "AI 回答・検索エンジン両対応の最適化"
   },
   "auth": {
     "login": {

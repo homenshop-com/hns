@@ -226,6 +226,57 @@ export default async function Home() {
         </div>
       </nav>
 
+      {/* GEO / AEO — Answer + Generative Engine Optimization (moved to top) */}
+      <section className="lp-geo" id="geo">
+        <div className="section-inner">
+          <div className="geo-header">
+            <div className="geo-badge-ribbon">
+              <span className="geo-badge-tags">
+                <span className="geo-badge-tag geo-badge-tag-primary">AEO</span>
+                <span className="geo-badge-plus">+</span>
+                <span className="geo-badge-tag">GEO</span>
+              </span>
+              <span className="geo-badge-text">{t("geoBadge")}</span>
+            </div>
+            <div className="section-eyebrow geo-eyebrow">{t("geoEyebrow")}</div>
+            <h2 className="section-title geo-title" style={{ whiteSpace: "pre-line" }}>
+              {t("geoTitle")}
+            </h2>
+            <p className="geo-sub">{t("geoSub")}</p>
+          </div>
+
+          <div className="geo-logo-strip">
+            <div className="geo-logo" title="ChatGPT"><span className="geo-logo-dot" style={{ background: "#10a37f" }} />ChatGPT</div>
+            <div className="geo-logo" title="Gemini"><span className="geo-logo-dot" style={{ background: "#1c69ff" }} />Gemini</div>
+            <div className="geo-logo" title="Claude"><span className="geo-logo-dot" style={{ background: "#cc785c" }} />Claude</div>
+            <div className="geo-logo" title="Perplexity"><span className="geo-logo-dot" style={{ background: "#20808d" }} />Perplexity</div>
+            <div className="geo-logo" title="Google AI Overview"><span className="geo-logo-dot" style={{ background: "#4285f4" }} />Google AI</div>
+            <div className="geo-logo" title="Apple Intelligence"><span className="geo-logo-dot" style={{ background: "#111" }} />Apple Intelligence</div>
+            <div className="geo-logo" title="Meta AI"><span className="geo-logo-dot" style={{ background: "#0866ff" }} />Meta AI</div>
+          </div>
+
+          <div className="geo-grid">
+            {[1, 2, 3, 4, 5, 6].map((n) => (
+              <div key={n} className="geo-card">
+                <div className="geo-card-num">{String(n).padStart(2, "0")}</div>
+                <div className="geo-card-title">{t(`geoFeat${n}Title` as never)}</div>
+                <p className="geo-card-desc">{t(`geoFeat${n}Desc` as never)}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="geo-bullets">
+            <div className="geo-bullets-title">{t("geoBulletTitle")}</div>
+            <ul className="geo-bullets-list">
+              <li>{t("geoBullet1")}</li>
+              <li>{t("geoBullet2")}</li>
+              <li>{t("geoBullet3")}</li>
+              <li>{t("geoBullet4")}</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
       {/* HERO */}
       <section className="lp-hero">
         <div className="lp-hero-inner">
@@ -303,50 +354,6 @@ export default async function Home() {
                 <p className="feature-desc">{t(`feat${n}Desc` as never)}</p>
               </div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* GEO — Generative Engine Optimization */}
-      <section className="lp-geo" id="geo">
-        <div className="section-inner">
-          <div className="geo-header">
-            <div className="geo-badge-ribbon">{t("geoBadge")}</div>
-            <div className="section-eyebrow geo-eyebrow">{t("geoEyebrow")}</div>
-            <h2 className="section-title geo-title" style={{ whiteSpace: "pre-line" }}>
-              {t("geoTitle")}
-            </h2>
-            <p className="geo-sub">{t("geoSub")}</p>
-          </div>
-
-          <div className="geo-logo-strip">
-            <div className="geo-logo" title="ChatGPT"><span className="geo-logo-dot" style={{ background: "#10a37f" }} />ChatGPT</div>
-            <div className="geo-logo" title="Gemini"><span className="geo-logo-dot" style={{ background: "#1c69ff" }} />Gemini</div>
-            <div className="geo-logo" title="Claude"><span className="geo-logo-dot" style={{ background: "#cc785c" }} />Claude</div>
-            <div className="geo-logo" title="Perplexity"><span className="geo-logo-dot" style={{ background: "#20808d" }} />Perplexity</div>
-            <div className="geo-logo" title="Google AI Overview"><span className="geo-logo-dot" style={{ background: "#4285f4" }} />Google AI</div>
-            <div className="geo-logo" title="Apple Intelligence"><span className="geo-logo-dot" style={{ background: "#111" }} />Apple Intelligence</div>
-            <div className="geo-logo" title="Meta AI"><span className="geo-logo-dot" style={{ background: "#0866ff" }} />Meta AI</div>
-          </div>
-
-          <div className="geo-grid">
-            {[1, 2, 3, 4, 5, 6].map((n) => (
-              <div key={n} className="geo-card">
-                <div className="geo-card-num">{String(n).padStart(2, "0")}</div>
-                <div className="geo-card-title">{t(`geoFeat${n}Title` as never)}</div>
-                <p className="geo-card-desc">{t(`geoFeat${n}Desc` as never)}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="geo-bullets">
-            <div className="geo-bullets-title">{t("geoBulletTitle")}</div>
-            <ul className="geo-bullets-list">
-              <li>{t("geoBullet1")}</li>
-              <li>{t("geoBullet2")}</li>
-              <li>{t("geoBullet3")}</li>
-              <li>{t("geoBullet4")}</li>
-            </ul>
           </div>
         </div>
       </section>

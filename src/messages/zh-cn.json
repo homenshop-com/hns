@@ -112,9 +112,9 @@
     "footerTerms": "使用条款",
     "footerPrivacy": "隐私政策",
     "footerContact": "联系我们",
-    "geoEyebrow": "AI-Ready",
-    "geoTitle": "让 ChatGPT・Gemini・Claude・Perplexity\n引用您的网站",
-    "geoSub": "每个网站都自动按照生成式AI引擎优化(GEO, Generative Engine Optimization)的结构发布。无需额外设置，发布即被AI准确理解并在回答中引用。",
+    "geoEyebrow": "AEO · AI-Ready",
+    "geoTitle": "让 ChatGPT・Gemini・Claude・Perplexity\n的 AI 回答引用您的网站",
+    "geoSub": "为 ChatGPT・Claude・Perplexity 等 AI 回答引擎(AEO, Answer Engine Optimization)和生成式 AI 搜索(GEO, Generative Engine Optimization)优化的结构自动发布。无需额外设置，发布瞬间 AI 即可准确理解您的网站并在回答中引用。",
     "geoFeat1Title": "结构化数据自动注入",
     "geoFeat1Desc": "Organization・Product・Article・FAQ・BreadcrumbList 的 schema.org JSON-LD 自动注入每个页面，AI 可准确提取产品和公司信息。",
     "geoFeat2Title": "AI 爬虫白名单",
@@ -132,7 +132,7 @@
     "geoBullet2": "在 Perplexity・Claude 回答中作为来源显示",
     "geoBullet3": "为 Google AI Overview 提供结构化数据",
     "geoBullet4": "兼容 Apple Intelligence・Meta AI",
-    "geoBadge": "GEO - Generative Engine Optimization"
+    "geoBadge": "AI 回答+生成式搜索 双重优化"
   },
   "auth": {
     "login": {

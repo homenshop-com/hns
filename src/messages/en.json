@@ -112,9 +112,9 @@
     "footerTerms": "Terms",
     "footerPrivacy": "Privacy",
     "footerContact": "Contact",
-    "geoEyebrow": "AI-Ready",
-    "geoTitle": "Get your site cited by\nChatGPT, Gemini, Claude, and Perplexity",
-    "geoSub": "Every site is auto-published with Generative Engine Optimization (GEO) built in. No extra setup — AI engines understand and cite your business the moment you publish.",
+    "geoEyebrow": "AEO · AI-Ready",
+    "geoTitle": "Get cited in AI answers by\nChatGPT, Gemini, Claude, and Perplexity",
+    "geoSub": "Auto-published with structures optimized for AI answer engines (AEO, Answer Engine Optimization) like ChatGPT, Claude, and Perplexity, and for generative AI search (GEO, Generative Engine Optimization). Zero setup — the moment you publish, AI accurately understands your site and cites it in answers.",
     "geoFeat1Title": "Structured data auto-injection",
     "geoFeat1Desc": "Organization, Product, Article, FAQ, and BreadcrumbList schema.org JSON-LD is injected on every page so AI can extract product and company facts cleanly.",
     "geoFeat2Title": "AI crawler allow-list",
@@ -132,7 +132,7 @@
     "geoBullet2": "Shown as a source in Perplexity and Claude answers",
     "geoBullet3": "Structured data ready for Google AI Overview",
     "geoBullet4": "Compatible with Apple Intelligence and Meta AI",
-    "geoBadge": "GEO - Generative Engine Optimization"
+    "geoBadge": "Answer Engine + Generative Engine Optimization"
   },
   "auth": {
     "login": {
