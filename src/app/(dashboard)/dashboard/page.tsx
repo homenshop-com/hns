@@ -98,6 +98,15 @@ export default async function DashboardPage({
   const session = await auth();
   if (!session) redirect("/login");
 
+  // ADMIN role users belong in /admin. This guard catches every entry path
+  // into /dashboard — Google OAuth (callbackUrl is hard-coded to /dashboard
+  // in GoogleSignInButton), bookmarks, post-signup, links from elsewhere
+  // — so the credentials-login branch in login/page.tsx isn't the only
+  // place that does the role split.
+  if (session.user.role === "ADMIN") {
+    redirect("/admin");
+  }
+
   // 홈페이지 계정 리스트 필터: all | free | paid | expired (URL ?plan=)
   const { plan: planParamRaw } = await searchParams;
   const planFilter = (["all", "free", "paid", "expired"] as const).includes(
