@@ -37,6 +37,8 @@ export const CREDIT_COSTS = {
   AI_EDIT: 5,
   AI_SEO_AUDIT: 5,
   AI_SEO_OPTIMIZE: 10,
+  /** AI 언급률 측정 1회 (질문 세트 생성 + 다회 웹검색 질의). 원장 kind는 AI_OTHER 재사용. */
+  AI_VISIBILITY_CHECK: 10,
   AI_OTHER: 2,
 } as const;
 

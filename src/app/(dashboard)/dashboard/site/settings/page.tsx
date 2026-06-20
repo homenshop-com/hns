@@ -8,10 +8,6 @@ import ImpersonationBanner from "@/components/ImpersonationBanner";
 import EditSiteForm from "../edit-site-form";
 import LanguageGridV2 from "./language-grid-v2";
 import DeleteSiteButton from "./delete-site-button";
-import SitemapRefreshButton from "./sitemap-refresh-button";
-import CopyButton from "./copy-button";
-import SeoAuditPanel, { type AuditResultShape } from "@/components/SeoAuditPanel";
-import { CREDIT_COSTS } from "@/lib/credits";
 import { DashboardIconSprite, Icon } from "../../dashboard-icons";
 import DashboardShell from "../../dashboard-shell";
 import SupportUnreadIndicator from "../../support-unread-indicator";
@@ -90,20 +86,6 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
 
   if (!site) redirect("/dashboard");
 
-  // Filter to default-language pages for the audit panel (multilingual
-  // sites would otherwise show duplicate Home/Company/etc. rows).
-  const auditPages = site.pages
-    .filter((p) => p.lang === site.defaultLanguage)
-    .map((p) => ({
-      id: p.id,
-      slug: p.slug,
-      title: p.title,
-      isHome: p.isHome,
-      lang: p.lang,
-      seoAuditAt: p.seoAuditAt ? p.seoAuditAt.toISOString() : null,
-      seoAuditResult: (p.seoAuditResult as AuditResultShape | null) ?? null,
-    }));
-
   const currentUser = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: { name: true, email: true, credits: true },
@@ -115,50 +97,12 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
 
   const siteLanguages = (site as typeof site & { languages?: string[] }).languages || ["ko"];
 
-  // Sitemap stats (unchanged from previous version)
-  const _activeLangs = new Set(siteLanguages.length ? siteLanguages : [site.defaultLanguage]);
-  const _langArr = Array.from(_activeLangs);
-  const _primaryLang = _activeLangs.has(site.defaultLanguage) ? site.defaultLanguage : _langArr[0];
-  const _skipSlugs = new Set(["empty", "user", "users", "agreement"]);
-  const [sitePages, sitemapCats, sitemapPostCount, sitemapProductCount] = await Promise.all([
-    prisma.page.findMany({
-      where: { siteId: site.id },
-      select: { slug: true, lang: true, updatedAt: true },
-    }),
-    prisma.boardCategory.findMany({
-      where: {
-        siteId: site.id,
-        lang: _primaryLang,
-        NOT: { name: { in: ["Default", "New Category"] } },
-      },
-      select: { legacyId: true, _count: { select: { posts: { where: { parentId: null } } } } },
-    }),
-    prisma.boardPost.count({ where: { siteId: site.id, parentId: null, lang: _primaryLang } }),
-    prisma.product.count({ where: { siteId: site.id } }),
-  ]);
-  const _eligiblePages = sitePages.filter(
-    (p) => _activeLangs.has(p.lang) && !_skipSlugs.has(p.slug.toLowerCase()),
-  );
-  const _eligibleCats = sitemapCats.filter((c) => c.legacyId && c._count.posts > 0);
-  const sitemapUrlCount =
-    _eligiblePages.length +
-    _eligibleCats.length * _langArr.length +
-    sitemapPostCount * _langArr.length +
-    sitemapProductCount * _langArr.length;
-  const sitemapLastMod = _eligiblePages.length
-    ? new Date(Math.max(..._eligiblePages.map((p) => p.updatedAt.getTime()))).toISOString()
-    : null;
-
   const activeDomain = site.domains.find((d) => d.status === "ACTIVE");
   const sTemp = resolvePublicHost(site, reseller);
   const publicUrl = activeDomain ? `https://${activeDomain.domain}` : `https://${sTemp}/${site.shopId}/${site.defaultLanguage}/`;
   const defaultUrlLabel = `${sTemp}/${site.shopId}/${site.defaultLanguage}/`;
 
-  const sitemapApiUrl = `https://homenshop.net/api/sitemap/${site.id}`;
-  const sitemapCustomUrl = activeDomain ? `https://${activeDomain.domain}/sitemap.xml` : null;
-
   const displayName = currentUser?.name || currentUser?.email?.split("@")[0] || ts("guest");
-  const credits = currentUser?.credits ?? 0;
   const [thumbFrom, thumbTo, thumbColor, thumbLabel] = pickThumb(site.shopId);
   const siteName = site.name || site.shopId;
 
@@ -199,10 +143,6 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
       })
     : null;
   const isDerivedExpiry = isFreeType && !site.expiresAt && !!effectiveExpiry;
-
-  const gaConnected = Boolean(site.googleAnalyticsId);
-  const gscConnected = Boolean(site.googleVerification);
-  const seoConnectedCount = (gaConnected ? 1 : 0) + (gscConnected ? 1 : 0);
 
   const tDash = await getTranslations("dashboard");
 
@@ -440,111 +380,60 @@ export default async function SiteSettingsPage({ searchParams }: SettingsPagePro
                 </div>
               </section>
 
-              {/* 5 — Google 설정 · SEO (ai, col-2) */}
+              {/* 5 — SEO·AEO·GEO 안내 배너 (기능은 전용 대시보드 /seo 로 이전) */}
               <section className="sv2-card ai col-2">
-                <div className="sv2-card-head">
-                  <div className="accent"></div>
-                  <h3>
-                    <svg width={16} height={16}><use href="#i-google" /></svg>
-                    {ts("googleSeo")}
-                  </h3>
-                  <span className="status">
-                    <b style={{ color: seoConnectedCount === 2 ? "var(--ok)" : "var(--ink-3)" }}>
-                      {seoConnectedCount}
-                    </b>
-                    &nbsp;{ts("connectedCount")}
+                <Link
+                  href={`/dashboard/site/${site.id}/seo`}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 14,
+                    textDecoration: "none",
+                    padding: "16px 18px",
+                  }}
+                >
+                  <span
+                    style={{
+                      flexShrink: 0,
+                      width: 46,
+                      height: 46,
+                      borderRadius: 12,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      background: "#6d28d9",
+                      color: "#fff",
+                      fontSize: 19,
+                    }}
+                  >
+                    <i className="fa-solid fa-wand-magic-sparkles" aria-hidden="true" />
                   </span>
-                </div>
-                <div className="sv2-card-body">
-                  <div className="sv2-grid" style={{ gap: 10 }}>
-                    <div className="sv2-integ-row">
-                      <div className="logo"><svg width={22} height={22}><use href="#i-google" /></svg></div>
-                      <div>
-                        <div className="nm">Google Analytics</div>
-                        <div className={`st ${gaConnected ? "ok" : "off"}`}>
-                          {gaConnected
-                            ? `${site.googleAnalyticsId} · ${ts("connected")}`
-                            : ts("notConnected")}
-                        </div>
-                      </div>
-                      <div className="ac">
-                        <Link
-                          href={`/dashboard/site/${site.id}/manage/config/analytics`}
-                          className={`sv2-tiny-btn${gaConnected ? "" : " primary"}`}
-                        >
-                          {gaConnected ? ts("manage") : ts("connect")}
-                        </Link>
-                      </div>
-                    </div>
-                    <div className="sv2-integ-row">
-                      <div className="logo"><svg width={22} height={22}><use href="#i-google" /></svg></div>
-                      <div>
-                        <div className="nm">Google Search Console</div>
-                        <div className={`st ${gscConnected ? "ok" : "off"}`}>
-                          {gscConnected
-                            ? ts("gscVerified", { count: sitemapUrlCount.toLocaleString() })
-                            : ts("notConnected")}
-                        </div>
-                      </div>
-                      <div className="ac">
-                        <Link
-                          href={`/dashboard/site/${site.id}/manage/config/search-console`}
-                          className={`sv2-tiny-btn${gscConnected ? "" : " primary"}`}
-                        >
-                          {gscConnected ? ts("manage") : ts("connect")}
-                        </Link>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Sitemap block */}
-                  <div className="sv2-sitemap">
-                    <h4>
-                      <svg width={14} height={14} style={{ color: "var(--ai)" }}>
-                        <use href="#i-sitemap" />
-                      </svg>
-                      {t("sitemap")}
-                    </h4>
-                    <div className="row">
-                      <span className="k">{t("sitemapDefault")}</span>
-                      <a className="v" href={sitemapApiUrl} target="_blank" rel="noopener noreferrer">
-                        {sitemapApiUrl}
-                      </a>
-                      <CopyButton value={sitemapApiUrl} />
-                    </div>
-                    {sitemapCustomUrl && (
-                      <div className="row">
-                        <span className="k">{t("sitemapDomain")}</span>
-                        <a className="v" href={sitemapCustomUrl} target="_blank" rel="noopener noreferrer">
-                          {sitemapCustomUrl}
-                        </a>
-                        <CopyButton value={sitemapCustomUrl} />
-                      </div>
-                    )}
-                    <div className="guide">
-                      {t("sitemapGuide")}{" "}
-                      {sitemapCustomUrl ? t("sitemapDomainHint") : t("sitemapNoDomainHint")}
-                    </div>
-                    <SitemapRefreshButton
-                      siteId={site.id}
-                      initialUrlCount={sitemapUrlCount}
-                      initialLastModified={sitemapLastMod}
-                      hasCustomDomain={Boolean(activeDomain)}
-                    />
-                  </div>
-
-                  {/* SEO/GEO 진단 — Claude AI 분석, 5코인 차감 */}
-                  <div style={{ marginTop: 16 }}>
-                    <SeoAuditPanel
-                      siteId={site.id}
-                      mode="user"
-                      costCredits={CREDIT_COSTS.AI_SEO_AUDIT}
-                      optimizeCostCredits={CREDIT_COSTS.AI_SEO_OPTIMIZE}
-                      balance={credits}
-                      pages={auditPages}
-                    />
-                  </div>
-                </div>
+                  <span style={{ flex: 1 }}>
+                    <span style={{ display: "block", fontSize: 15, fontWeight: 700, color: "var(--ink-1)" }}>
+                      {ts("seoMovedTitle")}
+                    </span>
+                    <span style={{ display: "block", fontSize: 13, color: "var(--ink-2)", marginTop: 3, lineHeight: 1.5 }}>
+                      {ts("seoMovedDesc")}
+                    </span>
+                  </span>
+                  <span
+                    style={{
+                      flexShrink: 0,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      height: 38,
+                      padding: "0 16px",
+                      background: "#6d28d9",
+                      color: "#fff",
+                      fontSize: 13.5,
+                      fontWeight: 600,
+                      borderRadius: 9,
+                    }}
+                  >
+                    {ts("seoMovedCta")} <i className="fa-solid fa-arrow-right" aria-hidden="true" style={{ fontSize: 11 }} />
+                  </span>
+                </Link>
               </section>
 
               {/* 6a — 계정 정보 (slate, 하단 좌측) */}

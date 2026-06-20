@@ -383,6 +383,13 @@ export default async function SitesPage() {
                       <Link href={`/dashboard/site/${s.id}/manage`} className="dv2-row-btn">
                         <Icon id="i-database" size={13} /> {t("btnData")}
                       </Link>
+                      <Link
+                        href={`/dashboard/site/${s.id}/seo`}
+                        className="dv2-row-btn"
+                        style={{ color: "#6d28d9", borderColor: "#ddd6fe", background: "#f5f3ff" }}
+                      >
+                        <Icon id="i-sparkle" size={13} /> {t("btnSeo")}
+                      </Link>
                       <Link href={`/dashboard/site/settings?id=${s.id}`} className="dv2-row-btn">
                         <Icon id="i-info" size={13} /> {t("btnInfo")}
                       </Link>

@@ -253,6 +253,7 @@ model Site {
   marketplaceIntegrations MarketplaceIntegration[]
   inquiries               Inquiry[]
   subscriptions           Subscription[]
+  aiVisibilityRuns        AiVisibilityRun[]
   /// Back-relation: a Site may be the white-label landing page for one
   /// reseller domain (Reseller.landingSiteId). Optional; SetNull on delete.
   landingForReseller      Reseller?                @relation("ResellerLandingSite")
@@ -1267,4 +1268,28 @@ model InboundEmail {
   @@index([isSpam])
   @@index([deletedAt])
   @@index([spamScore])
+}
+
+/// AI 언급률(GEO) 측정 1회 실행 결과.
+/// 생성형 AI(Claude 등, 웹검색 활성)에게 업종 기반 질문 세트를 던지고,
+/// 응답에 사이트 도메인/브랜드가 인용·언급됐는지 집계한다.
+/// 페이지당 결과는 `results`(JSON 배열)에 저장 — 별도 테이블 없이 단순 보관.
+model AiVisibilityRun {
+  id             String   @id @default(cuid())
+  siteId         String
+  site           Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  engine         String   @default("claude")
+  model          String
+  brandName      String?
+  domain         String?
+  totalQueries   Int      @default(0)
+  mentionedCount Int      @default(0)
+  /// 0~100 (%). mentionedCount / totalQueries * 100.
+  mentionRate    Float    @default(0)
+  creditsCharged Int      @default(0)
+  /// [{ query, mentioned, position, competitors[], citations[], answerExcerpt }]
+  results        Json     @default("[]")
+  createdAt      DateTime @default(now())
+
+  @@index([siteId, createdAt])
 }
