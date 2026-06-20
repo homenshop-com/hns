@@ -127,10 +127,6 @@ export default async function DashboardShell({
               <span className="ic"><Icon id="i-grid" /></span>
               <span className="label">{t("navBoards")}</span>
             </Link>
-            <Link className={cls("domains")} href="/dashboard/domains">
-              <span className="ic"><Icon id="i-globe" /></span>
-              <span className="label">{t("navDomains")}</span>
-            </Link>
             {showIntegrations && (
               <Link className={cls("integrations")} href="/dashboard/integrations">
                 <span className="ic"><Icon id="i-link" /></span>
