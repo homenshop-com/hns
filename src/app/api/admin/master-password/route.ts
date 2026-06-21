@@ -1,56 +1,24 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
 
 /**
- * GET /api/admin/master-password
+ * GET /api/admin/master-password — DEPRECATED / DISABLED.
  *
- * Returns the env-stored master password to ADMIN sessions only.
- * Used by /login to auto-fill the password field when an admin clicks
- * "Login" (or opens the copied URL) to impersonate a customer.
+ * This endpoint used to return the plaintext env master password to ADMIN
+ * sessions so the login page could auto-fill the impersonation password.
+ * That shipped a platform-wide impersonation credential to the browser (XSS
+ * → full member takeover, value outlives the session).
  *
- * Security:
- * - Only ADMIN role can fetch; others get 403 / 401.
- * - Compromising an ADMIN session already grants more than this value,
- *   so returning the master password to admin sessions is not a
- *   meaningful escalation.
- * - The master password itself still cannot sign in to ADMIN accounts
- *   (auth.ts defense-in-depth) and cannot change passwords
- *   (user/password/route.ts requires the real current password).
+ * Impersonation now uses the scoped token flow (POST /api/admin/impersonate),
+ * which swaps in a short-lived session for the target user and backs up the
+ * admin/reseller session for restore — no plaintext ever leaves the server.
+ *
+ * Kept as a 410 (instead of deleting) so any stale client gets a clear
+ * signal rather than a silent 404. The MASTER_PASSWORD env var is no longer
+ * read here.
  */
 export async function GET() {
-  const session = await auth();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { role: true },
-  });
-  if (user?.role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  const masterPassword = process.env.MASTER_PASSWORD;
-  if (!masterPassword) {
-    return NextResponse.json(
-      { error: "Master password not configured on server" },
-      { status: 404 }
-    );
-  }
-
-  // Audit: the master password is a platform-wide impersonation credential.
-  // The plaintext must reach the client to auto-fill the login form, so we
-  // can't hide it here — but record every fetch (who/when) for accountability
-  // / incident response (the value works for ALL members and outlives a
-  // session). A proper scoped impersonation-token flow would remove the need
-  // to ship this plaintext at all (follow-up).
-  console.warn(
-    `[AUDIT][master-password] fetched by admin ${session.user.id} (${
-      session.user.email ?? "?"
-    }) @ ${new Date().toISOString()}`,
+  return NextResponse.json(
+    { error: "Deprecated. Use POST /api/admin/impersonate." },
+    { status: 410 },
   );
-
-  return NextResponse.json({ masterPassword });
 }

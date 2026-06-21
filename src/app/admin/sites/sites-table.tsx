@@ -40,7 +40,6 @@ export default function SitesTable({
   perPage,
   buildUrlBase,
   showReseller,
-  useImpersonateApi,
 }: {
   sites: SiteRow[];
   totalCount: number;
@@ -49,11 +48,6 @@ export default function SitesTable({
   perPage: number;
   buildUrlBase: string;
   showReseller: boolean;
-  // Reseller operators can't fetch the master password (ADMIN-only). For them
-  // the "Login" button instead calls the impersonate API, which mints a scoped
-  // session (own attributed MEMBER only) without exposing any password. Full
-  // admins keep the master-password new-tab flow.
-  useImpersonateApi: boolean;
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
@@ -270,7 +264,12 @@ export default function SitesTable({
                       복제
                     </button>
                     {/* Login / 로그인정보 복제 — 현재 미작동, 숨김 (추후 개선) */}
-                    {SHOW_LOGIN_TOOLS && (useImpersonateApi ? (
+                    {/* Impersonation: ALWAYS via the scoped token flow (POST
+                        /api/admin/impersonate). Both full admins and reseller
+                        operators use it — no plaintext master password is ever
+                        shipped to the browser. Stop via the ImpersonationBanner
+                        (DELETE restores the original admin/reseller session). */}
+                    {SHOW_LOGIN_TOOLS && (
                       <button
                         onClick={() => impersonate(site)}
                         disabled={loggingIn === site.id}
@@ -278,29 +277,7 @@ export default function SitesTable({
                       >
                         {loggingIn === site.id ? "..." : "Login"}
                       </button>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          // Mark impersonation for the banner to pick up, then
-                          // open /login in a new tab — the login page will
-                          // fetch the master password from /api/admin/master-password
-                          // (admin session only) and auto-fill.
-                          try {
-                            localStorage.setItem("impersonating", site.email);
-                          } catch {
-                            /* ignore storage errors (e.g. Safari private mode) */
-                          }
-                          window.open(
-                            `/login?email=${encodeURIComponent(site.email)}`,
-                            "_blank",
-                            "noopener"
-                          );
-                        }}
-                        className="bg-amber-500 text-white px-3 py-1 rounded text-xs font-medium hover:bg-amber-600 ml-1"
-                      >
-                        Login
-                      </button>
-                    ))}
+                    )}
                     {SHOW_LOGIN_TOOLS && (
                     <button
                       onClick={() => {
