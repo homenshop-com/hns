@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { encryptJson } from "@/lib/secrets";
 import { canAccessIntegrations } from "@/lib/feature-flags";
+import { signState } from "@/lib/oauth-state";
 
 /**
  * POST /api/integrations/shopify/install
@@ -110,7 +111,9 @@ export async function POST(request: NextRequest) {
 
   const scopes = process.env.SHOPIFY_SCOPES || "read_orders,read_products";
   const redirectUri = `${request.nextUrl.origin}/api/integrations/shopify/callback`;
-  const state = encodeURIComponent(`integrationId=${placeholderId}`);
+  // Sign the state so the callback can't be forged with another user's
+  // integrationId (CSRF → token injection into a victim's integration row).
+  const state = encodeURIComponent(signState(`integrationId=${placeholderId}`));
   const url =
     `https://${normalizedShop}/admin/oauth/authorize` +
     `?client_id=${apiKey}` +

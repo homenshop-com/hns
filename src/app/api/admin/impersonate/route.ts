@@ -1,7 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { encode } from "next-auth/jwt";
+import { encode, decode } from "next-auth/jwt";
 import { getAdminAccess } from "@/lib/admin-access";
+
+/** Decode a session JWT, trying both Auth.js salt forms (secure cookie name
+ *  and the base name) so a valid token validates regardless of cookie prefix. */
+async function decodeSession(token: string, isSecure: boolean) {
+  const secret = process.env.AUTH_SECRET!;
+  const salts = isSecure
+    ? ["__Secure-authjs.session-token", "authjs.session-token"]
+    : ["authjs.session-token"];
+  for (const salt of salts) {
+    try {
+      const p = await decode({ token, secret, salt });
+      if (p) return p;
+    } catch {
+      /* try next salt */
+    }
+  }
+  return null;
+}
 
 function getBaseUrl(request: NextRequest): string {
   const forwardedHost = request.headers.get("x-forwarded-host");
@@ -95,6 +113,23 @@ export async function DELETE(request: NextRequest) {
   const adminToken = request.cookies.get("admin-session-backup")?.value;
   if (!adminToken) {
     return NextResponse.json({ error: "No admin session to restore" }, { status: 400 });
+  }
+
+  // SECURITY: validate the backup token BEFORE re-installing it as the live
+  // session. Without this, an attacker-supplied `admin-session-backup` cookie
+  // would be set verbatim as the session token. Decode with AUTH_SECRET and
+  // require a privileged role so only a genuine ADMIN/RESELLER session can be
+  // restored (a forged/tampered value is rejected and the cookies cleared).
+  const payload = await decodeSession(adminToken, isSecure);
+  const role = payload?.role as string | undefined;
+  if (!payload || (role !== "ADMIN" && role !== "RESELLER")) {
+    const bad = NextResponse.json(
+      { error: "Invalid admin session" },
+      { status: 403 },
+    );
+    bad.cookies.delete("admin-session-backup");
+    bad.cookies.delete("impersonating");
+    return bad;
   }
 
   const response = NextResponse.json({ ok: true, redirectUrl: `${baseUrl}/admin/sites` });

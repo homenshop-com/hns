@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { encryptJson } from "@/lib/secrets";
 import { shopifyAdapter } from "@/lib/marketplaces/shopify";
+import { verifyState } from "@/lib/oauth-state";
 
 /**
  * Shopify OAuth callback handler.
@@ -27,7 +28,17 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "missing code/shop" }, { status: 400 });
   }
 
-  const integrationIdMatch = decodeURIComponent(state).match(/integrationId=([\w-]+)/);
+  // Verify the HMAC-signed state before trusting its integrationId. An
+  // unsigned/forged state would let an attacker point the OAuth callback at
+  // another user's integration row and inject their shop's access token.
+  const verified = verifyState(decodeURIComponent(state));
+  if (!verified) {
+    return NextResponse.json(
+      { error: "invalid or unsigned state" },
+      { status: 400 },
+    );
+  }
+  const integrationIdMatch = verified.match(/integrationId=([\w-]+)/);
   const integrationId = integrationIdMatch?.[1];
   if (!integrationId) {
     return NextResponse.json(
