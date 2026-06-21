@@ -1305,6 +1305,19 @@ export default function DesignEditor({
       // page for this device, so counting them would inflate #hns_body's
       // min-height and leave a large empty gap before the footer.
       if (child.hasAttribute("data-de-hidden")) continue;
+      // Skip elements parked ENTIRELY off the right edge of the canvas (e.g.
+      // per-device / mobile-only content positioned at left ≥ canvas width on
+      // desktop, or stray off-screen pastes). They aren't visible in this
+      // layout, but their (often large) `top` would otherwise inflate
+      // #hns_body's min-height and leave a huge empty gap before the footer.
+      const cw = bodyEl.offsetWidth;
+      if (cw > 0) {
+        const left =
+          parseInt(child.style.left) ||
+          parseInt(window.getComputedStyle(child).left) ||
+          0;
+        if (left >= cw) continue;
+      }
       const top = parseInt(child.style.top) || parseInt(window.getComputedStyle(child).top) || 0;
       const height = child.offsetHeight || 0;
       maxBottom = Math.max(maxBottom, top + height);
