@@ -96,10 +96,14 @@ export async function GET(request: NextRequest) {
   // Legacy: pre-migration siteId-keyed folder (cuid). Merge so old URLs
   // still surface in the asset picker until the migration script runs.
   await collect(legacySiteDir, `${UPLOAD_URL}/site-uploads/${site.id}`);
-  // Legacy fallback: unscoped uploads only if nothing else found.
-  if (items.length === 0) {
-    await collect(legacyDir, `${UPLOAD_URL}/site-uploads`);
-  }
+  // NOTE: we intentionally do NOT fall back to the shared, unscoped
+  // `{UPLOAD_DIR}/site-uploads/` root. Loose pre-scoping image files there
+  // belong to arbitrary users and cannot be attributed to this site, so
+  // scanning it leaked OTHER accounts' uploads into this site's asset
+  // library when the site's own folder was empty. An empty site now shows
+  // an empty library — never another user's files. (`legacyDir` kept above
+  // only as the documented parent path; deliberately unused.)
+  void legacyDir;
 
   items.sort((a, b) => b.mtime - a.mtime);
   return NextResponse.json({ items: items.slice(0, limit) });
