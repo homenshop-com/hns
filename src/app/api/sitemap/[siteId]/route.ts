@@ -24,7 +24,10 @@ export async function GET(
     },
   });
 
-  if (!site) {
+  // Only published sites get a public sitemap. Without the `published` gate,
+  // an unpublished/draft site's page slugs + structure were enumerable
+  // pre-launch by anyone who knew/guessed the siteId.
+  if (!site || !site.published) {
     return NextResponse.json({ error: "Site not found" }, { status: 404 });
   }
 

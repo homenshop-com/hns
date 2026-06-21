@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
 import { confirmPayment } from "@/lib/payments";
 import { prisma } from "@/lib/db";
 import { grantCredits } from "@/lib/credits";
@@ -28,6 +29,16 @@ export async function POST(request: NextRequest) {
         { error: "주문을 찾을 수 없습니다." },
         { status: 404 }
       );
+    }
+
+    // Defense-in-depth: the real boundary is TossPayments' server-side
+    // confirm (a valid paymentKey can't be forged), but if a logged-in user
+    // confirms an order, it must be THEIR order. Skipped for guest orders
+    // (order.userId null) and unauthenticated guest-checkout flows so those
+    // are not broken.
+    const session = await auth();
+    if (order.userId && session?.user?.id && order.userId !== session.user.id) {
+      return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 });
     }
 
     // Verify the amount matches

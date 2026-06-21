@@ -40,5 +40,17 @@ export async function GET() {
     );
   }
 
+  // Audit: the master password is a platform-wide impersonation credential.
+  // The plaintext must reach the client to auto-fill the login form, so we
+  // can't hide it here — but record every fetch (who/when) for accountability
+  // / incident response (the value works for ALL members and outlives a
+  // session). A proper scoped impersonation-token flow would remove the need
+  // to ship this plaintext at all (follow-up).
+  console.warn(
+    `[AUDIT][master-password] fetched by admin ${session.user.id} (${
+      session.user.email ?? "?"
+    }) @ ${new Date().toISOString()}`,
+  );
+
   return NextResponse.json({ masterPassword });
 }
