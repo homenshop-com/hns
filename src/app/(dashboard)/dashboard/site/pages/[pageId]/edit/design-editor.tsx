@@ -4193,8 +4193,20 @@ export default function DesignEditor({
     dragEl.style.setProperty("top", `${newTop}px`, "important");
     dragEl.style.setProperty("width", `${w}px`, "important");
     dragEl.style.setProperty("height", `${h}px`, "important");
-    // Drop any temporary raised z-index that a prior canvas drag may have left.
-    dragEl.style.removeProperty("z-index");
+    // Place the relocated element ON TOP of the existing header content.
+    // Header objects use explicit z-index (e.g. nav icons at 14); dropping the
+    // moved element to the default 0 hides it BEHIND the header background /
+    // menu-bar image — it renders in the editor but is occluded on the
+    // published page. Go one above the current header max so it stays visible.
+    {
+      let maxZ = 0;
+      headerEl.querySelectorAll<HTMLElement>(".dragable").forEach((el) => {
+        if (el === dragEl) return;
+        const z = parseInt(window.getComputedStyle(el).zIndex, 10);
+        if (!Number.isNaN(z) && z > maxZ) maxZ = z;
+      });
+      dragEl.style.setProperty("z-index", String(maxZ + 1), "important");
+    }
     // Remove the layer from the body scene by its ORIGINAL scene id (layerId),
     // which may differ from the DOM id we just ensured.
     store.remove(layerId);
@@ -4255,7 +4267,17 @@ export default function DesignEditor({
     dragEl.style.setProperty("left", `${newLeft}px`, "important");
     dragEl.style.setProperty("width", `${w}px`, "important");
     dragEl.style.setProperty("height", `${h}px`, "important");
-    dragEl.style.removeProperty("z-index");
+    // Place on top of existing footer content (see header path) so a moved
+    // element isn't occluded by absolutely-positioned footer decorations.
+    {
+      let maxZ = 0;
+      footerEl.querySelectorAll<HTMLElement>(".dragable").forEach((el) => {
+        if (el === dragEl) return;
+        const z = parseInt(window.getComputedStyle(el).zIndex, 10);
+        if (!Number.isNaN(z) && z > maxZ) maxZ = z;
+      });
+      dragEl.style.setProperty("z-index", String(maxZ + 1), "important");
+    }
     store.remove(layerId);
     let n = 0;
     footerEl.querySelectorAll<HTMLElement>(".dragable").forEach((el) => {
