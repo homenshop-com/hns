@@ -83,15 +83,23 @@ export async function sendOrderConfirmationEmail(
 export async function sendVerificationEmail(
   to: string,
   verifyLink: string,
-  name?: string
+  name?: string,
+  // White-label brand (reseller). When set, the email is branded with the
+  // reseller's name and the From display name is the reseller's — so a
+  // reseller customer never sees "homeNshop". NOTE: the From *address* stays
+  // @homenshop.com (the Resend-verified sender domain); fully sending from the
+  // reseller's own domain requires verifying it in Resend (per-reseller infra).
+  brand?: { name: string; domain: string }
 ): Promise<void> {
   try {
-    const html = await render(VerifyEmail({ verifyLink, name }));
+    const brandName = brand?.name || "homeNshop";
+    const from = brand ? `${brand.name} <noreply@homenshop.com>` : FROM_ADDRESS;
+    const html = await render(VerifyEmail({ verifyLink, name, brandName }));
 
     const { error } = await getResend().emails.send({
-      from: FROM_ADDRESS,
+      from,
       to,
-      subject: "이메일 인증 안내 - homeNshop",
+      subject: `이메일 인증 안내 - ${brandName}`,
       html,
     });
 

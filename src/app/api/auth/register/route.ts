@@ -250,9 +250,22 @@ export async function POST(req: NextRequest) {
         expires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
       },
     });
-    const baseUrl = process.env.AUTH_URL || process.env.NEXTAUTH_URL || "https://homenshop.net";
+    // White-label: a reseller-domain signup gets the verify link + branding on
+    // the reseller's own domain, never homenshop (uses the same attribution
+    // resolved above for revenue share).
+    let brand: { name: string; domain: string } | undefined;
+    if (attributedResellerId) {
+      const r = await prisma.reseller.findFirst({
+        where: { id: attributedResellerId, isActive: true },
+        select: { domain: true, siteName: true },
+      });
+      if (r) brand = { name: r.siteName, domain: r.domain };
+    }
+    const baseUrl = brand
+      ? `https://${brand.domain}`
+      : process.env.AUTH_URL || process.env.NEXTAUTH_URL || "https://homenshop.net";
     const verifyLink = `${baseUrl}/verify-email?token=${token}`;
-    sendVerificationEmail(email, verifyLink, name);
+    sendVerificationEmail(email, verifyLink, name, brand);
 
     return NextResponse.json(
       {

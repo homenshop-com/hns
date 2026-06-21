@@ -14,9 +14,15 @@ import {
 interface VerifyEmailProps {
   verifyLink: string;
   name?: string;
+  /** White-label brand name (reseller siteName). Defaults to homeNshop. */
+  brandName?: string;
 }
 
-export default function VerifyEmail({ verifyLink, name }: VerifyEmailProps) {
+export default function VerifyEmail({
+  verifyLink,
+  name,
+  brandName = "homeNshop",
+}: VerifyEmailProps) {
   return (
     <Html>
       <Head />
@@ -24,7 +30,7 @@ export default function VerifyEmail({ verifyLink, name }: VerifyEmailProps) {
       <Body style={main}>
         <Container style={container}>
           <Section style={header}>
-            <Heading style={logo}>homeNshop</Heading>
+            <Heading style={logo}>{brandName}</Heading>
           </Section>
 
           <Section style={content}>
@@ -59,7 +65,7 @@ export default function VerifyEmail({ verifyLink, name }: VerifyEmailProps) {
 
           <Section style={footer}>
             <Text style={footerText}>
-              &copy; {new Date().getFullYear()} homeNshop. All rights reserved.
+              &copy; {new Date().getFullYear()} {brandName}. All rights reserved.
             </Text>
           </Section>
         </Container>

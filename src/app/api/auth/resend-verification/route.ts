@@ -33,7 +33,7 @@ export async function POST(req: Request) {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { email: true, name: true, emailVerified: true },
+    select: { email: true, name: true, emailVerified: true, resellerId: true },
   });
 
   if (!user) {
@@ -59,9 +59,23 @@ export async function POST(req: Request) {
     },
   });
 
-  const baseUrl = process.env.AUTH_URL || process.env.NEXTAUTH_URL || "https://homenshop.net";
+  // White-label: reseller customers must get the verify link + branding on
+  // THEIR reseller domain (e.g. webnshop.com.au), never homenshop. Resolve the
+  // reseller from the user's attribution (User.resellerId) — the authoritative
+  // source, independent of which host they happen to be on.
+  let brand: { name: string; domain: string } | undefined;
+  if (user.resellerId) {
+    const r = await prisma.reseller.findFirst({
+      where: { id: user.resellerId, isActive: true },
+      select: { domain: true, siteName: true },
+    });
+    if (r) brand = { name: r.siteName, domain: r.domain };
+  }
+  const baseUrl = brand
+    ? `https://${brand.domain}`
+    : process.env.AUTH_URL || process.env.NEXTAUTH_URL || "https://homenshop.net";
   const verifyLink = `${baseUrl}/verify-email?token=${token}`;
-  await sendVerificationEmail(user.email, verifyLink, user.name || undefined);
+  await sendVerificationEmail(user.email, verifyLink, user.name || undefined, brand);
 
   return NextResponse.json({ ok: true });
 }
