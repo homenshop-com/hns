@@ -139,8 +139,11 @@ export async function PUT(request: Request) {
     pages.map((p: { id: string; sortOrder: number; parentId?: string | null }) => {
       const data: Record<string, unknown> = { sortOrder: p.sortOrder };
       if (p.parentId !== undefined) data.parentId = p.parentId;
-      return prisma.page.update({
-        where: { id: p.id },
+      // Scope by siteId too: `canManageSite` only proved the caller owns
+      // `siteId`, not that each `p.id` belongs to it. Without this filter a
+      // user could pass another site's page IDs and reorder/reparent them.
+      return prisma.page.updateMany({
+        where: { id: p.id, siteId },
         data,
       });
     })

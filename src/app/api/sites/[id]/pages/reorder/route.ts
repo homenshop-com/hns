@@ -49,8 +49,11 @@ export async function PUT(
   // 트랜잭션으로 일괄 업데이트
   await prisma.$transaction(
     items.map((item) =>
-      prisma.page.update({
-        where: { id: item.id },
+      // Scope by site id: canManageSite(id) only proved ownership of THIS
+      // site, not that item.id belongs to it. updateMany with the siteId
+      // filter prevents reordering another site's pages via spoofed IDs.
+      prisma.page.updateMany({
+        where: { id: item.id, siteId: id },
         data: {
           sortOrder: item.sortOrder,
           parentId: item.parentId,

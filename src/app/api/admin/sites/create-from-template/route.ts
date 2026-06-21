@@ -58,6 +58,8 @@ export async function POST(request: Request) {
     templateId,
     shopId,
     defaultLanguage,
+    // Admin-gated route: allowed to instantiate any template (incl. private).
+    allowPrivate: true,
   });
 
   if (!result.ok) {

@@ -81,7 +81,10 @@ export async function PUT(
         return NextResponse.json({ error: "Cannot be own parent" }, { status: 400 });
       }
       const parent = await prisma.page.findUnique({ where: { id: body.parentId } });
-      if (!parent || parent.parentId) {
+      // parent must exist, be top-level, AND belong to the SAME site — without
+      // the same-site check a page could be reparented under another user's
+      // site page (cross-site IDOR).
+      if (!parent || parent.parentId || parent.siteId !== page.siteId) {
         return NextResponse.json({ error: "Invalid parent (max 2-depth)" }, { status: 400 });
       }
       updateData.parentId = body.parentId;

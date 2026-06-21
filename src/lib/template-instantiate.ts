@@ -38,6 +38,9 @@ export async function instantiateSiteFromTemplate(opts: {
   templateId: string;
   shopId: string;
   defaultLanguage?: string;
+  /** Admin callers may instantiate any template (including another user's
+   *  private one). User-facing callers MUST leave this false/undefined. */
+  allowPrivate?: boolean;
 }): Promise<InstantiateResult> {
   const { userId, templateId, shopId } = opts;
 
@@ -57,6 +60,14 @@ export async function instantiateSiteFromTemplate(opts: {
   const template = await prisma.template.findUnique({ where: { id: templateId } });
   if (!template || !template.isActive) {
     return { ok: false, status: 404, error: "Template not found" };
+  }
+  // Access control: only PUBLIC (system/marketplace) templates or the caller's
+  // OWN template may be instantiated. Without this, any authenticated user could
+  // clone another account's PRIVATE save-from-site template — which snapshots
+  // that site's full page HTML/CSS plus linked board/product rows. Admin route
+  // passes allowPrivate for legitimate cross-account use.
+  if (!opts.allowPrivate && !template.isPublic && template.userId !== userId) {
+    return { ok: false, status: 403, error: "이 템플릿을 사용할 권한이 없습니다." };
   }
 
   // DB-backed CSS wins; fall back to legacy disk default.css for factory templates.
