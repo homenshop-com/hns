@@ -1514,7 +1514,9 @@ export default function DesignEditor({
         // ~1000–2000px below the desktop content right after Save. Re-apply the
         // desktop body height. (A non-desktop editing device re-restores its own
         // height at the saveDevice block below, overriding this.)
-        applyBodyHeight(bodyLayoutHeights.desktop, { device: "desktop" });
+        applyBodyHeight(bodyLayoutHeights.desktop ?? measureBodyContentHeight(), {
+          device: "desktop",
+        });
       }
       // Plugins (boardPlugin/productPlugin/…) are CSS-governed: their real
       // size lives in the page CSS real-size rule (+ device `@media`).
