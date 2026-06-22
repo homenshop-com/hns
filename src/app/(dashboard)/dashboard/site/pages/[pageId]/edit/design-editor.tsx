@@ -2589,6 +2589,22 @@ export default function DesignEditor({
           setGeom(r.el, "height", Math.max(20, r.origHeight - dy) + "px", rimp);
           setGeom(r.el, "top", (r.origTop + dy) + "px", rimp);
         }
+        // Image-anchor boxes (logo, menu-bar image, …): a global rule pins the
+        // inner <img> to `max-width:100%; height:auto` (responsive), so the
+        // box's HEIGHT change has NO effect on the image — only width "works".
+        // Make the image FILL the box so both dimensions of the resize apply:
+        //  • width/height:100% (inline !important beats the #hns_h_logo
+        //    height:auto rule and the `.dragable img` responsive rule);
+        //  • object-fit opts the img out of the `img:not([style*="object-fit"])`
+        //    responsive selectors. Preserve an existing object-fit if set.
+        const rimg = r.el.querySelector("img");
+        if (rimg instanceof HTMLImageElement) {
+          rimg.style.setProperty("width", "100%", "important");
+          rimg.style.setProperty("height", "100%", "important");
+          if (!rimg.style.objectFit) {
+            rimg.style.setProperty("object-fit", "fill", "important");
+          }
+        }
         if (bodyRef.current?.contains(r.el)) scheduleBodyHeightSync();
       }
     }
