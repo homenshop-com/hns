@@ -1292,7 +1292,7 @@ export default function DesignEditor({
     reloadBalance();
   }, [reloadBalance]);
 
-  const measureBodyContentHeight = useCallback(() => {
+  const measureBodyContentHeight = useCallback((padding = BODY_BOTTOM_PADDING) => {
     const bodyEl = bodyRef.current;
     if (!bodyEl) return BODY_MIN_HEIGHT_FLOOR;
     let maxBottom = 0;
@@ -1322,7 +1322,7 @@ export default function DesignEditor({
       const height = child.offsetHeight || 0;
       maxBottom = Math.max(maxBottom, top + height);
     }
-    return Math.max(BODY_MIN_HEIGHT_FLOOR, Math.ceil(maxBottom + BODY_BOTTOM_PADDING));
+    return Math.max(BODY_MIN_HEIGHT_FLOOR, Math.ceil(maxBottom + padding));
   }, []);
 
   const applyBodyHeight = useCallback((height: number, opts?: { manual?: boolean; device?: ViewportMode }) => {
@@ -1345,9 +1345,15 @@ export default function DesignEditor({
     const bodyEl = bodyRef.current;
     if (!bodyEl) return;
     const device = opts?.device ?? useEditorStore.getState().viewportMode;
-    const contentHeight = measureBodyContentHeight();
     const manualHeight = opts?.manualHeight ?? bodyManualMinHeightRef.current[device] ?? 0;
-    applyBodyHeight(Math.max(contentHeight, manualHeight), {
+    // Floor: with NO manual override, hug content + the default 80px buffer
+    // (auto-fit look). Once the user has MANUALLY set a body height (drag handle
+    // / 최소 높이 입력), floor only at the RAW content bottom (no buffer) so they
+    // can pull the body↔footer gap down to ~0 and it WON'T bounce back to
+    // content+80 on the next sync.
+    const floor =
+      manualHeight > 0 ? measureBodyContentHeight(0) : measureBodyContentHeight();
+    applyBodyHeight(Math.max(floor, manualHeight), {
       manual: opts?.manualHeight !== undefined,
       device,
     });
@@ -2492,8 +2498,11 @@ export default function DesignEditor({
       if (bodyResizeRef.current) {
         const scale = getCanvasScale();
         const dy = (clientY - bodyResizeRef.current.startY) / scale;
+        // Manual drag floors at the RAW content bottom (no +80 buffer) so the
+        // user can drag the body↔footer gap down to ~0. (The auto-fit default
+        // still adds the 80px buffer when no manual height is set.)
         const next = Math.max(
-          measureBodyContentHeight(),
+          measureBodyContentHeight(0),
           bodyResizeRef.current.startHeight + dy,
         );
         applyBodyHeight(next, { manual: true, device: useEditorStore.getState().viewportMode });
