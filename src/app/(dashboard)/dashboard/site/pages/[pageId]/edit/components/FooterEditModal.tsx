@@ -22,6 +22,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import { parseFooterStyle, applyFooterStyleToDom } from "../shared/footer-style";
 
 interface Props {
   siteId: string;
@@ -222,27 +223,45 @@ export default function FooterEditModal({
     );
   };
 
-  /* ── 4. Footer style — height / background, persist via inline style.
-   *      Footer rarely needs sticky/managed CSS block, so we keep this
-   *      simple: edit footer's own inline style. The save flow captures
-   *      the wrapping element's outerHTML, so inline style persists.
-   */
-  const [height, setHeight] = useState<string>(() => footerRef.current?.style.minHeight ?? "");
-  const [bg, setBg] = useState<string>(() => footerRef.current?.style.background ?? "");
+  /* ── 4. Footer style — height / background.
+   *      IMPORTANT: the HMF save reads footerRef.innerHTML (the CHILDREN), not
+   *      the #hns_footer element's own inline style — so writing min-height /
+   *      background to `fEl.style.*` was a live-preview that NEVER persisted
+   *      (reverted on reload/publish). Persist via the managed
+   *      `<style data-hns-footer>` block (a CHILD of #hns_footer → in
+   *      innerHTML → saved), the SAME system as the right-panel 푸터 설정. We
+   *      edit the desktop base here; per-device overrides remain available in
+   *      the right panel. */
+  const initFooterStyle = () =>
+    parseFooterStyle(footerRef.current?.innerHTML ?? "");
+  const [height, setHeight] = useState<string>(() => {
+    const mh = initFooterStyle().desktop.minHeight;
+    return mh > 0 ? String(mh) : "";
+  });
+  const [bg, setBg] = useState<string>(() => initFooterStyle().desktop.background ?? "");
 
   const applyHeight = (v: string) => {
     setHeight(v);
     const fEl = footerRef.current;
     if (!fEl) return;
-    if (v && v !== "auto") fEl.style.minHeight = v;
-    else fEl.style.removeProperty("min-height");
+    const style = parseFooterStyle(fEl.innerHTML);
+    const n = parseInt(v, 10);
+    style.desktop = {
+      ...style.desktop,
+      minHeight: v && v !== "auto" && Number.isFinite(n) && n > 0 ? n : 0,
+    };
+    applyFooterStyleToDom(fEl, style, "desktop");
   };
   const applyBg = (v: string) => {
     setBg(v);
     const fEl = footerRef.current;
     if (!fEl) return;
-    if (v && v !== "transparent") fEl.style.background = v;
-    else fEl.style.removeProperty("background");
+    const style = parseFooterStyle(fEl.innerHTML);
+    style.desktop = {
+      ...style.desktop,
+      background: v && v !== "transparent" ? v : "",
+    };
+    applyFooterStyleToDom(fEl, style, "desktop");
   };
 
   /* ── 5. Reset ── */
