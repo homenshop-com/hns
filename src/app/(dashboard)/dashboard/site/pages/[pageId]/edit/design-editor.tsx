@@ -1476,9 +1476,17 @@ export default function DesignEditor({
       const captureCurrentBodyHeight = (device: ViewportMode) => {
         if (!bodyEl) return;
         syncBodyHeight({ device });
+        const manual = bodyManualMinHeightRef.current[device] ?? 0;
+        // Floor the saved body height at the content bottom so the footer never
+        // overlaps content. BUT when the user has MANUALLY shrunk the body (drag
+        // handle / 최소 높이), floor at the RAW content bottom (no +80 buffer) —
+        // otherwise the save re-inflates the body↔footer gap back to content+80
+        // and the footer drops below the gray area again on every save.
+        const contentFloor =
+          manual > 0 ? measureBodyContentHeight(0) : measureBodyContentHeight();
         bodyLayoutHeights[device] = Math.max(
-          measureBodyContentHeight(),
-          bodyManualMinHeightRef.current[device] ?? 0,
+          contentFloor,
+          manual,
           parseInt(bodyEl.style.minHeight) || bodyEl.offsetHeight || 0,
         );
       };
