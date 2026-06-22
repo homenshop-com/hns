@@ -1505,6 +1505,16 @@ export default function DesignEditor({
           captureCurrentBodyHeight(dev);
         }
         syncStoreToDom(useEditorStore.getState().scene, bodyEl, "desktop");
+        // CRITICAL: the loop above measured tablet THEN mobile, leaving
+        // bodyEl.style.minHeight at the MOBILE height (often far taller than
+        // desktop). syncStoreToDom restores element POSITIONS but not the body
+        // min-height. When the editing device IS desktop, the non-desktop
+        // restore below (saveDevice !== "desktop") is skipped — so without this
+        // the live canvas keeps the mobile min-height and the footer jumps
+        // ~1000–2000px below the desktop content right after Save. Re-apply the
+        // desktop body height. (A non-desktop editing device re-restores its own
+        // height at the saveDevice block below, overriding this.)
+        applyBodyHeight(bodyLayoutHeights.desktop, { device: "desktop" });
       }
       // Plugins (boardPlugin/productPlugin/…) are CSS-governed: their real
       // size lives in the page CSS real-size rule (+ device `@media`).
