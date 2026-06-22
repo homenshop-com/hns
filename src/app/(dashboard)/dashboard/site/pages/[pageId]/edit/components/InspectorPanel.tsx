@@ -437,10 +437,15 @@ function DesignTab({
       );
     }
 
-    /* Nothing selected → page-region settings: BODY + FOOTER (background /
-       height) + a hint that selecting an object shows its properties. */
+    /* Nothing selected → page-region settings: HEADER + BODY + FOOTER
+       (background / height) + a hint that selecting an object shows its
+       properties. Header settings are SITE-WIDE (all pages), mirroring footer. */
     return (
       <>
+        <HeaderSettingsPanel
+          headerLayout={headerLayout}
+          onApply={onApplyHeaderLayout}
+        />
         <BodySettingsPanel onApply={onApplyBodyLayout} />
         <FooterSettingsPanel footerStyle={footerStyle} onApply={onApplyFooterLayout} />
         <div className="ins-empty-sub" style={{ padding: "0 16px", marginTop: 12 }}>
@@ -2205,6 +2210,62 @@ function GoogleMapSection({ layerId }: { layerId: string }) {
           Google 지도에서 ‘공유 → 지도 퍼가기(iframe)’ 코드를 붙여넣으면 상세 카드가
           표시됩니다. 주소만 입력하면 기본 지도가 표시됩니다.
         </span>
+      </div>
+    </Section>
+  );
+}
+
+/* ─── Header settings panel (2026-06-13) ────────────────────────────────
+ * Shown in the Design tab when nothing is selected, ABOVE the body/footer
+ * panels (matches page order). Controls the site header (#hns_header):
+ * background color + min-height + sticky — SITE-WIDE (all pages, persisted via
+ * the HNS-HEADER-LAYOUT pageCss block by applyHeaderLayout). Mirrors the
+ * footer panel so the header is no longer the only region without settings. */
+function HeaderSettingsPanel({
+  headerLayout,
+  onApply,
+}: {
+  headerLayout?: HmfHeaderLayout;
+  onApply?: (next: HmfHeaderLayout) => void;
+}) {
+  const layout = headerLayout ?? { sticky: false, height: "auto", background: "" };
+  const heightPx =
+    layout.height && layout.height !== "auto" ? parseInt(layout.height, 10) || 0 : 0;
+  return (
+    <Section title="헤더 설정">
+      <SwatchEditor
+        label="배경색"
+        value={layout.background || "#ffffff"}
+        onChange={(v) => onApply?.({ ...layout, background: v })}
+      />
+      <div className="ins-prop-row" style={{ marginTop: 8 }}>
+        <TextField
+          label="최소 높이(px)"
+          value={heightPx > 0 ? String(heightPx) : ""}
+          placeholder="자동"
+          onCommit={(v) => {
+            const n = parseInt(v, 10);
+            onApply?.({
+              ...layout,
+              height: Number.isFinite(n) && n > 0 ? `${n}px` : "auto",
+            });
+          }}
+          wide
+        />
+      </div>
+      <div className="ins-prop-row" style={{ marginTop: 8 }}>
+        <label className="ins-device-toggle" style={{ cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={layout.sticky}
+            onChange={(e) => onApply?.({ ...layout, sticky: e.target.checked })}
+          />
+          <span>상단 고정 (sticky)</span>
+        </label>
+      </div>
+      <div className="ins-hmf-notice" style={{ marginTop: 8 }}>
+        <i className="fa-solid fa-circle-info" aria-hidden />
+        <span>헤더 배경·높이는 모든 페이지에 공통 적용됩니다.</span>
       </div>
     </Section>
   );
