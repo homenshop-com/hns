@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { canManageSite } from "@/lib/site-access";
 import { randomBytes } from "crypto";
 import { Prisma } from "@/generated/prisma/client";
 
@@ -65,7 +66,13 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  if (!site || site.userId !== session.user.id) {
+  // Access via the manage scope, not strict owner: a reseller operator
+  // managing this customer (their attributed member) must be able to save the
+  // managed site as a template too — previously this threw "Not found" for
+  // resellers. The new template + its hidden clone are created under
+  // session.user.id below, so it lands in the acting user's own library
+  // ("나의 템플릿"). canManageSite scopes a reseller to their own customers.
+  if (!site || !(await canManageSite(siteId))) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
   if (site.isTemplateStorage) {
