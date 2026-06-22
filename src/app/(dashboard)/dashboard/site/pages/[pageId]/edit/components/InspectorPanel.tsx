@@ -1013,7 +1013,12 @@ function ArrangeSection({ layer, disabled }: { layer: Layer; disabled: boolean }
   };
   const apply = (z: number) => {
     if (disabled) return;
-    setStyle(layer.id, { zIndex: Math.round(z) });
+    // Clamp to >= 0 (HMF contract). A NEGATIVE z-index escapes the header/body
+    // root stacking context and paints BEHIND the page body — e.g. "맨 뒤로" on a
+    // menu background bar set z-index:-1, which rendered fine in the editor but
+    // vanished under the hero image on the published page. front/back/raw-input
+    // all route through here, so this guards every path.
+    setStyle(layer.id, { zIndex: Math.max(0, Math.round(z)) });
   };
   const toFront = () => {
     const sib = siblingZ();
