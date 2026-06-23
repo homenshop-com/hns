@@ -1385,6 +1385,17 @@ body:has(.inspector-rail) .de-canvas-wrapper {
   border-bottom: 1px solid var(--fig-line);
   pointer-events: none;
 }
+/* The canvas wrapper carries `padding-left: 240px` to make room for the left
+   palette. Absolute rulers are positioned against the wrapper's PADDING BOX, so
+   `left: 0` (the vertical ruler + corner) lands at the FAR LEFT — UNDER the
+   palette — and is invisible. Shift them to the content-left (= padding-left)
+   so the vertical ruler is visible, mirroring the same `:has()` condition that
+   sets the padding. The horizontal ruler spans `right:0` so its visible part is
+   already correct. */
+body:has(.leftpalette-rail) .de-ruler-v,
+body:has(.leftpalette-rail) .de-ruler-corner {
+  left: 240px;
+}
 /* Mobile preview shrinks rulers (phone frame doesn't need ruler overlap) */
 .de-canvas-wrapper.mobile-preview .de-ruler,
 .de-canvas-wrapper.mobile-preview .de-ruler-corner { display: none; }
