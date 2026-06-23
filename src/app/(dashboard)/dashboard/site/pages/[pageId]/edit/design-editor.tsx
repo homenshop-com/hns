@@ -48,6 +48,7 @@ import {
   escapeHtml,
   stripPinnedGeometryCss,
   collectSceneGeometryOwners,
+  updatePluginRealSizeCss,
   collectInlineGeometryOwners,
 } from "./shared/css-utils";
 // HMF (header/menu/footer) per-device positioning. HMF is raw-injected (not
@@ -1608,6 +1609,29 @@ export default function DesignEditor({
           : base;
       }
       if (bodyEl) finalPageCss = upsertBodyLayoutCss(finalPageCss, bodyLayoutHeights);
+      if (v2Scene) {
+        // Sync each plugin's base "real-size" CSS rule to its desktop frame.
+        // Plugins are sized by that CSS rule (not inline) — the editor + parser
+        // read the plugin's geometry from it — but resizing only updates the
+        // frame/inline, leaving the rule stale so the plugin snaps back to its
+        // old size on reload ("게시판2 리사이즈 후 풀폭 복귀"). Walk the saved
+        // desktop scene and rewrite the matching rule's left/top/width/height.
+        const pluginFrames = new Map<
+          string,
+          { x: number; y: number; w: number; h: number }
+        >();
+        const PLUGIN_TYPES = new Set(["board", "product", "exhibition", "menu", "login", "mail"]);
+        const collect = (node: { id?: string; type?: string; frame?: { x: number; y: number; w: number; h: number }; children?: unknown[] }) => {
+          if (node.id && node.type && PLUGIN_TYPES.has(node.type) && node.frame) {
+            pluginFrames.set(node.id, node.frame);
+          }
+          if (Array.isArray(node.children)) {
+            for (const c of node.children) collect(c as typeof node);
+          }
+        };
+        collect(v2Scene.root as unknown as Parameters<typeof collect>[0]);
+        finalPageCss = updatePluginRealSizeCss(finalPageCss, pluginFrames);
+      }
       const cssChanged = finalPageCss !== pageCss;
 
       // Save page body + CSS

@@ -130,6 +130,75 @@ export function stripPinnedGeometryCss(
 }
 
 /**
+ * Update a PLUGIN's base-level "real-size" CSS rule to match its scene frame.
+ *
+ * Plugins (board slideshow hero, product grid, …) are sized by their per-page
+ * CSS rule, NOT inline (see PLUGIN_LAYER_TYPES / the geometry-strip exclusion):
+ * the parser reads a plugin's desktop geometry from this rule, and the editor —
+ * which simulates devices instead of applying the device `@media` — renders the
+ * plugin from it too. But that rule is hand-authored at migration time and is
+ * never touched on resize, so resizing a plugin updates the frame + inline yet
+ * the stale CSS rule snaps it back to the old size on reload/publish
+ * ("게시판2 리사이즈 후 저장하면 풀폭 복귀"). Rewrite the rule's
+ * left/top/width/height from the frame so the single source the plugin actually
+ * uses stays in sync.
+ *
+ * Scope: only TOP-LEVEL rules (never inside `@media` — device overrides keep
+ * their own rules) whose selector is exactly `#id` for a plugin id AND that
+ * already declare `width`+`height` with `!important` (the real-size rule — the
+ * tiny placeholder rule has no `!important`, so it's left alone).
+ */
+export function updatePluginRealSizeCss(
+  css: string,
+  frames: Map<string, { x: number; y: number; w: number; h: number }>,
+): string {
+  if (frames.size === 0 || !css) return css;
+  let out = "";
+  let i = 0;
+  const n = css.length;
+  const setDecl = (block: string, prop: string, value: string): string => {
+    const re = new RegExp(`(^|;)(\\s*)${prop}\\s*:[^;}]*`, "i");
+    if (re.test(block)) return block.replace(re, `$1$2${prop}: ${value} !important`);
+    return `${block.replace(/;\s*$/, "")};${prop}: ${value} !important`;
+  };
+  while (i < n) {
+    const braceIdx = css.indexOf("{", i);
+    if (braceIdx === -1) { out += css.slice(i); break; }
+    const selForMatch = css.slice(i, braceIdx).replace(/\/\*[\s\S]*?\*\//g, "").trim();
+    if (selForMatch.startsWith("@")) {
+      let depth = 0;
+      let j = braceIdx;
+      for (; j < n; j++) {
+        if (css[j] === "{") depth++;
+        else if (css[j] === "}") { depth--; if (depth === 0) { j++; break; } }
+      }
+      out += css.slice(i, j);
+      i = j;
+      continue;
+    }
+    let closeIdx = css.indexOf("}", braceIdx);
+    if (closeIdx === -1) closeIdx = n - 1;
+    const m = /^#([A-Za-z0-9_-]+)$/.exec(selForMatch);
+    const frame = m ? frames.get(m[1]!) : undefined;
+    const block = css.slice(braceIdx + 1, closeIdx);
+    const isRealSize =
+      /(?:^|;)\s*width\s*:\s*[\d.]+px\s*!important/i.test(block) &&
+      /(?:^|;)\s*height\s*:\s*[\d.]+px\s*!important/i.test(block);
+    if (frame && isRealSize) {
+      let nb = setDecl(block, "left", `${frame.x}px`);
+      nb = setDecl(nb, "top", `${frame.y}px`);
+      nb = setDecl(nb, "width", `${frame.w}px`);
+      nb = setDecl(nb, "height", `${frame.h}px`);
+      out += `${css.slice(i, braceIdx)}{${nb}}`;
+    } else {
+      out += css.slice(i, closeIdx + 1);
+    }
+    i = closeIdx + 1;
+  }
+  return out;
+}
+
+/**
  * Strip the `!important` flag from INLINE geometry declarations
  * (position/left/top/width/height) inside HTML `style="…"` attributes,
  * preserving each value.

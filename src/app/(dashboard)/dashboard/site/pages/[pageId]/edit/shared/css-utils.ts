@@ -34,6 +34,7 @@ export {
   stripPinnedGeometryCss,
   collectInlineGeometryOwners,
   collectSceneGeometryOwners,
+  updatePluginRealSizeCss,
 } from "@/lib/scene";
 
 /** Escape a string for safe interpolation into HTML text/attribute. */

@@ -19,6 +19,7 @@ export {
   collectInlineGeometryOwners,
   collectSceneGeometryOwners,
   stripInlineGeometryImportant,
+  updatePluginRealSizeCss,
 } from "./geometry-strip";
 export { stripFooterPinnedTop } from "./footer-flow";
 export {
