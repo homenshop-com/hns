@@ -392,7 +392,17 @@ function scrubDescendantTypography(el: HTMLElement, layer: Layer) {
  *  SKIPPED so the editor opens in an identical visual state to the
  *  published page. The WeakMap is still seeded with the initial values so
  *  subsequent user-driven changes can detect a real delta. */
-type SyncOpts = { isInitialLoad?: boolean };
+type SyncOpts = {
+  isInitialLoad?: boolean;
+  /** Re-apply each layer's FRAME geometry (left/top/width/height) to the DOM.
+   *  Normally HMF geometry is owned by the live drag (so the property sync
+   *  never overwrites an in-progress move), but UNDO/REDO must push the
+   *  reverted scene geometry back onto the raw-injected header/footer DOM —
+   *  there's no live drag then. Off by default to preserve the live-drag rule. */
+  applyGeometry?: boolean;
+  /** Device to resolve the frame cascade against when applyGeometry is set. */
+  geometryDevice?: DeviceMode;
+};
 
 /** Apply the scene's typography / fill / border / effect tokens to a
  *  DOM node so Inspector edits show immediately on the canvas. Mirrors
@@ -909,6 +919,9 @@ export function syncHeaderSceneToDom(
     const el = headerEl.querySelector<HTMLElement>(`#${CSS.escape(id)}`);
     if (!el) return;
     applyStyleToEl(el, layer, opts);
+    // UNDO/REDO geometry re-apply (opt-in) — push the reverted frame back onto
+    // the DOM, since the live-drag path normally owns HMF geometry.
+    if (opts?.applyGeometry) applyFrameToEl(el, layer, opts.geometryDevice ?? "desktop");
     applyInteractionToEl(el, layer);
     applyImageDataToEl(el, layer);
   });

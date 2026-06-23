@@ -468,6 +468,36 @@ export default function DesignEditor({
     (s) => s.futureStates.length > 0,
   );
 
+  // Undo/redo. The body scene→DOM subscription re-applies BODY geometry
+  // automatically, but the HMF (header/footer) sync skips geometry (it's owned
+  // by the live drag), so undoing a header/footer MOVE/RESIZE reverted the scene
+  // without moving the DOM node back — "실행취소가 안 됨". After undo/redo there's
+  // no live drag, so push the reverted header/footer geometry onto their
+  // raw-injected DOM.
+  const reapplyHmfGeometry = useCallback(() => {
+    const s = useEditorStore.getState();
+    if (headerRef.current && s.headerScene) {
+      syncHeaderSceneToDom(s.headerScene, headerRef.current, {
+        applyGeometry: true,
+        geometryDevice: s.viewportMode,
+      });
+    }
+    if (footerRef.current && s.footerScene) {
+      syncFooterSceneToDom(s.footerScene, footerRef.current, {
+        applyGeometry: true,
+        geometryDevice: s.viewportMode,
+      });
+    }
+  }, []);
+  const runUndo = useCallback(() => {
+    useEditorStore.temporal.getState().undo();
+    reapplyHmfGeometry();
+  }, [reapplyHmfGeometry]);
+  const runRedo = useCallback(() => {
+    useEditorStore.temporal.getState().redo();
+    reapplyHmfGeometry();
+  }, [reapplyHmfGeometry]);
+
   // Subscribe to viewport mode (for toolbar button highlighting + canvas width).
   const [viewportMode, setLocalViewportMode] = useState<ViewportMode>("desktop");
   useEffect(() => {
@@ -878,7 +908,7 @@ export default function DesignEditor({
       // Undo / Redo
       if (mod && !e.shiftKey && e.key.toLowerCase() === "z") {
         e.preventDefault();
-        useEditorStore.temporal.getState().undo();
+        runUndo();
         return;
       }
       if (
@@ -886,7 +916,7 @@ export default function DesignEditor({
         (mod && e.key.toLowerCase() === "y")
       ) {
         e.preventDefault();
-        useEditorStore.temporal.getState().redo();
+        runRedo();
         return;
       }
       // Group / Ungroup
@@ -4700,7 +4730,7 @@ export default function DesignEditor({
               <button
                 type="button"
                 className="de-history-btn"
-                onClick={() => useEditorStore.temporal.getState().undo()}
+                onClick={() => runUndo()}
                 disabled={!canUndo}
                 title={t("topbar.undoTitle", { shortcut: typeof navigator !== "undefined" && /Mac/.test(navigator.platform) ? "⌘Z" : "Ctrl+Z" })}
                 aria-label={t("topbar.undo")}
@@ -4713,7 +4743,7 @@ export default function DesignEditor({
               <button
                 type="button"
                 className="de-history-btn"
-                onClick={() => useEditorStore.temporal.getState().redo()}
+                onClick={() => runRedo()}
                 disabled={!canRedo}
                 title={t("topbar.redoTitle", { shortcut: typeof navigator !== "undefined" && /Mac/.test(navigator.platform) ? "⇧⌘Z" : "Ctrl+Shift+Z" })}
                 aria-label={t("topbar.redo")}
