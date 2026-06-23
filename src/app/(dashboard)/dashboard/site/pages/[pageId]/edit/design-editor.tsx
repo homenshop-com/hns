@@ -2273,15 +2273,17 @@ export default function DesignEditor({
       setSelectedElId(dragable.id);
     }
 
-    // Footer direct children are RELATIVE-FLOW (centered, stacked below the
-    // body via `#hns_footer > .dragable { position:relative; top:auto }`).
-    // Promoting one to absolute on drag rips it out of the footer — which then
-    // collapses (loses this child's height) — and pins it at its document
-    // offsetTop (relative to #v_home_dft, ~the whole page height), so it lands
-    // far BELOW the now-shorter footer ("더블클릭 시 객체가 한참 아래로 순간이동"
-    // bug, triggered by a tiny accidental move during the double-click).
-    // Selection is already set above; just skip the pixel-drag. Double-click
-    // (a separate handler) still enters text editing normally.
+    // Footer direct children are RELATIVE-FLOW by default. To make them freely
+    // draggable like HEADER objects (absolute, can leave the footer region, stay
+    // footer objects), PROMOTE this one to absolute on first drag — positioned
+    // relative to the footer (which we turn into a positioning context so the
+    // coords are footer-local, not page-local; the latter caused the old
+    // "한참 아래로 순간이동" teleport). A `data-hns-footer-free` marker opts it
+    // out of the relative-flow strip (stripFooterPinnedTop) + the
+    // `#hns_footer > .dragable:not([data-hns-footer-free])` CSS so the absolute
+    // position survives reload + publish. Un-dragged footer objects keep
+    // flowing exactly as before. Once absolute, it falls through to the normal
+    // drag path below.
     {
       const fEl = footerRef.current;
       const fpos = window.getComputedStyle(dragable).position;
@@ -2291,7 +2293,16 @@ export default function DesignEditor({
         fpos !== "absolute" &&
         fpos !== "fixed"
       ) {
-        return;
+        // Make the footer a positioning context so this object's offsetTop/Left
+        // (captured by the flow path below) are FOOTER-local, and so a later
+        // absolute pin resolves against the footer (not the whole page — the
+        // old teleport). The actual promote-to-absolute + data-hns-footer-free
+        // marker happens on the FIRST real move (handleMove), so a plain click
+        // or double-click-to-edit-text leaves the object flowing as before.
+        if (window.getComputedStyle(fEl).position === "static") {
+          fEl.style.setProperty("position", "relative", "important");
+        }
+        // fall through — drag like a body flow child
       }
     }
 
@@ -2635,6 +2646,25 @@ export default function DesignEditor({
         // jitter on trackpads.
         if (Math.abs(dx) > 2 || Math.abs(dy) > 2) dragAny.moved = true;
         if (!dragAny.moved) return;
+        // FOOTER FREE-DRAG: a footer direct child flows by default. On the FIRST
+        // real move, promote it to absolute and mark it (data-hns-footer-free) so
+        // it drags freely like a header object and keeps its position on
+        // reload/publish (the marker opts it out of stripFooterPinnedTop + the
+        // relative-flow CSS). origLeft/origTop were captured footer-local at drag
+        // start (footer is now position:relative), so it doesn't jump.
+        if (
+          footerRef.current?.contains(el) &&
+          el.parentElement === footerRef.current &&
+          !el.hasAttribute("data-hns-footer-free")
+        ) {
+          const cs = window.getComputedStyle(el);
+          if (cs.position !== "absolute" && cs.position !== "fixed") {
+            if (!el.style.width) el.style.setProperty("width", `${el.offsetWidth}px`, "important");
+            if (!el.style.height) el.style.setProperty("height", `${el.offsetHeight}px`, "important");
+            el.style.setProperty("position", "absolute", "important");
+            el.setAttribute("data-hns-footer-free", "1");
+          }
+        }
         // V2 snap (disabled with Alt). Applies a single nudge to dx/dy so
         // the whole group drags together and keeps relative offsets.
         if (dragAny.snapSiblings && dragAny.snapContainer && !(window as any).__hnsAltDown) {

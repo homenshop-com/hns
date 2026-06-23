@@ -40,6 +40,11 @@ function stripTopAndPosition(openingTag: string): string {
   if (!/\bclass\s*=\s*"(?:[^"]*\s)?dragable(?:\s[^"]*)?"/i.test(openingTag)) {
     return openingTag;
   }
+  // Objects the user explicitly dragged free of the footer flow (marked, behaving
+  // like a header object) keep their absolute top/position — don't flatten them.
+  if (/\bdata-hns-footer-free\b/i.test(openingTag)) {
+    return openingTag;
+  }
   return openingTag.replace(/\bstyle\s*=\s*"([^"]*)"/i, (_m, style: string) => {
     const cleaned = style
       // `(?:^|;)` anchors to a declaration boundary so `border-top` /

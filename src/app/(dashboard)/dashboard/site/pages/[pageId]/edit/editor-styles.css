@@ -613,7 +613,10 @@
   box-shadow: 0 2px 12px rgba(91, 229, 179, 0.45);
 }
 #de-canvas-inner #hns_footer {
-  position: static !important;
+  /* relative (no offset) keeps the footer's flow position AND makes it the
+     positioning context for objects the user dragged free (data-hns-footer-free),
+     so their absolute coords are footer-local — matches the published route. */
+  position: relative !important;
   width: 100%;
   clear: both;
   /* Default footer height (150px) — matches the published baseline. The
@@ -631,7 +634,7 @@
    this rule makes the direct .dragable children flow in document order right
    below the body — identical to the published route's matching rule. `left`
    stays inline as a relative offset. */
-#de-canvas-inner #hns_footer > .dragable {
+#de-canvas-inner #hns_footer > .dragable:not([data-hns-footer-free]) {
   top: auto !important;
   position: relative !important;
 }

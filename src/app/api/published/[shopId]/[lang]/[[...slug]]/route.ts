@@ -1550,13 +1550,18 @@ export async function GET(
     }
     #hns_header { position: relative; }
     #hns_body { position: relative; }
-    #hns_footer { position: static; }
+    /* Positioning context so footer objects the user dragged free
+       (data-hns-footer-free, absolute) are placed RELATIVE TO THE FOOTER, not
+       the whole page. Relative (no offset) keeps the footer's own flow position. */
+    #hns_footer { position: relative; }
     /* Default footer height (150px). Overridden by the per-device user footer
        style block (data-hns-footer) whose min-height is !important. */
     #hns_footer { min-height: 150px; }
     #hns_menu:empty { display: none; }
     #hns_footer_content { top: 0 !important; position: relative !important; }
-    #hns_footer > .dragable {
+    /* Default footer objects flow below the body. Objects the user explicitly
+       dragged free (marked) keep their own absolute geometry, like the header. */
+    #hns_footer > .dragable:not([data-hns-footer-free]) {
       top: auto !important;
       position: relative !important;
     }
