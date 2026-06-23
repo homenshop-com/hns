@@ -45,6 +45,7 @@ import {
   DEVICE_MAX_WIDTH,
   hasTypedChildren,
   isSection,
+  isPlugin,
 } from "./types";
 import { printTransform, printTransformOrigin } from "./parse-transform";
 
@@ -150,6 +151,42 @@ function buildLayerDeviceDeclarations(layer: Layer, device: NonPcDevice): string
   return declarations.length > 0 ? declarations : null;
 }
 
+/**
+ * Desktop geometry for PLUGINS that carry a device override.
+ *
+ * Plugins (`boardPlugin`, `productPlugin`, …) are CSS-governed: on save the
+ * editor STRIPS their inline `!important` geometry so the desktop CSS rule +
+ * device `@media` cascade governs (otherwise the inline would beat the mobile
+ * `@media` and pin one size on every device — see geometry-strip).
+ *
+ * But the legacy desktop rule (`#id { width…!important; height…!important }`)
+ * is hand-authored at migration time and is NOT regenerated on save. So a user
+ * RESIZING such a plugin on desktop updated the scene frame + inline, the inline
+ * got stripped, and the stale legacy rule reverted the size on reload/publish
+ * ("히어로 배너 리사이징 후 저장하면 원래대로 복귀"). Regenerate the desktop
+ * geometry here from the desktop `frame` so the resize persists — scoped to
+ * `min-width:1025` so it never collides with the tablet/mobile blocks, and
+ * appended after the legacy rule so it wins. Only plugins WITH a device override
+ * are emitted (exactly those whose inline is stripped); single-size plugins keep
+ * their inline geometry and need nothing here.
+ */
+function buildDesktopPluginGeometryBlock(layers: Layer[]): string | null {
+  const rules: string[] = [];
+  for (const layer of layers) {
+    if (!isPlugin(layer)) continue;
+    if (!layer.tabletFrame && !layer.mobileFrame) continue;
+    if (layer.hidden?.desktop) continue;
+    const f = layer.frame;
+    if (!f || f.w == null || f.h == null) continue;
+    rules.push(
+      `  #${cssIdentifier(layer.id)} { left: ${f.x}px !important; top: ${f.y}px !important; width: ${f.w}px !important; height: ${f.h}px !important; }`,
+    );
+  }
+  if (rules.length === 0) return null;
+  const min = DEVICE_MAX_WIDTH.tablet + 1; // 1025
+  return [`@media (min-width: ${min}px) {`, ...rules, `}`].join("\n");
+}
+
 function buildDeviceBlock(layers: Layer[], device: NonPcDevice): string | null {
   const rules: string[] = [];
   for (const layer of layers) {
@@ -192,6 +229,8 @@ export function buildDeviceMediaCss(scene: SceneGraph): string {
   const blocks: string[] = [];
   const desktopHidden = buildDesktopHiddenBlock(layers);
   if (desktopHidden) blocks.push(desktopHidden);
+  const desktopPlugin = buildDesktopPluginGeometryBlock(layers);
+  if (desktopPlugin) blocks.push(desktopPlugin);
   const tablet = buildDeviceBlock(layers, "tablet");
   if (tablet) blocks.push(tablet);
   const mobile = buildDeviceBlock(layers, "mobile");
