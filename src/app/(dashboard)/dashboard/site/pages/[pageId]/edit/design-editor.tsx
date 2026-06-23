@@ -5376,6 +5376,7 @@ export default function DesignEditor({
               wrapperRef={canvasWrapperRef}
               originRef={canvasRef}
               zoom={zoom}
+              pageId={pageId}
             />
           </Suspense>
         )}
