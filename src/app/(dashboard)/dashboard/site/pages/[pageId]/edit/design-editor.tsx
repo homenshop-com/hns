@@ -1548,6 +1548,12 @@ export default function DesignEditor({
       // carry a tablet/mobile override in the scene, strip the inline geometry
       // before persisting so the CSS cascade (desktop rule + `@media`) governs.
       // Scoped to overridden plugins only → zero effect on single-size plugins.
+      // Captured plugin inline geometry, restored after the HTML is built so the
+      // LIVE canvas doesn't FLASH to the (not-yet-updated) CSS rule size between
+      // this strip and the post-save re-render. Persistence reads the scene
+      // (sceneToLegacyHtml below), not these inline props, so stripping then
+      // restoring is invisible to the saved output.
+      const pluginGeomRestore: Array<{ el: HTMLElement; decls: Array<[string, string]> }> = [];
       if (bodyEl && editorV2Enabled) {
         type WalkNode = {
           id?: string;
@@ -1565,9 +1571,13 @@ export default function DesignEditor({
         bodyEl.querySelectorAll<HTMLElement>(".dragable").forEach((el) => {
           if (!/\b[A-Za-z]+Plugin\b/.test(el.className)) return;
           if (!el.id || !overridden.has(el.id)) return;
+          const decls: Array<[string, string]> = [];
           for (const p of ["left", "top", "width", "height"] as const) {
+            const v = el.style.getPropertyValue(p);
+            if (v) decls.push([p, v]);
             el.style.removeProperty(p);
           }
+          if (decls.length) pluginGeomRestore.push({ el, decls });
         });
       }
       // Build the persisted body from the scene's DESKTOP base, not from the
@@ -1579,6 +1589,12 @@ export default function DesignEditor({
       const rawHtml = v2Scene
         ? sceneToLegacyHtml(v2Scene)
         : (bodyEl ? bodyEl.innerHTML : currentBodyHtml);
+      // Restore the stripped plugin inline geometry so the live canvas keeps
+      // showing the resized size through the rest of the save (the updated CSS
+      // real-size rule already matches, so there's no visible jump on re-render).
+      for (const { el, decls } of pluginGeomRestore) {
+        for (const [p, v] of decls) el.style.setProperty(p, v, "important");
+      }
       // Strip canvas-only `!important` annotations from inline background
       // styles before persisting. `applyStyleToEl` writes background with
       // `!important` so it beats CSS rules on the canvas; the saved HTML
