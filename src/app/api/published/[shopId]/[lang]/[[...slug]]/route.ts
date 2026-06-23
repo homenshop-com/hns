@@ -2161,7 +2161,14 @@ export async function GET(
     status: 200,
     headers: {
       "Content-Type": "text/html; charset=utf-8",
-      "Cache-Control": "public, max-age=60, s-maxage=300",
+      // Builder workflow freshness: a published page must reflect an owner's
+      // save/publish quickly. The old `max-age=60, s-maxage=300` meant edits
+      // could stay hidden for up to 5 min behind a CDN/nginx cache (owners kept
+      // reporting "my change isn't showing" — e.g. a header z-index fix that was
+      // already live in the HTML). Browser revalidates every load (max-age=0);
+      // the CDN holds a fresh copy only ~10s but may serve stale while it
+      // revalidates in the background, so visitor performance is preserved.
+      "Cache-Control": "public, max-age=0, s-maxage=10, stale-while-revalidate=300",
     },
   });
 }
