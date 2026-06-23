@@ -1449,6 +1449,25 @@ export default function DesignEditor({
           el.removeAttribute("spellcheck");
         });
         bodyEl.querySelectorAll(".de-text-editing").forEach((el) => el.classList.remove("de-text-editing"));
+        // WYSIWYG capture for PLUGINS (boardPlugin slideshow/grid, productPlugin…).
+        // A plugin's store frame can desync from the live canvas — e.g. the hero
+        // board is an auto-advancing slideshow whose JS mutates its DOM, which can
+        // let the scene frame drift back to the stale full size while the canvas
+        // still shows the user's resize. Result: a width resize is VISIBLE in the
+        // editor but reverts to full width on save ("게시판2 리사이즈 후 저장하면
+        // 풀폭 복귀"). Snapshot each plugin's CURRENTLY DISPLAYED size into the
+        // store (device-aware via setFrame) BEFORE the re-syncs below read the
+        // scene, so the save persists exactly what's on screen. No-op for plugins
+        // already in sync; only w/h (position is applied via inline and stays).
+        if (editorV2Enabled) {
+          const store0 = useEditorStore.getState();
+          bodyEl.querySelectorAll<HTMLElement>(".dragable").forEach((el) => {
+            if (!el.id || !/\b[A-Za-z]+Plugin\b/.test(el.className)) return;
+            const w = el.offsetWidth;
+            const h = el.offsetHeight;
+            if (w > 0 && h > 0) store0.setFrame(el.id, { w, h });
+          });
+        }
         // For elements with margin:auto (centered), remove left/top that conflict
         bodyEl.querySelectorAll(".dragable").forEach((el) => {
           const htmlEl = el as HTMLElement;
