@@ -104,31 +104,35 @@ export default function CanvasRulers({ wrapperRef, originRef, zoom, pageId }: Pr
       const m = measure();
       if (m) setMetrics(m);
       const dpr = window.devicePixelRatio || 1;
-      const wrapperRect = wrapper.getBoundingClientRect();
       const origin = originRef.current;
       const originRect = origin?.getBoundingClientRect();
-      const offX = originRect ? originRect.left - wrapperRect.left : 0;
-      const offY = originRect ? originRect.top - wrapperRect.top : 0;
       const scale = zoom / 100;
 
-      const paint = (cv: HTMLCanvasElement, horizontal: boolean, off: number) => {
-        const len = horizontal ? wrapperRect.width : wrapperRect.height;
-        const thick = RULER_THICKNESS;
-        cv.width = (horizontal ? len : thick) * dpr;
-        cv.height = (horizontal ? thick : len) * dpr;
-        cv.style.width = `${horizontal ? len : thick}px`;
-        cv.style.height = `${horizontal ? thick : len}px`;
+      // Size each canvas from its CSS-laid-out box (left/right/top/bottom span
+      // the viewport reliably) — NOT a measured wrapper value pushed back as an
+      // inline width/height, which can fight the CSS and leave the vertical
+      // ruler short. Align ticks to the canvas's OWN position so the artboard's
+      // "0" lines up regardless of the corner gutter.
+      const paint = (cv: HTMLCanvasElement, horizontal: boolean) => {
+        const cr = cv.getBoundingClientRect();
+        const dispW = Math.max(1, Math.round(cr.width));
+        const dispH = Math.max(1, Math.round(cr.height));
+        const len = horizontal ? dispW : dispH;
+        const thick = horizontal ? dispH : dispW;
+        cv.width = Math.round(dispW * dpr);
+        cv.height = Math.round(dispH * dpr);
         const ctx = cv.getContext("2d");
         if (!ctx) return;
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        ctx.clearRect(0, 0, len, thick);
+        ctx.clearRect(0, 0, dispW, dispH);
         ctx.fillStyle = COLOR_BG;
-        ctx.fillRect(0, 0, horizontal ? len : thick, horizontal ? thick : len);
+        ctx.fillRect(0, 0, dispW, dispH);
         ctx.strokeStyle = COLOR_LINE_2;
         ctx.beginPath();
         if (horizontal) { ctx.moveTo(0, thick - 0.5); ctx.lineTo(len, thick - 0.5); }
         else { ctx.moveTo(thick - 0.5, 0); ctx.lineTo(thick - 0.5, len); }
         ctx.stroke();
+        const off = originRect ? (horizontal ? originRect.left - cr.left : originRect.top - cr.top) : 0;
         const cAtStart = -off / scale;
         const cAtEnd = (len - off) / scale;
         const start = Math.floor(cAtStart / MINOR_STEP) * MINOR_STEP;
@@ -154,8 +158,8 @@ export default function CanvasRulers({ wrapperRef, originRef, zoom, pageId }: Pr
           }
         }
       };
-      paint(horiz, true, offX);
-      paint(vert, false, offY);
+      paint(horiz, true);
+      paint(vert, false);
     };
 
     draw();
