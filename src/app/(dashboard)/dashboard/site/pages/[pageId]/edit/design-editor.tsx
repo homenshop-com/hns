@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect, lazy, Suspense, type CSSProperties } from "react";
+import { useState, useRef, useCallback, useEffect, useLayoutEffect, lazy, Suspense, type CSSProperties } from "react";
 import { useStore } from "zustand";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -703,6 +703,9 @@ export default function DesignEditor({
   // Outer scroll container — referenced by CanvasRulers to track scrollLeft /
   // scrollTop so the ruler origin stays glued to the artboard.
   const canvasWrapperRef = useRef<HTMLDivElement>(null);
+  // Set by applyPageWidth so the post-commit layout-effect re-centers the
+  // canvas scroll on the new artboard width (only on user width changes).
+  const pendingWidthRecenterRef = useRef(false);
   const bodyRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -4156,6 +4159,27 @@ export default function DesignEditor({
     ? { "--de-device-artboard-width": `${deviceArtboardWidth}px` } as CSSProperties
     : undefined;
 
+  // Center the artboard in the visible canvas after a user PAGE-WIDTH change.
+  // The wrapper is a centered flexbox; when the artboard overflows it, flex
+  // pins the box to the left edge (margin:auto collapses) so widening looks
+  // left-anchored. This runs AFTER React commits the new width, so the scroll
+  // target is computed against the grown geometry. We position scrollLeft so
+  // the artboard's center aligns with the center of the visible region (the
+  // wrapper minus the left-palette / right-inspector paddings). Clamped to 0
+  // when the artboard fits (flex already centers it). Gated by a flag so it
+  // never fights manual scrolling or unrelated re-renders.
+  useLayoutEffect(() => {
+    if (!pendingWidthRecenterRef.current) return;
+    pendingWidthRecenterRef.current = false;
+    const wrap = canvasWrapperRef.current;
+    if (!wrap || artboardWidth == null) return;
+    const cs = getComputedStyle(wrap);
+    const padL = parseFloat(cs.paddingLeft) || 0;
+    const padR = parseFloat(cs.paddingRight) || 0;
+    const visW = wrap.clientWidth - padL - padR;
+    wrap.scrollLeft = Math.max(0, artboardWidth / 2 - visW / 2);
+  }, [artboardWidth]);
+
   const seedHmfViewportFromDesktop = useCallback((device: HmfDevice, desktopWidth: number, deviceWidth: number) => {
     const scale = desktopWidth > 0 ? deviceWidth / desktopWidth : 1;
     const map = hmfDeviceFramesRef.current;
@@ -4362,30 +4386,10 @@ export default function DesignEditor({
    *  the legacy absolute paradigm (modern/flow pages are fluid 100%). */
   function applyPageWidth(width: number) {
     if (isModernCanvas) return;
+    // Flag a re-center; the layout-effect below runs AFTER React commits the
+    // new artboard width, so the scroll lands on the real (grown) geometry.
+    pendingWidthRecenterRef.current = true;
     setCurrentPageCss((c) => upsertPageWidthCss(c ?? "", width > 0 ? width : null));
-    // Keep the artboard visually CENTERED as it grows. The canvas wrapper is a
-    // centered flexbox; once the artboard exceeds the visible area, flexbox
-    // pins the overflow to the left edge (margin:auto collapses) so widening
-    // appears to extend only rightward. Re-center the scroll on the artboard's
-    // midpoint after layout settles so both sides grow symmetrically.
-    requestAnimationFrame(centerCanvasHorizontally);
-  }
-
-  /** Scroll the canvas so the artboard's horizontal center aligns with the
-   *  center of the VISIBLE canvas area (between the left palette / right
-   *  inspector paddings). No-op when the artboard fits (already centered). */
-  function centerCanvasHorizontally() {
-    const wrap = canvasWrapperRef.current;
-    const art = canvasRef.current;
-    if (!wrap || !art) return;
-    const wr = wrap.getBoundingClientRect();
-    const ar = art.getBoundingClientRect();
-    const cs = getComputedStyle(wrap);
-    const padL = parseFloat(cs.paddingLeft) || 0;
-    const padR = parseFloat(cs.paddingRight) || 0;
-    const visCenterX = wr.left + padL + (wrap.clientWidth - padL - padR) / 2;
-    const artCenterX = ar.left + ar.width / 2;
-    wrap.scrollLeft += artCenterX - visCenterX;
   }
 
   /** Apply "푸터 설정" panel changes — SITE-WIDE (footerHtml `<style>` block,
