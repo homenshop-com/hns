@@ -1101,7 +1101,8 @@
     "inspector": {
       "ariaLabel": "인스펙터",
       "tabs": {
-        "design": "디자인",
+        "design": "스타일",
+        "page": "페이지",
         "layers": "레이어",
         "interaction": "인터랙션"
       },

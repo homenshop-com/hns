@@ -55,7 +55,7 @@ import {
 
 const LayerPanel = lazy(() => import("./LayerPanel"));
 
-type Tab = "design" | "layers" | "proto";
+type Tab = "design" | "page" | "layers" | "proto";
 
 /* ───── Live DOM helpers — reflect rendered values into the panel ──
  *
@@ -216,6 +216,15 @@ interface Props {
   footerStyle?: FooterStyle;
   /** Apply "푸터 설정" changes (site-wide, per-device) to #hns_footer. */
   onApplyFooterLayout?: (next: FooterStyle) => void;
+  /** Modern/flow paradigm — the page is fluid (100%), so the PC width control
+   *  is disabled (no fixed artboard). */
+  isModernCanvas?: boolean;
+  /** Current PC artboard width (px) — the value shown in the 페이지 폭 control. */
+  pageWidth?: number;
+  /** Whether the width is an explicit user override (vs. inferred default). */
+  pageWidthManaged?: boolean;
+  /** Apply "페이지 폭" — persists a managed page-width block; 0 reverts. */
+  onApplyPageWidth?: (width: number) => void;
 }
 
 export default function InspectorPanel({
@@ -229,6 +238,10 @@ export default function InspectorPanel({
   onApplyBodyLayout,
   footerStyle,
   onApplyFooterLayout,
+  isModernCanvas,
+  pageWidth,
+  pageWidthManaged,
+  onApplyPageWidth,
 }: Props) {
   const t = useTranslations("editor");
   const [tab, setTab] = useState<Tab>("design");
@@ -293,6 +306,7 @@ export default function InspectorPanel({
       <div className="ins-tabs" role="tablist">
         {([
           ["design", t("inspector.tabs.design")],
+          ["page",   t("inspector.tabs.page")],
           ["layers", t("inspector.tabs.layers")],
           ["proto",  t("inspector.tabs.interaction")],
         ] as const).map(([id, label]) => (
@@ -327,6 +341,20 @@ export default function InspectorPanel({
           />
         )}
 
+        {tab === "page" && (
+          <PageTab
+            isModernCanvas={isModernCanvas}
+            pageWidth={pageWidth}
+            pageWidthManaged={pageWidthManaged}
+            onApplyPageWidth={onApplyPageWidth}
+            headerLayout={headerLayout}
+            onApplyHeaderLayout={onApplyHeaderLayout}
+            onApplyBodyLayout={onApplyBodyLayout}
+            footerStyle={footerStyle}
+            onApplyFooterLayout={onApplyFooterLayout}
+          />
+        )}
+
         {tab === "layers" && (
           <Suspense fallback={<div className="ins-empty-small">{t("inspector.loading")}</div>}>
             <LayerPanel />
@@ -338,6 +366,151 @@ export default function InspectorPanel({
         )}
       </div>
     </aside>
+  );
+}
+
+/* ───── Page tab ─────────────────────────────────────────────────────
+ * Page-LEVEL settings, split out of the (now object-only) 스타일 tab. Hosts
+ * the PC 페이지 폭 control plus the site-wide 헤더 / 본문 / 푸터 settings that
+ * previously appeared in the design tab's empty state. */
+function PageTab({
+  isModernCanvas,
+  pageWidth,
+  pageWidthManaged,
+  onApplyPageWidth,
+  headerLayout,
+  onApplyHeaderLayout,
+  onApplyBodyLayout,
+  footerStyle,
+  onApplyFooterLayout,
+}: {
+  isModernCanvas?: boolean;
+  pageWidth?: number;
+  pageWidthManaged?: boolean;
+  onApplyPageWidth?: (width: number) => void;
+  headerLayout?: HmfHeaderLayout;
+  onApplyHeaderLayout?: (next: HmfHeaderLayout) => void;
+  onApplyBodyLayout?: (patch: { background?: string; minHeight?: number }) => void;
+  footerStyle?: FooterStyle;
+  onApplyFooterLayout?: (next: FooterStyle) => void;
+}) {
+  return (
+    <div className="ins-hmf-panel">
+      <header className="ins-sel-header">
+        <div className="ins-sel-row">
+          <div className="ins-sel-icon" style={{ color: "#7aa2ff" }}>
+            <i className="fa-solid fa-file-lines" aria-hidden />
+          </div>
+          <span className="ins-sel-name-static">페이지 설정</span>
+        </div>
+      </header>
+
+      <PageWidthPanel
+        isModernCanvas={isModernCanvas}
+        pageWidth={pageWidth}
+        pageWidthManaged={pageWidthManaged}
+        onApply={onApplyPageWidth}
+      />
+      <HeaderSettingsPanel headerLayout={headerLayout} onApply={onApplyHeaderLayout} />
+      <BodySettingsPanel onApply={onApplyBodyLayout} />
+      <FooterSettingsPanel footerStyle={footerStyle} onApply={onApplyFooterLayout} />
+    </div>
+  );
+}
+
+/* ─── PC page-width panel (페이지 폭) ────────────────────────────────────
+ * Sets the legacy absolute artboard width (#v_home_dft). Persisted as a
+ * managed HNS-PAGE-WIDTH block; drives both the editor artboard and the
+ * published page. Disabled for modern/flow pages (fluid 100%). */
+function PageWidthPanel({
+  isModernCanvas,
+  pageWidth,
+  pageWidthManaged,
+  onApply,
+}: {
+  isModernCanvas?: boolean;
+  pageWidth?: number;
+  pageWidthManaged?: boolean;
+  onApply?: (width: number) => void;
+}) {
+  const current = pageWidth ?? 1000;
+  const PRESETS = [980, 1000, 1200, 1280, 1440];
+  if (isModernCanvas) {
+    return (
+      <Section title="페이지 폭">
+        <div className="ins-hmf-notice">
+          <i className="fa-solid fa-circle-info" aria-hidden />
+          <span>반응형(모던) 페이지는 100% 유동 폭으로 표시됩니다.</span>
+        </div>
+      </Section>
+    );
+  }
+  return (
+    <Section title="페이지 폭 (PC)">
+      <div className="ins-prop-row" style={{ alignItems: "center", gap: 8 }}>
+        <input
+          type="range"
+          min={320}
+          max={2400}
+          step={10}
+          value={current}
+          onChange={(e) => onApply?.(parseInt(e.target.value, 10))}
+          style={{ flex: 1 }}
+        />
+        <TextField
+          label="px"
+          value={String(current)}
+          onCommit={(v) => {
+            const n = parseInt(v, 10);
+            if (Number.isFinite(n) && n > 0) onApply?.(n);
+          }}
+        />
+      </div>
+      <div className="ins-prop-row" style={{ flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+        {PRESETS.map((w) => (
+          <button
+            key={w}
+            type="button"
+            onClick={() => onApply?.(w)}
+            className="ins-chip"
+            style={{
+              padding: "4px 10px",
+              fontSize: 12,
+              borderRadius: 6,
+              cursor: "pointer",
+              border: "1px solid #374151",
+              background: current === w ? "#3182f6" : "#1f2937",
+              color: current === w ? "#fff" : "#e5e7eb",
+            }}
+          >
+            {w}
+          </button>
+        ))}
+        {pageWidthManaged && (
+          <button
+            type="button"
+            onClick={() => onApply?.(0)}
+            className="ins-chip"
+            style={{
+              padding: "4px 10px",
+              fontSize: 12,
+              borderRadius: 6,
+              cursor: "pointer",
+              border: "1px solid #374151",
+              background: "transparent",
+              color: "#9ca3af",
+            }}
+          >
+            <i className="fa-solid fa-rotate-left" style={{ marginRight: 4 }} />
+            기본값
+          </button>
+        )}
+      </div>
+      <div className="ins-hmf-notice" style={{ marginTop: 8 }}>
+        <i className="fa-solid fa-circle-info" aria-hidden />
+        <span>PC 화면의 콘텐츠 폭입니다. 좁은 화면에서는 자동으로 축소됩니다.</span>
+      </div>
+    </Section>
   );
 }
 
@@ -437,21 +610,20 @@ function DesignTab({
       );
     }
 
-    /* Nothing selected → page-region settings: HEADER + BODY + FOOTER
-       (background / height) + a hint that selecting an object shows its
-       properties. Header settings are SITE-WIDE (all pages), mirroring footer. */
+    /* Nothing selected (body mode) → the 스타일 tab is for OBJECT properties.
+       Page-region settings (헤더/본문/푸터 + 페이지 폭) now live in the 페이지
+       tab. Show a hint pointing the user there. */
     return (
-      <>
-        <HeaderSettingsPanel
-          headerLayout={headerLayout}
-          onApply={onApplyHeaderLayout}
-        />
-        <BodySettingsPanel onApply={onApplyBodyLayout} />
-        <FooterSettingsPanel footerStyle={footerStyle} onApply={onApplyFooterLayout} />
-        <div className="ins-empty-sub" style={{ padding: "0 16px", marginTop: 12 }}>
-          객체를 클릭하면 해당 객체의 속성이 여기에 표시됩니다.
+      <div className="ins-empty">
+        <div className="ins-empty-icon">
+          <i className="fa-solid fa-arrow-pointer" aria-hidden />
         </div>
-      </>
+        <div className="ins-empty-title">객체를 선택하세요</div>
+        <div className="ins-empty-sub">
+          객체를 클릭하면 해당 객체의 속성이 여기에 표시됩니다. 페이지·헤더·푸터
+          설정은 <strong>페이지</strong> 탭에 있습니다.
+        </div>
+      </div>
     );
   }
 

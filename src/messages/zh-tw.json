@@ -1087,7 +1087,8 @@
     "inspector": {
       "ariaLabel": "檢查器面板",
       "tabs": {
-        "design": "設計",
+        "design": "樣式",
+        "page": "頁面",
         "layers": "圖層",
         "interaction": "互動"
       },

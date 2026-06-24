@@ -23,6 +23,7 @@ import {
   stripInlineGeometryImportant,
   sceneToLegacyHtml,
   stripFooterPinnedTop,
+  parsePageWidthCss,
   type SceneGraph,
 } from "@/lib/scene";
 
@@ -1585,6 +1586,11 @@ export async function GET(
   // `#v_home_dft` / `.c_v_home_dft` width rule (mirrors the editor's
   // designCanvasWidth) and never go below 1000.
   const designWidth = (() => {
+    // Explicit user-set PC width (페이지 탭 → 페이지 폭) wins at ANY value,
+    // including narrower than the 1000 default. Mirrors the editor's
+    // designCanvasWidth so editor ⇄ published stay in lockstep.
+    const managed = parsePageWidthCss(pageCss);
+    if (managed) return managed;
     const sources = [pageCss, templateCss, site.cssText || ""].join("\n");
     const re =
       /(?:#v_home_dft|\.c_v_home_dft)\s*\{[^}]*?(?<![a-z-])width\s*:\s*(\d+)px/gi;
@@ -1606,8 +1612,9 @@ export async function GET(
   if (!el) return;
   document.documentElement.style.cssText += 'margin:0;padding:0;overflow-x:hidden;';
   document.body.style.cssText += 'margin:0;padding:0;overflow-x:hidden;';
-  el.style.cssText += 'width:1000px;margin:0 auto;overflow-x:hidden;overflow-y:visible;position:relative;';
-  function artboard(vw){ return vw <= 767 ? 375 : vw <= 1024 ? 768 : 1000; }
+  var PCW = ${designWidth};
+  el.style.cssText += 'width:'+PCW+'px;margin:0 auto;overflow-x:hidden;overflow-y:visible;position:relative;';
+  function artboard(vw){ return vw <= 767 ? 375 : vw <= 1024 ? 768 : PCW; }
   function sf() {
     var vw = document.documentElement.clientWidth;
     var aw = artboard(vw);
@@ -1616,11 +1623,20 @@ export async function GET(
     // them, then scale the whole band to fill the viewport.
     el.style.width = aw + 'px';
     if (vw >= 1025) {
-      // Desktop band: 1000px artboard, centered, never scaled up.
-      el.style.margin = '0 auto';
-      el.style.transform = '';
-      el.style.transformOrigin = '';
-      el.style.marginBottom = '';
+      // Desktop band: PCW artboard, centered, never scaled UP. If the user set
+      // a PC width wider than the viewport, scale DOWN to fit (no h-scroll).
+      if (vw < PCW) {
+        var dsc = vw / PCW;
+        el.style.margin = '0';
+        el.style.transformOrigin = 'top left';
+        el.style.transform = 'scale(' + dsc + ')';
+        el.style.marginBottom = '-' + ((1 - dsc) * el.scrollHeight) + 'px';
+      } else {
+        el.style.margin = '0 auto';
+        el.style.transform = '';
+        el.style.transformOrigin = '';
+        el.style.marginBottom = '';
+      }
       return;
     }
     var sc = vw / aw;

@@ -1087,7 +1087,8 @@
     "inspector": {
       "ariaLabel": "Panel de inspector",
       "tabs": {
-        "design": "Diseño",
+        "design": "Estilo",
+        "page": "Página",
         "layers": "Capas",
         "interaction": "Interacción"
       },

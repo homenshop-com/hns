@@ -1101,7 +1101,8 @@
     "inspector": {
       "ariaLabel": "Inspector panel",
       "tabs": {
-        "design": "Design",
+        "design": "Style",
+        "page": "Page",
         "layers": "Layers",
         "interaction": "Interaction"
       },

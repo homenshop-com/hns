@@ -1087,7 +1087,8 @@
     "inspector": {
       "ariaLabel": "インスペクターパネル",
       "tabs": {
-        "design": "デザイン",
+        "design": "スタイル",
+        "page": "ページ",
         "layers": "レイヤー",
         "interaction": "インタラクション"
       },

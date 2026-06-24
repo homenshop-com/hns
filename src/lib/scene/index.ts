@@ -29,3 +29,11 @@ export {
   type HmfValidateInput,
   type HmfValidateResult,
 } from "./hmf-contract";
+export {
+  parsePageWidthCss,
+  upsertPageWidthCss,
+  PAGE_WIDTH_MARK_START,
+  PAGE_WIDTH_MARK_END,
+  PAGE_WIDTH_MIN,
+  PAGE_WIDTH_MAX,
+} from "./page-width";

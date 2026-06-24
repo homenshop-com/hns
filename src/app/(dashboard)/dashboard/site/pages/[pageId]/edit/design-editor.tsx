@@ -27,6 +27,8 @@ import {
   legacyHmfToScene,
   sceneToLegacyHtml,
   stripFooterPinnedTop,
+  parsePageWidthCss,
+  upsertPageWidthCss,
   type SceneGraph,
 } from "@/lib/scene";
 // Sprint 9k — section preset library for LeftPalette "섹션 블록" list.
@@ -4051,6 +4053,10 @@ export default function DesignEditor({
   // to match. Only ever widen (never below 1000) so the common case is untouched.
   const designCanvasWidth = (() => {
     if (isModernCanvas) return null;
+    // Explicit user-set PC page width (페이지 탭 → 페이지 폭) takes precedence
+    // over the inferred width — and is honored at ANY value (incl. < 1000).
+    const managed = parsePageWidthCss(currentPageCss);
+    if (managed) return managed;
     const sources = [currentPageCss, cssText, templateCss].filter(Boolean).join("\n");
     const re = /(?:#v_home_dft|\.c_v_home_dft)\s*\{[^}]*?(?<![a-z-])width\s*:\s*(\d+)px/gi;
     let max = 0;
@@ -4282,6 +4288,16 @@ export default function DesignEditor({
           patch.background && patch.background !== "transparent" ? patch.background : "";
       }
     }
+  }
+
+  /** Apply "페이지 폭" (PC artboard width). Persists a managed HNS-PAGE-WIDTH
+   *  block in the page CSS — read back by `designCanvasWidth` (editor artboard)
+   *  and the published route's `designWidth` (single source). `width <= 0`
+   *  removes the override → revert to the inferred default. Only meaningful for
+   *  the legacy absolute paradigm (modern/flow pages are fluid 100%). */
+  function applyPageWidth(width: number) {
+    if (isModernCanvas) return;
+    setCurrentPageCss((c) => upsertPageWidthCss(c ?? "", width > 0 ? width : null));
   }
 
   /** Apply "푸터 설정" panel changes — SITE-WIDE (footerHtml `<style>` block,
@@ -5490,6 +5506,10 @@ export default function DesignEditor({
             onApplyBodyLayout={applyBodyLayout}
             footerStyle={footerStyle}
             onApplyFooterLayout={applyFooterLayout}
+            isModernCanvas={isModernCanvas}
+            pageWidth={designCanvasWidth ?? 1000}
+            pageWidthManaged={parsePageWidthCss(currentPageCss) != null}
+            onApplyPageWidth={applyPageWidth}
             onOpenHeaderEdit={() => setShowHeaderEdit(true)}
             onOpenFooterEdit={() => setShowFooterEdit(true)}
           />
