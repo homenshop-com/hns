@@ -49,6 +49,7 @@ type Guide = { id: string; axis: "h" | "v"; pos: number };
 type Metrics = { offX: number; offY: number; scale: number; vw: number; vh: number };
 
 export default function CanvasRulers({ wrapperRef, originRef, zoom, pageId }: Props) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const horizRef = useRef<HTMLCanvasElement | null>(null);
   const vertRef = useRef<HTMLCanvasElement | null>(null);
   const [guides, setGuides] = useState<Guide[]>([]);
@@ -103,6 +104,16 @@ export default function CanvasRulers({ wrapperRef, originRef, zoom, pageId }: Pr
     const draw = () => {
       const m = measure();
       if (m) setMetrics(m);
+      // The wrapper is a SCROLL CONTAINER and its absolutely-positioned children
+      // (these rulers) scroll WITH the content — so without this they slide off
+      // and get clipped. Counteract the scroll by translating the whole ruler
+      // layer by (scrollLeft, scrollTop), pinning it to the viewport. The draw
+      // below is already scroll-aware (ticks computed from the live origin), so
+      // the numbers stay correct while the canvases stay fixed. Set imperatively
+      // here (not via React state) so it's in sync with the getBoundingClientRect
+      // measurements taken right after.
+      const ct = containerRef.current;
+      if (ct) ct.style.transform = `translate(${wrapper.scrollLeft}px, ${wrapper.scrollTop}px)`;
       const dpr = window.devicePixelRatio || 1;
       const wrapperRect = wrapper.getBoundingClientRect();
       // clientHeight/Width = the VIEWPORT content box (excludes scrollbar) — the
@@ -240,7 +251,11 @@ export default function CanvasRulers({ wrapperRef, originRef, zoom, pageId }: Pr
   const m = metrics;
 
   return (
-    <>
+    // Pinned-to-viewport layer. inset:0 makes it an absolute child of the scroll
+    // wrapper; draw() sets transform: translate(scroll…) so it counteracts the
+    // wrapper's scroll and stays fixed (rulers don't slide away). pointer-events
+    // pass through except on the rulers/guides themselves.
+    <div ref={containerRef} style={{ position: "absolute", inset: 0, zIndex: 6, pointerEvents: "none" }} aria-hidden>
       <canvas
         ref={horizRef}
         className="de-ruler de-ruler-h"
@@ -292,6 +307,6 @@ export default function CanvasRulers({ wrapperRef, originRef, zoom, pageId }: Pr
             </div>
           );
         })}
-    </>
+    </div>
   );
 }
