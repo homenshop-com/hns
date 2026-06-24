@@ -4363,6 +4363,29 @@ export default function DesignEditor({
   function applyPageWidth(width: number) {
     if (isModernCanvas) return;
     setCurrentPageCss((c) => upsertPageWidthCss(c ?? "", width > 0 ? width : null));
+    // Keep the artboard visually CENTERED as it grows. The canvas wrapper is a
+    // centered flexbox; once the artboard exceeds the visible area, flexbox
+    // pins the overflow to the left edge (margin:auto collapses) so widening
+    // appears to extend only rightward. Re-center the scroll on the artboard's
+    // midpoint after layout settles so both sides grow symmetrically.
+    requestAnimationFrame(centerCanvasHorizontally);
+  }
+
+  /** Scroll the canvas so the artboard's horizontal center aligns with the
+   *  center of the VISIBLE canvas area (between the left palette / right
+   *  inspector paddings). No-op when the artboard fits (already centered). */
+  function centerCanvasHorizontally() {
+    const wrap = canvasWrapperRef.current;
+    const art = canvasRef.current;
+    if (!wrap || !art) return;
+    const wr = wrap.getBoundingClientRect();
+    const ar = art.getBoundingClientRect();
+    const cs = getComputedStyle(wrap);
+    const padL = parseFloat(cs.paddingLeft) || 0;
+    const padR = parseFloat(cs.paddingRight) || 0;
+    const visCenterX = wr.left + padL + (wrap.clientWidth - padL - padR) / 2;
+    const artCenterX = ar.left + ar.width / 2;
+    wrap.scrollLeft += artCenterX - visCenterX;
   }
 
   /** Apply "푸터 설정" panel changes — SITE-WIDE (footerHtml `<style>` block,
