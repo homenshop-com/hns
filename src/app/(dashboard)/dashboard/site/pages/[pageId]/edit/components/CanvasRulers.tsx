@@ -104,23 +104,28 @@ export default function CanvasRulers({ wrapperRef, originRef, zoom, pageId }: Pr
       const m = measure();
       if (m) setMetrics(m);
       const dpr = window.devicePixelRatio || 1;
+      const wrapperRect = wrapper.getBoundingClientRect();
+      // clientHeight/Width = the VIEWPORT content box (excludes scrollbar) — the
+      // reliable span the ruler must cover. getBoundingClientRect can drift.
+      const vpW = wrapper.clientWidth || wrapperRect.width;
+      const vpH = wrapper.clientHeight || wrapperRect.height;
       const origin = originRef.current;
       const originRect = origin?.getBoundingClientRect();
       const scale = zoom / 100;
 
-      // Size each canvas from its CSS-laid-out box (left/right/top/bottom span
-      // the viewport reliably) — NOT a measured wrapper value pushed back as an
-      // inline width/height, which can fight the CSS and leave the vertical
-      // ruler short. Align ticks to the canvas's OWN position so the artboard's
-      // "0" lines up regardless of the corner gutter.
+      // Explicit inline size (canvas is a REPLACED element — CSS left/right alone
+      // won't stretch it). Align ticks to each canvas's OWN position so "0" lines
+      // up with the artboard regardless of the corner gutter.
       const paint = (cv: HTMLCanvasElement, horizontal: boolean) => {
-        const cr = cv.getBoundingClientRect();
-        const dispW = Math.max(1, Math.round(cr.width));
-        const dispH = Math.max(1, Math.round(cr.height));
-        const len = horizontal ? dispW : dispH;
-        const thick = horizontal ? dispH : dispW;
+        const thick = RULER_THICKNESS;
+        const len = horizontal ? vpW : vpH;
+        const dispW = horizontal ? len : thick;
+        const dispH = horizontal ? thick : len;
+        cv.style.width = `${dispW}px`;
+        cv.style.height = `${dispH}px`;
         cv.width = Math.round(dispW * dpr);
         cv.height = Math.round(dispH * dpr);
+        const cr = cv.getBoundingClientRect();
         const ctx = cv.getContext("2d");
         if (!ctx) return;
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
