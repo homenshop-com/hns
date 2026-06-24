@@ -3815,20 +3815,74 @@ export default function DesignEditor({
       syncSceneFromDomAndSelect(id);
       return;
     }
-    // Fix template — drop at a sensible offset, sized to a reasonable
-    // default (300×200). User can resize via canvas handles.
+    // Fix template — centered in the visible viewport, on top (max z+1), sized
+    // to a reasonable default (300×200). User can resize via canvas handles.
     const el = document.createElement("div");
     el.id = id;
     el.className = "dragable";
     el.style.position = "absolute";
-    el.style.left = "100px";
-    el.style.top = "100px";
     el.style.width = "300px";
     el.style.height = "200px";
-    el.style.zIndex = "10";
+    const pos = computeInsertPosition(300, 200);
+    el.style.left = pos.left + "px";
+    el.style.top = pos.top + "px";
+    el.style.zIndex = String(maxBodyZIndex() + 1);
     el.innerHTML = `<img src="${url}" alt="" style="width:100%;height:100%;object-fit:cover;" />`;
     bodyEl.appendChild(el);
     syncSceneFromDomAndSelect(id);
+  }
+
+  /** Artboard-local (left,top) that centers a new w×h element in the CURRENTLY
+   *  VISIBLE part of the canvas — so a freshly inserted object lands where the
+   *  user is looking (accounting for scroll + zoom), not at a fixed top-left
+   *  origin where it hides behind the header/logo. Intersecting the viewport
+   *  with the artboard box keeps the center on-screen even when the artboard is
+   *  scrolled past its top edge. Falls back to (100,100) if refs aren't ready. */
+  function computeInsertPosition(elW: number, elH: number): { left: number; top: number } {
+    const wrapper = canvasWrapperRef.current;
+    const artboard = canvasRef.current;
+    if (!wrapper || !artboard) return { left: 100, top: 100 };
+    const aRect = artboard.getBoundingClientRect();
+    if (aRect.width === 0) return { left: 100, top: 100 };
+    const wRect = wrapper.getBoundingClientRect();
+    const scale = (zoom || 100) / 100;
+    const cs = getComputedStyle(wrapper);
+    const padL = parseFloat(cs.paddingLeft) || 0;
+    const padT = parseFloat(cs.paddingTop) || 0;
+    const padR = parseFloat(cs.paddingRight) || 0;
+    const padB = parseFloat(cs.paddingBottom) || 0;
+    // Visible content box of the scroll viewport (viewport coords).
+    const viewLeft = wRect.left + padL;
+    const viewTop = wRect.top + padT;
+    const viewRight = wRect.left + wrapper.clientWidth - padR;
+    const viewBottom = wRect.top + wrapper.clientHeight - padB;
+    // Center on the VISIBLE part of the artboard.
+    const ix0 = Math.max(viewLeft, aRect.left);
+    const iy0 = Math.max(viewTop, aRect.top);
+    const ix1 = Math.min(viewRight, aRect.right);
+    const iy1 = Math.min(viewBottom, aRect.bottom);
+    const cx = ix1 > ix0 ? (ix0 + ix1) / 2 : (viewLeft + viewRight) / 2;
+    const cy = iy1 > iy0 ? (iy0 + iy1) / 2 : (viewTop + viewBottom) / 2;
+    const aw = aRect.width / scale; // unscaled artboard width
+    let localX = (cx - aRect.left) / scale - elW / 2;
+    let localY = (cy - aRect.top) / scale - elH / 2;
+    localX = Math.max(0, Math.min(localX, Math.max(0, aw - elW)));
+    localY = Math.max(0, localY);
+    return { left: Math.round(localX), top: Math.round(localY) };
+  }
+
+  /** Highest z-index among existing BODY objects (so a new object can sit one
+   *  above, i.e. in front of everything). Reads inline first, then computed. */
+  function maxBodyZIndex(): number {
+    const bodyEl = bodyRef.current;
+    if (!bodyEl) return 10;
+    let max = 0;
+    bodyEl.querySelectorAll<HTMLElement>(".dragable").forEach((el) => {
+      const raw = el.style.zIndex || getComputedStyle(el).zIndex || "0";
+      const z = parseInt(raw, 10);
+      if (Number.isFinite(z) && z > max) max = z;
+    });
+    return max;
   }
 
   function addElement(type: string) {
@@ -3954,6 +4008,17 @@ export default function DesignEditor({
         el.style.zIndex = "10";
         break;
     }
+
+    // Place the new element at the center of the visible viewport and on top
+    // of everything (max z-index + 1) — overriding the per-case top-left
+    // defaults so it never spawns hidden behind the header/logo. (board/product
+    // plugins keep their CSS-governed size; we still center + front them.)
+    const elW = parseInt(el.style.width, 10) || 300;
+    const elH = parseInt(el.style.height, 10) || 140;
+    const pos = computeInsertPosition(elW, elH);
+    el.style.left = pos.left + "px";
+    el.style.top = pos.top + "px";
+    el.style.zIndex = String(maxBodyZIndex() + 1);
 
     bodyEl.appendChild(el);
     syncSceneFromDomAndSelect(id);
