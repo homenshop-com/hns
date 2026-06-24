@@ -29,8 +29,10 @@ interface Props {
   originRef: React.RefObject<HTMLElement | null>;
   /** Current zoom 25..400 (100 = no scale). */
   zoom: number;
-  /** Page id — namespaces the persisted guides in localStorage. */
-  pageId: string;
+  /** Site id — namespaces the persisted guides in localStorage. Guides are
+   *  SITE-WIDE (shared across every page of the site) so they survive page
+   *  navigation, not just reload. */
+  siteId: string;
 }
 
 const RULER_THICKNESS = 20;
@@ -48,14 +50,14 @@ const GUIDE_COLOR = "#00d8ff";
 type Guide = { id: string; axis: "h" | "v"; pos: number };
 type Metrics = { offX: number; offY: number; scale: number; vw: number; vh: number };
 
-export default function CanvasRulers({ wrapperRef, originRef, zoom, pageId }: Props) {
+export default function CanvasRulers({ wrapperRef, originRef, zoom, siteId }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const horizRef = useRef<HTMLCanvasElement | null>(null);
   const vertRef = useRef<HTMLCanvasElement | null>(null);
   const [guides, setGuides] = useState<Guide[]>([]);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const dragRef = useRef<{ axis: "h" | "v"; id: string | null } | null>(null);
-  const storageKey = `hns-guides:${pageId}`;
+  const storageKey = `hns-guides:site:${siteId}`;
 
   // Load persisted guides.
   useEffect(() => {
