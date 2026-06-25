@@ -37,3 +37,10 @@ export {
   PAGE_WIDTH_MIN,
   PAGE_WIDTH_MAX,
 } from "./page-width";
+export {
+  parseFullWidthIds,
+  upsertFullWidthCss,
+  toggleFullWidthId,
+  FULLWIDTH_MARK_START,
+  FULLWIDTH_MARK_END,
+} from "./fullwidth-objects";

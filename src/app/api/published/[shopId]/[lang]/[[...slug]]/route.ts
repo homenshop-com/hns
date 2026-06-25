@@ -1494,7 +1494,8 @@ export async function GET(
   // viewport (no h-scroll). Only opt-in pages are affected.
   const hasFullBleed =
     /box-shadow\s*:\s*0 0 0 100vw/i.test(pageCss) ||
-    /box-shadow\s*:\s*0 0 0 100vw/i.test(siteFooterHtml || "");
+    /box-shadow\s*:\s*0 0 0 100vw/i.test(siteFooterHtml || "") ||
+    pageCss.includes("HNS-FULLWIDTH"); // per-object full-viewport width
   const wrapperOverflowX = hasFullBleed ? "visible" : "hidden";
 
   // Build CSS based on template type

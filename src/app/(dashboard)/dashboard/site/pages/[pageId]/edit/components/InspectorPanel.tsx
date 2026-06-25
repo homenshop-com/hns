@@ -226,6 +226,10 @@ interface Props {
   pageWidthManaged?: boolean;
   /** Apply "페이지 폭" — persists a managed page-width block; 0 reverts. */
   onApplyPageWidth?: (width: number) => void;
+  /** Ids of body objects currently set to full-viewport width (100vw, PC). */
+  fullWidthObjectIds?: string[];
+  /** Toggle a body object's full-viewport width. */
+  onToggleObjectFullWidth?: (id: string, on: boolean) => void;
 }
 
 export default function InspectorPanel({
@@ -243,6 +247,8 @@ export default function InspectorPanel({
   pageWidth,
   pageWidthManaged,
   onApplyPageWidth,
+  fullWidthObjectIds,
+  onToggleObjectFullWidth,
 }: Props) {
   const t = useTranslations("editor");
   const [tab, setTab] = useState<Tab>("design");
@@ -346,6 +352,8 @@ export default function InspectorPanel({
             onApplyBodyLayout={onApplyBodyLayout}
             footerStyle={footerStyle}
             onApplyFooterLayout={onApplyFooterLayout}
+            fullWidthObjectIds={fullWidthObjectIds}
+            onToggleObjectFullWidth={onToggleObjectFullWidth}
           />
         )}
 
@@ -538,12 +546,15 @@ interface DesignTabProps {
   onApplyBodyLayout?: (patch: { background?: string; minHeight?: number }) => void;
   footerStyle?: FooterStyle;
   onApplyFooterLayout?: (next: FooterStyle) => void;
+  fullWidthObjectIds?: string[];
+  onToggleObjectFullWidth?: (id: string, on: boolean) => void;
 }
 
 function DesignTab({
   layer, path, siteId, live,
   editingTarget, headerLayout, onApplyHeaderLayout,
   onOpenHeaderEdit, onOpenFooterEdit, onApplyBodyLayout, footerStyle, onApplyFooterLayout,
+  fullWidthObjectIds, onToggleObjectFullWidth,
 }: DesignTabProps) {
   if (!layer) {
     /* HMF mode empty state — show header/footer settings panel. */
@@ -663,6 +674,27 @@ function DesignTab({
         layerId={layer.id}
         disabled={layer.type === "section" || layer.type === "inline"}
       />
+
+      {/* Full-viewport width (100vw, PC only) — breaks the object out of the
+          page to the screen edges. Persists in a managed pageCss block. */}
+      {layer.type !== "section" && layer.type !== "inline" && onToggleObjectFullWidth && (
+        <Section title="폭">
+          <div className="ins-prop-row">
+            <label className="ins-device-toggle" style={{ cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                checked={!!fullWidthObjectIds?.includes(layer.id)}
+                onChange={(e) => onToggleObjectFullWidth(layer.id, e.target.checked)}
+              />
+              <span>전체 폭 (100%, PC)</span>
+            </label>
+          </div>
+          <div className="ins-hmf-notice" style={{ marginTop: 8 }}>
+            <i className="fa-solid fa-circle-info" aria-hidden />
+            <span>PC 화면에서 객체를 좌우 끝까지(100vw) 확장합니다. 태블릿·모바일은 기존 폭 유지.</span>
+          </div>
+        </Section>
+      )}
 
       {/* Facebook page embed — appears when the selected element holds a FB
           page-plugin iframe (or legacy .fb-page div). Edits URL / width / etc. */}

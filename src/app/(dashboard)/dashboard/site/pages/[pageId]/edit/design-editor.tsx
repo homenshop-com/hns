@@ -29,6 +29,8 @@ import {
   stripFooterPinnedTop,
   parsePageWidthCss,
   upsertPageWidthCss,
+  parseFullWidthIds,
+  toggleFullWidthId,
   type SceneGraph,
 } from "@/lib/scene";
 // Sprint 9k — section preset library for LeftPalette "섹션 블록" list.
@@ -4494,6 +4496,16 @@ export default function DesignEditor({
    *  and the published route's `designWidth` (single source). `width <= 0`
    *  removes the override → revert to the inferred default. Only meaningful for
    *  the legacy absolute paradigm (modern/flow pages are fluid 100%). */
+  /** Toggle a BODY object's full-viewport-width (100vw, PC only). Persists a
+   *  managed HNS-FULLWIDTH block in pageCss (single source: editor canvas +
+   *  published). Breakpoint = current page width so it only fires on the
+   *  desktop band (where the page is centered with side gaps). */
+  function applyObjectFullWidth(id: string, on: boolean) {
+    if (!id) return;
+    const bp = designCanvasWidth ?? 1000;
+    setCurrentPageCss((c) => toggleFullWidthId(c ?? "", id, on, bp));
+  }
+
   function applyPageWidth(width: number) {
     if (isModernCanvas) return;
     // Flag a re-center; the layout-effect below runs AFTER React commits the
@@ -5735,6 +5747,8 @@ export default function DesignEditor({
             pageWidth={designCanvasWidth ?? 1000}
             pageWidthManaged={parsePageWidthCss(currentPageCss) != null}
             onApplyPageWidth={applyPageWidth}
+            fullWidthObjectIds={parseFullWidthIds(currentPageCss)}
+            onToggleObjectFullWidth={applyObjectFullWidth}
             onOpenHeaderEdit={() => setShowHeaderEdit(true)}
             onOpenFooterEdit={() => setShowFooterEdit(true)}
           />
