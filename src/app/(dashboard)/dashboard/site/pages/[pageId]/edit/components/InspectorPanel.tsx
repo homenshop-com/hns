@@ -361,6 +361,8 @@ export default function InspectorPanel({
             onApplyFooterLayout={onApplyFooterLayout}
             fullWidthObjectIds={fullWidthObjectIds}
             onToggleObjectFullWidth={onToggleObjectFullWidth}
+            menuStyle={menuStyle}
+            onApplyMenuStyle={onApplyMenuStyle}
           />
         )}
 
@@ -603,6 +605,8 @@ interface DesignTabProps {
   onApplyFooterLayout?: (next: FooterStyle) => void;
   fullWidthObjectIds?: string[];
   onToggleObjectFullWidth?: (id: string, on: boolean) => void;
+  menuStyle?: MenuStyle;
+  onApplyMenuStyle?: (next: MenuStyle) => void;
 }
 
 function DesignTab({
@@ -610,6 +614,7 @@ function DesignTab({
   editingTarget, headerLayout, onApplyHeaderLayout,
   onOpenHeaderEdit, onOpenFooterEdit, onApplyBodyLayout, footerStyle, onApplyFooterLayout,
   fullWidthObjectIds, onToggleObjectFullWidth,
+  menuStyle, onApplyMenuStyle,
 }: DesignTabProps) {
   if (!layer) {
     /* HMF mode empty state — show header/footer settings panel. */
@@ -729,6 +734,16 @@ function DesignTab({
         layerId={layer.id}
         disabled={layer.type === "section" || layer.type === "inline"}
       />
+
+      {/* Menu object selected → site-wide nav styling (color / hover / size /
+          spacing). Same controls as the 페이지 탭 panel, surfaced here so the
+          menu is edited while it stays selected (avoids the picker deselect). */}
+      {onApplyMenuStyle &&
+        (layer.id === "v-wdg-nav" ||
+          /\b(mainmenu|v-home-ap-hd-nav|hd-nav)\b/i.test(layer.legacyClassName ?? "") ||
+          /\bmenu\b/i.test(layer.name ?? "")) && (
+          <MenuSettingsPanel menuStyle={menuStyle} onApply={onApplyMenuStyle} />
+        )}
 
       {/* Full-viewport width (100vw, PC only) — breaks the object out of the
           page to the screen edges. Persists in a managed pageCss block. */}
