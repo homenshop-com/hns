@@ -1487,6 +1487,16 @@ export async function GET(
     stripInlineGeometryImportant(rewriteInternalLinks(cleanHtml(footerHtml))),
   );
 
+  // Full-bleed header/footer background (page 탭 → "배경 전체 폭"). The bg is a
+  // box-shadow:0 0 0 100vw spread; it gets CLIPPED by the page wrapper's
+  // `overflow-x:hidden`, so when the user enabled it we relax the wrapper to
+  // `overflow:visible` and rely on `html,body{overflow-x:hidden}` to clip at the
+  // viewport (no h-scroll). Only opt-in pages are affected.
+  const hasFullBleed =
+    /box-shadow\s*:\s*0 0 0 100vw/i.test(pageCss) ||
+    /box-shadow\s*:\s*0 0 0 100vw/i.test(siteFooterHtml || "");
+  const wrapperOverflowX = hasFullBleed ? "visible" : "hidden";
+
   // Build CSS based on template type
   const publishedCss = isModernTemplate
     ? `
@@ -1568,7 +1578,7 @@ export async function GET(
     }
     .de-resize-handle { display: none !important; }
     html, body { overflow-x: hidden; }
-    .c_v_home_dft { overflow-x: hidden; overflow-y: visible; width: 1000px !important; margin: 0 auto !important; }
+    .c_v_home_dft { overflow-x: ${wrapperOverflowX}; overflow-y: visible; width: 1000px !important; margin: 0 auto !important; }
     `;
 
   // Device-override pages (Wix-style 3-mode absolute editor) carry their own
@@ -1613,7 +1623,7 @@ export async function GET(
   document.documentElement.style.cssText += 'margin:0;padding:0;overflow-x:hidden;';
   document.body.style.cssText += 'margin:0;padding:0;overflow-x:hidden;';
   var PCW = ${designWidth};
-  el.style.cssText += 'width:'+PCW+'px;margin:0 auto;overflow-x:hidden;overflow-y:visible;position:relative;';
+  el.style.cssText += 'width:'+PCW+'px;margin:0 auto;overflow-x:${wrapperOverflowX};overflow-y:visible;position:relative;';
   function artboard(vw){ return vw <= 767 ? 375 : vw <= 1024 ? 768 : PCW; }
   function sf() {
     var vw = document.documentElement.clientWidth;
@@ -1654,7 +1664,7 @@ export async function GET(
   var DW = ${designWidth};
   document.documentElement.style.cssText += 'margin:0;padding:0;overflow-x:hidden;';
   document.body.style.cssText += 'margin:0;padding:0;overflow-x:hidden;';
-  el.style.cssText += 'width:'+DW+'px;margin:0 auto;overflow-x:hidden;overflow-y:visible;position:relative;';
+  el.style.cssText += 'width:'+DW+'px;margin:0 auto;overflow-x:${wrapperOverflowX};overflow-y:visible;position:relative;';
   function sf() {
     var vw = document.documentElement.clientWidth;
     if (vw < DW) {
