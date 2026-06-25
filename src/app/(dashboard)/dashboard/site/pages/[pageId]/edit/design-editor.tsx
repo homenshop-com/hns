@@ -4172,12 +4172,22 @@ export default function DesignEditor({
     if (!pendingWidthRecenterRef.current) return;
     pendingWidthRecenterRef.current = false;
     const wrap = canvasWrapperRef.current;
-    if (!wrap || artboardWidth == null) return;
+    const art = canvasRef.current;
+    if (!wrap || !art) return;
+    // MEASURE the real geometry (the layout-effect runs after the new width is
+    // committed, so getBoundingClientRect reflects the grown artboard). Shift
+    // scrollLeft by the gap between the artboard's center and the center of the
+    // visible canvas area. Measuring (vs. a formula) is robust to whatever the
+    // overflow behavior is (flex pin-left vs. centered-clip) and to the rail
+    // padding model. No-op when the artboard fits (gap ~0, or not scrollable).
+    const wr = wrap.getBoundingClientRect();
+    const ar = art.getBoundingClientRect();
     const cs = getComputedStyle(wrap);
     const padL = parseFloat(cs.paddingLeft) || 0;
     const padR = parseFloat(cs.paddingRight) || 0;
-    const visW = wrap.clientWidth - padL - padR;
-    wrap.scrollLeft = Math.max(0, artboardWidth / 2 - visW / 2);
+    const visCenter = wr.left + padL + (wrap.clientWidth - padL - padR) / 2;
+    const artCenter = ar.left + ar.width / 2;
+    wrap.scrollLeft += artCenter - visCenter;
   }, [artboardWidth]);
 
   const seedHmfViewportFromDesktop = useCallback((device: HmfDevice, desktopWidth: number, deviceWidth: number) => {
