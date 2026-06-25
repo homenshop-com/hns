@@ -458,12 +458,20 @@ export default function DesignEditor({
     const heightMatch = block.match(/--hns-header-height:\s*([^;]+);/);
     const bgMatch = block.match(/--hns-header-bg:\s*([^;]+);/);
     const fullWidthBg = /box-shadow\s*:[^;]*100vw/i.test(block);
-    setHeaderLayout({
+    const parsed = {
       sticky,
       height: heightMatch?.[1]?.trim() ?? "auto",
       background: bgMatch?.[1]?.trim() ?? "transparent",
       fullWidthBg,
-    });
+    };
+    setHeaderLayout(parsed);
+    // Auto-migrate OLD-format blocks (single `#hns_header`, which the theme's
+    // `#hns_header{background-color}` can override) to the higher-specificity
+    // `#hns_header#hns_header` + !important format — so the user's header colour
+    // wins without them having to re-apply the setting. Idempotent.
+    if (!block.includes("#hns_header#hns_header")) {
+      setTimeout(() => applyHeaderLayout(parsed), 0);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   // Page tab context menu (right-click on a page tab in the App bar).
