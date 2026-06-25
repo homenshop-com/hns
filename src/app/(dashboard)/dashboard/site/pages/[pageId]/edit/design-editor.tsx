@@ -4411,24 +4411,31 @@ export default function DesignEditor({
     const MARK_START = "/* HNS-HEADER-LAYOUT:START */";
     const MARK_END = "/* HNS-HEADER-LAYOUT:END */";
     const hasBg = !!(layout.background && layout.background !== "transparent");
-    const heightLine =
-      layout.height && layout.height !== "auto"
-        ? `  --hns-header-height: ${layout.height};\n  #hns_header { height: var(--hns-header-height); min-height: var(--hns-header-height); }\n`
-        : "";
-    const bgLine = hasBg
-      ? `  --hns-header-bg: ${layout.background};\n  #hns_header { background: var(--hns-header-bg); }\n`
-      : "";
-    // Full-bleed bg: a box-shadow spread + horizontal clip extends the bg
+    const hasHeight = !!(layout.height && layout.height !== "auto");
+    // CSS custom properties live in :root. The actual #hns_header rules use a
+    // DOUBLED id selector (#hns_header#hns_header, specificity 2,0,0) + so they
+    // beat the THEME's `#hns_header { background-color: var(--brand-surface) }`
+    // (1,0,0) which otherwise covers the user's header colour in the center.
+    const vars: string[] = [];
+    if (hasHeight) vars.push(`--hns-header-height: ${layout.height};`);
+    if (hasBg) vars.push(`--hns-header-bg: ${layout.background};`);
+    vars.push(layout.sticky ? "/* sticky:1 */" : "/* sticky:0 */");
+
+    const decls: string[] = [];
+    if (hasHeight) {
+      decls.push("height: var(--hns-header-height) !important;");
+      decls.push("min-height: var(--hns-header-height) !important;");
+    }
+    if (hasBg) decls.push("background: var(--hns-header-bg) !important;");
+    // Full-bleed bg: box-shadow spread + horizontal clip extends the bg
     // edge-to-edge (100vw) without moving the absolute header content. Works
     // across all published scale bands (the shadow over-covers when scaled).
-    const fullWidthLine =
-      layout.fullWidthBg && hasBg
-        ? `  #hns_header { ${fullBleedDecls(layout.background)} }\n`
-        : "";
-    const stickyLine = layout.sticky
-      ? `  #hns_header { position: sticky; top: 0; z-index: 100; }\n  /* sticky:1 */\n`
-      : `  /* sticky:0 */\n`;
-    const block = `${MARK_START}\n:root {\n${heightLine}${bgLine}${fullWidthLine}${stickyLine}}\n${MARK_END}`;
+    if (layout.fullWidthBg && hasBg) decls.push(fullBleedDecls(layout.background));
+    if (layout.sticky) {
+      decls.push("position: sticky !important;", "top: 0 !important;", "z-index: 100 !important;");
+    }
+    const headerRule = decls.length ? `#hns_header#hns_header { ${decls.join(" ")} }\n` : "";
+    const block = `${MARK_START}\n:root { ${vars.join(" ")} }\n${headerRule}${MARK_END}`;
     const re = new RegExp(
       MARK_START.replace(/[/*]/g, "\\$&") + "[\\s\\S]*?" + MARK_END.replace(/[/*]/g, "\\$&"),
     );
@@ -4446,7 +4453,9 @@ export default function DesignEditor({
       hEl.style.position = layout.sticky ? "sticky" : "";
       hEl.style.top = layout.sticky ? "0" : "";
       hEl.style.zIndex = layout.sticky ? "100" : "";
-      hEl.style.background = hasBg ? layout.background : "";
+      // !important so the user's colour beats the theme's #hns_header bg rule.
+      if (hasBg) hEl.style.setProperty("background", layout.background, "important");
+      else hEl.style.removeProperty("background");
       if (layout.height && layout.height !== "auto") {
         // !important to beat the boosted HNS-HEADER-LAYOUT rule in the canvas.
         hEl.style.setProperty("height", layout.height, "important");

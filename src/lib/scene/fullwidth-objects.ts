@@ -40,9 +40,9 @@ export function parseFullWidthIds(css: string | null | undefined): string[] {
   if (!css) return [];
   const block = blockRegex().exec(css)?.[0];
   if (!block) return [];
-  // Selector list lives on the inner rule: `#a, #b { ... }`.
-  const sel = /\{\s*([^{}]*?#[^{}]*?)\{/.exec(block)?.[1] ?? "";
-  const ids = Array.from(sel.matchAll(/#([A-Za-z0-9_-]+)/g)).map((m) => m[1]!);
+  // Selector list: `#hns_body #a, #hns_body #b { ... }`. Match the OBJECT id
+  // (the one after `#hns_body `), not the wrapper id.
+  const ids = Array.from(block.matchAll(/#hns_body\s+#([A-Za-z0-9_-]+)/g)).map((m) => m[1]!);
   return Array.from(new Set(ids));
 }
 
@@ -56,7 +56,10 @@ export function upsertFullWidthCss(
   const unique = Array.from(new Set(ids.filter(Boolean)));
   if (unique.length === 0) return base;
   const bp = Math.max(320, Math.round(breakpoint) || 1000);
-  const sel = unique.map((id) => `#${id}`).join(", ");
+  // `#hns_body #id` (2 ids) so it beats a plugin's bare `#id` real-size rule
+  // (1 id, also !important) regardless of source order. Body objects live in
+  // #hns_body in both the editor (#de-canvas-inner > #hns_body) and published.
+  const sel = unique.map((id) => `#hns_body #${id}`).join(", ");
   const rule = `${sel} { width:100vw!important; left:50%!important; right:auto!important; margin-left:-50vw!important; max-width:100vw!important; }`;
   const block = `${FULLWIDTH_MARK_START}\n@media (min-width:${bp}px){\n  ${rule}\n}\n${FULLWIDTH_MARK_END}`;
   return base ? `${base}\n\n${block}\n` : `${block}\n`;
