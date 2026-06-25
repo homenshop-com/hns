@@ -620,6 +620,42 @@
   background: #5be5b3;
   box-shadow: 0 2px 12px rgba(91, 229, 179, 0.45);
 }
+/* Header resize bar — same affordance as the body bar, distinct hue (amber)
+   so the header↔body boundary reads differently from the body↔footer one. */
+.de-header-resize-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 18px;
+  transform: translateY(-9px);
+  z-index: 9000;
+  cursor: ns-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+}
+.de-header-resize-bar::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 8px;
+  border-top: 1px dashed rgba(245, 158, 11, 0.7);
+}
+.de-header-resize-bar span {
+  position: relative;
+  width: 72px;
+  height: 8px;
+  border-radius: 999px;
+  background: #f59e0b;
+  border: 1px solid #fff;
+  box-shadow: 0 2px 10px rgba(245, 158, 11, 0.4);
+}
+.de-header-resize-bar:hover span {
+  background: #fbbf24;
+  box-shadow: 0 2px 12px rgba(251, 191, 36, 0.5);
+}
 #de-canvas-inner #hns_footer {
   /* relative (no offset) keeps the footer's flow position AND makes it the
      positioning context for objects the user dragged free (data-hns-footer-free),

@@ -433,6 +433,10 @@ export default function DesignEditor({
     height: "auto",
     background: "transparent",
   });
+  // Keep a ref mirror so the global pointer handlers (header-resize drag) read
+  // the latest layout without re-subscribing.
+  const headerLayoutRef = useRef<HeaderLayout | null>(null);
+  headerLayoutRef.current = headerLayout;
   // Site-wide, per-device footer style (background / min-height). Parsed from
   // the managed `<style data-hns-footer>` block inside footerHtml (SiteHmf).
   const [footerStyle, setFooterStyle] = useState<FooterStyle>(() =>
@@ -693,6 +697,10 @@ export default function DesignEditor({
   const bodyManualMinHeightRef = useRef<BodyLayoutHeights>(parseBodyLayoutCss(pageCss));
   const bodyHeightRafRef = useRef<number | null>(null);
   const [bodyHandleTop, setBodyHandleTop] = useState(0);
+  // Header resize bar (mirror of the body one) — marks the header↔body
+  // boundary and drags the site-wide header height (headerLayout.height).
+  const headerResizeRef = useRef<{ startY: number; startHeight: number } | null>(null);
+  const [headerHandleTop, setHeaderHandleTop] = useState(0);
 
   // Last pointer position during an active drag/resize gesture. Used at
   // mouse/touch-up to decide whether a body element was dropped over the
@@ -710,6 +718,29 @@ export default function DesignEditor({
   const headerRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const footerRef = useRef<HTMLDivElement>(null);
+
+  const HEADER_MIN_HEIGHT = 30;
+
+  /** Reposition the header + body resize bars to the live DOM. The header bar
+   *  sits at the header's bottom edge (= header↔body boundary); the body bar at
+   *  the body's bottom edge (= body↔footer boundary). Defined early so the
+   *  header-injection / device-change effects can depend on it. */
+  const measureHandleBars = useCallback(() => {
+    const hEl = headerRef.current;
+    const bEl = bodyRef.current;
+    if (hEl) setHeaderHandleTop(hEl.offsetTop + hEl.offsetHeight);
+    if (bEl) setBodyHandleTop(bEl.offsetTop + bEl.offsetHeight);
+  }, []);
+
+  const startHeaderResize = useCallback((clientY: number) => {
+    const hEl = headerRef.current;
+    if (!hEl) return;
+    headerResizeRef.current = { startY: clientY, startHeight: hEl.offsetHeight };
+    multiSelectedRef.current.clear();
+    useEditorStore.getState().clearSelection();
+    setSelectedElId(null);
+    setEditingTextId(null);
+  }, []);
 
   /* ─── Set initial content via refs (not dangerouslySetInnerHTML) so DOM edits persist ─── */
   const headerInitedRef = useRef(false);
@@ -1064,8 +1095,13 @@ export default function DesignEditor({
       // Baseline for the site-wide clobber guard (see save). Captured AFTER
       // all load-time normalization/id-stamping so an untouched save matches.
       initialHeaderSigRef.current = hmfSignature(headerRef.current);
+      // Position the header resize bar once the header has laid out (and again
+      // after images load, which can change its height).
+      measureHandleBars();
+      setTimeout(measureHandleBars, 150);
+      setTimeout(measureHandleBars, 600);
     }
-  }, [headerHtml, editorV2Enabled]);
+  }, [headerHtml, editorV2Enabled, measureHandleBars]);
 
   useEffect(() => {
     if (menuRef.current && !menuInitedRef.current) {
@@ -1418,19 +1454,20 @@ export default function DesignEditor({
 
   useEffect(() => {
     syncBodyHeight();
+    measureHandleBars();
     // Async content (FB embed iframe, board/product plugins, images) finishes
     // laying out AFTER the immediate measure, so the first pass can be too
     // short — leaving the footer in the middle of the content on the device
     // just switched to. Re-measure on a couple of delays (mirrors the
     // published min-height script) so the footer settles below the lowest
     // object. Cleared on unmount / next device change.
-    const t1 = setTimeout(() => syncBodyHeight(), 350);
-    const t2 = setTimeout(() => syncBodyHeight(), 1200);
+    const t1 = setTimeout(() => { syncBodyHeight(); measureHandleBars(); }, 350);
+    const t2 = setTimeout(() => { syncBodyHeight(); measureHandleBars(); }, 1200);
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
     };
-  }, [viewportMode, zoom, fitOffsetX, syncBodyHeight]);
+  }, [viewportMode, zoom, fitOffsetX, syncBodyHeight, measureHandleBars]);
 
   /* ─── Calculate hns_body min-height from content + manual body handle ─── */
   useEffect(() => {
@@ -2633,6 +2670,19 @@ export default function DesignEditor({
         applyBodyHeight(next, { manual: true, device: useEditorStore.getState().viewportMode });
         return;
       }
+      if (headerResizeRef.current) {
+        const hEl = headerRef.current;
+        if (!hEl) return;
+        const scale = getCanvasScale();
+        const dy = (clientY - headerResizeRef.current.startY) / scale;
+        const next = Math.max(HEADER_MIN_HEIGHT, headerResizeRef.current.startHeight + dy);
+        // Live preview; persisted to headerLayout/CSS on release (onEnd).
+        hEl.style.height = `${next}px`;
+        hEl.style.minHeight = `${next}px`;
+        measureHandleBars();
+        setSaveStatus("");
+        return;
+      }
       // Goal 2: while dragging a BODY element, highlight the header zone as a
       // drop target when the pointer hovers over it. Dropping there relocates
       // the element into the site-wide header section (see onEnd).
@@ -2764,7 +2814,7 @@ export default function DesignEditor({
 
     function onMouseMove(e: MouseEvent) { handleMove(e.clientX, e.clientY); }
     function onTouchMove(e: TouchEvent) {
-      if (!dragRef.current && !resizeRef.current && !bodyResizeRef.current) return;
+      if (!dragRef.current && !resizeRef.current && !bodyResizeRef.current && !headerResizeRef.current) return;
       e.preventDefault();
       const touch = e.touches[0];
       if (touch) handleMove(touch.clientX, touch.clientY);
@@ -2774,6 +2824,19 @@ export default function DesignEditor({
         const device = useEditorStore.getState().viewportMode;
         syncBodyHeight({ manualHeight: bodyManualMinHeightRef.current[device], device });
         bodyResizeRef.current = null;
+      }
+      if (headerResizeRef.current) {
+        const hEl = headerRef.current;
+        headerResizeRef.current = null;
+        if (hEl) {
+          // Persist the dragged height to the site-wide header layout (CSS
+          // HNS-HEADER-LAYOUT block + state) so it survives save/reload and
+          // applies to every page, exactly like the 최소 높이 field.
+          const base = headerLayoutRef.current ?? headerLayout;
+          const nextLayout = { ...base, height: `${hEl.offsetHeight}px` };
+          setHeaderLayout(nextLayout);
+          applyHeaderLayout(nextLayout);
+        }
       }
       // V2: commit the final DOM position/size back to the scene so
       // LayerPanel / overlay / undo stack reflect the legacy drag-resize.
@@ -4342,14 +4405,17 @@ export default function DesignEditor({
       ? `  #hns_header { position: sticky; top: 0; z-index: 100; }\n  /* sticky:1 */\n`
       : `  /* sticky:0 */\n`;
     const block = `${MARK_START}\n:root {\n${heightLine}${bgLine}${stickyLine}}\n${MARK_END}`;
-    const css = currentPageCss ?? "";
     const re = new RegExp(
       MARK_START.replace(/[/*]/g, "\\$&") + "[\\s\\S]*?" + MARK_END.replace(/[/*]/g, "\\$&"),
     );
-    const next = re.test(css)
-      ? css.replace(re, block)
-      : css + (css.trim() ? "\n\n" : "") + block + "\n";
-    setCurrentPageCss(next);
+    // Functional update so this is correct even when called from a stale
+    // closure (e.g. the global pointer handler at the end of a header drag).
+    setCurrentPageCss((prev) => {
+      const css = prev ?? "";
+      return re.test(css)
+        ? css.replace(re, block)
+        : css + (css.trim() ? "\n\n" : "") + block + "\n";
+    });
     // Apply live to the canvas so the user sees the change immediately.
     const hEl = headerRef.current;
     if (hEl) {
@@ -4363,6 +4429,8 @@ export default function DesignEditor({
         hEl.style.minHeight = "";
       }
     }
+    // The header's bottom edge moved → reposition both resize bars.
+    measureHandleBars();
   }
 
   /** Apply "본문 설정" panel changes to #hns_body. Background → an
@@ -5441,6 +5509,29 @@ export default function DesignEditor({
           >
             {/* HEADER — ref-only, set via useEffect to preserve drag edits */}
             <div id="hns_header" ref={headerRef} />
+            {/* HEADER resize bar — marks the header↔body boundary and drags the
+                site-wide header height (mirror of the body↔footer bar below). */}
+            {!isModernCanvas && (
+              <div
+                className="de-header-resize-bar"
+                style={{ top: headerHandleTop }}
+                title="헤더 높이 조정"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  startHeaderResize(e.clientY);
+                }}
+                onTouchStart={(e) => {
+                  const touch = e.touches[0];
+                  if (!touch) return;
+                  e.preventDefault();
+                  e.stopPropagation();
+                  startHeaderResize(touch.clientY);
+                }}
+              >
+                <span />
+              </div>
+            )}
 
             {/* MENU — ref-only */}
             <div id="hns_menu" ref={menuRef} />
