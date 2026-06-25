@@ -192,6 +192,7 @@ export interface HmfHeaderLayout {
   sticky: boolean;
   height: string;   // "auto" | "64px" etc.
   background: string; // hex / var() / "transparent"
+  fullWidthBg?: boolean; // background extends edge-to-edge (100vw)
 }
 
 interface Props {
@@ -559,6 +560,16 @@ function DesignTab({
               value={layout.background}
               onChange={(v) => onApplyHeaderLayout?.({ ...layout, background: v })}
             />
+            <div className="ins-prop-row" style={{ marginTop: 8 }}>
+              <label className="ins-device-toggle" style={{ cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={!!layout.fullWidthBg}
+                  onChange={(e) => onApplyHeaderLayout?.({ ...layout, fullWidthBg: e.target.checked })}
+                />
+                <span>배경 전체 폭 (100%)</span>
+              </label>
+            </div>
             <div className="ins-prop-row" style={{ marginTop: 8 }}>
               <label className="ins-device-toggle" style={{ cursor: "pointer" }}>
                 <input
@@ -2434,6 +2445,16 @@ function HeaderSettingsPanel({
         <label className="ins-device-toggle" style={{ cursor: "pointer" }}>
           <input
             type="checkbox"
+            checked={!!layout.fullWidthBg}
+            onChange={(e) => onApply?.({ ...layout, fullWidthBg: e.target.checked })}
+          />
+          <span>배경 전체 폭 (100%)</span>
+        </label>
+      </div>
+      <div className="ins-prop-row" style={{ marginTop: 8 }}>
+        <label className="ins-device-toggle" style={{ cursor: "pointer" }}>
+          <input
+            type="checkbox"
             checked={layout.sticky}
             onChange={(e) => onApply?.({ ...layout, sticky: e.target.checked })}
           />
@@ -2582,6 +2603,18 @@ function FooterSettingsPanel({
           }}
           wide
         />
+      </div>
+      <div className="ins-prop-row" style={{ marginTop: 8 }}>
+        <label className="ins-device-toggle" style={{ cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={!!style.desktop.fullWidth}
+            onChange={(e) =>
+              onApply?.({ ...style, desktop: { ...style.desktop, fullWidth: e.target.checked } })
+            }
+          />
+          <span>배경 전체 폭 (100%)</span>
+        </label>
       </div>
       <div className="ins-hmf-notice" style={{ marginTop: 8 }}>
         <i className="fa-solid fa-circle-info" aria-hidden />

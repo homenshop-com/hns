@@ -20,8 +20,20 @@ export type FooterDevice = "desktop" | "tablet" | "mobile";
 export interface FooterDeviceStyle {
   background: string;
   minHeight: number;
+  /** Full-bleed background — extends the footer bg edge-to-edge (100vw) while
+   *  the content stays within the page width. Implemented with a box-shadow
+   *  spread + horizontal clip so it works in every scale band and doesn't shift
+   *  the absolute-positioned footer content. Set on the desktop entry; the
+   *  desktop base rule (no @media) carries it to every viewport. */
+  fullWidth?: boolean;
 }
 export type FooterStyle = Record<FooterDevice, FooterDeviceStyle>;
+
+/** Shared full-bleed declarations (used by both the footer and the header). */
+export function fullBleedDecls(bg: string, important = true): string {
+  const bang = important ? " !important" : "";
+  return `box-shadow:0 0 0 100vw ${bg}${bang};clip-path:inset(0 -100vw 0 -100vw)${bang};`;
+}
 
 const MAXW: Record<Exclude<FooterDevice, "desktop">, number> = {
   tablet: 1024,
@@ -30,18 +42,18 @@ const MAXW: Record<Exclude<FooterDevice, "desktop">, number> = {
 
 export function emptyFooterStyle(): FooterStyle {
   return {
-    desktop: { background: "", minHeight: 0 },
-    tablet: { background: "", minHeight: 0 },
-    mobile: { background: "", minHeight: 0 },
+    desktop: { background: "", minHeight: 0, fullWidth: false },
+    tablet: { background: "", minHeight: 0, fullWidth: false },
+    mobile: { background: "", minHeight: 0, fullWidth: false },
   };
 }
 
 function decls(d: FooterDeviceStyle): string {
   const out: string[] = [];
-  if (d.background && d.background !== "transparent") {
-    out.push(`background:${d.background} !important;`);
-  }
+  const bg = d.background && d.background !== "transparent" ? d.background : "";
+  if (bg) out.push(`background:${bg} !important;`);
   if (d.minHeight > 0) out.push(`min-height:${Math.round(d.minHeight)}px !important;`);
+  if (d.fullWidth && bg) out.push(fullBleedDecls(bg));
   return out.join("");
 }
 
@@ -61,7 +73,8 @@ export function buildFooterStyleBlock(s: FooterStyle): string {
 function readDecls(css: string): FooterDeviceStyle {
   const bg = /background\s*:\s*([^;!}]+)/i.exec(css)?.[1]?.trim() || "";
   const mh = parseInt(/min-height\s*:\s*([\d.]+)px/i.exec(css)?.[1] || "0", 10) || 0;
-  return { background: bg, minHeight: mh };
+  const fullWidth = /box-shadow\s*:[^;]*100vw/i.test(css);
+  return { background: bg, minHeight: mh, fullWidth };
 }
 
 /** Parse the managed block out of footer HTML back into a FooterStyle. */
@@ -112,6 +125,15 @@ export function applyFooterLivePreview(
   const base = style.desktop;
   const bg = (d.background || base.background || "").trim();
   const mh = d.minHeight > 0 ? d.minHeight : base.minHeight;
-  footerEl.style.background = bg && bg !== "transparent" ? bg : "";
+  const cleanBg = bg && bg !== "transparent" ? bg : "";
+  footerEl.style.background = cleanBg;
   footerEl.style.minHeight = mh > 0 ? `${Math.round(mh)}px` : "";
+  const fullWidth = (d.fullWidth ?? false) || (base.fullWidth ?? false);
+  if (fullWidth && cleanBg) {
+    footerEl.style.boxShadow = `0 0 0 100vw ${cleanBg}`;
+    footerEl.style.clipPath = "inset(0 -100vw 0 -100vw)";
+  } else {
+    footerEl.style.boxShadow = "";
+    footerEl.style.clipPath = "";
+  }
 }

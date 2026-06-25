@@ -74,6 +74,7 @@ import {
   parseFooterStyle,
   applyFooterStyleToDom,
   applyFooterLivePreview,
+  fullBleedDecls,
 } from "./shared/footer-style";
 
 const TiptapModal = lazy(() => import("./tiptap-modal"));
@@ -427,11 +428,13 @@ export default function DesignEditor({
     sticky: boolean;
     height: string; // e.g. "auto" | "64px"
     background: string; // hex / var() / "transparent"
+    fullWidthBg?: boolean; // bg extends edge-to-edge (100vw), content centered
   };
   const [headerLayout, setHeaderLayout] = useState<HeaderLayout>({
     sticky: false,
     height: "auto",
     background: "transparent",
+    fullWidthBg: false,
   });
   // Keep a ref mirror so the global pointer handlers (header-resize drag) read
   // the latest layout without re-subscribing.
@@ -452,10 +455,12 @@ export default function DesignEditor({
     const sticky = /sticky\s*:\s*1/.test(block);
     const heightMatch = block.match(/--hns-header-height:\s*([^;]+);/);
     const bgMatch = block.match(/--hns-header-bg:\s*([^;]+);/);
+    const fullWidthBg = /box-shadow\s*:[^;]*100vw/i.test(block);
     setHeaderLayout({
       sticky,
       height: heightMatch?.[1]?.trim() ?? "auto",
       background: bgMatch?.[1]?.trim() ?? "transparent",
+      fullWidthBg,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -4397,21 +4402,28 @@ export default function DesignEditor({
    *    #hns_header { background: var(--hns-header-bg); height: var(...) }
    *    body[data-header-sticky] #hns_header { position: sticky; top: 0; z-index: 100 }
    */
-  function applyHeaderLayout(layout: { sticky: boolean; height: string; background: string }) {
+  function applyHeaderLayout(layout: { sticky: boolean; height: string; background: string; fullWidthBg?: boolean }) {
     const MARK_START = "/* HNS-HEADER-LAYOUT:START */";
     const MARK_END = "/* HNS-HEADER-LAYOUT:END */";
+    const hasBg = !!(layout.background && layout.background !== "transparent");
     const heightLine =
       layout.height && layout.height !== "auto"
         ? `  --hns-header-height: ${layout.height};\n  #hns_header { height: var(--hns-header-height); min-height: var(--hns-header-height); }\n`
         : "";
-    const bgLine =
-      layout.background && layout.background !== "transparent"
-        ? `  --hns-header-bg: ${layout.background};\n  #hns_header { background: var(--hns-header-bg); }\n`
+    const bgLine = hasBg
+      ? `  --hns-header-bg: ${layout.background};\n  #hns_header { background: var(--hns-header-bg); }\n`
+      : "";
+    // Full-bleed bg: a box-shadow spread + horizontal clip extends the bg
+    // edge-to-edge (100vw) without moving the absolute header content. Works
+    // across all published scale bands (the shadow over-covers when scaled).
+    const fullWidthLine =
+      layout.fullWidthBg && hasBg
+        ? `  #hns_header { ${fullBleedDecls(layout.background)} }\n`
         : "";
     const stickyLine = layout.sticky
       ? `  #hns_header { position: sticky; top: 0; z-index: 100; }\n  /* sticky:1 */\n`
       : `  /* sticky:0 */\n`;
-    const block = `${MARK_START}\n:root {\n${heightLine}${bgLine}${stickyLine}}\n${MARK_END}`;
+    const block = `${MARK_START}\n:root {\n${heightLine}${bgLine}${fullWidthLine}${stickyLine}}\n${MARK_END}`;
     const re = new RegExp(
       MARK_START.replace(/[/*]/g, "\\$&") + "[\\s\\S]*?" + MARK_END.replace(/[/*]/g, "\\$&"),
     );
@@ -4429,11 +4441,18 @@ export default function DesignEditor({
       hEl.style.position = layout.sticky ? "sticky" : "";
       hEl.style.top = layout.sticky ? "0" : "";
       hEl.style.zIndex = layout.sticky ? "100" : "";
-      hEl.style.background = layout.background !== "transparent" ? layout.background : "";
+      hEl.style.background = hasBg ? layout.background : "";
       if (layout.height && layout.height !== "auto") {
         hEl.style.minHeight = layout.height;
       } else {
         hEl.style.minHeight = "";
+      }
+      if (layout.fullWidthBg && hasBg) {
+        hEl.style.boxShadow = `0 0 0 100vw ${layout.background}`;
+        hEl.style.clipPath = "inset(0 -100vw 0 -100vw)";
+      } else {
+        hEl.style.boxShadow = "";
+        hEl.style.clipPath = "";
       }
     }
     // The header's bottom edge moved → reposition both resize bars.
