@@ -401,6 +401,14 @@
 /* ── Canvas ── */
 .de-canvas-wrapper {
   flex: 1;
+  /* CRITICAL: a flex item's default `min-width: auto` refuses to shrink below
+     its content's intrinsic size. Without this, a wide artboard (e.g. a 2340px
+     페이지 폭) makes THIS wrapper overflow its parent instead of scrolling
+     internally — so the artboard appears pinned to the left and `overflow:auto`
+     / scrollLeft never engage. min-width:0 lets the wrapper stay viewport-sized
+     and become the real horizontal scroll container (centered via the
+     artboard's margin:0 auto + the JS recenter on page-width change). */
+  min-width: 0;
   overflow: auto;
   display: flex;
   justify-content: center;
