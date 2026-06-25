@@ -721,15 +721,22 @@ export default function DesignEditor({
 
   const HEADER_MIN_HEIGHT = 30;
 
-  /** Reposition the header + body resize bars to the live DOM. The header bar
-   *  sits at the header's bottom edge (= header↔body boundary); the body bar at
-   *  the body's bottom edge (= body↔footer boundary). Defined early so the
-   *  header-injection / device-change effects can depend on it. */
+  /** Reposition the header + body resize bars to the live DOM. The "header"
+   *  region spans #hns_header + #hns_menu (the menu nav bar is visually part of
+   *  the header), so the header bar sits at the BODY's top edge (= the bottom of
+   *  the header+menu block), NOT between the header strip and the menu. The body
+   *  bar sits at the body's bottom edge (= body↔footer boundary). Defined early
+   *  so the header-injection / device-change effects can depend on it. */
   const measureHandleBars = useCallback(() => {
     const hEl = headerRef.current;
     const bEl = bodyRef.current;
-    if (hEl) setHeaderHandleTop(hEl.offsetTop + hEl.offsetHeight);
-    if (bEl) setBodyHandleTop(bEl.offsetTop + bEl.offsetHeight);
+    if (bEl) {
+      // Body top = bottom of the header+menu region.
+      setHeaderHandleTop(bEl.offsetTop);
+      setBodyHandleTop(bEl.offsetTop + bEl.offsetHeight);
+    } else if (hEl) {
+      setHeaderHandleTop(hEl.offsetTop + hEl.offsetHeight);
+    }
   }, []);
 
   const startHeaderResize = useCallback((clientY: number) => {
