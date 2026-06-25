@@ -4548,6 +4548,26 @@ export default function DesignEditor({
   function applyMenuStyle(next: MenuStyle) {
     setMenuStyle(next);
     setCurrentPageCss((c) => upsertMenuStyleCss(c ?? "", next));
+    // The menu <a> links carry inline `color !important` / `font-size !important`
+    // which beats ANY stylesheet (inline !important wins). So set color + size
+    // INLINE on each nav link in the live DOM — this is the real source and is
+    // persisted via the menuHtml/headerHtml HMF save. Hover/padding/z-index stay
+    // in the CSS block (no inline rivals for those).
+    let touched = false;
+    const roots = [menuRef.current, headerRef.current].filter(Boolean) as HTMLElement[];
+    for (const root of roots) {
+      root.querySelectorAll<HTMLAnchorElement>("a").forEach((a) => {
+        if (!a.closest("#v-wdg-nav, .mainmenu")) return;
+        if (next.color) a.style.setProperty("color", next.color, "important");
+        else a.style.removeProperty("color");
+        if (next.fontSize > 0) a.style.setProperty("font-size", `${next.fontSize}px`, "important");
+        touched = true;
+      });
+    }
+    // The menu defaults to "auto" save mode, which persists menuHtml as "" and
+    // discards these inline edits (publisher falls back to the legacy menu).
+    // Switch to "custom" so the styled menu DOM is saved verbatim to SiteHmf.
+    if (touched) setMenuMode("custom");
   }
 
   function applyFooterLayout(next: FooterStyle) {
