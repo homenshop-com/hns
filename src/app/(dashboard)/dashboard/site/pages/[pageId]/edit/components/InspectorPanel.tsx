@@ -348,6 +348,7 @@ export default function InspectorPanel({
         {tab === "design" && (
           <DesignTab
             layer={layer}
+            selectedId={selectedId}
             path={path}
             siteId={siteId}
             live={live}
@@ -591,6 +592,9 @@ function PageWidthPanel({
 
 interface DesignTabProps {
   layer: Layer | null;
+  /** Raw selected element id (may be set even when no scene `layer` resolves,
+   *  e.g. the nav menu which lives outside the scene graph). */
+  selectedId?: string | null;
   path: Array<{ id: string; name: string; type: string }>;
   siteId?: string;
   live: LiveSnapshot | null;
@@ -610,12 +614,41 @@ interface DesignTabProps {
 }
 
 function DesignTab({
-  layer, path, siteId, live,
+  layer, selectedId, path, siteId, live,
   editingTarget, headerLayout, onApplyHeaderLayout,
   onOpenHeaderEdit, onOpenFooterEdit, onApplyBodyLayout, footerStyle, onApplyFooterLayout,
   fullWidthObjectIds, onToggleObjectFullWidth,
   menuStyle, onApplyMenuStyle,
 }: DesignTabProps) {
+  // The nav menu lives OUTSIDE the scene graph, so selecting it sets selectedId
+  // but resolves no `layer`. Detect it from the live DOM and surface the menu
+  // styling panel (independent of the scene/empty-state branches below).
+  const menuSelected = (() => {
+    if (!selectedId || !onApplyMenuStyle) return false;
+    if (selectedId === "v-wdg-nav") return true;
+    const el = typeof document !== "undefined" ? document.getElementById(selectedId) : null;
+    if (!el) return false;
+    return (
+      /\b(mainmenu|v-home-ap-hd-nav|hd-nav)\b/i.test(el.className || "") ||
+      !!el.querySelector?.(".mainmenu")
+    );
+  })();
+  if (menuSelected) {
+    return (
+      <div className="ins-hmf-panel">
+        <header className="ins-sel-header">
+          <div className="ins-sel-row">
+            <div className="ins-sel-icon" style={{ color: "#7aa2ff" }}>
+              <i className="fa-solid fa-bars" aria-hidden />
+            </div>
+            <span className="ins-sel-name-static">메뉴</span>
+            <span className="ins-sel-badge">MENU</span>
+          </div>
+        </header>
+        <MenuSettingsPanel menuStyle={menuStyle} onApply={onApplyMenuStyle} />
+      </div>
+    );
+  }
   if (!layer) {
     /* HMF mode empty state — show header/footer settings panel. */
     if (editingTarget === "hmf") {
@@ -734,16 +767,6 @@ function DesignTab({
         layerId={layer.id}
         disabled={layer.type === "section" || layer.type === "inline"}
       />
-
-      {/* Menu object selected → site-wide nav styling (color / hover / size /
-          spacing). Same controls as the 페이지 탭 panel, surfaced here so the
-          menu is edited while it stays selected (avoids the picker deselect). */}
-      {onApplyMenuStyle &&
-        (layer.id === "v-wdg-nav" ||
-          /\b(mainmenu|v-home-ap-hd-nav|hd-nav)\b/i.test(layer.legacyClassName ?? "") ||
-          /\bmenu\b/i.test(layer.name ?? "")) && (
-          <MenuSettingsPanel menuStyle={menuStyle} onApply={onApplyMenuStyle} />
-        )}
 
       {/* Full-viewport width (100vw, PC only) — breaks the object out of the
           page to the screen edges. Persists in a managed pageCss block. */}
