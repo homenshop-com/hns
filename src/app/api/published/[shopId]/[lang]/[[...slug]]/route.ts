@@ -1570,6 +1570,12 @@ export async function GET(
        style block (data-hns-footer) whose min-height is !important. */
     #hns_footer { min-height: 150px; }
     #hns_menu:empty { display: none; }
+    /* The nav menu lives in #hns_menu as an absolutely-positioned element (often
+       with a negative top to overlap up into the header). Without a positioned
+       #hns_menu its containing block becomes #v_home_dft and a negative top
+       pushes the whole menu ABOVE the page (invisible). Relative pins the menu
+       to its flow position so the nav's coords resolve inside the header area. */
+    #hns_menu:not(:empty) { position: relative !important; z-index: 200 !important; }
     #hns_footer_content { top: 0 !important; position: relative !important; }
     /* Default footer objects flow below the body. Objects the user explicitly
        dragged free (marked) keep their own absolute geometry, like the header. */

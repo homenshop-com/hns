@@ -36,7 +36,11 @@ const LINK_SEL =
 const HOVER_SEL =
   "#hns_header .mainmenu li a:hover, #hns_menu .mainmenu li a:hover, #v-wdg-nav a:hover";
 // Raise the nav above header background boxes so the menu is never covered.
+// MUST stay ≥ the editor/published #hns_menu default (200) AND above
+// #hns_header_content (z-index 111) — a lower value (e.g. 50) drops the menu
+// BEHIND the header content wrapper and it vanishes.
 const FRONT_SEL = "#v-wdg-nav, #hns_header .v-home-ap-hd-nav, #hns_menu";
+const FRONT_Z = 200;
 
 export function buildMenuStyleCss(s: MenuStyle): string {
   const link: string[] = [];
@@ -51,8 +55,10 @@ export function buildMenuStyleCss(s: MenuStyle): string {
   const lines: string[] = [];
   if (link.length) lines.push(`${LINK_SEL} { ${link.join("; ")}; }`);
   if (hover) lines.push(`${HOVER_SEL} { ${hover}; }`);
-  // Bring-to-front whenever any menu styling is set.
-  lines.push(`${FRONT_SEL} { z-index: 50 !important; }`);
+  // Bring-to-front whenever any menu styling is set. z-index only — never force
+  // position (the nav is absolute via .dragable; #hns_menu is positioned by the
+  // base editor/published CSS).
+  lines.push(`${FRONT_SEL} { z-index: ${FRONT_Z} !important; }`);
   return `${MENU_MARK_START}\n${lines.join("\n")}\n${MENU_MARK_END}`;
 }
 

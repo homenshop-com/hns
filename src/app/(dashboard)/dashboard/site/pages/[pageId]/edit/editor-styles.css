@@ -566,7 +566,9 @@
 #de-canvas-inner #hns_menu {
   position: relative;
   width: 100%;
-  z-index: 200;
+  /* !important so a managed HNS-MENU-STYLE block can never lower the menu
+     below #hns_header_content (z-index 111) and hide the nav. */
+  z-index: 200 !important;
 }
 /* Drop-target highlight while dragging a body element over the header zone
    (goal 2: drag body element → site-wide header section). */
