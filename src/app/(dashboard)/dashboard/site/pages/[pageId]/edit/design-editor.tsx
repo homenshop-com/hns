@@ -2689,8 +2689,11 @@ export default function DesignEditor({
         const dy = (clientY - headerResizeRef.current.startY) / scale;
         const next = Math.max(HEADER_MIN_HEIGHT, headerResizeRef.current.startHeight + dy);
         // Live preview; persisted to headerLayout/CSS on release (onEnd).
-        hEl.style.height = `${next}px`;
-        hEl.style.minHeight = `${next}px`;
+        // MUST be !important — the HNS-HEADER-LAYOUT block in pageCss is boosted
+        // to !important in the canvas, so a plain inline height loses to it and
+        // the drag appears frozen. Inline !important beats the stylesheet rule.
+        hEl.style.setProperty("height", `${next}px`, "important");
+        hEl.style.setProperty("min-height", `${next}px`, "important");
         measureHandleBars();
         setSaveStatus("");
         return;
@@ -4443,9 +4446,12 @@ export default function DesignEditor({
       hEl.style.zIndex = layout.sticky ? "100" : "";
       hEl.style.background = hasBg ? layout.background : "";
       if (layout.height && layout.height !== "auto") {
-        hEl.style.minHeight = layout.height;
+        // !important to beat the boosted HNS-HEADER-LAYOUT rule in the canvas.
+        hEl.style.setProperty("height", layout.height, "important");
+        hEl.style.setProperty("min-height", layout.height, "important");
       } else {
-        hEl.style.minHeight = "";
+        hEl.style.removeProperty("height");
+        hEl.style.removeProperty("min-height");
       }
       if (layout.fullWidthBg && hasBg) {
         hEl.style.boxShadow = `0 0 0 100vw ${layout.background}`;
