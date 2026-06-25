@@ -78,6 +78,11 @@ import {
   applyFooterLivePreview,
   fullBleedDecls,
 } from "./shared/footer-style";
+import {
+  type MenuStyle,
+  parseMenuStyle,
+  upsertMenuStyleCss,
+} from "./shared/menu-style";
 
 const TiptapModal = lazy(() => import("./tiptap-modal"));
 // LayerPanel is rendered by InspectorPanel's "레이어" tab; no direct
@@ -447,6 +452,9 @@ export default function DesignEditor({
   const [footerStyle, setFooterStyle] = useState<FooterStyle>(() =>
     parseFooterStyle(footerHtml),
   );
+  // Site-wide nav menu styling (color / hover / size / spacing). Parsed from
+  // the managed HNS-MENU-STYLE block in pageCss.
+  const [menuStyle, setMenuStyle] = useState<MenuStyle>(() => parseMenuStyle(pageCss));
   // Hydrate from existing pageCss on mount (idempotent).
   useEffect(() => {
     const css = pageCss ?? "";
@@ -4535,6 +4543,13 @@ export default function DesignEditor({
    *  persisted by the HMF save → all pages) and PER-DEVICE (@media). Receives
    *  the full FooterStyle (all devices); writes the managed `<style>` into
    *  #hns_footer + a live inline preview for the active device. */
+  /** Apply "메뉴 설정" — site-wide nav color/hover/size/spacing + bring-to-front.
+   *  Managed HNS-MENU-STYLE block in pageCss (publishes via pageCss). */
+  function applyMenuStyle(next: MenuStyle) {
+    setMenuStyle(next);
+    setCurrentPageCss((c) => upsertMenuStyleCss(c ?? "", next));
+  }
+
   function applyFooterLayout(next: FooterStyle) {
     setFooterStyle(next);
     const fEl = footerRef.current;
@@ -5760,6 +5775,8 @@ export default function DesignEditor({
             onApplyBodyLayout={applyBodyLayout}
             footerStyle={footerStyle}
             onApplyFooterLayout={applyFooterLayout}
+            menuStyle={menuStyle}
+            onApplyMenuStyle={applyMenuStyle}
             isModernCanvas={isModernCanvas}
             pageWidth={designCanvasWidth ?? 1000}
             pageWidthManaged={parsePageWidthCss(currentPageCss) != null}

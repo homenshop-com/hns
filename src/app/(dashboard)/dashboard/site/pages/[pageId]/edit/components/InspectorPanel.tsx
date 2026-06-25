@@ -52,6 +52,7 @@ import {
   type FooterDeviceStyle,
   emptyFooterStyle,
 } from "../shared/footer-style";
+import { type MenuStyle, emptyMenuStyle } from "../shared/menu-style";
 
 const LayerPanel = lazy(() => import("./LayerPanel"));
 
@@ -217,6 +218,10 @@ interface Props {
   footerStyle?: FooterStyle;
   /** Apply "푸터 설정" changes (site-wide, per-device) to #hns_footer. */
   onApplyFooterLayout?: (next: FooterStyle) => void;
+  /** Site-wide nav menu styling (color / hover / size / spacing). */
+  menuStyle?: MenuStyle;
+  /** Apply "메뉴 설정" changes (managed pageCss block, site-wide). */
+  onApplyMenuStyle?: (next: MenuStyle) => void;
   /** Modern/flow paradigm — the page is fluid (100%), so the PC width control
    *  is disabled (no fixed artboard). */
   isModernCanvas?: boolean;
@@ -243,6 +248,8 @@ export default function InspectorPanel({
   onApplyBodyLayout,
   footerStyle,
   onApplyFooterLayout,
+  menuStyle,
+  onApplyMenuStyle,
   isModernCanvas,
   pageWidth,
   pageWidthManaged,
@@ -368,6 +375,8 @@ export default function InspectorPanel({
             onApplyBodyLayout={onApplyBodyLayout}
             footerStyle={footerStyle}
             onApplyFooterLayout={onApplyFooterLayout}
+            menuStyle={menuStyle}
+            onApplyMenuStyle={onApplyMenuStyle}
           />
         )}
 
@@ -399,6 +408,8 @@ function PageTab({
   onApplyBodyLayout,
   footerStyle,
   onApplyFooterLayout,
+  menuStyle,
+  onApplyMenuStyle,
 }: {
   isModernCanvas?: boolean;
   pageWidth?: number;
@@ -409,6 +420,8 @@ function PageTab({
   onApplyBodyLayout?: (patch: { background?: string; minHeight?: number }) => void;
   footerStyle?: FooterStyle;
   onApplyFooterLayout?: (next: FooterStyle) => void;
+  menuStyle?: MenuStyle;
+  onApplyMenuStyle?: (next: MenuStyle) => void;
 }) {
   return (
     <div className="ins-hmf-panel">
@@ -428,9 +441,51 @@ function PageTab({
         onApply={onApplyPageWidth}
       />
       <HeaderSettingsPanel headerLayout={headerLayout} onApply={onApplyHeaderLayout} />
+      <MenuSettingsPanel menuStyle={menuStyle} onApply={onApplyMenuStyle} />
       <BodySettingsPanel onApply={onApplyBodyLayout} />
       <FooterSettingsPanel footerStyle={footerStyle} onApply={onApplyFooterLayout} />
     </div>
+  );
+}
+
+/* ─── Menu settings panel (메뉴 설정) ────────────────────────────────────
+ * Site-wide nav styling: text color / hover / size / item spacing. Always
+ * raises the nav above header bg boxes (fixes "menu invisible on publish").
+ * Managed HNS-MENU-STYLE block in pageCss. */
+function MenuSettingsPanel({
+  menuStyle,
+  onApply,
+}: {
+  menuStyle?: MenuStyle;
+  onApply?: (next: MenuStyle) => void;
+}) {
+  const s = menuStyle ?? emptyMenuStyle();
+  const set = (patch: Partial<MenuStyle>) => onApply?.({ ...s, ...patch });
+  return (
+    <Section title="메뉴 설정">
+      <SwatchEditor label="글자색" value={s.color || "#ffffff"} onChange={(v) => set({ color: v })} />
+      <div style={{ marginTop: 8 }}>
+        <SwatchEditor label="호버색" value={s.hover || "#000000"} onChange={(v) => set({ hover: v })} />
+      </div>
+      <div className="ins-prop-row" style={{ marginTop: 8, gap: 8 }}>
+        <TextField
+          label="글자 크기(px)"
+          value={s.fontSize > 0 ? String(s.fontSize) : ""}
+          placeholder="기본"
+          onCommit={(v) => { const n = parseInt(v, 10); set({ fontSize: Number.isFinite(n) && n > 0 ? n : 0 }); }}
+        />
+        <TextField
+          label="항목 간격(px)"
+          value={s.gap > 0 ? String(s.gap) : ""}
+          placeholder="기본"
+          onCommit={(v) => { const n = parseInt(v, 10); set({ gap: Number.isFinite(n) && n >= 0 ? n : 0 }); }}
+        />
+      </div>
+      <div className="ins-hmf-notice" style={{ marginTop: 8 }}>
+        <i className="fa-solid fa-circle-info" aria-hidden />
+        <span>네비 메뉴 색·간격을 설정하면 메뉴가 헤더 배경 박스 위로 올라와 퍼블리시에서도 보입니다. 모든 페이지 공통.</span>
+      </div>
+    </Section>
   );
 }
 
