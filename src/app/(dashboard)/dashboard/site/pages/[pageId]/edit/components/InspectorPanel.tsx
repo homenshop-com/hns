@@ -258,6 +258,13 @@ export default function InspectorPanel({
     });
   }, [enabled]);
 
+  // Selecting an object → jump to the 스타일(design) tab so its properties are
+  // immediately visible (the user may have been on 페이지/레이어/인터랙션).
+  // Only fires when a selection becomes active; deselecting leaves the tab as-is.
+  useEffect(() => {
+    if (selectedId != null) setTab("design");
+  }, [selectedId]);
+
   const { layer, path } = useMemo(() => {
     const st = useEditorStore.getState();
     const root = selectRoot(st);
