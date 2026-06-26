@@ -194,6 +194,7 @@ export interface HmfHeaderLayout {
   height: string;   // "auto" | "64px" etc.
   background: string; // hex / var() / "transparent"
   fullWidthBg?: boolean; // background extends edge-to-edge (100vw)
+  bgOpacity?: number; // 0..100 — header background alpha (100 = opaque)
 }
 
 interface Props {
@@ -2586,6 +2587,21 @@ function HeaderSettingsPanel({
         value={layout.background || "#ffffff"}
         onChange={(v) => onApply?.({ ...layout, background: v })}
       />
+      <div className="ins-prop-row" style={{ marginTop: 8, alignItems: "center", gap: 8 }}>
+        <span style={{ fontSize: 12, color: "#9ca3af", minWidth: 64 }}>배경 투명도</span>
+        <input
+          type="range"
+          min={0}
+          max={100}
+          step={1}
+          value={layout.bgOpacity ?? 100}
+          onChange={(e) => onApply?.({ ...layout, bgOpacity: parseInt(e.target.value, 10) })}
+          style={{ flex: 1 }}
+        />
+        <span style={{ fontSize: 12, color: "#9ca3af", width: 34, textAlign: "right" }}>
+          {layout.bgOpacity ?? 100}%
+        </span>
+      </div>
       <div className="ins-prop-row" style={{ marginTop: 8 }}>
         <TextField
           label="최소 높이(px)"

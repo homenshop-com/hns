@@ -435,12 +435,14 @@ export default function DesignEditor({
     height: string; // e.g. "auto" | "64px"
     background: string; // hex / var() / "transparent"
     fullWidthBg?: boolean; // bg extends edge-to-edge (100vw), content centered
+    bgOpacity?: number; // 0..100 — header bg alpha (100 = opaque)
   };
   const [headerLayout, setHeaderLayout] = useState<HeaderLayout>({
     sticky: false,
     height: "auto",
     background: "transparent",
     fullWidthBg: false,
+    bgOpacity: 100,
   });
   // Keep a ref mirror so the global pointer handlers (header-resize drag) read
   // the latest layout without re-subscribing.
@@ -465,11 +467,19 @@ export default function DesignEditor({
     const heightMatch = block.match(/--hns-header-height:\s*([^;]+);/);
     const bgMatch = block.match(/--hns-header-bg:\s*([^;]+);/);
     const fullWidthBg = /box-shadow\s*:[^;]*100vw/i.test(block);
+    // bg opacity + base hex are stored as comments so the slider/swatch restore
+    // to the user's choices (the --hns-header-bg var may be a baked rgba()).
+    const alphaMatch = block.match(/bgalpha:\s*(\d+)/);
+    const hexMatch = block.match(/bghex:\s*([^*\s]+)/);
+    const bgOpacity = alphaMatch ? parseInt(alphaMatch[1]!, 10) : 100;
+    const background =
+      hexMatch?.[1]?.trim() || bgMatch?.[1]?.trim() || "transparent";
     const parsed = {
       sticky,
       height: heightMatch?.[1]?.trim() ?? "auto",
-      background: bgMatch?.[1]?.trim() ?? "transparent",
+      background,
       fullWidthBg,
+      bgOpacity,
     };
     setHeaderLayout(parsed);
     // Auto-migrate OLD-format blocks (single `#hns_header`, which the theme's
@@ -4422,19 +4432,36 @@ export default function DesignEditor({
    *    #hns_header { background: var(--hns-header-bg); height: var(...) }
    *    body[data-header-sticky] #hns_header { position: sticky; top: 0; z-index: 100 }
    */
-  function applyHeaderLayout(layout: { sticky: boolean; height: string; background: string; fullWidthBg?: boolean }) {
+  function applyHeaderLayout(layout: { sticky: boolean; height: string; background: string; fullWidthBg?: boolean; bgOpacity?: number }) {
     const MARK_START = "/* HNS-HEADER-LAYOUT:START */";
     const MARK_END = "/* HNS-HEADER-LAYOUT:END */";
     const hasBg = !!(layout.background && layout.background !== "transparent");
     const hasHeight = !!(layout.height && layout.height !== "auto");
+    // Effective bg colour with the user's opacity baked in (rgba) when < 100%,
+    // so the header can be semi-transparent over the hero/body.
+    const alpha = layout.bgOpacity == null ? 100 : layout.bgOpacity;
+    const hexToRgba = (hex: string, a: number): string => {
+      const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim());
+      if (!m) return hex; // not a plain hex (var()/rgb()) — leave as-is
+      let h = m[1];
+      if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+      const r = parseInt(h.slice(0, 2), 16);
+      const g = parseInt(h.slice(2, 4), 16);
+      const b = parseInt(h.slice(4, 6), 16);
+      return `rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(1, a)).toFixed(3)})`;
+    };
+    const effBg = hasBg && alpha < 100 ? hexToRgba(layout.background, alpha / 100) : layout.background;
     // CSS custom properties live in :root. The actual #hns_header rules use a
     // DOUBLED id selector (#hns_header#hns_header, specificity 2,0,0) + so they
     // beat the THEME's `#hns_header { background-color: var(--brand-surface) }`
     // (1,0,0) which otherwise covers the user's header colour in the center.
     const vars: string[] = [];
     if (hasHeight) vars.push(`--hns-header-height: ${layout.height};`);
-    if (hasBg) vars.push(`--hns-header-bg: ${layout.background};`);
+    if (hasBg) vars.push(`--hns-header-bg: ${effBg};`);
     vars.push(layout.sticky ? "/* sticky:1 */" : "/* sticky:0 */");
+    // Persist the chosen alpha + base hex so hydration can restore the slider.
+    vars.push(`/* bgalpha:${alpha} */`);
+    if (hasBg) vars.push(`/* bghex:${layout.background} */`);
 
     const decls: string[] = [];
     if (hasHeight) {
@@ -4445,7 +4472,7 @@ export default function DesignEditor({
     // Full-bleed bg: box-shadow spread + horizontal clip extends the bg
     // edge-to-edge (100vw) without moving the absolute header content. Works
     // across all published scale bands (the shadow over-covers when scaled).
-    if (layout.fullWidthBg && hasBg) decls.push(fullBleedDecls(layout.background));
+    if (layout.fullWidthBg && hasBg) decls.push(fullBleedDecls(effBg));
     if (layout.sticky) {
       decls.push("position: sticky !important;", "top: 0 !important;", "z-index: 100 !important;");
     }
@@ -4469,7 +4496,7 @@ export default function DesignEditor({
       hEl.style.top = layout.sticky ? "0" : "";
       hEl.style.zIndex = layout.sticky ? "100" : "";
       // !important so the user's colour beats the theme's #hns_header bg rule.
-      if (hasBg) hEl.style.setProperty("background", layout.background, "important");
+      if (hasBg) hEl.style.setProperty("background", effBg, "important");
       else hEl.style.removeProperty("background");
       if (layout.height && layout.height !== "auto") {
         // !important to beat the boosted HNS-HEADER-LAYOUT rule in the canvas.
@@ -4480,7 +4507,7 @@ export default function DesignEditor({
         hEl.style.removeProperty("min-height");
       }
       if (layout.fullWidthBg && hasBg) {
-        hEl.style.boxShadow = `0 0 0 100vw ${layout.background}`;
+        hEl.style.boxShadow = `0 0 0 100vw ${effBg}`;
         hEl.style.clipPath = "inset(0 -100vw 0 -100vw)";
       } else {
         hEl.style.boxShadow = "";
