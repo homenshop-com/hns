@@ -1560,7 +1560,13 @@ export async function GET(
       #hns_body .dragable img:not([style*="object-fit"]),
       #hns_footer .dragable img:not([style*="object-fit"]) { max-width: 100% !important; height: auto !important; }
     }
-    #hns_header { position: relative; }
+    /* z-index:100 mirrors the editor (#de-canvas-inner #hns_header) so the
+       header is a stacking context ABOVE the body. Without it, header children
+       (logo z15, icons z14, white bar z9) and body children share z-indexes in
+       the same context and the later-in-DOM body covers the header — logo /
+       icons / bar vanish on publish while showing in the editor. Below the
+       menu (#hns_menu z200) so the nav still sits on top. */
+    #hns_header { position: relative; z-index: 100; }
     #hns_body { position: relative; }
     /* Positioning context so footer objects the user dragged free
        (data-hns-footer-free, absolute) are placed RELATIVE TO THE FOOTER, not
