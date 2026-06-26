@@ -4169,8 +4169,12 @@ export default function DesignEditor({
   const scopeAndRewrite = (css: string, stripTemplateBg = false) => {
     let result = css
       // Scope reset rules: "body,div,..." → "#de-canvas-inner, #de-canvas-inner div,..."
+      // The lookbehind must exclude identifier chars (_ # . digits) too, else the
+      // `body{` inside `#hns_body#hns_body{` matches and gets mangled into an
+      // invalid selector → the user's body background never applies in the editor
+      // (#hns_body reads transparent → swatch defaults to white on reload).
       .replace(
-        /(?<![a-zA-Z-])body\s*,([\s\S]*?)\{/g,
+        /(?<![a-zA-Z0-9_#.-])body\s*,([\s\S]*?)\{/g,
         (_match: string, selectors: string) => {
           const scoped = selectors
             .split(",")
@@ -4180,7 +4184,7 @@ export default function DesignEditor({
         }
       )
       // Scope standalone "body {" to #de-canvas-inner
-      .replace(/(?<![a-zA-Z-])body\s*\{/g, "#de-canvas-inner {")
+      .replace(/(?<![a-zA-Z0-9_#.-])body\s*\{/g, "#de-canvas-inner {")
       // Override overflow (from body) that clips the canvas
       .replace(/overflow\s*:\s*scroll/g, "overflow: visible")
       .replace(/overflow-x\s*:\s*hidden/g, "overflow-x: visible")
