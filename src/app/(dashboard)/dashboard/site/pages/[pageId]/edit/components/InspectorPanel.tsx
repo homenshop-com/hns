@@ -768,6 +768,10 @@ function DesignTab({
         disabled={layer.type === "section" || layer.type === "inline"}
       />
 
+      {/* Opacity (투명도) — prominent slider, works for any object. Lets the
+          user fade a hero so the header/menu show through it (DIVA-style). */}
+      <OpacitySection layer={layer} live={live} />
+
       {/* Full-viewport width (100vw, PC only) — breaks the object out of the
           page to the screen edges. Persists in a managed pageCss block. */}
       {layer.type !== "section" && layer.type !== "inline" && onToggleObjectFullWidth && (
@@ -1621,6 +1625,48 @@ function TypographySection({ layer, live }: { layer: Layer; live: LiveSnapshot |
   );
 }
 
+/* Opacity (투명도) — 0–100% slider + number, wired to scene `setStyle`
+ * (stored 0–1). Visible for every object so a hero image can be faded under a
+ * transparent header/menu. */
+function OpacitySection({ layer, live }: { layer: Layer; live: LiveSnapshot | null }) {
+  const setStyle = useEditorStore((s) => s.setStyle);
+  const s = layer.style ?? {};
+  const raw =
+    s.opacity != null ? Number(s.opacity) : parseFloat(live?.opacity ?? "1");
+  const pct = Math.round((Number.isFinite(raw) ? raw : 1) * 100);
+  const apply = (p: number) => {
+    const clamped = Math.max(0, Math.min(100, Math.round(p)));
+    setStyle(layer.id, { opacity: clamped >= 100 ? undefined : clamped / 100 });
+  };
+  return (
+    <Section title="투명도">
+      <div className="ins-prop-row" style={{ alignItems: "center", gap: 8 }}>
+        <input
+          type="range"
+          min={0}
+          max={100}
+          step={1}
+          value={pct}
+          onChange={(e) => apply(parseInt(e.target.value, 10))}
+          style={{ flex: 1 }}
+        />
+        <TextField
+          label="%"
+          value={String(pct)}
+          onCommit={(v) => {
+            const n = parseInt(v, 10);
+            if (Number.isFinite(n)) apply(n);
+          }}
+        />
+      </div>
+      <div className="ins-hmf-notice" style={{ marginTop: 8 }}>
+        <i className="fa-solid fa-circle-info" aria-hidden />
+        <span>0%로 갈수록 투명해집니다. 히어로 이미지를 반투명하게 하면 위 헤더·메뉴가 비쳐 보입니다.</span>
+      </div>
+    </Section>
+  );
+}
+
 function FillSection({ layer, live }: { layer: Layer; live: LiveSnapshot | null }) {
   const t = useTranslations("editor");
   const setStyle = useEditorStore((s) => s.setStyle);
@@ -1632,8 +1678,7 @@ function FillSection({ layer, live }: { layer: Layer; live: LiveSnapshot | null 
   // is set it suppresses absolutely-positioned overlay children (bg images,
   // gradient divs, <img> containers) so the result is actually visible.
   const bgValue = s.background ?? live?.background ?? "";
-  const opacityValue =
-    s.opacity != null ? String(s.opacity) : (live?.opacity ?? "");
+  // Opacity moved to the dedicated OpacitySection (slider) above.
   return (
     <Section title={t("inspector.fill.section")}>
       <SwatchEditor
@@ -1641,23 +1686,6 @@ function FillSection({ layer, live }: { layer: Layer; live: LiveSnapshot | null 
         value={bgValue}
         onChange={(v) => setStyle(layer.id, { background: v })}
       />
-      <div className="ins-prop-row">
-        <TextField
-          label={t("inspector.fill.opacity")}
-          value={opacityValue}
-          placeholder="1"
-          onCommit={(v) => {
-            if (v === "") {
-              setStyle(layer.id, { opacity: undefined });
-              return;
-            }
-            const n = parseFloat(v);
-            if (Number.isFinite(n)) {
-              setStyle(layer.id, { opacity: Math.max(0, Math.min(1, n)) });
-            }
-          }}
-        />
-      </div>
     </Section>
   );
 }
