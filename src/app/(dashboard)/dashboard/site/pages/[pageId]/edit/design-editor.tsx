@@ -353,6 +353,11 @@ export default function DesignEditor({
   // State
   const [currentBodyHtml, setCurrentBodyHtml] = useState(bodyHtml);
   const [currentPageCss, setCurrentPageCss] = useState(pageCss);
+  // SITE-WIDE CSS (Site.cssText) — header layout (bg/opacity/height/sticky) is
+  // stored here so it's identical on EVERY page, not per-page. Editable + saved
+  // via the HMF (/api/sites) PUT. canvasCss reads this (not the cssText prop).
+  const [currentCssText, setCurrentCssText] = useState(cssText || "");
+  const cssTextDirtyRef = useRef(false);
 
   // 테마 tab selection (LeftPalette). Persisted into cssText via a
   // managed `:root{}` block (comment-delimited so we can update it in-
@@ -456,10 +461,12 @@ export default function DesignEditor({
   // Site-wide nav menu styling (color / hover / size / spacing). Parsed from
   // the managed HNS-MENU-STYLE block in pageCss.
   const [menuStyle, setMenuStyle] = useState<MenuStyle>(() => parseMenuStyle(pageCss));
-  // Hydrate from existing pageCss on mount (idempotent).
+  // Hydrate from existing CSS on mount (idempotent). The header block is now
+  // SITE-WIDE (cssText); older sites have it per-page (pageCss) → check both.
   useEffect(() => {
-    const css = pageCss ?? "";
     const re = /\/\* HNS-HEADER-LAYOUT:START \*\/[\s\S]*?\/\* HNS-HEADER-LAYOUT:END \*\//;
+    const inCssText = (cssText || "").match(re);
+    const css = inCssText ? (cssText || "") : (pageCss ?? "");
     const m = css.match(re);
     if (!m) return;
     const block = m[0];
@@ -482,11 +489,20 @@ export default function DesignEditor({
       bgOpacity,
     };
     setHeaderLayout(parsed);
-    // Auto-migrate OLD-format blocks (single `#hns_header`, which the theme's
-    // `#hns_header{background-color}` can override) to the higher-specificity
-    // `#hns_header#hns_header` + !important format — so the user's header colour
-    // wins without them having to re-apply the setting. Idempotent.
-    if (!block.includes("#hns_header#hns_header")) {
+    const goodInCssText = !!inCssText && block.includes("#hns_header#hns_header");
+    const perPageBlock = (pageCss ?? "").match(re);
+    if (goodInCssText) {
+      // cssText already holds a good SITE-WIDE block (set on another page).
+      // Don't overwrite it — just strip any stale per-page copy so it can't
+      // override the shared one with this page's older values.
+      if (perPageBlock) {
+        setCurrentPageCss((prev) =>
+          prev && re.test(prev) ? prev.replace(re, "").replace(/\n{3,}/g, "\n\n").trim() : prev,
+        );
+      }
+    } else {
+      // No good site-wide block yet → migrate the found block to cssText
+      // (site-wide) + strip the per-page copy. applyHeaderLayout does both.
       setTimeout(() => applyHeaderLayout(parsed), 0);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1831,10 +1847,13 @@ export default function DesignEditor({
             if (c) applyHmfDevicePreview(c, map, base, dv);
           }
         }
+        // Site-wide header layout lives in Site.cssText — send it when changed.
+        const cssTextToSave = cssTextDirtyRef.current ? currentCssText : undefined;
         const sendHmf =
           headerHtmlToSave !== undefined ||
           footerHtmlToSave !== undefined ||
-          menuHtmlToSave !== undefined;
+          menuHtmlToSave !== undefined ||
+          cssTextToSave !== undefined;
         const hmfRes = sendHmf
           ? await fetch(`/api/sites/${siteId}`, {
               method: "PUT",
@@ -1844,9 +1863,11 @@ export default function DesignEditor({
                 ...(headerHtmlToSave !== undefined && { headerHtml: headerHtmlToSave }),
                 ...(menuHtmlToSave !== undefined && { menuHtml: menuHtmlToSave }),
                 ...(footerHtmlToSave !== undefined && { footerHtml: footerHtmlToSave }),
+                ...(cssTextToSave !== undefined && { cssText: cssTextToSave }),
               }),
             })
           : null;
+        if (hmfRes && hmfRes.ok) cssTextDirtyRef.current = false;
         // Header/footer edits are now persisted site-wide → clear both dirty
         // flags and advance the baseline so subsequent saves diff against the
         // just-saved state.
@@ -4169,7 +4190,7 @@ export default function DesignEditor({
   // boostImportant + escapeHtml are now shared/css-utils.ts (Phase 1).
   const canvasCss = [
     templateCss ? scopeAndRewrite(templateCss, true) : "",
-    cssText ? scopeAndRewrite(cssText) : "",
+    currentCssText ? scopeAndRewrite(currentCssText) : "",
     currentPageCss
       ? scopeAndRewrite(
           boostImportant(
@@ -4481,14 +4502,18 @@ export default function DesignEditor({
     const re = new RegExp(
       MARK_START.replace(/[/*]/g, "\\$&") + "[\\s\\S]*?" + MARK_END.replace(/[/*]/g, "\\$&"),
     );
-    // Functional update so this is correct even when called from a stale
-    // closure (e.g. the global pointer handler at the end of a header drag).
-    setCurrentPageCss((prev) => {
+    // SITE-WIDE: write the header block to cssText (applies to every page), not
+    // per-page pageCss. Functional update so this is correct even from a stale
+    // closure (e.g. the pointer handler at the end of a header drag).
+    setCurrentCssText((prev) => {
       const css = prev ?? "";
       return re.test(css)
         ? css.replace(re, block)
         : css + (css.trim() ? "\n\n" : "") + block + "\n";
     });
+    cssTextDirtyRef.current = true;
+    // Drop any stale per-page copy so it can't override the site-wide rule.
+    setCurrentPageCss((prev) => (prev && re.test(prev) ? prev.replace(re, "").replace(/\n{3,}/g, "\n\n").trim() : prev));
     // Apply live to the canvas so the user sees the change immediately.
     const hEl = headerRef.current;
     if (hEl) {
