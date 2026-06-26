@@ -2090,8 +2090,8 @@ export async function GET(
 </head>
 <body>
   <div id="v_home_dft" class="c_v_home_dft">
-    <div id="hns_header">${cleanedHeaderHtml}${menuHtml}${searchBoxHtml}</div>
-    <div id="hns_menu"></div>
+    <div id="hns_header">${cleanedHeaderHtml}${searchBoxHtml}</div>
+    <div id="hns_menu">${menuHtml}</div>
     <div id="hns_body">${cleanedBodyHtml}${boardSectionHtml}</div>
     <div id="hns_footer">${cleanedFooterHtml}${langSwitcherHtml}</div>
   </div>
@@ -2168,8 +2168,8 @@ export async function GET(
 <body>
   <div id="v_home_dft" class="c_v_home_dft">
     ${langSwitcherHtml}
-    <div id="hns_header">${cleanedHeaderHtml}${menuHtml}${searchBoxHtml}</div>
-    <div id="hns_menu"></div>
+    <div id="hns_header">${cleanedHeaderHtml}${searchBoxHtml}</div>
+    <div id="hns_menu">${menuHtml}</div>
     <div id="hns_body">${cleanedBodyHtml}${aeoSectionHtml}</div>
     <div id="hns_footer">${cleanedFooterHtml}</div>
   </div>
