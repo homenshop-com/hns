@@ -162,11 +162,18 @@ function upsertBodyStyleCss(css: string, background: string): string {
   const base = (css || "").replace(bodyStyleBlockRegex(), "").trim();
   const bg = (background || "").trim();
   if (!bg || bg === "transparent") return base;
-  // DOUBLED id (#hns_body#hns_body, specificity 2,0,0) so the user's chosen
-  // body colour beats the THEME's `#hns_body { background-color: var(--brand-
-  // surface) }` (1,0,0, beige) — otherwise the body reverts to the theme tint
-  // on reload (both are !important in the boosted canvas → source order loses).
-  const block = `${BODY_STYLE_MARK_START}\n#hns_body#hns_body { background: ${bg} !important; }\n${BODY_STYLE_MARK_END}`;
+  // The VISIBLE page background is the <body> element (template `body{
+  // background:#333}` + theme `body{background-color:var(--brand-surface)}`),
+  // NOT the #hns_body div the panel historically targeted — so changing only
+  // #hns_body left the page tinted beige/grey. Paint all three: <body> (page
+  // backdrop), the page wrapper, and the content body. `!important` + the
+  // doubled #hns_body#hns_body id beat the template/theme rules.
+  const block =
+    `${BODY_STYLE_MARK_START}\n` +
+    `body { background: ${bg} !important; }\n` +
+    `#v_home_dft, .c_v_home_dft { background: ${bg} !important; }\n` +
+    `#hns_body#hns_body { background: ${bg} !important; }\n` +
+    `${BODY_STYLE_MARK_END}`;
   return base + (base ? "\n\n" : "") + block + "\n";
 }
 
