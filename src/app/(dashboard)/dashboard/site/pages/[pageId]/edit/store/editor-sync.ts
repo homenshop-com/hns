@@ -807,15 +807,20 @@ export function normalizeAnchorImageBoxes(root: HTMLElement) {
     if (!img) return;
     const bw = parseFloat(box.style.width);
     if (!(bw > 0)) return; // box width must be explicitly set
-    const iw =
-      parseFloat((img as HTMLElement).style.width) ||
-      parseFloat(img.getAttribute("width") || "");
+    // The image's INTRINSIC px size. IGNORE percentage fills (width:100%) —
+    // those are set when the user RESIZES the box (inner <img> fills it).
+    // `parseFloat("100%")` is 100, so without this guard a resized icon's
+    // 100%-filled image reads as a 100px intrinsic width and the box gets
+    // re-expanded to 100px on every reload → the user's resize "reverts".
+    const iwRaw = (img as HTMLElement).style.width || img.getAttribute("width") || "";
+    if (iwRaw.includes("%")) return;
+    const iw = parseFloat(iwRaw);
     if (!(iw > 0) || iw < bw * RATIO) return;
     box.style.width = `${iw}px`;
+    const ihRaw = (img as HTMLElement).style.height || img.getAttribute("height") || "";
+    if (ihRaw.includes("%")) return;
     const bh = parseFloat(box.style.height);
-    const ih =
-      parseFloat((img as HTMLElement).style.height) ||
-      parseFloat(img.getAttribute("height") || "");
+    const ih = parseFloat(ihRaw);
     if (bh > 0 && ih > bh) box.style.height = `${ih}px`;
   });
 }

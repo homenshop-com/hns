@@ -495,13 +495,8 @@ export default function CanvasOverlay({ containerRef, siteId }: Props) {
         </div>
       )}
 
-      {/* Image quick-replace floating button — top-right of selected image.
-          Pairs with the Inspector "이미지" section: 1-click swap without
-          opening the right rail. Pure UI; the actual replace flow goes
-          through `setImage` so undo/redo + save serialize correctly. */}
-      {single && singleRect && singleIsImage && (
-        <ImageReplaceButton layerId={single} rect={singleRect} siteId={siteId} />
-      )}
+      {/* (Image quick-replace floating ↻ badge removed per request — image
+          replacement remains available in the Inspector "이미지" section.) */}
 
       {/* Multi-selection align toolbar */}
       {multiMode && multiAnchor && (

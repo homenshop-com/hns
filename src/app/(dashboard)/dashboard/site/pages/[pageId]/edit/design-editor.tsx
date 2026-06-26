@@ -94,7 +94,6 @@ const CanvasRulers = lazy(() => import("./components/CanvasRulers"));
 // Sprint 9k — drag-to-insert ghost + drop indicator
 const DragInsertLayer = lazy(() => import("./components/DragInsertLayer"));
 const CanvasOverlay = lazy(() => import("./components/CanvasOverlay"));
-const HeaderImageOverlay = lazy(() => import("./components/HeaderImageOverlay"));
 const MenuManagerModal = lazy(() => import("./components/MenuManagerModal"));
 const HeaderEditModal = lazy(() => import("./components/HeaderEditModal"));
 const FooterEditModal = lazy(() => import("./components/FooterEditModal"));
@@ -5819,19 +5818,9 @@ export default function DesignEditor({
         </Suspense>
       )}
 
-      {/* HEADER IMAGE OVERLAY — floating ↻ buttons over each <img> in
-          the site header so the user can swap the logo (and any other
-          header images) without opening the settings modal. */}
-      <Suspense fallback={null}>
-        <HeaderImageOverlay headerRef={headerRef} siteId={siteId} />
-      </Suspense>
-
-      {/* Same overlay reused for the footer — every <img> in the footer
-          gets a ↻ replace button. Component name is misleading but the
-          props/effects are region-agnostic. */}
-      <Suspense fallback={null}>
-        <HeaderImageOverlay headerRef={footerRef} siteId={siteId} />
-      </Suspense>
+      {/* (Header/footer image quick-replace ↻ badges removed per request —
+          image replacement remains available in the Inspector "이미지" section
+          when an image object is selected.) */}
 
       {/* MENU MANAGER MODAL — opens from settings or from the canvas
           floating "메뉴 편집" button. Drives Pages list (showInMenu /
