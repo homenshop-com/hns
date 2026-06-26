@@ -1335,83 +1335,17 @@ export default function DesignEditor({
     }
   }, [editorV2Enabled, viewportMode]);
 
-  /* ─── Auto zoom-to-fit in tablet/mobile (LEGACY ABSOLUTE) ───
-   * The device artboard shrinks to 768/375, but legacy content authored at
-   * the full design width (e.g. a header whose menu-bar image + nav icons sit
-   * out to ~1130px) SPILLS past the artboard. Centered at 100%, that spill
-   * lands under the fixed inspector panel where its resize handles are
-   * unreachable, and the canvas reads as "skewed right / can't edit the right
-   * edge". On entering a device mode we measure the REAL content extent and
-   * zoom out so the whole thing (artboard + spill) fits the visible canvas
-   * width, centered around the artboard center (transform-origin: top center).
-   * Switching back to desktop resets to 100%. */
+  /* ─── Device-mode zoom default = 100% ───
+   * Previously tablet/mobile auto-zoomed-to-fit (e.g. 51% / 60%) to keep
+   * legacy content spill visible. Per user request that default fought manual
+   * adjustment — a 100% choice reverted to the fit value on every refresh /
+   * mode entry. We now reset to a plain 100% on entering ANY mode; the user
+   * fits manually via the status-bar zoom stepper (−/value/+) when needed, and
+   * that manual value persists until the next mode switch. */
   useEffect(() => {
     if (!editorV2Enabled) return;
-    if (viewportMode === "desktop") {
-      setZoom(100);
-      setFitOffsetX(0);
-      return;
-    }
-    let cancelled = false;
-    const fit = () => {
-      if (cancelled) return;
-      const wrap = canvasWrapperRef.current;
-      const canvas = canvasRef.current;
-      if (!wrap || !canvas) return;
-      const cs = getComputedStyle(wrap);
-      const padL = parseFloat(cs.paddingLeft) || 0;
-      const padR = parseFloat(cs.paddingRight) || 0;
-      const availInner = wrap.clientWidth - padL - padR - 48; // breathing room
-      if (availInner <= 0) return;
-      const cRect = canvas.getBoundingClientRect();
-      const W = canvas.offsetWidth || 768; // unscaled artboard width
-      const cur = cRect.width / W || 1; // current rendered scale
-      const centerVp = cRect.left + cRect.width / 2; // artboard center (origin)
-      let maxRvp = cRect.right;
-      let minLvp = cRect.left;
-      canvas.querySelectorAll<HTMLElement>(".dragable").forEach((el) => {
-        const r = el.getBoundingClientRect();
-        if (r.width === 0 && r.height === 0) return;
-        if (r.right > maxRvp) maxRvp = r.right;
-        if (r.left < minLvp) minLvp = r.left;
-      });
-      // Convert the content's farthest edges to UNSCALED artboard-local px
-      // (origin is top-center, so unscale around the artboard center).
-      const minL = (minLvp - centerVp) / cur + W / 2;
-      const maxR = (maxRvp - centerVp) / cur + W / 2;
-      const contentCenter = (minL + maxR) / 2;
-      const contentWidth = maxR - minL;
-      let s: number;
-      let tx: number;
-      if (contentWidth > W * 1.8) {
-        // Content is FAR wider than the artboard — i.e. legacy elements not
-        // yet laid out for this device (e.g. a desktop header at ~1130 on a
-        // 375 phone). Centering on the content center would shove the tiny
-        // device frame into a corner. Keep the DEVICE FRAME centered (the
-        // anchor the user arranges against) and zoom so the whole spill is
-        // still visible to drag inward. tx=0 (artboard is margin-auto centered).
-        const halfExtent = Math.max(maxR - W / 2, W / 2 - minL, 1);
-        s = Math.max(0.25, Math.min(1, availInner / 2 / halfExtent));
-        tx = 0;
-      } else {
-        // Content roughly fills the artboard (tablet, or an already-laid-out
-        // device): center the CONTENT itself so it reads as balanced. The
-        // artboard box is margin-auto centered, so translate the content-center
-        // offset (scaled) back to the middle.
-        const halfWidth = Math.max(contentWidth / 2, 1);
-        s = Math.max(0.25, Math.min(1, availInner / 2 / halfWidth));
-        tx = -(contentCenter - W / 2) * s;
-      }
-      setZoom(Math.round(s * 100));
-      setFitOffsetX(Math.round(tx));
-    };
-    const t1 = setTimeout(fit, 120);
-    const t2 = setTimeout(fit, 480);
-    return () => {
-      cancelled = true;
-      clearTimeout(t1);
-      clearTimeout(t2);
-    };
+    setZoom(100);
+    setFitOffsetX(0);
   }, [editorV2Enabled, viewportMode]);
 
   /* ─── Load AI credit balance + cost ─── */
