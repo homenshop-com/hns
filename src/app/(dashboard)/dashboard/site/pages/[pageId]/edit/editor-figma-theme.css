@@ -631,6 +631,42 @@
 .de-status-bar .item.cursor {
   letter-spacing: 0.03em;
 }
+/* Interactive zoom stepper in the status bar (mirrors the floating pill but
+   always visible — the float pill is absolute inside the scroll container and
+   scrolls out of view on tall pages). */
+.de-status-bar .item.zoom-ctl { gap: 4px; }
+.de-status-bar .de-zoom-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--fig-line-2);
+  border-radius: 5px;
+  background: var(--fig-surface-2, rgba(255, 255, 255, 0.04));
+  color: var(--fig-text-2);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.de-status-bar .de-zoom-step:hover {
+  background: var(--fig-accent);
+  border-color: var(--fig-accent);
+  color: #fff;
+}
+.de-status-bar .zoom-val {
+  cursor: pointer;
+  min-width: 38px;
+  text-align: center;
+  border-radius: 5px;
+  padding: 1px 4px;
+}
+.de-status-bar .zoom-val:hover {
+  color: var(--fig-text-1, #fff);
+  background: var(--fig-surface-2, rgba(255, 255, 255, 0.06));
+}
 .de-status-bar .avatars {
   display: flex;
   margin-left: -4px;

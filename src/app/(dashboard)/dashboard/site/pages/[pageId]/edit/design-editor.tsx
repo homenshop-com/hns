@@ -6134,8 +6134,44 @@ export default function DesignEditor({
             {cursorCoord ? `${cursorCoord[0]}, ${cursorCoord[1]}` : "—"}
           </span>
         </span>
-        <span className="item">
-          {t("statusBar.zoom")} <span className="mono">{zoom}%</span>
+        <span className="item zoom-ctl">
+          {t("statusBar.zoom")}{" "}
+          <button
+            type="button"
+            className="de-zoom-step"
+            title={t("zoom.outTitle")}
+            aria-label={t("zoom.out")}
+            onClick={() => setZoom((z) => Math.max(25, z - 10))}
+          >
+            −
+          </button>
+          <span
+            className="mono zoom-val"
+            role="button"
+            tabIndex={0}
+            title={t("zoom.fitTitle")}
+            onClick={() => {
+              setZoom(100);
+              setFitOffsetX(0);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                setZoom(100);
+                setFitOffsetX(0);
+              }
+            }}
+          >
+            {zoom}%
+          </span>
+          <button
+            type="button"
+            className="de-zoom-step"
+            title={t("zoom.inTitle")}
+            aria-label={t("zoom.in")}
+            onClick={() => setZoom((z) => Math.min(400, z + 10))}
+          >
+            +
+          </button>
         </span>
         <span className="item">
           {t("statusBar.viewport")} <span className="mono">{viewportMode === "mobile" ? "375" : viewportMode === "tablet" ? "768" : (designCanvasWidth ?? 1000)}</span>
