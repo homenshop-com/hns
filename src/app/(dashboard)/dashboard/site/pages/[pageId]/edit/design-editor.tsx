@@ -4570,7 +4570,14 @@ export default function DesignEditor({
       syncBodyHeight({ manualHeight: mh ?? 0, device });
     }
     if (patch.background !== undefined) {
-      setCurrentPageCss((c) => upsertBodyStyleCss(c ?? "", patch.background!));
+      // SITE-WIDE: body background goes to cssText (every page identical), not
+      // per-page pageCss — so the user sets it once and Store Location etc. all
+      // match. Strip any stale per-page copy.
+      setCurrentCssText((c) => upsertBodyStyleCss(c ?? "", patch.background!));
+      cssTextDirtyRef.current = true;
+      setCurrentPageCss((prev) =>
+        prev ? prev.replace(bodyStyleBlockRegex(), "").replace(/\n{3,}/g, "\n\n").trim() : prev,
+      );
       if (bodyEl) {
         bodyEl.style.background =
           patch.background && patch.background !== "transparent" ? patch.background : "";
