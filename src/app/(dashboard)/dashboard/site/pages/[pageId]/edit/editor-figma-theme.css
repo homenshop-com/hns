@@ -1455,8 +1455,12 @@ body:has(.leftpalette-rail) .de-ruler-corner {
 
 /* ───── Canvas padding adjustment — compensate for ruler gutters ───── */
 .de-canvas-wrapper .de-canvas {
-  /* Give extra top space so rulers don't overlap the canvas */
-  margin-top: 24px;
+  /* No extra top margin: the wrapper's padding-top (20px) already equals the
+     horizontal ruler height (20px), so the artboard sits flush under the ruler.
+     The previous margin-top:24px pushed it 24px lower, leaving a dark canvas-
+     floor gap between the ruler and the header (the "여백"). Flush = ruler 0
+     aligns with the artboard top-left origin. */
+  margin-top: 0;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
