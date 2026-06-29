@@ -3421,6 +3421,27 @@ export default function DesignEditor({
     }, 0);
   }
 
+  // Route a dbl-click / dbl-tap text target to the right editor for the
+  // paradigm. ABSOLUTE (legacy fixed-coordinate) templates open the TipTap
+  // rich-text modal; RESPONSIVE (flow) templates use in-place contenteditable
+  // on the canvas. Both ultimately write the element's innerHTML, which
+  // cloneSceneForDesktopSave syncs back into the scene on save (same persistence
+  // path), so the only difference is the editing surface.
+  function openTextEditor(editEl: HTMLElement, clientX?: number, clientY?: number) {
+    if (isAbsoluteMode) {
+      dragRef.current = null;
+      resizeRef.current = null;
+      if (!editEl.id) {
+        editEl.id = "el_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
+      }
+      setSelectedElId(editEl.id);
+      tiptapElRef.current = editEl;
+      setTiptapTarget({ elId: editEl.id, html: editEl.innerHTML });
+      return;
+    }
+    enterTextEdit(editEl, clientX, clientY);
+  }
+
   // Exit in-place text editing for the given element id (or the currently
   // editing one). Strips contenteditable and clears the editing state.
   function exitTextEdit(elId?: string) {
@@ -3450,7 +3471,7 @@ export default function DesignEditor({
       if (!editEl) return;
       e.preventDefault();
       e.stopPropagation();
-      enterTextEdit(editEl, e.clientX, e.clientY);
+      openTextEditor(editEl, e.clientX, e.clientY);
     }
 
     // Mobile: detect double-tap (two taps within 400ms on same element)
@@ -3470,7 +3491,7 @@ export default function DesignEditor({
         // Double-tap detected
         e.preventDefault();
         const t = e.changedTouches[0];
-        enterTextEdit(editEl, t?.clientX, t?.clientY);
+        openTextEditor(editEl, t?.clientX, t?.clientY);
         lastTapRef.current = { time: 0, id: "" };
       } else {
         lastTapRef.current = { time: now, id: elId };
@@ -5969,11 +5990,11 @@ export default function DesignEditor({
         </Suspense>
       )}
 
-      {/* TIPTAP EDITOR MODAL — disabled in favor of in-place contenteditable
-          editing (Claude-design-style). The state + handlers are kept so a
-          future "rich text" entry point (e.g., Cmd+Shift+E) can re-open the
-          modal for link/image inserts that the inspector doesn't cover. */}
-      {false && tiptapTarget && (
+      {/* TIPTAP EDITOR MODAL — text editing surface for ABSOLUTE (legacy
+          fixed-coordinate) templates: double-clicking a text object opens this
+          rich-text modal. RESPONSIVE (flow) templates use in-place
+          contenteditable instead (see openTextEditor). */}
+      {tiptapTarget && (
         <Suspense fallback={
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10000, color: "#fff" }}>
             {t("loading")}
