@@ -15,7 +15,7 @@
 
 "use client";
 
-import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import {
   useEditorStore,
@@ -374,6 +374,7 @@ export default function InspectorPanel({
             onToggleObjectFullWidth={onToggleObjectFullWidth}
             menuStyle={menuStyle}
             onApplyMenuStyle={onApplyMenuStyle}
+            logoPages={logoPages}
           />
         )}
 
@@ -636,6 +637,8 @@ interface DesignTabProps {
   onToggleObjectFullWidth?: (id: string, on: boolean) => void;
   menuStyle?: MenuStyle;
   onApplyMenuStyle?: (next: MenuStyle) => void;
+  /** Site pages for the object link picker (relative {slug}.html targets). */
+  logoPages?: { slug: string; title: string; isHome?: boolean }[];
 }
 
 function DesignTab({
@@ -643,7 +646,7 @@ function DesignTab({
   editingTarget, headerLayout, onApplyHeaderLayout,
   onOpenHeaderEdit, onOpenFooterEdit, onApplyBodyLayout, footerStyle, onApplyFooterLayout,
   fullWidthObjectIds, onToggleObjectFullWidth,
-  menuStyle, onApplyMenuStyle,
+  menuStyle, onApplyMenuStyle, logoPages,
 }: DesignTabProps) {
   // The nav menu lives OUTSIDE the scene graph, so selecting it sets selectedId
   // but resolves no `layer`. Detect it from the live DOM and surface the menu
@@ -850,13 +853,13 @@ function DesignTab({
           Company Preview .frame wrapping img + decorative overlays). */}
       {(() => {
         if (layer.type === "image") {
-          return <ImageSection layer={layer as ImageLayer} siteId={siteId} />;
+          return <ImageSection layer={layer as ImageLayer} siteId={siteId} pages={logoPages} />;
         }
         if (layer.type === "box") {
           const box = layer as BoxLayer;
           const imgAttrs = readImgFromInnerHtml(box.innerHtml ?? "");
           if (imgAttrs) {
-            return <ImageSection layer={layer} initialAttrs={imgAttrs} siteId={siteId} />;
+            return <ImageSection layer={layer} initialAttrs={imgAttrs} siteId={siteId} pages={logoPages} />;
           }
         }
         return null;
@@ -885,6 +888,177 @@ function DesignTab({
   );
 }
 
+/* ─── Link editor (링크) ──────────────────────────────────────────────────
+ * Replaces the bare URL input. Four modes the user picks via segmented chips:
+ *   없음   — no link (clears href + target)
+ *   페이지 — internal page; href = relative "{slug}.html" (resolves on both the
+ *            custom domain and home.* path, same /{lang}/ dir)
+ *   URL    — external link; free href + target (새 탭 _blank / 같은 탭 _self)
+ *   위치   — in-page jump; href = "#{objectId}" picked from the page's objects
+ * Beginner: pick a page from a dropdown. Expert: raw URL + target + anchor id.
+ * Keyed by layer id at the call site so `kind` re-derives per selection. */
+type LinkKind = "none" | "page" | "url" | "anchor";
+
+function detectLinkKind(
+  href: string,
+  pages: { slug: string }[],
+): LinkKind {
+  if (!href) return "none";
+  if (href.startsWith("#")) return "anchor";
+  const path = href.replace(/^https?:\/\/[^/]+/, "").replace(/[?#].*$/, "");
+  if (pages.some((p) => path.endsWith(`${p.slug}.html`))) return "page";
+  return "url";
+}
+
+function LinkEditor({
+  href,
+  target,
+  pages,
+  currentLayerId,
+  onChange,
+}: {
+  href: string;
+  target: string;
+  pages: { slug: string; title: string; isHome?: boolean }[];
+  currentLayerId?: string;
+  onChange: (href: string, target: string) => void;
+}) {
+  const [kind, setKind] = useState<LinkKind>(() => detectLinkKind(href, pages));
+  // Objects on the current page that can be jump targets (have an id).
+  const anchorOptions = useMemo(() => {
+    if (typeof document === "undefined") return [];
+    const body = document.getElementById("hns_body");
+    if (!body) return [];
+    return Array.from(body.querySelectorAll<HTMLElement>("[id]"))
+      .filter(
+        (e) =>
+          e.id &&
+          e.id !== currentLayerId &&
+          (e.classList.contains("dragable") || /^el_/.test(e.id)),
+      )
+      .map((e) => ({
+        id: e.id,
+        label: (e.textContent || "").trim().replace(/\s+/g, " ").slice(0, 28) || e.id,
+      }))
+      .slice(0, 200);
+  }, [currentLayerId, kind]);
+
+  const chip = (k: LinkKind, label: string) => (
+    <button
+      type="button"
+      onClick={() => {
+        setKind(k);
+        if (k === "none") onChange("", "");
+      }}
+      style={{
+        flex: 1,
+        padding: "5px 0",
+        fontSize: 12,
+        cursor: "pointer",
+        border: "1px solid " + (kind === k ? "#2a79ff" : "var(--fig-line-2,#2a2b34)"),
+        background: kind === k ? "rgba(42,121,255,0.16)" : "transparent",
+        color: kind === k ? "#7aa2ff" : "var(--fig-text-2,#9ca3af)",
+        borderRadius: 6,
+      }}
+    >
+      {label}
+    </button>
+  );
+  const fieldStyle: CSSProperties = {
+    width: "100%",
+    padding: "6px 8px",
+    background: "var(--fig-surface-2,#1b1c24)",
+    color: "var(--fig-text-1,#e5e7eb)",
+    border: "1px solid var(--fig-line-2,#2a2b34)",
+    borderRadius: 6,
+    fontSize: 13,
+  };
+  const currentPageSlug =
+    kind === "page"
+      ? pages.find((p) =>
+          href.replace(/^https?:\/\/[^/]+/, "").replace(/[?#].*$/, "").endsWith(`${p.slug}.html`),
+        )?.slug ?? ""
+      : "";
+
+  return (
+    <Section title="링크">
+      <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
+        {chip("none", "없음")}
+        {chip("page", "페이지")}
+        {chip("url", "URL")}
+        {chip("anchor", "위치")}
+      </div>
+
+      {kind === "page" && (
+        <select
+          value={currentPageSlug}
+          onChange={(e) => e.target.value && onChange(`${e.target.value}.html`, "")}
+          style={fieldStyle}
+        >
+          <option value="">페이지 선택…</option>
+          {pages.map((p) => (
+            <option key={p.slug} value={p.slug}>
+              {p.isHome ? "🏠 " : ""}
+              {p.title || p.slug}
+            </option>
+          ))}
+        </select>
+      )}
+
+      {kind === "url" && (
+        <>
+          <input
+            type="text"
+            defaultValue={detectLinkKind(href, pages) === "url" ? href : ""}
+            placeholder="https://example.com"
+            onBlur={(e) => onChange(e.target.value.trim(), target)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") onChange((e.target as HTMLInputElement).value.trim(), target);
+            }}
+            style={fieldStyle}
+          />
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+            <span style={{ fontSize: 12, color: "#9ca3af", minWidth: 48 }}>열기</span>
+            <select
+              value={target || "_self"}
+              onChange={(e) => onChange(href, e.target.value === "_self" ? "" : e.target.value)}
+              style={{ ...fieldStyle, flex: 1 }}
+            >
+              <option value="_self">같은 탭</option>
+              <option value="_blank">새 탭</option>
+            </select>
+          </div>
+        </>
+      )}
+
+      {kind === "anchor" && (
+        <select
+          value={href.startsWith("#") ? href.slice(1) : ""}
+          onChange={(e) => e.target.value && onChange(`#${e.target.value}`, "")}
+          style={fieldStyle}
+        >
+          <option value="">이동할 객체 선택…</option>
+          {anchorOptions.map((o) => (
+            <option key={o.id} value={o.id}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      )}
+
+      <div className="ins-hmf-notice" style={{ marginTop: 8 }}>
+        <i className="fa-solid fa-circle-info" aria-hidden />
+        <span>
+          {kind === "none" && "클릭해도 이동하지 않습니다."}
+          {kind === "page" && "사이트 내 다른 페이지로 이동합니다."}
+          {kind === "url" && "외부 주소로 이동합니다. ‘새 탭’은 현재 페이지를 유지합니다."}
+          {kind === "anchor" && "같은 페이지의 선택한 객체 위치로 스크롤합니다."}
+        </span>
+      </div>
+    </Section>
+  );
+}
+
 /* ─── Image-specific section (2026-04-25) ────────────────────────── */
 
 /**
@@ -903,10 +1077,12 @@ function ImageSection({
   layer,
   initialAttrs,
   siteId,
+  pages,
 }: {
   layer: Layer;
   initialAttrs?: { src: string; alt?: string; href?: string; hrefTarget?: string; objectFit?: ImageLayer["objectFit"] };
   siteId?: string;
+  pages?: { slug: string; title: string; isHome?: boolean }[];
 }) {
   const t = useTranslations("editor");
   const setImage = useEditorStore((s) => s.setImage);
@@ -919,6 +1095,7 @@ function ImageSection({
   const src = isImage ? img!.src ?? "" : initialAttrs?.src ?? "";
   const alt = isImage ? img!.alt ?? "" : initialAttrs?.alt ?? "";
   const href = isImage ? img!.href ?? "" : initialAttrs?.href ?? "";
+  const hrefTarget = isImage ? (img!.hrefTarget ?? "") : (initialAttrs?.hrefTarget ?? "");
   const objectFit: string = isImage
     ? (img!.objectFit ?? "")
     : (initialAttrs?.objectFit ?? "");
@@ -1017,15 +1194,14 @@ function ImageSection({
           }
         />
       </div>
-      <div className="ins-prop-row">
-        <TextField
-          label={t("inspector.image.link")}
-          value={href}
-          placeholder={t("inspector.image.linkPlaceholder")}
-          onCommit={(v) => setImage(layer.id, { href: v })}
-          wide
-        />
-      </div>
+      <LinkEditor
+        key={layer.id}
+        href={href}
+        target={hrefTarget}
+        pages={pages || []}
+        currentLayerId={layer.id}
+        onChange={(h, tg) => setImage(layer.id, { href: h, hrefTarget: tg })}
+      />
     </Section>
   );
 }

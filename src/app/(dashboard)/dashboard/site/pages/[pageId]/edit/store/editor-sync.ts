@@ -776,12 +776,25 @@ function applyImageDataToEl(el: HTMLElement, layer: Layer) {
       }
     }
   }
-  const a = el.querySelector("a");
-  if (a) {
-    if (attrs.href) a.setAttribute("href", attrs.href);
-    else a.removeAttribute("href");
-    if (attrs.hrefTarget) a.setAttribute("target", attrs.hrefTarget);
-    else a.removeAttribute("target");
+  // Create / update / remove the <a> wrapper in the LIVE DOM so the link shows
+  // immediately (and survives the next save, which serializes from the DOM).
+  // Mirrors rewriteImageInnerHtml: wrap the img on set, unwrap on clear.
+  let a: HTMLAnchorElement | null = imgEl ? imgEl.closest("a") : el.querySelector("a");
+  if (a && !el.contains(a)) a = null;
+  if (attrs.href) {
+    if (!a && imgEl) {
+      a = document.createElement("a");
+      imgEl.parentNode!.insertBefore(a, imgEl);
+      a.appendChild(imgEl);
+    }
+    if (a) {
+      a.setAttribute("href", attrs.href);
+      if (attrs.hrefTarget) a.setAttribute("target", attrs.hrefTarget);
+      else a.removeAttribute("target");
+    }
+  } else if (a) {
+    while (a.firstChild) a.parentNode!.insertBefore(a.firstChild, a);
+    a.remove();
   }
 }
 

@@ -317,12 +317,24 @@ function rewriteImageInnerHtml(prev: string, attrs: ImageAttrs): string {
   const fit = attrs.objectFit ?? "cover";
   if (fit === "none") imgEl.style.removeProperty("object-fit");
   else imgEl.style.setProperty("object-fit", fit);
-  const a = wrapper.querySelector("a");
-  if (a) {
-    if (attrs.href) a.setAttribute("href", attrs.href);
-    else a.removeAttribute("href");
+  // Create / update / remove the <a> wrapper around the img. Previously this
+  // only patched a PRE-EXISTING <a> — setting a link on an un-wrapped image
+  // (the common case) updated the typed field but emitted no anchor, so the
+  // link silently never rendered. Now we wrap on set and unwrap on clear.
+  let a = imgEl.closest("a");
+  if (a && !wrapper.contains(a)) a = null;
+  if (attrs.href) {
+    if (!a) {
+      a = document.createElement("a");
+      imgEl.parentNode!.insertBefore(a, imgEl);
+      a.appendChild(imgEl);
+    }
+    a.setAttribute("href", attrs.href);
     if (attrs.hrefTarget) a.setAttribute("target", attrs.hrefTarget);
     else a.removeAttribute("target");
+  } else if (a) {
+    while (a.firstChild) a.parentNode!.insertBefore(a.firstChild, a);
+    a.remove();
   }
   return wrapper.innerHTML;
 }
