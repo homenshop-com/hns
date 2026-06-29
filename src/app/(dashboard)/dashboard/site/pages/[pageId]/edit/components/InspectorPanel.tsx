@@ -947,8 +947,17 @@ function LinkEditor({
     <button
       type="button"
       onClick={() => {
+        // Only "없음" is destructive — confirm before wiping an existing link so
+        // an accidental click doesn't lose the chosen page/URL. Switching to
+        // 페이지/URL/위치 just changes the view; the href is kept until the user
+        // picks a new value, so toggling between modes never loses the setting.
+        if (k === "none") {
+          if (href && !window.confirm("설정된 링크를 제거할까요?\n이 객체를 클릭해도 더 이상 이동하지 않습니다.")) {
+            return;
+          }
+          onChange("", "");
+        }
         setKind(k);
-        if (k === "none") onChange("", "");
       }}
       style={{
         flex: 1,
