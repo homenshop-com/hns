@@ -518,6 +518,25 @@ export default function DesignEditor({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // Read the logo's current link target once the header HMF is injected, so the
+  // 로고 링크 control reflects the existing href (if the logo is already wrapped
+  // in an <a>). Retries once because the header is set via a layout effect.
+  useEffect(() => {
+    const read = () => {
+      const headerEl = headerRef.current;
+      if (!headerEl) return false;
+      const a = headerEl.querySelector<HTMLAnchorElement>(
+        "#hns_h_logo a[href], .logo a[href]",
+      );
+      setLogoLinkHref(a?.getAttribute("href") || "");
+      return true;
+    };
+    if (!read()) {
+      const t = setTimeout(read, 300);
+      return () => clearTimeout(t);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // Page tab context menu (right-click on a page tab in the App bar).
   const [pageCtxMenu, setPageCtxMenu] = useState<{ pageId: string; x: number; y: number } | null>(null);
   // Undo/Redo button enable state — subscribe to zundo's temporal store
@@ -706,6 +725,9 @@ export default function DesignEditor({
   // Header/Menu/Footer settings
   const [menuMode, setMenuMode] = useState<"auto" | "custom">("auto");
   const [logoUrl, setLogoUrl] = useState("");
+  // Current href of the site logo's wrapping <a> (site-wide, lives in the
+  // header HMF). "" = no link. Edited via the Page tab → 헤더 설정 → 로고 링크.
+  const [logoLinkHref, setLogoLinkHref] = useState("");
 
   // Multi-select state (Shift+click)
   const multiSelectedRef = useRef<Set<string>>(new Set());
@@ -4687,6 +4709,58 @@ export default function DesignEditor({
     setSelectedElId(domId);
   }, []);
 
+  // Set / update / clear the link wrapped around the site logo. The logo lives
+  // in the header HMF (site-wide), so this edits the live header DOM, re-derives
+  // the header scene, and marks it dirty — the existing save path then persists
+  // headerHtml to SiteHmf and the published header renders the <a> as-is.
+  // href "" removes the link (unwraps the anchor). Relative page hrefs
+  // ("index.html") resolve correctly on both the custom domain and the
+  // home.* path since the header sits in the same /{lang}/ directory.
+  const applyLogoLink = useCallback((rawHref: string) => {
+    const headerEl = headerRef.current;
+    if (!headerEl) return;
+    const href = rawHref.trim();
+    const logoBox =
+      headerEl.querySelector<HTMLElement>("#hns_h_logo") ||
+      headerEl.querySelector<HTMLElement>(".logo") ||
+      headerEl
+        .querySelector<HTMLElement>("[id*=logo] img")
+        ?.closest<HTMLElement>("[id*=logo]") ||
+      null;
+    if (!logoBox) {
+      alert("로고 요소를 찾을 수 없습니다. 헤더에 로고가 있는지 확인해 주세요.");
+      return;
+    }
+    let anchor =
+      logoBox.querySelector<HTMLAnchorElement>(":scope > a") ||
+      logoBox.querySelector<HTMLAnchorElement>("a");
+    if (!href) {
+      // Remove the link: unwrap the anchor, keeping its contents in place.
+      if (anchor && anchor.parentElement) {
+        while (anchor.firstChild)
+          anchor.parentElement.insertBefore(anchor.firstChild, anchor);
+        anchor.remove();
+      }
+    } else if (anchor) {
+      anchor.setAttribute("href", href);
+    } else {
+      // Wrap the logo box's contents in a new anchor. Block + inherit so a text
+      // logo keeps the template's #hns_h_logo a styling and the whole logo is
+      // clickable.
+      anchor = document.createElement("a");
+      anchor.setAttribute("href", href);
+      anchor.style.display = "block";
+      anchor.style.color = "inherit";
+      anchor.style.textDecoration = "none";
+      while (logoBox.firstChild) anchor.appendChild(logoBox.firstChild);
+      logoBox.appendChild(anchor);
+    }
+    const hStore = useEditorStore.getState();
+    hStore.setHeaderScene(legacyHmfToScene(headerEl.innerHTML));
+    hStore.markHeaderDirty();
+    setLogoLinkHref(href);
+  }, []);
+
   // Footer mirror of moveBodyLayerToHeader (see that callback for the full
   // rationale on id resolution, the sibling-of-dragable dest, and `.dragable`).
   const moveBodyLayerToFooter = useCallback((layerId: string) => {
@@ -5804,6 +5878,13 @@ export default function DesignEditor({
             onApplyFooterLayout={applyFooterLayout}
             menuStyle={menuStyle}
             onApplyMenuStyle={applyMenuStyle}
+            logoLink={logoLinkHref}
+            onApplyLogoLink={applyLogoLink}
+            logoPages={pages.map((p) => ({
+              slug: p.slug,
+              title: p.menuTitle || p.title,
+              isHome: p.isHome,
+            }))}
             isModernCanvas={isModernCanvas}
             pageWidth={designCanvasWidth ?? 1000}
             pageWidthManaged={parsePageWidthCss(currentPageCss) != null}

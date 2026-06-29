@@ -223,6 +223,12 @@ interface Props {
   menuStyle?: MenuStyle;
   /** Apply "메뉴 설정" changes (managed pageCss block, site-wide). */
   onApplyMenuStyle?: (next: MenuStyle) => void;
+  /** Current logo link href ("" = none). Site-wide (header HMF). */
+  logoLink?: string;
+  /** Apply "로고 링크" — wraps/updates the logo's <a> href (site-wide). */
+  onApplyLogoLink?: (href: string) => void;
+  /** Site pages for the logo-link picker (relative {slug}.html targets). */
+  logoPages?: { slug: string; title: string; isHome?: boolean }[];
   /** Modern/flow paradigm — the page is fluid (100%), so the PC width control
    *  is disabled (no fixed artboard). */
   isModernCanvas?: boolean;
@@ -257,6 +263,9 @@ export default function InspectorPanel({
   onApplyPageWidth,
   fullWidthObjectIds,
   onToggleObjectFullWidth,
+  logoLink,
+  onApplyLogoLink,
+  logoPages,
 }: Props) {
   const t = useTranslations("editor");
   const [tab, setTab] = useState<Tab>("design");
@@ -381,6 +390,9 @@ export default function InspectorPanel({
             onApplyFooterLayout={onApplyFooterLayout}
             menuStyle={menuStyle}
             onApplyMenuStyle={onApplyMenuStyle}
+            logoLink={logoLink}
+            onApplyLogoLink={onApplyLogoLink}
+            logoPages={logoPages}
           />
         )}
 
@@ -414,6 +426,9 @@ function PageTab({
   onApplyFooterLayout,
   menuStyle,
   onApplyMenuStyle,
+  logoLink,
+  onApplyLogoLink,
+  logoPages,
 }: {
   isModernCanvas?: boolean;
   pageWidth?: number;
@@ -426,6 +441,9 @@ function PageTab({
   onApplyFooterLayout?: (next: FooterStyle) => void;
   menuStyle?: MenuStyle;
   onApplyMenuStyle?: (next: MenuStyle) => void;
+  logoLink?: string;
+  onApplyLogoLink?: (href: string) => void;
+  logoPages?: { slug: string; title: string; isHome?: boolean }[];
 }) {
   return (
     <div className="ins-hmf-panel">
@@ -444,7 +462,13 @@ function PageTab({
         pageWidthManaged={pageWidthManaged}
         onApply={onApplyPageWidth}
       />
-      <HeaderSettingsPanel headerLayout={headerLayout} onApply={onApplyHeaderLayout} />
+      <HeaderSettingsPanel
+        headerLayout={headerLayout}
+        onApply={onApplyHeaderLayout}
+        logoLink={logoLink}
+        onApplyLogoLink={onApplyLogoLink}
+        logoPages={logoPages}
+      />
       <MenuSettingsPanel menuStyle={menuStyle} onApply={onApplyMenuStyle} />
       <BodySettingsPanel onApply={onApplyBodyLayout} />
       <FooterSettingsPanel footerStyle={footerStyle} onApply={onApplyFooterLayout} />
@@ -2573,9 +2597,15 @@ function GoogleMapSection({ layerId }: { layerId: string }) {
 function HeaderSettingsPanel({
   headerLayout,
   onApply,
+  logoLink,
+  onApplyLogoLink,
+  logoPages,
 }: {
   headerLayout?: HmfHeaderLayout;
   onApply?: (next: HmfHeaderLayout) => void;
+  logoLink?: string;
+  onApplyLogoLink?: (href: string) => void;
+  logoPages?: { slug: string; title: string; isHome?: boolean }[];
 }) {
   const layout = headerLayout ?? { sticky: false, height: "auto", background: "" };
   const heightPx =
@@ -2637,11 +2667,101 @@ function HeaderSettingsPanel({
           <span>상단 고정 (sticky)</span>
         </label>
       </div>
+      {onApplyLogoLink && (
+        <LogoLinkRow
+          value={logoLink || ""}
+          pages={logoPages || []}
+          onApply={onApplyLogoLink}
+        />
+      )}
       <div className="ins-hmf-notice" style={{ marginTop: 8 }}>
         <i className="fa-solid fa-circle-info" aria-hidden />
-        <span>헤더 배경·높이는 모든 페이지에 공통 적용됩니다.</span>
+        <span>헤더 배경·높이·로고 링크는 모든 페이지에 공통 적용됩니다.</span>
       </div>
     </Section>
+  );
+}
+
+/* ─── Logo link picker (로고 링크) ───────────────────────────────────────
+ * Wraps the site logo in an <a>. The user picks a site page (relative
+ * "{slug}.html" target) or enters a custom URL; "링크 없음" removes the link.
+ * Lives in the header HMF (site-wide). */
+function LogoLinkRow({
+  value,
+  pages,
+  onApply,
+}: {
+  value: string;
+  pages: { slug: string; title: string; isHome?: boolean }[];
+  onApply: (href: string) => void;
+}) {
+  // Does the current href point at one of our pages? Compare on the trailing
+  // "{slug}.html" so absolute (custom-domain) and relative hrefs both match.
+  const matched = value
+    ? pages.find((p) => value.replace(/[?#].*$/, "").endsWith(`${p.slug}.html`))
+    : undefined;
+  const isCustomUrl = !!value && !matched;
+  const [urlMode, setUrlMode] = useState(isCustomUrl);
+  const selectValue = !value ? "__none__" : matched ? `${matched.slug}.html` : "__url__";
+  const showUrl = urlMode || isCustomUrl;
+  return (
+    <div style={{ marginTop: 12, borderTop: "1px solid var(--fig-line-2,#2a2b34)", paddingTop: 10 }}>
+      <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 6 }}>로고 링크</div>
+      <select
+        value={selectValue}
+        onChange={(e) => {
+          const v = e.target.value;
+          if (v === "__none__") {
+            setUrlMode(false);
+            onApply("");
+          } else if (v === "__url__") {
+            setUrlMode(true);
+          } else {
+            setUrlMode(false);
+            onApply(v);
+          }
+        }}
+        style={{
+          width: "100%",
+          padding: "6px 8px",
+          background: "var(--fig-surface-2,#1b1c24)",
+          color: "var(--fig-text-1,#e5e7eb)",
+          border: "1px solid var(--fig-line-2,#2a2b34)",
+          borderRadius: 6,
+          fontSize: 13,
+        }}
+      >
+        <option value="__none__">링크 없음</option>
+        {pages.map((p) => (
+          <option key={p.slug} value={`${p.slug}.html`}>
+            {p.isHome ? "🏠 " : ""}
+            {p.title || p.slug}
+          </option>
+        ))}
+        <option value="__url__">직접 URL 입력…</option>
+      </select>
+      {showUrl && (
+        <input
+          type="text"
+          defaultValue={isCustomUrl ? value : ""}
+          placeholder="https://example.com"
+          onBlur={(e) => onApply(e.target.value.trim())}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") onApply((e.target as HTMLInputElement).value.trim());
+          }}
+          style={{
+            width: "100%",
+            marginTop: 6,
+            padding: "6px 8px",
+            background: "var(--fig-surface-2,#1b1c24)",
+            color: "var(--fig-text-1,#e5e7eb)",
+            border: "1px solid var(--fig-line-2,#2a2b34)",
+            borderRadius: 6,
+            fontSize: 13,
+          }}
+        />
+      )}
+    </div>
   );
 }
 
