@@ -658,6 +658,23 @@
   background: #5be5b3;
   box-shadow: 0 2px 12px rgba(91, 229, 179, 0.45);
 }
+/* "헤더 ↕" tag on the header boundary bar — names the region above the bar so
+   the area between the ruler and this bar is unambiguously the header. */
+.de-bar-label {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  background: #2a79ff;
+  padding: 1px 8px;
+  border-radius: 999px;
+  pointer-events: none;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
 #de-canvas-inner #hns_footer {
   /* relative (no offset) keeps the footer's flow position AND makes it the
      positioning context for objects the user dragged free (data-hns-footer-free),

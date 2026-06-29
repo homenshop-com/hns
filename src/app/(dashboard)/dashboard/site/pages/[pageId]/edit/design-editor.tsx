@@ -5061,6 +5061,15 @@ export default function DesignEditor({
             </span>
           )}
           {editorV2Enabled && isAbsoluteMode && (
+            <span className="de-size-badge" title="현재 편집 중인 디바이스 캔버스 크기">
+              {viewportMode === "mobile"
+                ? "375 × auto"
+                : viewportMode === "tablet"
+                  ? "768 × auto"
+                  : `${designCanvasWidth ?? 1000} × auto`}
+            </span>
+          )}
+          {editorV2Enabled && isAbsoluteMode && (
             <div className="de-viewport-toggle" role="group" aria-label={t("topbar.viewportLabel")}>
               <button
                 type="button"
@@ -5658,34 +5667,9 @@ export default function DesignEditor({
         }}
         onMouseLeave={() => setCursorCoord(null)}
       >
-        {/* Artboard label — top-left above the canvas (Figma-style) */}
-        <div
-          className="de-artboard-label"
-          style={{
-            top: viewportMode === "desktop" ? 20 : 10,
-            left: "50%",
-            transform: "translateX(-50%)",
-            position: "absolute",
-            zIndex: 3,
-          }}
-        >
-          <span className="chip">
-            {viewportMode === "mobile"
-              ? t("viewport.mobile")
-              : viewportMode === "tablet"
-                ? t("viewport.tablet")
-                : t("viewport.desktop")}
-          </span>
-          <span className="dev">
-            {viewportMode === "mobile"
-              ? "375 × auto"
-              : viewportMode === "tablet"
-                ? "768 × auto"
-                : isModernCanvas
-                  ? "100% × auto"
-                  : `${designCanvasWidth ?? 1000} × auto`}
-          </span>
-        </div>
+        {/* Artboard label removed — the device + size now sit in the top toolbar
+            next to the 절대좌표 badge so the canvas starts (header region) right
+            below the ruler with no element mistakable for the header. */}
 
         <div
           className={`de-canvas${isModernCanvas ? " is-modern" : ""}`}
@@ -5727,6 +5711,7 @@ export default function DesignEditor({
                   startHeaderResize(touch.clientY);
                 }}
               >
+                <label className="de-bar-label">헤더 ↕</label>
                 <span />
               </div>
             )}
