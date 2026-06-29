@@ -6004,6 +6004,8 @@ export default function DesignEditor({
             initialHtml={tiptapTarget?.html ?? ""}
             onSave={handleTiptapSave}
             onClose={() => { tiptapElRef.current = null; setTiptapTarget(null); }}
+            pages={pages.map((p) => ({ slug: p.slug, title: p.menuTitle || p.title, isHome: p.isHome }))}
+            siteId={siteId}
           />
         </Suspense>
       )}
