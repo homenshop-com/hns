@@ -562,31 +562,6 @@
   position: relative;
   width: 100%;
   z-index: 100;
-  /* Editor-only header-region demarcation. A body hero may be authored with a
-     negative top so it overlaps UP behind the (transparent) header on the
-     published page — in the editor that overlap isn't reproduced, so the header
-     band can read as ambiguous empty space. Outline + faint tint make the whole
-     header region (incl. any intentional top whitespace) unmistakable. These
-     are box-shadow/outline only (never the `background` property), so they do
-     NOT override the user's real header background and are never published. */
-  outline: 1px dashed rgba(42, 121, 255, 0.5);
-  outline-offset: -1px;
-  box-shadow: inset 0 0 0 9999px rgba(42, 121, 255, 0.045);
-}
-/* Corner tag naming the region (sits in the usually-empty top-left). */
-#de-canvas-inner #hns_header::after {
-  content: "헤더 영역";
-  position: absolute;
-  top: 0;
-  left: 0;
-  font-size: 10px;
-  font-weight: 700;
-  color: #fff;
-  background: rgba(42, 121, 255, 0.85);
-  padding: 1px 7px;
-  border-radius: 0 0 6px 0;
-  pointer-events: none;
-  z-index: 9001;
 }
 #de-canvas-inner #hns_menu {
   position: relative;
