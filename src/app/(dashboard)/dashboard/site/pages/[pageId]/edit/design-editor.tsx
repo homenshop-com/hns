@@ -3427,16 +3427,30 @@ export default function DesignEditor({
   // on the canvas. Both ultimately write the element's innerHTML, which
   // cloneSceneForDesktopSave syncs back into the scene on save (same persistence
   // path), so the only difference is the editing surface.
-  function openTextEditor(editEl: HTMLElement, clientX?: number, clientY?: number) {
+  function openTextEditor(
+    editEl: HTMLElement,
+    clientX?: number,
+    clientY?: number,
+    clickTarget?: HTMLElement,
+  ) {
     if (isAbsoluteMode) {
       dragRef.current = null;
       resizeRef.current = null;
-      if (!editEl.id) {
-        editEl.id = "el_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
+      // Edit the WHOLE text object, not the clicked fragment. A legacy text
+      // object is one `.dragable` whose innerHTML may contain several inline
+      // pieces (`<span id="el_*">`, `<a>`, colored runs). `findEditTarget`
+      // returns the clicked leaf (a hangover from inline contenteditable, which
+      // edited only the clicked run) — but TipTap edits the entire paragraph at
+      // once, so target the object's top-level `.dragable`. Falls back to the
+      // resolved leaf for header/footer text that has no `.dragable` wrapper.
+      const src = clickTarget ?? editEl;
+      const objEl = src.closest<HTMLElement>(".dragable") ?? editEl;
+      if (!objEl.id) {
+        objEl.id = "el_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
       }
-      setSelectedElId(editEl.id);
-      tiptapElRef.current = editEl;
-      setTiptapTarget({ elId: editEl.id, html: editEl.innerHTML });
+      setSelectedElId(objEl.id);
+      tiptapElRef.current = objEl;
+      setTiptapTarget({ elId: objEl.id, html: objEl.innerHTML });
       return;
     }
     enterTextEdit(editEl, clientX, clientY);
@@ -3471,7 +3485,7 @@ export default function DesignEditor({
       if (!editEl) return;
       e.preventDefault();
       e.stopPropagation();
-      openTextEditor(editEl, e.clientX, e.clientY);
+      openTextEditor(editEl, e.clientX, e.clientY, target);
     }
 
     // Mobile: detect double-tap (two taps within 400ms on same element)
@@ -3491,7 +3505,7 @@ export default function DesignEditor({
         // Double-tap detected
         e.preventDefault();
         const t = e.changedTouches[0];
-        openTextEditor(editEl, t?.clientX, t?.clientY);
+        openTextEditor(editEl, t?.clientX, t?.clientY, target);
         lastTapRef.current = { time: 0, id: "" };
       } else {
         lastTapRef.current = { time: now, id: elId };
