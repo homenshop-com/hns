@@ -279,7 +279,7 @@ export default function TiptapModal({ initialHtml, onSave, onClose, pages = [], 
     editorProps: {
       attributes: {
         style:
-          "min-height:300px;max-height:60vh;overflow-y:auto;padding:16px;outline:none;color:#e0e0e0;font-size:14px;line-height:1.7;",
+          "min-height:300px;max-height:60vh;overflow-y:auto;padding:16px;outline:none;color:#1a1a1a;font-size:14px;line-height:1.7;",
       },
     },
   });
@@ -546,7 +546,10 @@ export default function TiptapModal({ initialHtml, onSave, onClose, pages = [], 
         />
 
         {/* Editor content */}
-        <div style={{ flex: 1, overflow: "auto", background: "#1e1e1e", borderRadius: "0 0 12px 12px" }} className="tiptap-editor-area">
+        {/* White document area — legacy body text is authored dark (e.g. #3C2515)
+            for light pages, so a dark editor bg made it invisible. White matches
+            the real page and keeps the inline colors readable (WYSIWYG). */}
+        <div style={{ flex: 1, overflow: "auto", background: "#fff", borderRadius: "0 0 12px 12px" }} className="tiptap-editor-area">
           <EditorContent editor={editor} />
         </div>
 
@@ -580,15 +583,15 @@ export default function TiptapModal({ initialHtml, onSave, onClose, pages = [], 
         .tiptap-editor-area .tiptap h2 { font-size: 1.5em; }
         .tiptap-editor-area .tiptap h3 { font-size: 1.17em; }
         .tiptap-editor-area .tiptap ul, .tiptap-editor-area .tiptap ol { padding-left: 1.5em; margin: 0.5em 0; }
-        .tiptap-editor-area .tiptap blockquote { border-left: 3px solid #555; padding-left: 1em; margin: 0.5em 0; color: #999; }
-        .tiptap-editor-area .tiptap a { color: #4a90d9; text-decoration: underline; }
+        .tiptap-editor-area .tiptap blockquote { border-left: 3px solid #ccc; padding-left: 1em; margin: 0.5em 0; color: #666; }
+        .tiptap-editor-area .tiptap a { color: #2563eb; text-decoration: underline; }
         .tiptap-editor-area .tiptap img { max-width: 100%; height: auto; }
-        .tiptap-editor-area .tiptap hr { border: none; border-top: 1px solid #555; margin: 1em 0; }
-        .tiptap-editor-area .tiptap code { background: #333; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
-        .tiptap-editor-area .tiptap pre { background: #1a1a1a; padding: 12px; border-radius: 6px; overflow-x: auto; }
+        .tiptap-editor-area .tiptap hr { border: none; border-top: 1px solid #ddd; margin: 1em 0; }
+        .tiptap-editor-area .tiptap code { background: #eef0f3; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+        .tiptap-editor-area .tiptap pre { background: #f4f5f7; padding: 12px; border-radius: 6px; overflow-x: auto; }
         .tiptap-editor-area .tiptap table { border-collapse: collapse; margin: 0.5em 0; width: 100%; table-layout: fixed; }
-        .tiptap-editor-area .tiptap th, .tiptap-editor-area .tiptap td { border: 1px solid #555; padding: 6px 8px; vertical-align: top; min-width: 40px; }
-        .tiptap-editor-area .tiptap th { background: #383838; font-weight: 700; }
+        .tiptap-editor-area .tiptap th, .tiptap-editor-area .tiptap td { border: 1px solid #ccc; padding: 6px 8px; vertical-align: top; min-width: 40px; }
+        .tiptap-editor-area .tiptap th { background: #f0f2f5; font-weight: 700; }
         .tiptap-editor-area .tiptap .selectedCell { background: rgba(74,144,217,0.25); }
         .tiptap-editor-area .tiptap .column-resize-handle { background: #4a90d9; width: 3px; }
       `}</style>
