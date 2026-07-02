@@ -578,10 +578,16 @@ export default function TiptapModal({ initialHtml, onSave, onClose, pages = [], 
       <style>{`
         .tiptap-editor-area .tiptap { min-height: 300px; cursor: text; user-select: text; -webkit-user-select: text; }
         .tiptap-editor-area .tiptap p { margin: 0.5em 0; }
-        .tiptap-editor-area .tiptap h1, .tiptap-editor-area .tiptap h2, .tiptap-editor-area .tiptap h3, .tiptap-editor-area .tiptap h4 { margin: 0.8em 0 0.4em; font-weight: 700; }
-        .tiptap-editor-area .tiptap h1 { font-size: 2em; }
-        .tiptap-editor-area .tiptap h2 { font-size: 1.5em; }
-        .tiptap-editor-area .tiptap h3 { font-size: 1.17em; }
+        /* Legacy absolute templates abuse <h1>..<h4> as plain body-line
+           containers (e.g. <h1><span style="font-size:20px">text</span></h1>),
+           relying on page CSS to normalize them to normal weight/size. TipTap
+           lacks that page CSS, so its default heading styling (2em, bold) made
+           legacy body text look wrongly bold/large. Normalize headings to body
+           appearance here so the editor matches the published page; the inner
+           <span> font-size still governs the real size. The <h1> tags are
+           preserved in getHTML (this is display-only — the DB stays unchanged).
+           Weight/size for genuine emphasis is set via Bold + the size dropdown. */
+        .tiptap-editor-area .tiptap h1, .tiptap-editor-area .tiptap h2, .tiptap-editor-area .tiptap h3, .tiptap-editor-area .tiptap h4 { margin: 0.3em 0; font-weight: normal; font-size: 1em; }
         .tiptap-editor-area .tiptap ul, .tiptap-editor-area .tiptap ol { padding-left: 1.5em; margin: 0.5em 0; }
         .tiptap-editor-area .tiptap blockquote { border-left: 3px solid #ccc; padding-left: 1em; margin: 0.5em 0; color: #666; }
         .tiptap-editor-area .tiptap a { color: #2563eb; text-decoration: underline; }
