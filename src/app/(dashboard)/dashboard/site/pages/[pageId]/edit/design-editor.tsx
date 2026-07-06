@@ -680,6 +680,43 @@ export default function DesignEditor({
       const { default: html2canvas } = await import("html2canvas");
       const w = el.offsetWidth || 1000;
       const cropH = Math.min(el.offsetHeight || w, Math.round(w * 0.72));
+
+      // Pre-fetch every <img> and CSS background-image as a data: URL. This
+      // sidesteps html2canvas's classic cross-origin failure: the browser
+      // already cached these images WITHOUT crossorigin, so useCORS's re-request
+      // collides with the non-CORS cached response and the image draws blank
+      // (logo/photos missing). fetch() honours the asset CORS headers we set;
+      // the resulting data: URL is same-origin so nothing taints the canvas.
+      const dataUrlMap = new Map<string, string>();
+      const toDataUrl = async (url: string) => {
+        if (!url || url.startsWith("data:") || dataUrlMap.has(url)) return;
+        try {
+          const r = await fetch(url, { mode: "cors", cache: "force-cache" });
+          if (!r.ok) return;
+          const blob = await r.blob();
+          const du = await new Promise<string>((res, rej) => {
+            const fr = new FileReader();
+            fr.onload = () => res(fr.result as string);
+            fr.onerror = rej;
+            fr.readAsDataURL(blob);
+          });
+          dataUrlMap.set(url, du);
+        } catch {
+          /* cross-origin without CORS → leave blank, graceful */
+        }
+      };
+      const urls = new Set<string>();
+      el.querySelectorAll("img").forEach((im) => {
+        const s = (im as HTMLImageElement).currentSrc || im.getAttribute("src") || "";
+        if (s) urls.add(new URL(s, location.href).href);
+      });
+      el.querySelectorAll<HTMLElement>("*").forEach((n) => {
+        const bg = getComputedStyle(n).backgroundImage;
+        const m = bg && bg.match(/url\((['"]?)(.*?)\1\)/);
+        if (m && m[2] && !m[2].startsWith("data:")) urls.add(new URL(m[2], location.href).href);
+      });
+      await Promise.all([...urls].map(toDataUrl));
+
       const shot = await html2canvas(el, {
         useCORS: true,
         backgroundColor: "#ffffff",
@@ -692,6 +729,23 @@ export default function DesignEditor({
         ignoreElements: (node) => {
           const c = (node as HTMLElement).className;
           return typeof c === "string" && /de-(header|body)-resize-bar|de-bar-label/.test(c);
+        },
+        // Swap live img/bg URLs for the pre-fetched data: URLs in the clone that
+        // html2canvas actually rasterizes.
+        onclone: (doc) => {
+          doc.querySelectorAll("img").forEach((im) => {
+            const s = (im as HTMLImageElement).src;
+            const du = s && dataUrlMap.get(new URL(s, location.href).href);
+            if (du) im.setAttribute("src", du);
+          });
+          doc.querySelectorAll<HTMLElement>("*").forEach((n) => {
+            const bg = n.style.backgroundImage || getComputedStyle(n).backgroundImage;
+            const m = bg && bg.match(/url\((['"]?)(.*?)\1\)/);
+            if (m && m[2]) {
+              const du = dataUrlMap.get(new URL(m[2], location.href).href);
+              if (du) n.style.backgroundImage = `url("${du}")`;
+            }
+          });
         },
       });
       const blob: Blob | null = await new Promise((r) => shot.toBlob((b) => r(b), "image/jpeg", 0.82));
