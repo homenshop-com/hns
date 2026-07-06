@@ -1879,7 +1879,11 @@ export default function DesignEditor({
     } finally {
       setSaving(false);
     }
-  }, [siteId, pageId, currentBodyHtml, currentPageCss, pageCss, currentLang, menuMode, editorV2Enabled]);
+    // currentCssText MUST be a dep: header height / body bg edits commit into it
+    // (setCurrentCssText). Without it, saveContent's closure keeps a STALE
+    // currentCssText and persists the OLD value — the header-resize height
+    // reverted on save whenever no per-page block strip changed currentPageCss.
+  }, [siteId, pageId, currentBodyHtml, currentPageCss, pageCss, currentCssText, currentLang, menuMode, editorV2Enabled]);
 
   /* ─── AI Edit ─── */
   const executeAiEdit = useCallback(async () => {
