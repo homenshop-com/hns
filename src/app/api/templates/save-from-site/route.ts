@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { canManageSite } from "@/lib/site-access";
+import { rewriteAssetUrls } from "@/lib/template-parser";
 import { randomBytes } from "crypto";
 import { Prisma } from "@/generated/prisma/client";
 
@@ -63,6 +64,10 @@ export async function POST(request: NextRequest) {
       pages: {
         orderBy: { sortOrder: "asc" },
       },
+      // The REAL header/menu/footer live here (per lang, PC/tablet/mobile), not
+      // in the Site.headerHtml columns (which are only a stale fallback). Must
+      // be cloned or the template's header/footer come out empty/default.
+      hmfTranslations: true,
     },
   });
 
@@ -108,6 +113,33 @@ export async function POST(request: NextRequest) {
 
   const base = assetBase(site.templatePath);
   const frozenCss = rewriteCssUrls(site.cssText, base);
+
+  // Freeze HMF (SiteHmf) HTML assets against the SOURCE templatePath so the
+  // clone (which gets a NEW templatePath) still resolves the logo/images.
+  // rewriteAssetUrls only rewrites relative `../files/` refs → absolute; paths
+  // that are already absolute pass through unchanged and stay valid.
+  const freezeHtml = (html: string | null): string | null =>
+    html && site.templatePath ? rewriteAssetUrls(html, site.templatePath) : (html ?? null);
+  const clonedHmf = site.hmfTranslations.map((h) => ({
+    lang: h.lang,
+    headerHtml: freezeHtml(h.headerHtml),
+    menuHtml: freezeHtml(h.menuHtml),
+    footerHtml: freezeHtml(h.footerHtml),
+    tabletHeaderHtml: freezeHtml(h.tabletHeaderHtml),
+    tabletMenuHtml: freezeHtml(h.tabletMenuHtml),
+    tabletFooterHtml: freezeHtml(h.tabletFooterHtml),
+    mobileHeaderHtml: freezeHtml(h.mobileHeaderHtml),
+    mobileMenuHtml: freezeHtml(h.mobileMenuHtml),
+    mobileFooterHtml: freezeHtml(h.mobileFooterHtml),
+  }));
+  // Default-lang HMF → the legacy Site.* + Template.* fallback columns (instead
+  // of the stale site.headerHtml which is what caused the empty header/footer).
+  const defHmf =
+    site.hmfTranslations.find((h) => h.lang === site.defaultLanguage) ??
+    site.hmfTranslations[0];
+  const fbHeader = freezeHtml(defHmf?.headerHtml ?? site.headerHtml ?? null);
+  const fbMenu = freezeHtml(defHmf?.menuHtml ?? site.menuHtml ?? null);
+  const fbFooter = freezeHtml(defHmf?.footerHtml ?? site.footerHtml ?? null);
 
   // Unique paths/ids. shopId must be [a-z0-9-]{6..14} (NO server validation
   // on internal Prisma creates, but we keep the naming predictable).
@@ -162,14 +194,17 @@ export async function POST(request: NextRequest) {
         languages: site.languages,
         templateId: null,
         templatePath: tplPath,
-        headerHtml: site.headerHtml ?? null,
-        menuHtml: site.menuHtml ?? null,
-        footerHtml: site.footerHtml ?? null,
+        headerHtml: fbHeader,
+        menuHtml: fbMenu,
+        footerHtml: fbFooter,
         cssText: frozenCss ?? null,
         published: false,
         accountType: site.accountType,
         isTemplateStorage: true,
         pages: { create: clonedPages },
+        // Clone the per-lang SiteHmf rows — the actual header/menu/footer the
+        // editor & publisher read (site.hmfTranslations, not Site.headerHtml).
+        hmfTranslations: { create: clonedHmf },
       },
     });
 
@@ -181,9 +216,9 @@ export async function POST(request: NextRequest) {
         description: description?.trim() || null,
         category: (category?.trim() || "custom").slice(0, 50),
         thumbnailUrl: thumbnailUrl?.trim() || null,
-        headerHtml: site.headerHtml ?? null,
-        menuHtml: site.menuHtml ?? null,
-        footerHtml: site.footerHtml ?? null,
+        headerHtml: fbHeader,
+        menuHtml: fbMenu,
+        footerHtml: fbFooter,
         cssText: frozenCss ?? null,
         pagesSnapshot: pagesSnapshotForTemplate as unknown as object,
         demoSiteId: storage.id,
