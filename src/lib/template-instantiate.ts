@@ -151,6 +151,42 @@ export async function instantiateSiteFromTemplate(opts: {
     include: { pages: { orderBy: { sortOrder: "asc" } } },
   });
 
+  // Copy the template's storage-site SiteHmf (full per-language + per-device
+  // header/menu/footer) so the new site's editor & publisher render the real
+  // HMF — NOT just the single Site.headerHtml fallback column set above, which
+  // is empty/partial for save-from-site templates (editor/publisher read
+  // hmfTranslations first, `hmf?.headerHtml ?? site.headerHtml`). Same class of
+  // bug as the save-from-site fix. Skipped for factory templates (no demoSiteId)
+  // where Site.headerHtml IS the intended source. Verbatim copy: the storage
+  // site's HMF assets are already frozen to absolute URLs, so the new site reuses
+  // the template's design assets (correct — logo/header belong to the template).
+  if (template.demoSiteId) {
+    try {
+      const demoHmf = await prisma.siteHmf.findMany({
+        where: { siteId: template.demoSiteId },
+      });
+      if (demoHmf.length) {
+        await prisma.siteHmf.createMany({
+          data: demoHmf.map((h) => ({
+            siteId: site.id,
+            lang: h.lang,
+            headerHtml: h.headerHtml,
+            menuHtml: h.menuHtml,
+            footerHtml: h.footerHtml,
+            tabletHeaderHtml: h.tabletHeaderHtml,
+            tabletMenuHtml: h.tabletMenuHtml,
+            tabletFooterHtml: h.tabletFooterHtml,
+            mobileHeaderHtml: h.mobileHeaderHtml,
+            mobileMenuHtml: h.mobileMenuHtml,
+            mobileFooterHtml: h.mobileFooterHtml,
+          })),
+        });
+      }
+    } catch (e) {
+      console.error("[instantiate] SiteHmf copy failed", e);
+    }
+  }
+
   // Seed curated demo data from the template's storage site, if any.
   const demoSiteId = template.demoSiteId;
   if (demoSiteId) {
