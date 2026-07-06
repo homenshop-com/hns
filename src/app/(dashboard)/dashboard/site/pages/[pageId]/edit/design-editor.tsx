@@ -688,11 +688,17 @@ export default function DesignEditor({
       // (logo/photos missing). fetch() honours the asset CORS headers we set;
       // the resulting data: URL is same-origin so nothing taints the canvas.
       const dataUrlMap = new Map<string, string>();
+      const failedUrls: string[] = [];
       const toDataUrl = async (url: string) => {
         if (!url || url.startsWith("data:") || dataUrlMap.has(url)) return;
         try {
-          const r = await fetch(url, { mode: "cors", cache: "force-cache" });
-          if (!r.ok) return;
+          // cache:"reload" — bypass the HTTP cache. These images were cached
+          // (expires 30d) BEFORE the asset hosts served CORS headers; a cors-mode
+          // fetch that reuses that stale non-ACAO entry fails the CORS check even
+          // though the server now sends Access-Control-Allow-Origin. Forcing a
+          // network fetch guarantees the fresh headers.
+          const r = await fetch(url, { mode: "cors", cache: "reload" });
+          if (!r.ok) { failedUrls.push(`${r.status} ${url}`); return; }
           const blob = await r.blob();
           const du = await new Promise<string>((res, rej) => {
             const fr = new FileReader();
@@ -702,7 +708,8 @@ export default function DesignEditor({
           });
           dataUrlMap.set(url, du);
         } catch {
-          /* cross-origin without CORS → leave blank, graceful */
+          // cross-origin without CORS → that image stays blank; log for diagnosis.
+          failedUrls.push(`FAIL ${url}`);
         }
       };
       const urls = new Set<string>();
@@ -716,6 +723,10 @@ export default function DesignEditor({
         if (m && m[2] && !m[2].startsWith("data:")) urls.add(new URL(m[2], location.href).href);
       });
       await Promise.all([...urls].map(toDataUrl));
+      console.info(
+        `[thumb capture] images: ${dataUrlMap.size}/${urls.size} converted`,
+        failedUrls.length ? { failed: failedUrls } : "",
+      );
 
       const shot = await html2canvas(el, {
         useCORS: true,
