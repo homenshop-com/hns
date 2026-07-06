@@ -633,8 +633,35 @@ export default function DesignEditor({
   const [saveTplThumb, setSaveTplThumb] = useState("");
   const [saveTplBusy, setSaveTplBusy] = useState(false);
   const [saveTplError, setSaveTplError] = useState("");
+  const [saveTplThumbUploading, setSaveTplThumbUploading] = useState(false);
+  const saveTplThumbRef = useRef<HTMLInputElement | null>(null);
   const [atomizeBusy, setAtomizeBusy] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
+
+  // Upload a thumbnail file for the save-template modal. The template doesn't
+  // exist yet (so we can't use /api/templates/my/[id]/thumbnail like the edit
+  // modal), so upload to the general /api/upload and use the returned URL as
+  // thumbnailUrl passed to save-from-site.
+  async function uploadSaveTplThumb(file: File) {
+    setSaveTplThumbUploading(true);
+    setSaveTplError("");
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("folder", "site-uploads");
+      fd.append("compress", "true");
+      fd.append("siteId", siteId);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      if (!res.ok) throw new Error(String(res.status));
+      const { url } = await res.json();
+      if (typeof url === "string") setSaveTplThumb(url);
+    } catch {
+      setSaveTplError(t("inspector.image.uploadFailed"));
+    } finally {
+      setSaveTplThumbUploading(false);
+      if (saveTplThumbRef.current) saveTplThumbRef.current.value = "";
+    }
+  }
 
   // Close the "⋯" menu on any outside click.
   useEffect(() => {
@@ -5438,13 +5465,74 @@ export default function DesignEditor({
               <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
                 {t("saveTemplateModal.thumbLabel")}
               </label>
+              {/* Dropzone / preview — click or drag a file to upload (mirrors the
+                  "템플릿 정보 수정" modal). Uploads to /api/upload → sets the URL. */}
+              <div
+                onClick={() => { if (!saveTplThumbUploading) saveTplThumbRef.current?.click(); }}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const f = e.dataTransfer.files?.[0];
+                  if (f) void uploadSaveTplThumb(f);
+                }}
+                style={{
+                  position: "relative",
+                  width: "100%",
+                  aspectRatio: "16 / 9",
+                  border: "2px dashed #d1d5db",
+                  borderRadius: 8,
+                  overflow: "hidden",
+                  cursor: saveTplThumbUploading ? "wait" : "pointer",
+                  background: "#f9fafb",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                {saveTplThumb && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={saveTplThumb}
+                    alt=""
+                    style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+                  />
+                )}
+                <div style={{ position: "relative", textAlign: "center", pointerEvents: "none", color: saveTplThumb ? "#fff" : "#6b7280", textShadow: saveTplThumb ? "0 1px 6px rgba(0,0,0,0.6)" : "none" }}>
+                  <i className="fa-solid fa-cloud-arrow-up" style={{ fontSize: 22, marginBottom: 6, display: "block" }} aria-hidden />
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>
+                    {saveTplThumbUploading ? t("inspector.image.uploading") : "이미지 변경 · 클릭 또는 드래그"}
+                  </div>
+                  <div style={{ fontSize: 11, opacity: 0.85, marginTop: 2 }}>PNG · JPG · WEBP · GIF · 최대 10MB</div>
+                </div>
+              </div>
               <input
-                type="url"
-                value={saveTplThumb}
-                onChange={(e) => setSaveTplThumb(e.target.value)}
-                placeholder="https://..."
-                style={{ width: "100%", padding: "8px 12px", fontSize: 14, border: "1px solid #d1d5db", borderRadius: 6, boxSizing: "border-box" }}
+                ref={saveTplThumbRef}
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                style={{ display: "none" }}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) void uploadSaveTplThumb(f);
+                }}
               />
+              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                <input
+                  type="url"
+                  value={saveTplThumb}
+                  onChange={(e) => setSaveTplThumb(e.target.value)}
+                  placeholder="또는 이미지 URL 붙여넣기 (https://...)"
+                  style={{ flex: 1, padding: "8px 12px", fontSize: 14, border: "1px solid #d1d5db", borderRadius: 6, boxSizing: "border-box" }}
+                />
+                {saveTplThumb && (
+                  <button
+                    type="button"
+                    onClick={() => setSaveTplThumb("")}
+                    style={{ padding: "8px 14px", fontSize: 13, background: "#fff", color: "#374151", border: "1px solid #d1d5db", borderRadius: 6, cursor: "pointer", whiteSpace: "nowrap" }}
+                  >
+                    제거
+                  </button>
+                )}
+              </div>
             </div>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
               <button
@@ -5457,8 +5545,8 @@ export default function DesignEditor({
               </button>
               <button
                 type="submit"
-                disabled={saveTplBusy}
-                style={{ padding: "8px 18px", fontSize: 13, fontWeight: 600, background: saveTplBusy ? "#9ca3af" : "#228be6", color: "#fff", border: "none", borderRadius: 6, cursor: saveTplBusy ? "default" : "pointer" }}
+                disabled={saveTplBusy || saveTplThumbUploading}
+                style={{ padding: "8px 18px", fontSize: 13, fontWeight: 600, background: (saveTplBusy || saveTplThumbUploading) ? "#9ca3af" : "#228be6", color: "#fff", border: "none", borderRadius: 6, cursor: (saveTplBusy || saveTplThumbUploading) ? "default" : "pointer" }}
               >
                 {saveTplBusy ? t("saveTemplateModal.saving") : t("saveTemplateModal.save")}
               </button>
