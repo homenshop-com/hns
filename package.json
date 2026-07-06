@@ -43,6 +43,7 @@
     "grapesjs-plugin-forms": "^2.0.6",
     "grapesjs-preset-webpage": "^1.0.3",
     "grapesjs-tabs": "^1.0.6",
+    "html2canvas": "^1.4.1",
     "immer": "^11.1.4",
     "jsdom": "^28.1.0",
     "jszip": "^3.10.1",

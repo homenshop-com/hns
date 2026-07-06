@@ -663,6 +663,56 @@ export default function DesignEditor({
     }
   }
 
+  // Auto-capture the current editor canvas as the template thumbnail via
+  // html2canvas (lazy-loaded). Renders #de-canvas-inner at 1:1 (ignoring the
+  // parent zoom transform), crops to a landscape top region, and uploads the
+  // JPEG. useCORS lets same-origin / CORS-enabled assets draw; cross-origin
+  // assets without CORS headers render blank but the export still succeeds.
+  async function captureThumbFromCanvas() {
+    const el = document.getElementById("de-canvas-inner");
+    if (!el) {
+      setSaveTplError("캔버스를 찾을 수 없습니다.");
+      return;
+    }
+    setSaveTplThumbUploading(true);
+    setSaveTplError("");
+    try {
+      const { default: html2canvas } = await import("html2canvas");
+      const w = el.offsetWidth || 1000;
+      const cropH = Math.min(el.offsetHeight || w, Math.round(w * 0.72));
+      const shot = await html2canvas(el, {
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        scale: Math.min(1, 960 / w),
+        width: w,
+        height: cropH,
+        windowWidth: w,
+        logging: false,
+        // Keep editor-only chrome (resize bars, region labels) out of the shot.
+        ignoreElements: (node) => {
+          const c = (node as HTMLElement).className;
+          return typeof c === "string" && /de-(header|body)-resize-bar|de-bar-label/.test(c);
+        },
+      });
+      const blob: Blob | null = await new Promise((r) => shot.toBlob((b) => r(b), "image/jpeg", 0.82));
+      if (!blob) throw new Error("toBlob returned null (canvas tainted?)");
+      const fd = new FormData();
+      fd.append("file", new File([blob], "template-thumb.jpg", { type: "image/jpeg" }));
+      fd.append("folder", "site-uploads");
+      fd.append("compress", "true");
+      fd.append("siteId", siteId);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      if (!res.ok) throw new Error(String(res.status));
+      const { url } = await res.json();
+      if (typeof url === "string") setSaveTplThumb(url);
+    } catch (e) {
+      console.error("[thumb capture]", e);
+      setSaveTplError("자동 캡처 실패 — 일부 이미지가 교차출처라 막혔을 수 있어요. 파일 업로드 또는 URL을 사용해 주세요.");
+    } finally {
+      setSaveTplThumbUploading(false);
+    }
+  }
+
   // Close the "⋯" menu on any outside click.
   useEffect(() => {
     if (!moreMenuOpen) return;
@@ -5465,6 +5515,16 @@ export default function DesignEditor({
               <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
                 {t("saveTemplateModal.thumbLabel")}
               </label>
+              {/* Auto-capture the current editor design as the thumbnail. */}
+              <button
+                type="button"
+                onClick={captureThumbFromCanvas}
+                disabled={saveTplThumbUploading}
+                style={{ width: "100%", marginBottom: 8, padding: "9px 12px", fontSize: 13, fontWeight: 600, background: saveTplThumbUploading ? "#eef2ff" : "#e7f0ff", color: "#1d4ed8", border: "1px solid #bfdbfe", borderRadius: 8, cursor: saveTplThumbUploading ? "default" : "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+              >
+                <i className="fa-solid fa-camera" aria-hidden />
+                {saveTplThumbUploading ? "캡처 중…" : "현재 디자인 자동 캡처"}
+              </button>
               {/* Dropzone / preview — click or drag a file to upload (mirrors the
                   "템플릿 정보 수정" modal). Uploads to /api/upload → sets the URL. */}
               <div
