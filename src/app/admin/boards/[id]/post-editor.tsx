@@ -194,13 +194,19 @@ export default function PostEditor({ post, replies }: { post: PostData; replies:
 
         <div>
           <label className="block text-xs text-slate-500 mb-1">내용</label>
-          <textarea
-            value={content}
-            onChange={e => setContent(e.target.value)}
-            disabled={!editing}
-            rows={15}
-            className={`${inputCls} font-mono text-xs leading-relaxed resize-y`}
-          />
+          {editing ? (
+            <textarea
+              value={content}
+              onChange={e => setContent(e.target.value)}
+              rows={15}
+              className={`${inputCls} font-mono text-xs leading-relaxed resize-y`}
+            />
+          ) : (
+            <div
+              className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm text-slate-800 leading-relaxed overflow-x-auto prose prose-sm max-w-none"
+              dangerouslySetInnerHTML={{ __html: content }}
+            />
+          )}
         </div>
 
         {post.photos && (

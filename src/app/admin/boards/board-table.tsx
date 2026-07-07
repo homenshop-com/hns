@@ -9,6 +9,7 @@ interface Post {
   title: string;
   author: string;
   createdAt: string;
+  regdate: string;
   views: number;
   lang: string;
   siteShopId: string;
@@ -161,7 +162,7 @@ export default function BoardTable({ posts, currentPage, totalPages, qsBase }: {
                   {post.replyCount > 0 ? post.replyCount : "-"}
                 </td>
                 <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">
-                  {new Date(post.createdAt).toLocaleDateString("ko-KR")}
+                  {post.regdate || new Date(post.createdAt).toLocaleDateString("ko-KR")}
                 </td>
               </tr>
             ))}
