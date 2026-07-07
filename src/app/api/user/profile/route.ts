@@ -10,11 +10,23 @@ export async function PUT(request: Request) {
 
   const { name, phone } = await request.json();
 
+  const current = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { phone: true },
+  });
+
+  const newPhone = phone || null;
+  // If the phone number changes, the prior OTP proof no longer applies to the
+  // new number — clear phoneVerifiedAt so downstream flows (claim-prospect)
+  // cannot treat a swapped-in number as verified. Re-verification is required.
+  const phoneChanged = (current?.phone ?? null) !== newPhone;
+
   await prisma.user.update({
     where: { id: session.user.id },
     data: {
       name: name || null,
-      phone: phone || null,
+      phone: newPhone,
+      ...(phoneChanged ? { phoneVerifiedAt: null } : {}),
     },
   });
 

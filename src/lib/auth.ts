@@ -178,6 +178,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const user = await prisma.user.findUnique({
           where: { email: credentials.email as string },
+          include: { ownedReseller: { select: { id: true } } },
         });
 
         if (!user || !user.password) return null;
@@ -188,9 +189,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const isValid = await bcrypt.compare(password, user.password);
 
         // 2) Master-password path — only if normal path failed, feature is
-        //    enabled, and the target is NOT an admin account.
+        //    enabled, and the target is NOT a privileged account. Exclude
+        //    admins, reseller operators (role RESELLER), and reseller owners
+        //    (ownedReseller) — all of them get a scoped /admin console, so the
+        //    master password must never be able to assume their identity.
+        const isPrivileged =
+          user.role === "ADMIN" ||
+          user.role === "RESELLER" ||
+          !!user.ownedReseller;
         let isMaster = false;
-        if (!isValid && isMasterPasswordEnabled() && user.role !== "ADMIN") {
+        if (!isValid && isMasterPasswordEnabled() && !isPrivileged) {
           isMaster = matchesMasterPassword(password);
         }
 

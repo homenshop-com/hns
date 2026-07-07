@@ -99,6 +99,20 @@ export async function PUT(
     );
   }
 
+  // Buyers own their order row, so the ownership check above passes for them.
+  // Payment/fulfillment transitions (PAID/SHIPPING/DELIVERED/REFUNDED) must be
+  // driven by the payment webhook or the selling admin — never by the buyer,
+  // or they could mark an unpaid order PAID. A buyer may only cancel their own
+  // still-PENDING order.
+  if (currentUser?.role !== "ADMIN") {
+    if (status !== "CANCELLED" || order.status !== "PENDING") {
+      return NextResponse.json(
+        { error: "주문 상태를 변경할 권한이 없습니다." },
+        { status: 403 }
+      );
+    }
+  }
+
   const updatedOrder = await prisma.order.update({
     where: { id },
     data: { status },

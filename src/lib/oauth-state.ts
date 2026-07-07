@@ -9,7 +9,13 @@
 import { createHmac, timingSafeEqual } from "crypto";
 
 function key(): string {
-  return process.env.AUTH_SECRET || "";
+  const secret = process.env.AUTH_SECRET;
+  if (!secret) {
+    // Fail closed: signing/verifying with an empty key would make every state
+    // signature forgeable, defeating the CSRF protection this module exists for.
+    throw new Error("AUTH_SECRET is required for OAuth state signing");
+  }
+  return secret;
 }
 
 /** Append an HMAC signature: `"<value>.<sig>"`. */

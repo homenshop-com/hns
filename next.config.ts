@@ -27,6 +27,32 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async headers() {
+    // Safe, framework-wide hardening. A strict script-src CSP is intentionally
+    // NOT applied: published user sites author their own inline HTML/JS, so a
+    // global CSP would break them. Frame-blocking is scoped to the app console
+    // (admin/dashboard) to prevent clickjacking without breaking legitimate
+    // embedding of published customer pages.
+    const base = [
+      { key: "X-Content-Type-Options", value: "nosniff" },
+      { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+      {
+        key: "Strict-Transport-Security",
+        value: "max-age=31536000; includeSubDomains",
+      },
+    ];
+    return [
+      { source: "/:path*", headers: base },
+      {
+        source: "/admin/:path*",
+        headers: [...base, { key: "X-Frame-Options", value: "SAMEORIGIN" }],
+      },
+      {
+        source: "/dashboard/:path*",
+        headers: [...base, { key: "X-Frame-Options", value: "SAMEORIGIN" }],
+      },
+    ];
+  },
 };
 
 export default withSentryConfig(withNextIntl(nextConfig), {

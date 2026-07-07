@@ -61,15 +61,35 @@ export async function POST(request: NextRequest) {
     const result = await confirmPayment(paymentKey, orderId, amount);
 
     if (result.status === "DONE") {
-      // Update order status to PAID and save paymentKey
-      const updatedOrder = await prisma.order.update({
-        where: { id: order.id },
+      // Atomically flip PENDING → PAID. Two concurrent /confirm calls with the
+      // same paymentKey both pass the plain PENDING read above; without a
+      // conditional write both would proceed to grant credits / extend the
+      // site twice for one payment. updateMany with a status guard lets only
+      // the first transition win (count === 1); the loser returns "already
+      // processed" and performs no fulfillment.
+      const flip = await prisma.order.updateMany({
+        where: { id: order.id, status: "PENDING" },
         data: {
           status: "PAID",
           paymentKey,
           paymentMethod: result.method || "카드",
         },
       });
+      if (flip.count === 0) {
+        return NextResponse.json(
+          { error: "이미 처리된 주문입니다." },
+          { status: 400 }
+        );
+      }
+      const updatedOrder = await prisma.order.findUnique({
+        where: { id: order.id },
+      });
+      if (!updatedOrder) {
+        return NextResponse.json(
+          { error: "주문을 찾을 수 없습니다." },
+          { status: 404 }
+        );
+      }
 
       // ─── Fulfillment: credit pack orders grant credits on payment ───
       // PRODUCT orders are fulfilled by the existing order flow (stock decrement

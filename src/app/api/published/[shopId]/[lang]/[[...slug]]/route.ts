@@ -1166,11 +1166,15 @@ export async function GET(
       : "";
   const menuItems = topLevelPages
     .map((p) => {
-      const label = p.menuTitle || p.title;
+      // menuTitle/title and externalUrl are owner-controlled free text; escape
+      // before interpolating into the title attr / label span / href so a page
+      // title like `"><img src=x onerror=...>` can't break out. On the shared
+      // publish origin this would otherwise be cross-tenant stored XSS.
+      const label = escapeHtml(p.menuTitle || p.title);
       const icon = menuIconImg((p as { menuIcon?: string | null }).menuIcon);
       const href = p.isHome ? `${urlPrefix}/${lang}/` : `${urlPrefix}/${lang}/${p.slug}.html`;
       const target = p.externalUrl && /^https?:\/\//.test(p.externalUrl) ? ` target="_blank"` : "";
-      const actualHref = p.externalUrl || href;
+      const actualHref = escapeHtml(p.externalUrl || href);
       const children = getChildren(p.id);
 
       if (children.length === 0) {
@@ -1179,9 +1183,9 @@ export async function GET(
 
       const subItems = children
         .map((c) => {
-          const cLabel = c.menuTitle || c.title;
+          const cLabel = escapeHtml(c.menuTitle || c.title);
           const cIcon = menuIconImg((c as { menuIcon?: string | null }).menuIcon);
-          const cHref = c.externalUrl || (c.isHome ? `${urlPrefix}/${lang}/` : `${urlPrefix}/${lang}/${c.slug}.html`);
+          const cHref = escapeHtml(c.externalUrl || (c.isHome ? `${urlPrefix}/${lang}/` : `${urlPrefix}/${lang}/${c.slug}.html`));
           const cTarget = c.externalUrl && /^https?:\/\//.test(c.externalUrl) ? ` target="_blank"` : "";
           return `<li><a title="${cLabel}" href="${cHref}"${cTarget}>${cIcon}<span class="hns-menu-label">${cLabel}</span></a></li>`;
         })
@@ -1335,10 +1339,10 @@ export async function GET(
   if (headerHasNavWithLinks && !headerNavIsCustom && !navAllHashAnchors) {
     const navLinks = topLevelPages
       .map((p) => {
-        const label = p.menuTitle || p.title;
+        const label = escapeHtml(p.menuTitle || p.title);
         const icon = menuIconImg((p as { menuIcon?: string | null }).menuIcon);
         const href = p.isHome ? `${urlPrefix}/${lang}/` : `${urlPrefix}/${lang}/${p.slug}.html`;
-        const actualHref = p.externalUrl || href;
+        const actualHref = escapeHtml(p.externalUrl || href);
         const target = p.externalUrl && /^https?:\/\//.test(p.externalUrl) ? ` target="_blank"` : "";
         return `<a href="${actualHref}"${target}>${icon}<span class="hns-menu-label">${label}</span></a>`;
       })

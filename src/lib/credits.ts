@@ -171,11 +171,24 @@ export async function consumeCredits(
     throw new Error(`consumeCredits requires positive amount; got ${opts.amount}`);
   }
   return prisma.$transaction(async (tx) => {
-    const balance = await getBalance(userId, tx);
-    if (balance < opts.amount) {
+    // Atomic guarded decrement. The `credits >= amount` guard in the WHERE
+    // clause makes the check-and-deduct a single conditional write, so two
+    // concurrent consume calls can't both pass a stale read and drive the
+    // balance below zero (TOCTOU). A read-then-absolute-write here would lose
+    // one of the two updates under Read Committed.
+    const dec = await tx.user.updateMany({
+      where: { id: userId, credits: { gte: opts.amount } },
+      data: { credits: { decrement: opts.amount } },
+    });
+    if (dec.count === 0) {
+      const balance = await getBalance(userId, tx);
       throw new InsufficientCreditsError(balance, opts.amount);
     }
-    const newBalance = balance - opts.amount;
+    const updated = await tx.user.findUnique({
+      where: { id: userId },
+      select: { credits: true },
+    });
+    const newBalance = updated?.credits ?? 0;
     await tx.creditTransaction.create({
       data: {
         userId,
@@ -186,10 +199,6 @@ export async function consumeCredits(
         aiModel: opts.aiModel ?? null,
         description: opts.description ?? null,
       },
-    });
-    await tx.user.update({
-      where: { id: userId },
-      data: { credits: newBalance },
     });
     return newBalance;
   });

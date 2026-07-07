@@ -77,7 +77,7 @@ export async function POST(
     {
       detached: true,
       stdio: "ignore",
-      env: { ...process.env, DB_PASSWORD: process.env.DB_PASSWORD || "HnsApp2026Secure" },
+      env: { ...process.env },
     },
   );
   child.unref();

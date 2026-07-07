@@ -109,6 +109,18 @@ export async function PUT(
     );
   }
 
+  // Payment-state transitions grant credits, extend paid hosting, and record
+  // reseller settlement earnings (recordEarning below). Reserve them for full
+  // admins so a reseller operator cannot flip one of their own members' unpaid
+  // orders to PAID and self-credit the settlement ledger with no real payment.
+  // Resellers may still manage fulfillment states (SHIPPING/DELIVERED/CANCELLED).
+  if (access.kind === "reseller" && (status === "PAID" || status === "REFUNDED")) {
+    return NextResponse.json(
+      { error: "결제 상태 변경은 관리자만 가능합니다." },
+      { status: 403 }
+    );
+  }
+
   const updatedOrder = await prisma.order.update({
     where: { id },
     data: { status },

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { grantCredits, MONTHLY_GRANT_PAID } from "@/lib/credits";
+import { assertCron } from "@/lib/cron-auth";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -20,19 +21,8 @@ export const maxDuration = 300;
  * (common for server-side curl). Anonymous internet calls are 401.
  */
 export async function GET(request: NextRequest) {
-  const expected = process.env.CRON_SECRET;
-  const headerAuth = request.headers.get("authorization") || "";
-  const token = headerAuth.replace(/^Bearer\s+/i, "").trim();
-
-  // Allow localhost calls without secret for quick ops on the server box.
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0].trim()
-    || request.headers.get("x-real-ip")
-    || "";
-  const isLocalhost = ip === "127.0.0.1" || ip === "::1" || ip === "";
-
-  if (expected && token !== expected && !isLocalhost) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const unauthorized = assertCron(request);
+  if (unauthorized) return unauthorized;
 
   const now = new Date();
   const thresholdAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);

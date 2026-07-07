@@ -42,7 +42,6 @@ function spawnDetached(script: string, args: string[]) {
       stdio: "ignore",
       env: {
         ...process.env,
-        DB_PASSWORD: process.env.DB_PASSWORD || "HnsApp2026Secure",
       },
     });
     child.unref();

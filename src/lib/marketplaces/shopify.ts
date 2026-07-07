@@ -35,8 +35,19 @@ interface ShopifyCreds extends MarketplaceCredentials {
   scope?: string;
 }
 
+// A Shopify shop host is always `<store>.myshopify.com` (lowercase, no port,
+// no path). Enforcing this on every creds check — not just the OAuth callback —
+// prevents SSRF: shopifyFetch() builds `https://${shop}/...`, so an unvalidated
+// shop like "169.254.169.254" would let a caller point the server at internal
+// hosts and read the reflected response body.
+const SHOPIFY_SHOP_RE = /^[a-z0-9][a-z0-9-]*\.myshopify\.com$/;
+
+export function isValidShopifyShop(shop: unknown): shop is string {
+  return typeof shop === "string" && SHOPIFY_SHOP_RE.test(shop);
+}
+
 function isShopifyCreds(c: MarketplaceCredentials): c is ShopifyCreds {
-  return typeof c.shop === "string" && typeof c.accessToken === "string";
+  return isValidShopifyShop(c.shop) && typeof c.accessToken === "string";
 }
 
 function mapShopifyStatus(financial: string, fulfillment: string | null): OrderStatus {

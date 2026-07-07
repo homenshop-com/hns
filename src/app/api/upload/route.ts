@@ -47,7 +47,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const folderRaw = (formData.get("folder") as string) || "uploads";
+    const folderRawInput = (formData.get("folder") as string) || "uploads";
+    // Whitelist the folder segment to prevent path traversal — the raw value
+    // flows into join(UPLOAD_DIR, folder) in storage.ts. Only [a-z0-9_-] and a
+    // single "site-uploads" prefix are permitted; anything with "/", "\" or ".."
+    // is rejected before it can escape the upload root.
+    const folderRaw = /^[a-z0-9_-]+$/i.test(folderRawInput) ? folderRawInput : "uploads";
     const siteIdRaw = formData.get("siteId");
     // siteId scopes uploads to /uploads/site-uploads/{shopId}/ so the
     // 에셋 tab can list a site's media + each customer's folder is named

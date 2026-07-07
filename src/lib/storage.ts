@@ -1,11 +1,33 @@
 import { randomUUID } from "crypto";
 import { writeFile, mkdir, unlink } from "fs/promises";
-import { join, extname } from "path";
+import { join, extname, normalize, sep } from "path";
 import sharp from "sharp";
 
 /* ─── Configuration ─── */
 const UPLOAD_DIR = process.env.UPLOAD_DIR || "/var/www/uploads";
 const UPLOAD_URL = process.env.UPLOAD_URL || "/uploads";
+
+/* ─── Path/extension safety (defense-in-depth) ─── */
+// Executable/script extensions that must never be served same-origin.
+const SAFE_EXT = new Set([
+  ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".bmp", ".ico",
+  ".pdf", ".txt", ".csv", ".zip", ".bin",
+]);
+
+/** Normalize an extension to a non-executable allowlist; fall back to ".bin". */
+function safeExt(name: string): string {
+  const ext = extname(name).toLowerCase();
+  return SAFE_EXT.has(ext) ? ext : ".bin";
+}
+
+/** Resolve a folder under UPLOAD_DIR, throwing if it escapes the upload root. */
+function resolveUploadDir(folder: string): string {
+  const dir = normalize(join(UPLOAD_DIR, folder));
+  if (dir !== UPLOAD_DIR && !dir.startsWith(UPLOAD_DIR + sep)) {
+    throw new Error("Invalid upload folder");
+  }
+  return dir;
+}
 
 /* ─── Image sizes ─── */
 export interface ImageSizes {
@@ -24,10 +46,10 @@ const SIZE_CONFIGS = [
  * Upload a single file (no resize). Returns the public URL.
  */
 export async function uploadFile(file: File, folder: string = "uploads"): Promise<string> {
-  const ext = extname(file.name) || ".bin";
+  const ext = safeExt(file.name);
   const uuid = randomUUID();
   const filename = `${uuid}${ext}`;
-  const dir = join(UPLOAD_DIR, folder);
+  const dir = resolveUploadDir(folder);
   await mkdir(dir, { recursive: true });
 
   const buffer = Buffer.from(await file.arrayBuffer());

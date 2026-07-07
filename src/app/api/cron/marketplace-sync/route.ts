@@ -4,6 +4,7 @@ import { decryptJson } from "@/lib/secrets";
 import { getAdapter } from "@/lib/marketplaces/registry";
 import { importOrders } from "@/lib/marketplaces/importer";
 import type { MarketplaceCredentials } from "@/lib/marketplaces/types";
+import { assertCron } from "@/lib/cron-auth";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -26,18 +27,8 @@ export const maxDuration = 300;
  * Auth same as monthly-credits: Bearer CRON_SECRET or localhost.
  */
 export async function GET(request: NextRequest) {
-  const expected = process.env.CRON_SECRET;
-  const token = (request.headers.get("authorization") || "")
-    .replace(/^Bearer\s+/i, "")
-    .trim();
-  const ip =
-    request.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
-    request.headers.get("x-real-ip") ||
-    "";
-  const isLocalhost = ip === "127.0.0.1" || ip === "::1" || ip === "";
-  if (expected && token !== expected && !isLocalhost) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const unauthorized = assertCron(request);
+  if (unauthorized) return unauthorized;
 
   const integrations = await prisma.marketplaceIntegration.findMany({
     where: { status: "ACTIVE" },
