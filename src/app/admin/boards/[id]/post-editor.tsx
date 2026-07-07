@@ -204,6 +204,11 @@ export default function PostEditor({ post, replies }: { post: PostData; replies:
           ) : (
             <div
               className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm text-slate-800 leading-relaxed overflow-x-auto prose prose-sm max-w-none"
+              // 로드 실패한 이미지(레거시 유실 파일)는 빈 액자 아이콘 대신 숨김
+              onErrorCapture={e => {
+                const t = e.target as HTMLElement;
+                if (t.tagName === "IMG") t.style.display = "none";
+              }}
               dangerouslySetInnerHTML={{ __html: content }}
             />
           )}

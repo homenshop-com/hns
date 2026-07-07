@@ -1701,6 +1701,14 @@ export async function GET(
     ? ''
     : `<script>(function(){var el=document.getElementById('hns_body');if(!el)return;function calc(){var m=0;var all=el.querySelectorAll('.dragable');for(var i=0;i<all.length;i++){var c=all[i],cs=window.getComputedStyle(c);if(cs.position!=='absolute'||cs.display==='none'||cs.visibility==='hidden')continue;var l=parseInt(cs.left)||0;if(el.offsetWidth>0&&l>=el.offsetWidth)continue;var t=parseInt(cs.top)||0,h=Math.max(c.offsetHeight||0,c.scrollHeight||0);if(t+h>m)m=t+h;}if(m>0)el.style.minHeight=m+'px';}calc();var imgs=el.querySelectorAll('img');var n=0;function onImg(){n++;if(n>=imgs.length)calc();}for(var j=0;j<imgs.length;j++){if(imgs[j].complete)n++;else{imgs[j].addEventListener('load',onImg);imgs[j].addEventListener('error',onImg);}}if(n>=imgs.length&&imgs.length>0)calc();setTimeout(calc,500);setTimeout(calc,1500);})();</script>`;
 
+  // 로드 실패한 이미지(레거시 서버 유실 파일 등)는 빈 액자 아이콘 대신 숨김 처리.
+  // capture-phase 리스너(error는 버블링 안 됨) + load 후 잔여 실패분 일괄 스윕.
+  const brokenImgScript = `<script>(function(){
+    function hide(t){if(t&&t.tagName==='IMG')t.style.display='none';}
+    document.addEventListener('error',function(e){hide(e.target);},true);
+    window.addEventListener('load',function(){var im=document.images;for(var i=0;i<im.length;i++){if(im[i].complete&&im[i].naturalWidth===0)hide(im[i]);}});
+  })();</script>`;
+
   // ─── Sprint 9k: runtime for `data-hns-interaction` ────────────────
   // The editor's InspectorPanel writes a JSON payload into this attribute
   // on any layer. We wire up the matching click behavior here so the
@@ -2128,6 +2136,7 @@ export async function GET(
   })();</script>
   ${scaleScript}
   ${interactionScript}
+  ${brokenImgScript}
 </body>
 </html>`
   : `<!DOCTYPE html>
@@ -2182,6 +2191,7 @@ export async function GET(
   ${minHeightScript}
   ${scaleScript}
   ${interactionScript}
+  ${brokenImgScript}
 </body>
 </html>`;
 
