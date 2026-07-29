@@ -550,7 +550,7 @@ export default async function Home() {
             />
           ) : (
             <p className="footer-copy">
-              &copy; {new Date().getFullYear()} homenshop.net. All rights
+              &copy; 2008-{new Date().getFullYear()} homenshop.com. All rights
               reserved.
             </p>
           )}
