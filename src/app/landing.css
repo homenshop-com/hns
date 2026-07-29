@@ -961,6 +961,25 @@
   top: 16px;
   right: 16px;
 }
+/* Escape hatch back to the landing page — auth pages are otherwise a dead end. */
+.auth-home {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-decoration: none;
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+.auth-home:hover {
+  color: var(--blue);
+  background: rgba(49, 130, 246, 0.08);
+}
 .auth-card {
   background: #fff;
   border-radius: 8px;

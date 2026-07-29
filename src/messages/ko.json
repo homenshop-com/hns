@@ -135,6 +135,7 @@
     "geoBadge": "AI 답변·검색엔진 이중 최적화"
   },
   "auth": {
+    "backHome": "홈으로",
     "login": {
       "title": "로그인",
       "email": "이메일",
@@ -172,6 +173,43 @@
       "goLogin": "로그인",
       "googleSignUp": "Google 계정으로 가입하기",
       "or": "또는"
+    },
+    "forgotPassword": {
+      "title": "비밀번호 찾기",
+      "email": "이메일",
+      "emailPlaceholder": "가입한 이메일 주소 입력",
+      "submit": "재설정 링크 보내기",
+      "submitting": "전송 중...",
+      "backToLogin": "로그인으로 돌아가기",
+      "success": "비밀번호 재설정 링크가 이메일로 전송되었습니다.",
+      "error": "오류가 발생했습니다.",
+      "serverError": "서버 오류가 발생했습니다."
+    },
+    "resetPassword": {
+      "title": "비밀번호 재설정",
+      "newPassword": "새 비밀번호",
+      "newPasswordPlaceholder": "8자 이상 입력",
+      "confirmPassword": "비밀번호 확인",
+      "confirmPasswordPlaceholder": "비밀번호를 다시 입력",
+      "submit": "비밀번호 변경",
+      "submitting": "처리 중...",
+      "goLogin": "로그인으로 이동",
+      "invalidLink": "유효하지 않은 링크입니다.",
+      "tooShort": "비밀번호는 8자 이상이어야 합니다.",
+      "mismatch": "비밀번호가 일치하지 않습니다.",
+      "success": "비밀번호가 성공적으로 변경되었습니다.",
+      "error": "오류가 발생했습니다.",
+      "serverError": "서버 오류가 발생했습니다.",
+      "loading": "로딩 중..."
+    },
+    "verifyEmail": {
+      "successTitle": "이메일 인증 완료",
+      "errorTitle": "인증 실패",
+      "success": "이메일 인증이 완료되었습니다!",
+      "invalidLink": "유효하지 않은 링크입니다.",
+      "notFound": "인증 링크가 만료되었거나 유효하지 않습니다.",
+      "expired": "인증 링크가 만료되었습니다. 다시 요청해주세요.",
+      "goDashboard": "대시보드로 이동"
     }
   },
   "dashboard": {

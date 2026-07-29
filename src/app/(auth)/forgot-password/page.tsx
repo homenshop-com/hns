@@ -2,9 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 export default function ForgotPasswordPage() {
+  const t = useTranslations("auth.forgotPassword");
+  const tAuth = useTranslations("auth");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -26,14 +29,16 @@ export default function ForgotPasswordPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "오류가 발생했습니다.");
+        // The API still returns Korean-only strings; fall back to the
+        // localized generic message when it has nothing specific to say.
+        setError(data.error || t("error"));
         return;
       }
 
-      setMessage(data.message || "비밀번호 재설정 링크가 이메일로 전송되었습니다.");
+      setMessage(t("success"));
       setEmail("");
     } catch {
-      setError("서버 오류가 발생했습니다.");
+      setError(t("serverError"));
     } finally {
       setLoading(false);
     }
@@ -41,17 +46,20 @@ export default function ForgotPasswordPage() {
 
   return (
     <div className="auth-page">
+      <Link href="/" className="auth-home">
+        <span aria-hidden="true">←</span> {tAuth("backHome")}
+      </Link>
       <div className="auth-lang">
         <LanguageSwitcher variant="globe" />
       </div>
       <div className="auth-card login">
-        <h1 className="auth-title">비밀번호 찾기</h1>
+        <h1 className="auth-title">{t("title")}</h1>
 
         {message ? (
           <>
             <div className="auth-success">{message}</div>
             <Link href="/login" className="auth-btn-outline">
-              로그인으로 돌아가기
+              {t("backToLogin")}
             </Link>
           </>
         ) : (
@@ -59,25 +67,25 @@ export default function ForgotPasswordPage() {
             {error && <div className="auth-error">{error}</div>}
 
             <div className="auth-field">
-              <label htmlFor="email">이메일</label>
+              <label htmlFor="email">{t("email")}</label>
               <input
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="가입한 이메일 주소 입력"
+                placeholder={t("emailPlaceholder")}
                 required
               />
             </div>
 
             <button type="submit" disabled={loading} className="auth-btn">
-              {loading ? "전송 중..." : "재설정 링크 보내기"}
+              {loading ? t("submitting") : t("submit")}
             </button>
           </form>
         )}
 
         <div className="auth-footer" style={{ marginTop: 24 }}>
-          <Link href="/login">로그인으로 돌아가기</Link>
+          <Link href="/login">{t("backToLogin")}</Link>
         </div>
       </div>
     </div>

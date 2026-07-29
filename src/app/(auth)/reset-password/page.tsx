@@ -3,9 +3,12 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 function ResetPasswordForm() {
+  const t = useTranslations("auth.resetPassword");
+  const tAuth = useTranslations("auth");
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
 
@@ -17,9 +20,9 @@ function ResetPasswordForm() {
 
   useEffect(() => {
     if (!token) {
-      setError("유효하지 않은 링크입니다.");
+      setError(t("invalidLink"));
     }
-  }, [token]);
+  }, [token, t]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -27,12 +30,12 @@ function ResetPasswordForm() {
     setMessage("");
 
     if (password.length < 8) {
-      setError("비밀번호는 8자 이상이어야 합니다.");
+      setError(t("tooShort"));
       return;
     }
 
     if (password !== confirmPassword) {
-      setError("비밀번호가 일치하지 않습니다.");
+      setError(t("mismatch"));
       return;
     }
 
@@ -48,15 +51,17 @@ function ResetPasswordForm() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "오류가 발생했습니다.");
+        // The API still returns Korean-only strings; fall back to the
+        // localized generic message when it has nothing specific to say.
+        setError(data.error || t("error"));
         return;
       }
 
-      setMessage(data.message);
+      setMessage(t("success"));
       setPassword("");
       setConfirmPassword("");
     } catch {
-      setError("서버 오류가 발생했습니다.");
+      setError(t("serverError"));
     } finally {
       setLoading(false);
     }
@@ -64,17 +69,20 @@ function ResetPasswordForm() {
 
   return (
     <div className="auth-page">
+      <Link href="/" className="auth-home">
+        <span aria-hidden="true">←</span> {tAuth("backHome")}
+      </Link>
       <div className="auth-lang">
         <LanguageSwitcher variant="globe" />
       </div>
       <div className="auth-card reset">
-        <h1 className="auth-title">비밀번호 재설정</h1>
+        <h1 className="auth-title">{t("title")}</h1>
 
         {message ? (
           <>
             <div className="auth-success">{message}</div>
             <Link href="/login" className="auth-btn-outline">
-              로그인으로 이동
+              {t("goLogin")}
             </Link>
           </>
         ) : (
@@ -82,13 +90,13 @@ function ResetPasswordForm() {
             {error && <div className="auth-error">{error}</div>}
 
             <div className="auth-field">
-              <label htmlFor="password">새 비밀번호</label>
+              <label htmlFor="password">{t("newPassword")}</label>
               <input
                 id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="8자 이상 입력"
+                placeholder={t("newPasswordPlaceholder")}
                 required
                 minLength={8}
                 disabled={!token}
@@ -96,13 +104,13 @@ function ResetPasswordForm() {
             </div>
 
             <div className="auth-field">
-              <label htmlFor="confirmPassword">비밀번호 확인</label>
+              <label htmlFor="confirmPassword">{t("confirmPassword")}</label>
               <input
                 id="confirmPassword"
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="비밀번호를 다시 입력"
+                placeholder={t("confirmPasswordPlaceholder")}
                 required
                 minLength={8}
                 disabled={!token}
@@ -114,7 +122,7 @@ function ResetPasswordForm() {
               disabled={loading || !token}
               className="auth-btn"
             >
-              {loading ? "처리 중..." : "비밀번호 변경"}
+              {loading ? t("submitting") : t("submit")}
             </button>
           </form>
         )}
@@ -123,17 +131,20 @@ function ResetPasswordForm() {
   );
 }
 
+function ResetPasswordFallback() {
+  const t = useTranslations("auth.resetPassword");
+  return (
+    <div className="auth-page">
+      <div className="auth-card reset">
+        <p style={{ textAlign: "center", padding: "20px" }}>{t("loading")}</p>
+      </div>
+    </div>
+  );
+}
+
 export default function ResetPasswordPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="auth-page">
-          <div className="auth-card reset">
-            <p style={{ textAlign: "center", padding: "20px" }}>로딩 중...</p>
-          </div>
-        </div>
-      }
-    >
+    <Suspense fallback={<ResetPasswordFallback />}>
       <ResetPasswordForm />
     </Suspense>
   );

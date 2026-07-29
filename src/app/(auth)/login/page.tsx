@@ -41,6 +41,7 @@ export default function LoginPage() {
   // reseller white-label domains it stays off so login isn't blocked.
   const [turnstileActive, setTurnstileActive] = useState(false);
   const t = useTranslations("auth.login");
+  const tAuth = useTranslations("auth");
 
   useEffect(() => {
     if (!TURNSTILE_ENABLED) return;
@@ -104,6 +105,9 @@ export default function LoginPage() {
 
   return (
     <div className="auth-page">
+      <Link href="/" className="auth-home">
+        <span aria-hidden="true">←</span> {tAuth("backHome")}
+      </Link>
       <div className="auth-lang">
         <LanguageSwitcher variant="globe" />
       </div>

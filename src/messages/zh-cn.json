@@ -135,6 +135,7 @@
     "geoBadge": "AI 回答+生成式搜索 双重优化"
   },
   "auth": {
+    "backHome": "返回首页",
     "login": {
       "title": "登录",
       "email": "邮箱",
@@ -172,6 +173,43 @@
       "goLogin": "登录",
       "googleSignUp": "使用 Google 注册",
       "or": "或"
+    },
+    "forgotPassword": {
+      "title": "找回密码",
+      "email": "邮箱",
+      "emailPlaceholder": "请输入注册邮箱",
+      "submit": "发送重置链接",
+      "submitting": "发送中...",
+      "backToLogin": "返回登录",
+      "success": "密码重置链接已发送至您的邮箱。",
+      "error": "发生错误。",
+      "serverError": "服务器错误。"
+    },
+    "resetPassword": {
+      "title": "重置密码",
+      "newPassword": "新密码",
+      "newPasswordPlaceholder": "请输入至少8个字符",
+      "confirmPassword": "确认密码",
+      "confirmPasswordPlaceholder": "请再次输入密码",
+      "submit": "修改密码",
+      "submitting": "处理中...",
+      "goLogin": "前往登录",
+      "invalidLink": "链接无效。",
+      "tooShort": "密码至少需要8个字符。",
+      "mismatch": "两次输入的密码不一致。",
+      "success": "密码修改成功。",
+      "error": "发生错误。",
+      "serverError": "服务器错误。",
+      "loading": "加载中..."
+    },
+    "verifyEmail": {
+      "successTitle": "邮箱验证完成",
+      "errorTitle": "验证失败",
+      "success": "邮箱验证已完成！",
+      "invalidLink": "链接无效。",
+      "notFound": "验证链接无效或已过期。",
+      "expired": "验证链接已过期，请重新申请。",
+      "goDashboard": "前往控制台"
     }
   },
   "dashboard": {

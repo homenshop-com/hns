@@ -22,6 +22,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState("");
   const t = useTranslations("auth.register");
+  const tAuth = useTranslations("auth");
 
   // Google auto-signup is disabled (see auth.ts signIn callback): a first-time
   // Google login is redirected here so the user creates the account through the
@@ -222,6 +223,9 @@ export default function RegisterPage() {
 
   return (
     <div className="auth-page">
+      <Link href="/" className="auth-home">
+        <span aria-hidden="true">←</span> {tAuth("backHome")}
+      </Link>
       <div className="auth-lang">
         <LanguageSwitcher variant="globe" />
       </div>

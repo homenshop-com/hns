@@ -135,6 +135,7 @@
     "geoBadge": "Answer Engine + Generative Engine Optimization"
   },
   "auth": {
+    "backHome": "Back to home",
     "login": {
       "title": "Login",
       "email": "Email",
@@ -172,6 +173,43 @@
       "goLogin": "Login",
       "googleSignUp": "Sign up with Google",
       "or": "or"
+    },
+    "forgotPassword": {
+      "title": "Forgot Password",
+      "email": "Email",
+      "emailPlaceholder": "Enter your registered email",
+      "submit": "Send reset link",
+      "submitting": "Sending...",
+      "backToLogin": "Back to login",
+      "success": "A password reset link has been sent to your email.",
+      "error": "An error occurred.",
+      "serverError": "A server error occurred."
+    },
+    "resetPassword": {
+      "title": "Reset Password",
+      "newPassword": "New password",
+      "newPasswordPlaceholder": "Enter at least 8 characters",
+      "confirmPassword": "Confirm password",
+      "confirmPasswordPlaceholder": "Re-enter your password",
+      "submit": "Change password",
+      "submitting": "Processing...",
+      "goLogin": "Go to login",
+      "invalidLink": "This link is invalid.",
+      "tooShort": "Password must be at least 8 characters.",
+      "mismatch": "Passwords do not match.",
+      "success": "Your password has been changed successfully.",
+      "error": "An error occurred.",
+      "serverError": "A server error occurred.",
+      "loading": "Loading..."
+    },
+    "verifyEmail": {
+      "successTitle": "Email Verified",
+      "errorTitle": "Verification Failed",
+      "success": "Your email has been verified!",
+      "invalidLink": "This link is invalid.",
+      "notFound": "The verification link is invalid or has expired.",
+      "expired": "The verification link has expired. Please request a new one.",
+      "goDashboard": "Go to dashboard"
     }
   },
   "dashboard": {

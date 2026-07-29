@@ -17,6 +17,7 @@ export default function DemoSignInPage() {
   const [turnstileToken, setTurnstileToken] = useState("");
   const [turnstileKey, setTurnstileKey] = useState(0);
   const t = useTranslations("auth.login");
+  const tAuth = useTranslations("auth");
 
   const handleTurnstileVerify = useCallback((token: string) => {
     setTurnstileToken(token);
@@ -55,6 +56,9 @@ export default function DemoSignInPage() {
 
   return (
     <div className="auth-page">
+      <Link href="/" className="auth-home">
+        <span aria-hidden="true">←</span> {tAuth("backHome")}
+      </Link>
       <div className="auth-lang">
         <LanguageSwitcher variant="globe" />
       </div>

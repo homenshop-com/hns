@@ -135,6 +135,7 @@
     "geoBadge": "AI 回答+生成式搜尋 雙重優化"
   },
   "auth": {
+    "backHome": "返回首頁",
     "login": {
       "title": "登入",
       "email": "電子信箱",
@@ -172,6 +173,43 @@
       "goLogin": "登入",
       "googleSignUp": "使用 Google 註冊",
       "or": "或"
+    },
+    "forgotPassword": {
+      "title": "找回密碼",
+      "email": "電子信箱",
+      "emailPlaceholder": "請輸入註冊的電子信箱",
+      "submit": "傳送重設連結",
+      "submitting": "傳送中...",
+      "backToLogin": "返回登入",
+      "success": "密碼重設連結已傳送至您的電子信箱。",
+      "error": "發生錯誤。",
+      "serverError": "伺服器錯誤。"
+    },
+    "resetPassword": {
+      "title": "重設密碼",
+      "newPassword": "新密碼",
+      "newPasswordPlaceholder": "請輸入至少8個字元",
+      "confirmPassword": "確認密碼",
+      "confirmPasswordPlaceholder": "請再次輸入密碼",
+      "submit": "變更密碼",
+      "submitting": "處理中...",
+      "goLogin": "前往登入",
+      "invalidLink": "連結無效。",
+      "tooShort": "密碼至少需要8個字元。",
+      "mismatch": "兩次輸入的密碼不一致。",
+      "success": "密碼變更成功。",
+      "error": "發生錯誤。",
+      "serverError": "伺服器錯誤。",
+      "loading": "載入中..."
+    },
+    "verifyEmail": {
+      "successTitle": "電子信箱驗證完成",
+      "errorTitle": "驗證失敗",
+      "success": "電子信箱驗證已完成！",
+      "invalidLink": "連結無效。",
+      "notFound": "驗證連結無效或已過期。",
+      "expired": "驗證連結已過期，請重新申請。",
+      "goDashboard": "前往控制台"
     }
   },
   "dashboard": {

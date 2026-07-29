@@ -135,6 +135,7 @@
     "geoBadge": "Answer Engine + Generative Engine Optimization"
   },
   "auth": {
+    "backHome": "Volver al inicio",
     "login": {
       "title": "Iniciar sesión",
       "email": "Correo electrónico",
@@ -172,6 +173,43 @@
       "goLogin": "Iniciar sesión",
       "googleSignUp": "Registrarse con Google",
       "or": "o"
+    },
+    "forgotPassword": {
+      "title": "Recuperar contraseña",
+      "email": "Correo electrónico",
+      "emailPlaceholder": "Ingrese el correo registrado",
+      "submit": "Enviar enlace de restablecimiento",
+      "submitting": "Enviando...",
+      "backToLogin": "Volver a iniciar sesión",
+      "success": "Se ha enviado un enlace de restablecimiento a su correo electrónico.",
+      "error": "Se produjo un error.",
+      "serverError": "Error del servidor."
+    },
+    "resetPassword": {
+      "title": "Restablecer contraseña",
+      "newPassword": "Nueva contraseña",
+      "newPasswordPlaceholder": "Ingrese al menos 8 caracteres",
+      "confirmPassword": "Confirmar contraseña",
+      "confirmPasswordPlaceholder": "Vuelva a ingresar la contraseña",
+      "submit": "Cambiar contraseña",
+      "submitting": "Procesando...",
+      "goLogin": "Ir a iniciar sesión",
+      "invalidLink": "El enlace no es válido.",
+      "tooShort": "La contraseña debe tener al menos 8 caracteres.",
+      "mismatch": "Las contraseñas no coinciden.",
+      "success": "Su contraseña se cambió correctamente.",
+      "error": "Se produjo un error.",
+      "serverError": "Error del servidor.",
+      "loading": "Cargando..."
+    },
+    "verifyEmail": {
+      "successTitle": "Correo verificado",
+      "errorTitle": "Verificación fallida",
+      "success": "¡Su correo electrónico ha sido verificado!",
+      "invalidLink": "El enlace no es válido.",
+      "notFound": "El enlace de verificación no es válido o ha expirado.",
+      "expired": "El enlace de verificación ha expirado. Solicite uno nuevo.",
+      "goDashboard": "Ir al panel"
     }
   },
   "dashboard": {

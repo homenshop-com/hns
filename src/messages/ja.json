@@ -135,6 +135,7 @@
     "geoBadge": "AI 回答・検索エンジン両対応の最適化"
   },
   "auth": {
+    "backHome": "ホームへ",
     "login": {
       "title": "ログイン",
       "email": "メールアドレス",
@@ -172,6 +173,43 @@
       "goLogin": "ログイン",
       "googleSignUp": "Googleで登録",
       "or": "または"
+    },
+    "forgotPassword": {
+      "title": "パスワードをお忘れですか",
+      "email": "メールアドレス",
+      "emailPlaceholder": "登録したメールアドレスを入力",
+      "submit": "リセットリンクを送信",
+      "submitting": "送信中...",
+      "backToLogin": "ログインに戻る",
+      "success": "パスワード再設定リンクをメールで送信しました。",
+      "error": "エラーが発生しました。",
+      "serverError": "サーバーエラーが発生しました。"
+    },
+    "resetPassword": {
+      "title": "パスワード再設定",
+      "newPassword": "新しいパスワード",
+      "newPasswordPlaceholder": "8文字以上で入力",
+      "confirmPassword": "パスワード確認",
+      "confirmPasswordPlaceholder": "パスワードを再入力",
+      "submit": "パスワードを変更",
+      "submitting": "処理中...",
+      "goLogin": "ログインへ移動",
+      "invalidLink": "無効なリンクです。",
+      "tooShort": "パスワードは8文字以上で入力してください。",
+      "mismatch": "パスワードが一致しません。",
+      "success": "パスワードが正常に変更されました。",
+      "error": "エラーが発生しました。",
+      "serverError": "サーバーエラーが発生しました。",
+      "loading": "読み込み中..."
+    },
+    "verifyEmail": {
+      "successTitle": "メール認証完了",
+      "errorTitle": "認証失敗",
+      "success": "メール認証が完了しました！",
+      "invalidLink": "無効なリンクです。",
+      "notFound": "認証リンクが無効または期限切れです。",
+      "expired": "認証リンクの有効期限が切れました。再度リクエストしてください。",
+      "goDashboard": "ダッシュボードへ移動"
     }
   },
   "dashboard": {

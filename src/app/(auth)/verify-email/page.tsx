@@ -1,5 +1,8 @@
 import { prisma } from "@/lib/db";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
+
+type MessageKey = "success" | "invalidLink" | "notFound" | "expired";
 
 export default async function VerifyEmailPage({
   searchParams,
@@ -9,7 +12,7 @@ export default async function VerifyEmailPage({
   const { token } = await searchParams;
 
   if (!token) {
-    return <Result status="error" message="유효하지 않은 링크입니다." />;
+    return <Result status="error" messageKey="invalidLink" />;
   }
 
   // Find token
@@ -18,13 +21,13 @@ export default async function VerifyEmailPage({
   });
 
   if (!record) {
-    return <Result status="error" message="인증 링크가 만료되었거나 유효하지 않습니다." />;
+    return <Result status="error" messageKey="notFound" />;
   }
 
   if (record.expires < new Date()) {
     // Clean up expired token
     await prisma.verificationToken.delete({ where: { token } });
-    return <Result status="error" message="인증 링크가 만료되었습니다. 다시 요청해주세요." />;
+    return <Result status="error" messageKey="expired" />;
   }
 
   // Mark user as verified
@@ -36,28 +39,39 @@ export default async function VerifyEmailPage({
   // Delete used token
   await prisma.verificationToken.delete({ where: { token } });
 
-  return <Result status="success" message="이메일 인증이 완료되었습니다!" />;
+  return <Result status="success" messageKey="success" />;
 }
 
-function Result({ status, message }: { status: "success" | "error"; message: string }) {
+async function Result({
+  status,
+  messageKey,
+}: {
+  status: "success" | "error";
+  messageKey: MessageKey;
+}) {
+  const t = await getTranslations("auth.verifyEmail");
+  const tAuth = await getTranslations("auth");
   return (
     <div className="auth-page">
+      <Link href="/" className="auth-home">
+        <span aria-hidden="true">←</span> {tAuth("backHome")}
+      </Link>
       <div className="auth-card login" style={{ textAlign: "center" }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>
-          {status === "success" ? "\u2705" : "\u274C"}
+          {status === "success" ? "✅" : "❌"}
         </div>
         <h1 className="auth-title" style={{ marginBottom: 12 }}>
-          {status === "success" ? "이메일 인증 완료" : "인증 실패"}
+          {status === "success" ? t("successTitle") : t("errorTitle")}
         </h1>
         <p style={{ color: "#4a5568", fontSize: 15, marginBottom: 24, lineHeight: 1.6 }}>
-          {message}
+          {t(messageKey)}
         </p>
         <Link
           href="/dashboard"
           className="auth-btn"
           style={{ display: "inline-block", textDecoration: "none", textAlign: "center" }}
         >
-          대시보드로 이동
+          {t("goDashboard")}
         </Link>
       </div>
     </div>
