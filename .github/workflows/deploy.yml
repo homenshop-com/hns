@@ -1,8 +1,19 @@
 name: Deploy
 
+# Auto-deploy on push is DISABLED.
+#
+# The steps below predate the blue-green setup (ecosystem.config.cjs, 2026-06-01)
+# and no longer match how this server is deployed:
+#   - `pm2 restart homenshop-next` — that process name no longer exists
+#     (it is now hns-blue / hns-green)
+#   - `npm run build` writes to .next, but the live colour serves
+#     .next-blue / .next-green, so a build here never reaches traffic
+#   - `prisma db push --accept-data-loss` runs against the production DB
+#
+# Real deploys are run on the server:  bash scripts/deploy-blue-green.sh
+# Fix the steps below before dispatching this workflow.
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 jobs:
   deploy:

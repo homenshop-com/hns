@@ -1438,12 +1438,26 @@ export async function GET(
   // destination (UPLOAD_URL default). Both are served at the domain root by
   // nginx, so they must NOT be prefixed with /{shopId}/{lang}/.
   const RESERVED_ROOTS = /^\/(tpl|uploaded|uploads|api|_next|static|favicon|ko|en|ja|zh|vi)(\/|$)/i;
+  // Same intent as RESERVED_ROOTS, but for asset paths that legacy content
+  // already baked the shopId into (`/{shopId}/uploaded/…`, written while the
+  // site was only reachable at home.homenshop.com/{shopId}/). nginx maps these
+  // to the site's data dir on custom domains too, so they are already correct
+  // and must never receive a `/{lang}` prefix.
+  const SHOP_ASSET_ROOT = new RegExp(
+    `^/${shopId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/(uploaded|uploads|tpl|thumb|api)(/|$)`,
+    "i",
+  );
   const rewriteInternalLinks = (h: string): string =>
     h.replace(
       /(href|action|src)=(["'])(\/[^"'#?][^"']*)(["'])/gi,
       (match, attr, q1, urlPath, q2) => {
         // Skip asset roots already served from the domain root.
         if (RESERVED_ROOTS.test(urlPath)) return match;
+        // Skip shopId-rooted asset paths. On custom domains `urlPrefix` is ""
+        // so the check below never fires, and legacy `/{shopId}/uploaded/…`
+        // image srcs were getting a `/{lang}` prefix → 404 (the same page
+        // rendered fine on home.homenshop.com, where urlPrefix is set).
+        if (SHOP_ASSET_ROOT.test(urlPath)) return match;
         // Skip if already prefixed with the shopId.
         if (urlPrefix && urlPath.startsWith(`${urlPrefix}/`)) return match;
         // On custom domain (empty urlPrefix), skip if already prefixed with /{lang}/.
